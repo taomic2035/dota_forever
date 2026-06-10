@@ -223,7 +223,12 @@ export const ITEMS: ItemDef[] = [
 export const ITEM_BY_KEY = new Map(ITEMS.map((i) => [i.key, i]));
 
 export function itemDef(key: string): ItemDef {
-  const def = ITEM_BY_KEY.get(key);
+  let def = ITEM_BY_KEY.get(key);
+  if (!def) {
+    // 索引自愈:文件尾部追加的物品在索引构建后注册
+    def = ITEMS.find((i) => i.key === key);
+    if (def) ITEM_BY_KEY.set(key, def);
+  }
   if (!def) throw new Error(`unknown item ${key}`);
   return def;
 }
@@ -232,3 +237,43 @@ export function itemDef(key: string): ItemDef {
 export function isDusted(u: Unit): boolean {
   return hasModifier(u, 'item_dusted');
 }
+
+// ---------- 基础补充(合成原料) ----------
+ITEMS.push(
+  { key: 'magic_stick', name: '魔力短杖', cost: 200, category: 'arcane', charges: 0,
+    description: '周围敌人施法时获得充能;使用恢复生命与法力(充能逻辑见强化魔杖)。' },
+  { key: 'morbid_mask', name: '噬血面具', cost: 900, category: 'weapon',
+    stats: { lifesteal: 0.10 }, description: '攻击吸取 10% 伤害为生命。' },
+);
+
+// ---------- 合成件(数值型;主动型效果在 advancedItems 中注入) ----------
+ITEMS.push(
+  { key: 'bracer', name: '坚韧护腕', cost: 525, category: 'combined',
+    stats: { bonusStr: 6, bonusAgi: 2, bonusInt: 2 },
+    recipe: { components: ['gauntlet', 'circlet'], recipeCost: 190 },
+    description: '+6 力量 +2 敏捷 +2 智力。' },
+  { key: 'wraith_band', name: '灵巧之环', cost: 525, category: 'combined',
+    stats: { bonusAgi: 6, bonusStr: 2, bonusInt: 2 },
+    recipe: { components: ['slippers', 'circlet'], recipeCost: 190 },
+    description: '+6 敏捷 +2 力量 +2 智力。' },
+  { key: 'null_talisman', name: '智慧坠饰', cost: 525, category: 'combined',
+    stats: { bonusInt: 6, bonusStr: 2, bonusAgi: 2 },
+    recipe: { components: ['mantle', 'circlet'], recipeCost: 190 },
+    description: '+6 智力 +2 力量 +2 敏捷。' },
+  { key: 'power_treads', name: '动力之靴', cost: 1450, category: 'combined',
+    stats: { bonusMoveSpeed: 60, bonusAttackSpeed: 0.20, bonusStr: 6 },
+    recipe: { components: ['boots', 'gloves_haste', 'belt'], recipeCost: 0 },
+    description: '+60 移速 +20% 攻速 +6 力量。' },
+  { key: 'buriza', name: '风暴重炮', cost: 4200, category: 'combined',
+    stats: { bonusDamage: 56, critChance: 0.2, critMultiplier: 2.2 },
+    recipe: { components: ['demon_edge', 'broadsword'], recipeCost: 800 },
+    description: '+56 攻击,20% 概率 2.2 倍暴击。' },
+  { key: 'heart', name: '巨人之心', cost: 5300, category: 'combined',
+    stats: { bonusStr: 30, bonusHp: 300, bonusHpRegen: 10 },
+    recipe: { components: ['reaver', 'vitality_booster'], recipeCost: 1200 },
+    description: '+30 力量 +300 生命 +10 生命回复。' },
+  { key: 'hood', name: '隐者兜帽', cost: 1100, category: 'combined',
+    stats: { bonusMagicResist: 0.30, bonusHpRegen: 4 },
+    recipe: { components: ['cloak', 'ring_regen'], recipeCost: 200 },
+    description: '+30% 魔抗 +4 生命回复。' },
+);
