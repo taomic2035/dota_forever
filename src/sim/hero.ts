@@ -103,6 +103,22 @@ export function tryBuyback(w: World, u: Unit): boolean {
 }
 
 export function reviveHero(w: World, u: Unit): void {
+  // 不灭之盾:原地复活
+  if (u.aegisRevivePos) {
+    const at = w.map.nearestWalkable(u.aegisRevivePos);
+    u.aegisRevivePos = undefined;
+    u.alive = true;
+    u.pos = at;
+    u.prevPos = V.clone(at);
+    recalcUnit(u);
+    u.hp = u.calc.maxHp;
+    u.mp = u.calc.maxMp;
+    u.order = null;
+    u.path = [];
+    u.pathGoal = null;
+    w.emit({ kind: 'fx', fx: 'aegis_revive', pos: V.clone(at), radius: 160 });
+    return;
+  }
   const fountain = [...w.units.values()].find((b) => b.buildingKind === 'fountain' && b.team === u.team);
   u.alive = true;
   u.pos = w.map.nearestWalkable(

@@ -62,7 +62,7 @@ export class ShopPanel {
     const gold = hero.heroMeta?.gold ?? 0;
     const at = shopAt(w, hero);
     const items = ITEMS.filter(
-      (i) => i.category === this.cat && !i.key.startsWith(RECIPE_PREFIX),
+      (i) => i.category === this.cat && !i.key.startsWith(RECIPE_PREFIX) && i.cost > 0,
     );
     this.root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">

@@ -122,6 +122,8 @@ export class Unit {
   /** 野怪营地归属与驻留点 */
   campId?: number;
   homePos?: Vec2;
+  /** 不灭之盾:原地复活点(消费后清除) */
+  aegisRevivePos?: Vec2;
   /** 英雄定义引用(data/heroes) */
   heroDef?: import('../data/heroes/types').HeroDef;
   /** 物品/技能给予的属性加成(modifier 聚合写入) */
