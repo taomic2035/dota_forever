@@ -205,7 +205,7 @@ export function ordersSystem(w: World): void {
     }
     switch (o.type) {
       case 'move':
-        u.stepMovement(w);
+        if (!st.rooted) u.stepMovement(w);
         break;
       case 'attack': {
         const t = w.getUnit(o.targetId!);

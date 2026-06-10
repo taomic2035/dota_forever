@@ -4,6 +4,10 @@
  * M2 先注册 4 名英雄的基础面板,技能在 M3 实装。
  */
 import type { HeroDef } from './types';
+import { REIN_ABILITIES } from './rein';
+import { LIYA_ABILITIES } from './liya';
+import { ZOLA_ABILITIES } from './zola';
+import { AILI_ABILITIES } from './aili';
 
 /** 雷恩·铁壁 —— 力量先手坦克 */
 export const REIN: HeroDef = {
@@ -23,7 +27,7 @@ export const REIN: HeroDef = {
   attackPoint: 0.4,
   color: '#c8a23c',
   glyph: '盾',
-  abilities: [],
+  abilities: REIN_ABILITIES,
   aiRole: 'tank',
 };
 
@@ -45,7 +49,7 @@ export const LIYA: HeroDef = {
   attackPoint: 0.45,
   color: '#7ec8e3',
   glyph: '霜',
-  abilities: [],
+  abilities: LIYA_ABILITIES,
   aiRole: 'support',
 };
 
@@ -67,7 +71,7 @@ export const ZOLA: HeroDef = {
   attackPoint: 0.45,
   color: '#5b7fe8',
   glyph: '雷',
-  abilities: [],
+  abilities: ZOLA_ABILITIES,
   aiRole: 'ganker',
 };
 
@@ -89,7 +93,7 @@ export const AILI: HeroDef = {
   attackPoint: 0.4,
   color: '#8fd17a',
   glyph: '风',
-  abilities: [],
+  abilities: AILI_ABILITIES,
   aiRole: 'carry',
 };
 
