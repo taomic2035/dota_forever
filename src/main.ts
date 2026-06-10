@@ -1,6 +1,7 @@
 /** 入口:装配 模拟 / 渲染 / 输入 / 主循环。M1:单英雄地图漫游。 */
 import { GameMap, Team } from './sim/map';
-import { World } from './sim/world';
+import type { World } from './sim/world';
+import { createWorld } from './sim/setup';
 import type { Unit } from './sim/unit';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
@@ -15,7 +16,7 @@ const app = document.getElementById('app')!;
 app.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const map = new GameMap();
-const world = new World(map, seed);
+const world = createWorld(map, { seed });
 
 // M1 测试英雄(通用面板;正式英雄数据 M3 接入)
 const dawnFountain = map.buildings.find((b) => b.team === Team.Dawn && b.kind === 'fountain')!;

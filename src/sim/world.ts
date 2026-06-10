@@ -7,6 +7,7 @@ import { Rng } from '../core/rng';
 import { DT } from '../data/balance';
 import { GameMap, Team } from './map';
 import { Unit, resetIds, type EntityId, type UnitInit } from './unit';
+import type { Projectile } from './projectile';
 
 export type GameEvent =
   | { kind: 'unit_died'; unitId: EntityId; killerId: EntityId; pos: Vec2 }
@@ -38,6 +39,7 @@ export class World {
   units = new Map<EntityId, Unit>();
   events: GameEvent[] = [];
   systems: WorldSystem[] = [];
+  projectiles: Projectile[] = [];
   gameOver: Team | null = null;
   /** 比赛实际开始前的准备时间偏移(time 从 -PREP 开始走) */
   constructor(map: GameMap, seed: number, startTime = -75) {
@@ -85,6 +87,8 @@ export class World {
     if (this.gameOver !== null) return;
     this.tick++;
     this.time += this.dt;
+    // 事件只保留一 tick:消费方在 step 后立即读取
+    this.events.length = 0;
 
     for (const u of this.units.values()) {
       u.prevPos = V.clone(u.pos);
@@ -94,14 +98,13 @@ export class World {
 
     for (const u of this.units.values()) {
       if (!u.alive) continue;
-      // 回复
-      u.hp = Math.min(u.calc.maxHp, u.hp + u.calc.hpRegen * this.dt);
+      u.hp = Math.min(this.calcMaxHp(u), u.hp + u.calc.hpRegen * this.dt);
       u.mp = Math.min(u.calc.maxMp, u.mp + u.calc.mpRegen * this.dt);
-      u.stepMovement(this);
     }
+  }
 
-    // 渲染层消费后自行清空 events;headless 跑批时防膨胀
-    if (this.events.length > 4096) this.events.length = 0;
+  private calcMaxHp(u: Unit): number {
+    return u.calc.maxHp;
   }
 }
 

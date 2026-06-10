@@ -100,13 +100,13 @@ export class Unit {
   abilities: AbilityInstance[] = [];
   inventory: (ItemInstance | null)[] = [null, null, null, null, null, null];
 
-  // 战斗状态(combat.ts 驱动)
+  // 战斗状态(combat.ts 驱动)。时钟从负数起走(准备期),时间戳一律初始化为 -Infinity
   attackTargetId: EntityId | 0 = 0;
-  attackCooldownUntil = 0; // world.time
-  windupUntil = 0;
+  attackCooldownUntil = -Infinity; // world.time
+  windupUntil = -Infinity;
   windupTargetId: EntityId | 0 = 0;
   lastAttackerId: EntityId | 0 = 0;
-  lastDamagedAt = -999;
+  lastDamagedAt = -Infinity;
 
   constructor(init: UnitInit) {
     this.id = NEXT_ID++;

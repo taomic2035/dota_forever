@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
-import { World } from '../src/sim/world';
+import { createWorld } from '../src/sim/setup';
 import { V } from '../src/core/vec2';
 import type { UnitStats } from '../src/sim/unit';
 
@@ -16,7 +16,7 @@ const TEST_STATS: UnitStats = {
 describe('world movement', () => {
   it('unit walks to ordered position', () => {
     const map = new GameMap();
-    const w = new World(map, 42);
+    const w = createWorld(map, { seed: 42 });
     const u = w.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: { x: 7000, y: 8200 }, name: 't', stats: TEST_STATS });
     const goal = { x: 8200, y: 7000 };
     u.issueOrder({ type: 'move', pos: goal });
@@ -26,7 +26,7 @@ describe('world movement', () => {
 
   it('regen ticks up hp/mp', () => {
     const map = new GameMap();
-    const w = new World(map, 42);
+    const w = createWorld(map, { seed: 42 });
     const u = w.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: { x: 7000, y: 8200 }, name: 't', stats: TEST_STATS });
     u.hp = 100; u.mp = 50;
     for (let i = 0; i < 30; i++) w.step(); // 1 秒
@@ -36,7 +36,7 @@ describe('world movement', () => {
 
   it('deterministic with same seed', () => {
     const run = () => {
-      const w = new World(new GameMap(), 7);
+      const w = createWorld(new GameMap(), { seed: 7 });
       const u = w.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: { x: 4000, y: 11000 }, name: 't', stats: TEST_STATS });
       u.issueOrder({ type: 'move', pos: { x: 7520, y: 7520 } });
       for (let i = 0; i < 200; i++) w.step();
