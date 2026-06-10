@@ -79,8 +79,12 @@ export class World {
     return out;
   }
 
+  private pendingEvents: GameEvent[] = [];
+  private inStep = false;
+
+  /** step 内的事件当 tick 可见;step 外(测试/直调)的事件下一 tick 并入。 */
   emit(e: GameEvent): void {
-    this.events.push(e);
+    (this.inStep ? this.events : this.pendingEvents).push(e);
   }
 
   step(): void {
@@ -88,7 +92,9 @@ export class World {
     this.tick++;
     this.time += this.dt;
     // 事件只保留一 tick:消费方在 step 后立即读取
-    this.events.length = 0;
+    this.inStep = true;
+    this.events = this.pendingEvents;
+    this.pendingEvents = [];
 
     for (const u of this.units.values()) {
       u.prevPos = V.clone(u.pos);
@@ -98,13 +104,10 @@ export class World {
 
     for (const u of this.units.values()) {
       if (!u.alive) continue;
-      u.hp = Math.min(this.calcMaxHp(u), u.hp + u.calc.hpRegen * this.dt);
+      u.hp = Math.min(u.calc.maxHp, u.hp + u.calc.hpRegen * this.dt);
       u.mp = Math.min(u.calc.maxMp, u.mp + u.calc.mpRegen * this.dt);
     }
-  }
-
-  private calcMaxHp(u: Unit): number {
-    return u.calc.maxHp;
+    this.inStep = false;
   }
 }
 

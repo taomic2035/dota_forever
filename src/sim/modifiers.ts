@@ -1,5 +1,6 @@
 /** Modifier(buff/debuff)系统 —— M3 实装,此处先定骨架类型。 */
-import type { EntityId } from './unit';
+import type { EntityId, Unit } from './unit';
+import type { World } from './world';
 
 export interface StatMods {
   bonusHp: number;
@@ -41,9 +42,29 @@ export interface Modifier {
   key: string;
   sourceId: EntityId;
   expiresAt: number; // world.time;Infinity = 永久
-  stats?: Partial<StatMods>;
-  states?: StateMods;
-  tickInterval?: number;
+  def: ModifierDef;
   nextTickAt?: number;
   data?: Record<string, number>;
+}
+
+/** Modifier 模板:施加时实例化为 Modifier。 */
+export interface ModifierDef {
+  key: string;
+  /** 秒;不填 = 永久(光环授予的短时效由光环本体续期) */
+  duration?: number;
+  stats?: Partial<StatMods>;
+  states?: StateMods;
+  /** 周期效果(DoT/回复) */
+  tickInterval?: number;
+  onTick?(w: World, u: Unit, m: Modifier): void;
+  /** 光环:挂在持有者身上,周期向半径内目标授予 grant */
+  aura?: {
+    radius: number;
+    affects: 'ally' | 'enemy' | 'allyHero';
+    grant: ModifierDef;
+  };
+  /** 同 key 不同来源是否可叠加(默认 false=刷新) */
+  stackable?: boolean;
+  /** 到期/移除回调 */
+  onExpire?(w: World, u: Unit, m: Modifier): void;
 }

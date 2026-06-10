@@ -119,6 +119,10 @@ export class Unit {
   lane?: Lane;
   /** 英雄专属经济/成长状态 */
   heroMeta?: HeroMeta;
+  /** 英雄定义引用(data/heroes) */
+  heroDef?: import('../data/heroes/types').HeroDef;
+  /** 物品/技能给予的属性加成(modifier 聚合写入) */
+  bonusAttr = { str: 0, agi: 0, int: 0 };
 
   order: Order | null = null;
   orderQueue: Order[] = [];
