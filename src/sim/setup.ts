@@ -7,6 +7,7 @@ import { World } from './world';
 import { recalcSystem, ordersSystem, projectileSystem, cleanupSystem } from './combat';
 import { spawnBuildings, buildingsSystem } from './buildings';
 import { installCreeps } from './creeps';
+import { installEconomy } from './economy';
 
 export interface WorldOptions {
   seed: number;
@@ -27,5 +28,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   w.systems.push(cleanupSystem);
   if (!opts.noBuildings) spawnBuildings(w);
   if (opts.creeps) installCreeps(w);
+  installEconomy(w);
   return w;
 }

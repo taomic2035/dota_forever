@@ -70,6 +70,28 @@ export interface UnitInit {
   name: string;
 }
 
+export interface HeroMeta {
+  gold: number;
+  xp: number;
+  skillPoints: number;
+  statBonusLearned: number;
+  lastHits: number;
+  denies: number;
+  kills: number;
+  deaths: number;
+  assists: number;
+  streak: number;
+  respawnAt: number;
+}
+
+export function makeHeroMeta(startingGold: number): HeroMeta {
+  return {
+    gold: startingGold, xp: 0, skillPoints: 1, statBonusLearned: 0,
+    lastHits: 0, denies: 0, kills: 0, deaths: 0, assists: 0, streak: 0,
+    respawnAt: -Infinity,
+  };
+}
+
 let NEXT_ID = 1;
 export function resetIds() {
   NEXT_ID = 1;
@@ -95,6 +117,8 @@ export class Unit {
   /** 建筑专属 */
   buildingKind?: BuildingKind;
   lane?: Lane;
+  /** 英雄专属经济/成长状态 */
+  heroMeta?: HeroMeta;
 
   order: Order | null = null;
   orderQueue: Order[] = [];
@@ -118,6 +142,7 @@ export class Unit {
     this.kind = init.kind;
     this.team = init.team;
     this.name = init.name;
+    if (init.kind === 'hero') this.heroMeta = makeHeroMeta(603);
     this.pos = V.clone(init.pos);
     this.prevPos = V.clone(init.pos);
     this.base = { ...init.stats };

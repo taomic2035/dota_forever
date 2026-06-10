@@ -194,6 +194,11 @@ export function ordersSystem(w: World): void {
           u.order = u.orderQueue.shift() ?? null;
           break;
         }
+        // 反补规则:攻击己方单位仅限血量<50%的小兵(或己方建筑<10%,经典可拆塔反补简化为不允许)
+        if (t.team === u.team && !(t.kind === 'creep' && t.hp / t.calc.maxHp < 0.5)) {
+          u.order = null;
+          break;
+        }
         attackRoutine(w, u, t);
         break;
       }
