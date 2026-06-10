@@ -153,6 +153,13 @@ export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomp
 
 export const attackHitHooks: Array<(w: World, attacker: Unit, target: Unit, dealt: number) => void> = [];
 
+/** 施法委托(abilities.ts 注入,避免循环依赖)。 */
+export const castHooks: {
+  progress?: (w: World, u: Unit) => boolean;
+  startCast?: (w: World, u: Unit, o: import('./unit').Order) => void;
+  breakChannel?: (w: World, u: Unit) => void;
+} = {};
+
 export function rollAttackDamage(w: World, u: Unit): number {
   return w.rng.range(u.calc.dmgMin, u.calc.dmgMax + 1e-9);
 }
@@ -168,8 +175,13 @@ export function ordersSystem(w: World): void {
     const st = stateOf(u);
     if (st.stunned) {
       u.windupTargetId = 0; // 眩晕打断前摇
+      u.casting = null; // 眩晕打断施法(蓝未付,不进 CD)
+      if (u.channeling) castHooks.breakChannel?.(w, u);
       continue;
     }
+
+    // 施法前摇/引导进行中(占用本 tick)
+    if (castHooks.progress?.(w, u)) continue;
 
     // 前摇进行中
     if (u.windupTargetId) {
@@ -236,7 +248,7 @@ export function ordersSystem(w: World): void {
         break;
       }
       case 'cast':
-        // M3 实装(castSystem 扩展接管)
+        castHooks.startCast?.(w, u, o);
         break;
       case 'stop':
         u.order = null;

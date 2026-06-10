@@ -33,6 +33,8 @@ export interface AbilityDef {
   onCast?(w: World, caster: Unit, lvl: number, pos?: Vec2, target?: Unit): void;
   /** 被动:返回常驻 modifier */
   passiveModifier?(lvl: number): ModifierDef;
+  /** 法球:普攻命中附加效果 */
+  orbOnHit?(w: World, attacker: Unit, target: Unit, lvl: number): void;
   /** 引导型 */
   channel?: {
     duration: (lvl: number) => number;
