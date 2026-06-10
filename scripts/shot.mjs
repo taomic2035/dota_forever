@@ -13,7 +13,7 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 
 await page.goto(url, { waitUntil: 'load' });
-await page.waitForFunction(() => (window).__game !== undefined, { timeout: 15000 });
+await page.waitForFunction(() => (window).__game !== undefined, { timeout: 15000 }).catch(() => {});
 await page.waitForTimeout(Number(waitMs));
 
 if (evalExpr) {

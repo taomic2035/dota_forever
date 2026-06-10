@@ -1,0 +1,99 @@
+/** 主菜单与英雄选择(通过 URL 参数启动对局,无内部状态)。 */
+import { HEROES } from '../data/heroes';
+
+const ROLE_NAME: Record<string, string> = {
+  carry: '核心', support: '辅助', ganker: '游走', tank: '先手',
+};
+
+export function showMenu(parent: HTMLElement): void {
+  const root = document.createElement('div');
+  root.style.cssText =
+    'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;' +
+    'background:radial-gradient(ellipse at center, #1a2012 0%, #0a0c08 70%);color:#e8e2c8;z-index:200;';
+  parent.appendChild(root);
+
+  const title = `
+    <div style="font-size:54px;font-weight:800;letter-spacing:6px;color:#d9b44a;text-shadow:0 2px 18px #000">DOTA FOREVER</div>
+    <div style="color:#9a8;margin:8px 0 36px;font-size:15px">经典玩法致敬之作 · 5v5 三路推塔 · 全原创内容</div>`;
+
+  const home = () => {
+    root.innerHTML = `${title}
+      <div style="display:flex;gap:18px">
+        <button id="btn-play" style="${btnCss('#2c3a22', '#8fd17a')}">开始对战</button>
+        <button id="btn-spectate" style="${btnCss('#1d2330', '#7ec8e3')}">观战 AI 对局</button>
+      </div>
+      <div style="color:#665;margin-top:46px;font-size:12px;max-width:560px;text-align:center;line-height:1.7">
+        操作:右键移动/攻击 · A 强制攻击(可反补) · QWER 技能 · 1-6 物品 · F 商店<br>
+        B 买活 · S 停止 · H 保持 · 空格 回到英雄 · Tab 记分板 · P 暂停 · Alt+小地图 信号
+      </div>`;
+    root.querySelector('#btn-play')!.addEventListener('click', pick);
+    root.querySelector('#btn-spectate')!.addEventListener('click', () => {
+      location.search = '?mode=spectate&speed=4';
+    });
+  };
+
+  const pick = () => {
+    const cards = HEROES.map((h) => {
+      const abilities = h.abilities
+        .map((a) => `${a.ultimate ? '【大招】' : ''}${a.name}:${a.description}`)
+        .join('\n');
+      return `<div class="hero-card" data-key="${h.key}" title="${abilities}" style="
+        width:150px;border:2px solid ${h.color};border-radius:10px;padding:12px 8px;cursor:pointer;
+        background:#10130bd9;text-align:center;transition:transform .1s;">
+        <div style="font-size:34px;color:${h.color}">${h.glyph}</div>
+        <div style="font-weight:700;margin-top:6px">${h.name}<span style="color:#9a8;font-size:11px"> · ${h.title}</span></div>
+        <div style="font-size:11px;color:#aab;margin-top:3px">${h.primary === 'str' ? '力量' : h.primary === 'agi' ? '敏捷' : '智力'} · ${ROLE_NAME[h.aiRole]}</div>
+      </div>`;
+    }).join('');
+    root.innerHTML = `${title}
+      <div style="font-size:17px;color:#cfd8a0;margin-bottom:14px">选择你的英雄(悬停查看技能)</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:900px">${cards}</div>
+      <div style="display:flex;gap:14px;margin-top:22px">
+        <button id="btn-random" style="${btnCss('#3a3422', '#ffd54f')}">随机英雄</button>
+        <button id="btn-back" style="${btnCss('#222', '#999')}">返回</button>
+      </div>`;
+    root.querySelectorAll('.hero-card').forEach((el) => {
+      el.addEventListener('click', () => {
+        location.search = `?mode=play&hero=${(el as HTMLElement).dataset.key}`;
+      });
+      el.addEventListener('mouseenter', () => { (el as HTMLElement).style.transform = 'scale(1.06)'; });
+      el.addEventListener('mouseleave', () => { (el as HTMLElement).style.transform = ''; });
+    });
+    root.querySelector('#btn-random')!.addEventListener('click', () => {
+      const h = HEROES[Math.floor(Math.random() * HEROES.length)];
+      location.search = `?mode=play&hero=${h.key}`;
+    });
+    root.querySelector('#btn-back')!.addEventListener('click', home);
+  };
+
+  home();
+}
+
+function btnCss(bg: string, color: string): string {
+  return `padding:14px 38px;font-size:19px;border-radius:10px;border:1px solid ${color}55;\
+background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:2px;`;
+}
+
+/** 游戏内 ESC 暂停菜单。 */
+export function createPauseMenu(parent: HTMLElement, onResume: () => void): { toggle: () => void } {
+  const root = document.createElement('div');
+  root.style.cssText =
+    'position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;' +
+    'background:rgba(5,7,4,0.7);z-index:120;color:#e8e2c8;gap:14px;';
+  root.innerHTML = `
+    <div style="font-size:30px;font-weight:700;color:#cfd8a0">游戏暂停</div>
+    <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
+    <button id="pm-restart" style="${btnCss('#3a3422', '#ffd54f')}">重新开始</button>
+    <button id="pm-menu" style="${btnCss('#222', '#999')}">回主菜单</button>`;
+  parent.appendChild(root);
+  let shown = false;
+  const toggle = () => {
+    shown = !shown;
+    root.style.display = shown ? 'flex' : 'none';
+    onResume();
+  };
+  root.querySelector('#pm-resume')!.addEventListener('click', toggle);
+  root.querySelector('#pm-restart')!.addEventListener('click', () => location.reload());
+  root.querySelector('#pm-menu')!.addEventListener('click', () => { location.search = ''; });
+  return { toggle };
+}
