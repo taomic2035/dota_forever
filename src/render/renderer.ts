@@ -152,6 +152,12 @@ export class Renderer {
       ctx.fill();
     }
 
+    // 夜色
+    if (world.isNight) {
+      ctx.fillStyle = 'rgba(8, 14, 40, 0.28)';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
     // 迷雾
     if (this.viewerTeam !== null) {
       this.fog.update(world, this.viewerTeam);

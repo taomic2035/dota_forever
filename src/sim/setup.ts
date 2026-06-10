@@ -15,6 +15,7 @@ import { installItems } from './items';
 import { installRunes } from './runes';
 import { installNeutrals } from './neutrals';
 import { installPitlord } from './pitlord';
+import { installDayNight } from './daynight';
 
 export interface WorldOptions {
   seed: number;
@@ -41,6 +42,7 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installVision(w);
   installItems(w);
   installRunes(w);
+  installDayNight(w);
   if (opts.creeps) {
     installNeutrals(w); // 与兵线一起代表“真实对局”
     installPitlord(w);

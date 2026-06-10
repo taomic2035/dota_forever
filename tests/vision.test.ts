@@ -43,17 +43,20 @@ describe('vision', () => {
   });
 
   it('night shrinks vision radius', () => {
-    const w = createWorld(map, { seed: 16, noBuildings: true });
     // 平地(高度1)中路走廊上,目标点同高度
     const eye = { x: 5790, y: 9530 };
     const mark = { x: 6500, y: 8820 }; // 沿中路方向 ~1000 距离
-    w.isNight = true;
-    w.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: eye, name: 'a', stats: stats({ visionDay: 1800, visionNight: 800 }) });
-    for (let i = 0; i < 10; i++) w.step();
-    expect(cellVisible(w, Team.Dawn, mark)).toBe(false); // 夜里 800 看不到 ~1000 外
-    w.isNight = false;
-    for (let i = 0; i < 10; i++) w.step();
-    expect(cellVisible(w, Team.Dawn, mark)).toBe(true);
+    // 夜晚窗口(5:10)
+    const wNight = createWorld(map, { seed: 16, noBuildings: true, startTime: 310 });
+    wNight.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: eye, name: 'a', stats: stats({ visionDay: 1800, visionNight: 800 }) });
+    for (let i = 0; i < 10; i++) wNight.step();
+    expect(wNight.isNight).toBe(true);
+    expect(cellVisible(wNight, Team.Dawn, mark)).toBe(false); // 夜里 800 看不到 ~1000 外
+    // 白昼窗口(0:30)
+    const wDay = createWorld(map, { seed: 16, noBuildings: true, startTime: 30 });
+    wDay.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: eye, name: 'a', stats: stats({ visionDay: 1800, visionNight: 800 }) });
+    for (let i = 0; i < 10; i++) wDay.step();
+    expect(cellVisible(wDay, Team.Dawn, mark)).toBe(true);
   });
 
   it('river (height 0) cannot see the banks (height 1) — classic river vision', () => {

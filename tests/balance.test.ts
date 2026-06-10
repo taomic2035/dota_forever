@@ -70,3 +70,14 @@ describe('economy formulas', () => {
     expect(buybackCost(20)).toBe(700);
   });
 });
+
+import { isNightAt } from '../src/sim/daynight';
+describe('day/night cycle', () => {
+  it('flips at 5:00 boundaries', () => {
+    expect(isNightAt(-30)).toBe(false);
+    expect(isNightAt(100)).toBe(false);
+    expect(isNightAt(301)).toBe(true);
+    expect(isNightAt(599)).toBe(true);
+    expect(isNightAt(601)).toBe(false);
+  });
+});

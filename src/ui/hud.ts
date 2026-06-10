@@ -42,6 +42,7 @@ export class Hud {
     const ss = Math.floor(Math.abs(t) % 60).toString().padStart(2, '0');
     const gold = hero?.heroMeta?.gold ?? 0;
     this.topbar.innerHTML =
+      `<span>${world.isNight ? '🌙' : '☀️'}</span>` +
       `<span style="color:#cfd8a0">⏱ ${sign}${mm}:${ss}</span>` +
       `<span style="color:#ffd54f">⛁ ${gold}</span>`;
 
