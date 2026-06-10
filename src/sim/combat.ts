@@ -50,10 +50,17 @@ export function recalcUnit(u: Unit): void {
   c.acquireRange = b.acquireRange;
   c.ias = 0; c.evasion = 0; c.critChance = 0; c.critMultiplier = 1.5;
   c.lifesteal = 0; c.trueSight = 0;
-  // 英雄属性折算(Task 11)与 modifier 聚合(Task 13)在各自模块扩展
+  // 聚合顺序固定:modifier 数值(含属性加成写入 bonusAttr)→ 英雄属性折算
+  modifierFold(u);
   for (const ext of recalcExtensions) ext(u);
   if (u.hp > c.maxHp) u.hp = c.maxHp;
   if (u.mp > c.maxMp) u.mp = c.maxMp;
+}
+
+/** 由 modifiers.ts 注入,避免循环依赖。 */
+let modifierFold: (u: Unit) => void = () => {};
+export function setModifierFold(fn: (u: Unit) => void): void {
+  modifierFold = fn;
 }
 
 /** 后续里程碑(英雄属性/modifier)注册的重算扩展,按注册序执行。 */

@@ -2,7 +2,7 @@
 import { GameMap, Team } from './sim/map';
 import type { World } from './sim/world';
 import { createWorld } from './sim/setup';
-import { spawnHero, installHeroRespawn } from './sim/hero';
+import { spawnHero } from './sim/hero';
 import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { Camera } from './render/camera';
@@ -22,7 +22,6 @@ app.addEventListener('contextmenu', (e) => e.preventDefault());
 
 const map = new GameMap();
 const world: World = createWorld(map, { seed, creeps: true });
-installHeroRespawn(world);
 
 // 玩家英雄(观战模式不生成)
 let hero: Unit | undefined;

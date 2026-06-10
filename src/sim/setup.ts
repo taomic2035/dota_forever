@@ -8,6 +8,8 @@ import { recalcSystem, ordersSystem, projectileSystem, cleanupSystem } from './c
 import { spawnBuildings, buildingsSystem } from './buildings';
 import { installCreeps } from './creeps';
 import { installEconomy } from './economy';
+import { installModifiers } from './modifiers';
+import { installHeroRespawn } from './hero';
 
 export interface WorldOptions {
   seed: number;
@@ -21,6 +23,7 @@ export interface WorldOptions {
 export function createWorld(map: GameMap, opts: WorldOptions): World {
   const w = new World(map, opts.seed, opts.startTime);
   w.systems.push(recalcSystem);
+  installModifiers(w); // 紧随重算
   // installXxx 系列用 splice(1) 插在重算之后、指令之前
   w.systems.push(ordersSystem);
   w.systems.push(projectileSystem);
@@ -29,5 +32,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   if (!opts.noBuildings) spawnBuildings(w);
   if (opts.creeps) installCreeps(w);
   installEconomy(w);
+  installHeroRespawn(w);
   return w;
 }
