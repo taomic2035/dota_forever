@@ -21,7 +21,7 @@ function stats(over: Partial<UnitStats> = {}): UnitStats {
 
 let w: World;
 beforeEach(() => {
-  w = createWorld(map, { seed: 99 });
+  w = createWorld(map, { seed: 99, noBuildings: true });
 });
 
 function spawn(team: Team, x: number, y: number, over: Partial<UnitStats> = {}, kind: 'hero' | 'creep' = 'creep'): Unit {

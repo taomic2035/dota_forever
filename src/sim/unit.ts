@@ -11,6 +11,7 @@ import { findPath } from './pathfinding';
 import type { Modifier } from './modifiers';
 import type { AbilityInstance } from './abilities';
 import type { ItemInstance } from './items';
+import type { BuildingKind, Lane } from '../data/mapLayout';
 
 export type EntityId = number;
 export type UnitKind = 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward';
@@ -88,8 +89,12 @@ export class Unit {
   mp: number;
   level = 1;
   alive = true;
-  /** 死亡时刻(world.time),建筑死亡即移除 */
-  diedAt = 0;
+  invulnerable = false;
+  /** 死亡时刻(world.time) */
+  diedAt = -Infinity;
+  /** 建筑专属 */
+  buildingKind?: BuildingKind;
+  lane?: Lane;
 
   order: Order | null = null;
   orderQueue: Order[] = [];
@@ -174,7 +179,8 @@ export class Unit {
     this.facing = turnTowards(this.facing, targetAngle, TURN_RATE * w.dt);
     const step = this.calc.moveSpeed * w.dt;
     const newPos = V.moveTowards(this.pos, next, step);
-    if (w.map.isWalkable(newPos)) {
+    // 自己已在阻挡格(被技能位移/出生点异常)时允许自由移动逃脱
+    if (w.map.isWalkable(newPos) || !w.map.isWalkable(this.pos)) {
       this.pos = newPos;
     } else {
       const snapped = w.map.nearestWalkable(newPos);

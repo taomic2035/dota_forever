@@ -68,7 +68,7 @@ export function recalcSystem(w: World): void {
 // ---------- 伤害 ----------
 /** 结算一次伤害,返回实际造成量。 */
 export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
-  if (!target.alive) return 0;
+  if (!target.alive || target.invulnerable) return 0;
   let amount = evt.amount;
   const flags = evt.flags ?? {};
 
@@ -302,7 +302,7 @@ export function acquireTarget(w: World, u: Unit): Unit | undefined {
   const r2 = r * r;
   for (const v of w.units.values()) {
     if (!isEnemy(u, v)) continue;
-    if (stateOf(v).invisible) continue;
+    if (stateOf(v).invisible || v.invulnerable) continue;
     if (v.kind === 'ward') continue;
     const d2 = V.distSq(u.pos, v.pos);
     if (d2 > r2) continue;
