@@ -22,23 +22,27 @@ interface BotState {
   buildIndex: number;
 }
 
-/** 按定位的出装序列(购买键序列,组件在前)。 */
+/** 按定位的出装序列(购买键序列,组件在前;只含基地商店可买件,避免卡序列)。 */
 const BUILDS: Record<string, string[]> = {
   carry: [
     'slippers', 'circlet', 'recipe_wraith_band', 'boots', 'gloves_haste', 'belt',
-    'broadsword', 'demon_edge', 'recipe_buriza', 'morbid_mask', 'claymore', 'mithril_hammer',
+    'morbid_mask', 'broadsword', 'claymore', 'mithril_hammer',
+    'hyperstone', 'chainmail', 'platemail', 'recipe_assault',
   ],
   tank: [
     'gauntlet', 'circlet', 'recipe_bracer', 'boots', 'gloves_haste', 'belt',
-    'chainmail', 'cloak', 'ring_regen', 'recipe_hood', 'platemail', 'reaver', 'vitality_booster', 'recipe_heart',
+    'chainmail', 'cloak', 'ring_regen', 'recipe_hood',
+    'platemail', 'hyperstone', 'recipe_assault', 'mithril_hammer',
   ],
   ganker: [
     'gauntlet', 'circlet', 'recipe_bracer', 'boots', 'gloves_haste', 'belt',
-    'magic_stick', 'branch', 'branch', 'branch', 'recipe_magic_wand', 'mithril_hammer', 'ogre_axe', 'recipe_bkb',
+    'magic_stick', 'branch', 'branch', 'branch', 'recipe_magic_wand',
+    'mithril_hammer', 'ogre_axe', 'recipe_bkb', 'claymore',
   ],
   support: [
-    'mantle', 'circlet', 'recipe_null_talisman', 'boots', 'sobi_mask', 'energy_booster',
-    'cloak', 'ring_regen', 'recipe_hood', 'staff_wizardry', 'platemail', 'mystic_staff', 'recipe_shiva',
+    'mantle', 'circlet', 'recipe_null_talisman', 'boots', 'sobi_mask',
+    'cloak', 'ring_regen', 'recipe_hood', 'staff_wizardry',
+    'platemail', 'chainmail', 'hyperstone', 'recipe_assault',
   ],
 };
 
@@ -195,12 +199,34 @@ function think(w: World, u: Unit, st: BotState): void {
     }
   }
 
-  // 对线站位:常态躲在兵线后;兵线压至敌方建筑或我方人数优势时上前压塔
-  const pressing = teamAdvantage(w, u.team) || frontAtEnemyBuilding(w, u.team, st.lane);
-  const stand = laneStandPos(w, u.team, st.lane, pressing ? 130 : 380);
+  // 对线站位:常态躲在兵线后;优势/后期/兵线压至敌方建筑时上前压塔。
+  // 40 分钟后进入收敛期:全队集结推防御最薄的一路(模拟后期抱团终结)。
+  const lateGame = w.time > 2400;
+  const advantage = teamAdvantage(w, u.team, lateGame ? 1 : 2);
+  const grouping = advantage || lateGame;
+  const laneToUse = grouping ? weakestEnemyLane(w, u.team) : st.lane;
+  const pressing = grouping || frontAtEnemyBuilding(w, u.team, laneToUse);
+  const stand = laneStandPos(w, u.team, laneToUse, pressing ? 130 : 380);
   if (V.dist(u.pos, stand) > 280) {
     orderMove(w, u, stand);
   }
+}
+
+/** 敌方存活塔最少的一路(集火目标)。 */
+function weakestEnemyLane(w: World, team: number): Lane {
+  let best: Lane = 'mid';
+  let bestCount = Infinity;
+  for (const lane of ['top', 'mid', 'bot'] as Lane[]) {
+    let n = 0;
+    for (const b of w.units.values()) {
+      if (b.alive && b.kind === 'tower' && b.team !== team && b.lane === lane) n++;
+    }
+    if (n < bestCount) {
+      bestCount = n;
+      best = lane;
+    }
+  }
+  return best;
 }
 
 function findEnemyAncient(w: World, team: number): Unit | null {
@@ -214,14 +240,14 @@ function enemiesNear(w: World, u: Unit, r: number): Unit[] {
   return w.queryRadius(u.pos, r, (v) => v.team !== u.team && v.isHero() && v.alive);
 }
 
-/** 我方存活英雄多于敌方(打赢了一波)。 */
-function teamAdvantage(w: World, team: number): boolean {
+/** 我方存活英雄多于敌方一定数量(打赢了一波)。 */
+function teamAdvantage(w: World, team: number, margin = 2): boolean {
   let mine = 0, theirs = 0;
   for (const v of w.units.values()) {
     if (!v.isHero()) continue;
     if (v.alive) v.team === team ? mine++ : theirs++;
   }
-  return mine >= theirs + 2;
+  return mine >= theirs + margin;
 }
 
 function countTeamHeroesNear(w: World, team: number, pos: Vec2, r: number): number {
