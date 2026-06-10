@@ -92,6 +92,10 @@ describe('terrain rules', () => {
   });
   it('deterministic construction', () => {
     const m2 = new GameMap();
-    expect(Buffer.from(m2.walkable).equals(Buffer.from(map.walkable))).toBe(true);
+    let same = m2.walkable.length === map.walkable.length;
+    for (let i = 0; same && i < m2.walkable.length; i++) {
+      if (m2.walkable[i] !== map.walkable[i]) same = false;
+    }
+    expect(same).toBe(true);
   });
 });
