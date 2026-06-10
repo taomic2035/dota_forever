@@ -103,6 +103,16 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   }
 
   if (amount <= 0) return 0;
+  // 护盾吸收(modifier.data.shield)
+  for (const m of target.modifiers) {
+    const shield = m.data?.shield ?? 0;
+    if (shield <= 0) continue;
+    const absorbed = Math.min(shield, amount);
+    m.data!.shield = shield - absorbed;
+    amount -= absorbed;
+    if (m.data!.shield <= 0) m.expiresAt = -Infinity;
+    if (amount <= 0) return 0;
+  }
   target.hp -= amount;
   target.lastAttackerId = evt.source;
   target.lastDamagedAt = w.time;
@@ -303,6 +313,7 @@ export function tryStartWindup(w: World, u: Unit, t: Unit): void {
   u.windupTargetId = t.id;
   u.windupUntil = w.time + u.calc.attackPoint * interval;
   u.attackCooldownUntil = w.time + interval;
+  u.lastActionAt = w.time;
   w.emit({ kind: 'attack_launched', unitId: u.id, targetId: t.id });
 }
 

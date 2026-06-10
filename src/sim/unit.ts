@@ -155,6 +155,8 @@ export class Unit {
   lastDamagedAt = -Infinity;
   /** 受英雄/塔/Boss 伤害后闪烁类道具锁定至该时刻 */
   blinkLockedUntil = -Infinity;
+  /** 最近一次主动行为(攻击/施法)时刻——隐身被动用 */
+  lastActionAt = -Infinity;
 
   constructor(init: UnitInit) {
     this.id = NEXT_ID++;

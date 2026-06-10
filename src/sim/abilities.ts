@@ -152,6 +152,7 @@ function executeCast(w: World, u: Unit, index: number, pos?: Vec2, targetId?: En
   const def = abilityDefAt(u, index)!;
   const inst = u.abilities[index];
   const lvl = inst.level;
+  u.lastActionAt = w.time;
   // 支付
   u.mp -= def.manaCost?.[lvl - 1] ?? 0;
   inst.cooldownUntil = w.time + (def.cooldown?.[lvl - 1] ?? 0);

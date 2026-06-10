@@ -11,12 +11,36 @@ import type { Unit, EntityId } from '../unit';
 import { isVisibleTo } from '../vision';
 import { abilityReady, learnAbility, learnStatBonus, canLearn, canLearnStatBonus } from '../abilities';
 import { inAttackRange } from '../combat';
+import { buyItem, shopAt, useItem } from '../items';
+import { purchaseKeyFor } from '../recipes';
+import { itemDef } from '../../data/items';
 
 interface BotState {
   lane: Lane;
   nextThink: number;
-  mode: 'lane' | 'retreat';
+  mode: 'lane' | 'retreat' | 'defend';
+  buildIndex: number;
 }
+
+/** 按定位的出装序列(购买键序列,组件在前)。 */
+const BUILDS: Record<string, string[]> = {
+  carry: [
+    'slippers', 'circlet', 'recipe_wraith_band', 'boots', 'gloves_haste', 'belt',
+    'broadsword', 'demon_edge', 'recipe_buriza', 'morbid_mask', 'claymore', 'mithril_hammer',
+  ],
+  tank: [
+    'gauntlet', 'circlet', 'recipe_bracer', 'boots', 'gloves_haste', 'belt',
+    'chainmail', 'cloak', 'ring_regen', 'recipe_hood', 'platemail', 'reaver', 'vitality_booster', 'recipe_heart',
+  ],
+  ganker: [
+    'gauntlet', 'circlet', 'recipe_bracer', 'boots', 'gloves_haste', 'belt',
+    'magic_stick', 'branch', 'branch', 'branch', 'recipe_magic_wand', 'mithril_hammer', 'ogre_axe', 'recipe_bkb',
+  ],
+  support: [
+    'mantle', 'circlet', 'recipe_null_talisman', 'boots', 'sobi_mask', 'energy_booster',
+    'cloak', 'ring_regen', 'recipe_hood', 'staff_wizardry', 'platemail', 'mystic_staff', 'recipe_shiva',
+  ],
+};
 
 const RETREAT_HP = 0.27;
 const RECOVER_HP = 0.9;
@@ -34,6 +58,7 @@ export function installBotAI(w: World, isPlayerControlled: (id: EntityId) => boo
         lane: assignLane(u, laneCounters[u.team]++),
         nextThink: world.time + (u.id % 10) * 0.1,
         mode: 'lane',
+        buildIndex: 0,
       });
     }
     for (const [id, st] of bots) {
@@ -43,12 +68,29 @@ export function installBotAI(w: World, isPlayerControlled: (id: EntityId) => boo
       if (world.time >= st.nextThink) {
         st.nextThink = world.time + 0.9 + (id % 7) * 0.03;
         learnSkills(world, u);
+        shopping(world, u, st);
         think(world, u, st);
       }
       microLastHit(world, u);
     }
   };
   w.systems.push(system);
+}
+
+/** 在商店范围内按出装序列购买;泉水顺手用治疗品。 */
+function shopping(w: World, u: Unit, st: BotState): void {
+  if (!u.heroDef || shopAt(w, u) !== 'home') return;
+  const build = BUILDS[u.heroDef.aiRole] ?? BUILDS.tank;
+  let guard = 6;
+  while (st.buildIndex < build.length && guard-- > 0) {
+    const key = build[st.buildIndex];
+    // 秘密商店物品跳过等待(本版 bot 不绕路秘密商店,直接尝试,失败则等金不卡序列)
+    const def = itemDef(key.startsWith('recipe_') ? key.slice(7) : key);
+    if (def.secretShop) { st.buildIndex++; continue; }
+    const r = buyItem(w, u, purchaseKeyFor(key) === key ? key : key);
+    if (r === 'ok' || r === 'ok_stash') st.buildIndex++;
+    else break;
+  }
 }
 
 /** 固定 2-1-2 分路(安全路=晨曦下/永夜上)。 */
@@ -99,6 +141,39 @@ function think(w: World, u: Unit, st: BotState): void {
     return;
   }
 
+  // 防守:基地建筑被攻击 → 至多 2 名守军响应(其余继续施压,避免全队缩家死局)
+  const threatened = baseUnderAttack(w, u.team);
+  if (threatened) {
+    const defenders = countTeamHeroesNear(w, u.team, threatened.pos, 1600);
+    if (defenders < 2 || V.dist(u.pos, threatened.pos) < 1600) {
+      if (V.dist(u.pos, threatened.pos) > 2200) {
+        const tpSlot = u.inventory.findIndex((i) => i?.itemKey === 'tp');
+        if (tpSlot >= 0 && u.mp >= 75 && !u.modifiers.some((m) => m.key === 'item_tp')) {
+          if (useItem(w, u, tpSlot, threatened.pos)) return;
+        }
+        orderMove(w, u, threatened.pos);
+        return;
+      }
+      st.mode = 'defend';
+    }
+  } else if (st.mode === 'defend') {
+    st.mode = 'lane';
+  }
+
+  // 终结推进:敌方主基地暴露(保护解除)→ 全队压上斩首
+  const enemyAncient = findEnemyAncient(w, u.team);
+  if (enemyAncient && !enemyAncient.invulnerable) {
+    const d = V.dist(u.pos, enemyAncient.pos);
+    if (d < 1500) {
+      orderAttack(u, enemyAncient);
+      return;
+    }
+    if (!enemiesNear(w, u, 700).length) {
+      orderMove(w, u, enemyAncient.pos);
+      return;
+    }
+  }
+
   // 战斗:可见敌方英雄
   const foes: Unit[] = [];
   for (const v of w.units.values()) {
@@ -112,17 +187,87 @@ function think(w: World, u: Unit, st: BotState): void {
     foes.sort((a, b) => a.hp / a.calc.maxHp - b.hp / b.calc.maxHp);
     const t = foes[0];
     const tFrac = t.hp / t.calc.maxHp;
-    if (hpFrac > 0.45 && (tFrac < hpFrac + 0.12 || tFrac < 0.35)) {
+    // 塔下危险规避:除非目标残血,否则不追进敌塔射程
+    const danger = enemyTowerNear(w, u.team, t.pos, 850);
+    if (hpFrac > 0.45 && (tFrac < hpFrac + 0.12 || tFrac < 0.35) && (!danger || tFrac < 0.2)) {
       orderAttack(u, t);
       return;
     }
   }
 
-  // 对线站位:站在己方兵线前沿后方
-  const stand = laneStandPos(w, u.team, st.lane);
+  // 对线站位:常态躲在兵线后;兵线压至敌方建筑或我方人数优势时上前压塔
+  const pressing = teamAdvantage(w, u.team) || frontAtEnemyBuilding(w, u.team, st.lane);
+  const stand = laneStandPos(w, u.team, st.lane, pressing ? 130 : 380);
   if (V.dist(u.pos, stand) > 280) {
     orderMove(w, u, stand);
   }
+}
+
+function findEnemyAncient(w: World, team: number): Unit | null {
+  for (const b of w.units.values()) {
+    if (b.alive && b.buildingKind === 'ancient' && b.team !== team) return b;
+  }
+  return null;
+}
+
+function enemiesNear(w: World, u: Unit, r: number): Unit[] {
+  return w.queryRadius(u.pos, r, (v) => v.team !== u.team && v.isHero() && v.alive);
+}
+
+/** 我方存活英雄多于敌方(打赢了一波)。 */
+function teamAdvantage(w: World, team: number): boolean {
+  let mine = 0, theirs = 0;
+  for (const v of w.units.values()) {
+    if (!v.isHero()) continue;
+    if (v.alive) v.team === team ? mine++ : theirs++;
+  }
+  return mine >= theirs + 2;
+}
+
+function countTeamHeroesNear(w: World, team: number, pos: Vec2, r: number): number {
+  let n = 0;
+  for (const v of w.units.values()) {
+    if (v.isHero() && v.alive && v.team === team && V.dist(v.pos, pos) <= r) n++;
+  }
+  return n;
+}
+
+/** 本路前沿是否已贴近敌方建筑(可以协助拆塔)。 */
+function frontAtEnemyBuilding(w: World, team: number, lane: Lane): boolean {
+  const wps = w.map.lanes[lane];
+  let front: Vec2 | null = null;
+  let frontProg = team === Team.Dawn ? -1 : 2;
+  for (const c of w.units.values()) {
+    if (!c.alive || c.kind !== 'creep' || c.team !== team || c.lane !== lane) continue;
+    const p = laneProgress(wps, c.pos);
+    if (team === Team.Dawn ? p > frontProg : p < frontProg) { frontProg = p; front = c.pos; }
+  }
+  if (!front) return false;
+  for (const b of w.units.values()) {
+    if (!b.alive || !b.isBuilding() || b.team === team || b.invulnerable) continue;
+    if (V.dist(b.pos, front) < 950) return true;
+  }
+  return false;
+}
+
+/** 本方基地建筑近期受袭(兵营/T3/T4/主基地)。 */
+function baseUnderAttack(w: World, team: number): Unit | null {
+  for (const b of w.units.values()) {
+    if (!b.alive || b.team !== team || !b.buildingKind) continue;
+    const critical = b.buildingKind === 'ancient' || b.buildingKind === 'tower4' ||
+      b.buildingKind === 'rax_melee' || b.buildingKind === 'rax_ranged' || b.buildingKind === 'tower3';
+    if (!critical) continue;
+    if (w.time - b.lastDamagedAt < 4) return b;
+  }
+  return null;
+}
+
+function enemyTowerNear(w: World, myTeam: number, pos: Vec2, radius: number): boolean {
+  for (const b of w.units.values()) {
+    if (!b.alive || b.kind !== 'tower' || b.team === myTeam) continue;
+    if (V.dist(b.pos, pos) < radius) return true;
+  }
+  return false;
 }
 
 /** 技能释放:取分数最高且 ≥ 阈值者。 */
@@ -145,7 +290,7 @@ function castBest(w: World, u: Unit): boolean {
 }
 
 /** 兵线前沿:本方该路最前小兵;无兵则取本方最前塔;再无则基地。 */
-function laneStandPos(w: World, team: number, lane: Lane): Vec2 {
+function laneStandPos(w: World, team: number, lane: Lane, pullback = 380): Vec2 {
   const wps = w.map.lanes[lane];
   let front: Vec2 | null = null;
   let frontProg = team === Team.Dawn ? -1 : 2;
@@ -173,9 +318,9 @@ function laneStandPos(w: World, team: number, lane: Lane): Vec2 {
       front = fountainPos(w, team);
     }
   }
-  // 后撤 380:朝己方基地方向
+  // 后撤:朝己方基地方向
   const home = fountainPos(w, team);
-  return w.map.nearestWalkable(V.add(front, V.scale(V.norm(V.sub(home, front)), 380)));
+  return w.map.nearestWalkable(V.add(front, V.scale(V.norm(V.sub(home, front)), pullback)));
 }
 
 /** 位置在路径上的进度参数 0..1(晨曦→永夜方向)。 */
@@ -215,7 +360,7 @@ function microLastHit(w: World, u: Unit): void {
   const reach = u.calc.attackRange + u.base.collisionRadius + 120;
   let lastHit: Unit | undefined;
   let deny: Unit | undefined;
-  let tower: Unit | undefined;
+  let building: Unit | undefined;
   let enemyCreepNear = false;
   for (const c of w.units.values()) {
     if (!c.alive || V.dist(u.pos, c.pos) > reach) continue;
@@ -226,18 +371,19 @@ function microLastHit(w: World, u: Unit): void {
       } else if (c.hp / c.calc.maxHp < 0.5 && c.hp <= avgDmg * 0.95) {
         deny = c;
       }
-    } else if (c.kind === 'tower' && c.team !== u.team && !c.invulnerable) {
-      tower = c;
+    } else if (c.team !== u.team && !c.invulnerable && c.isBuilding()) {
+      // 塔/兵营/主基地都是推进目标
+      if (!building || c.buildingKind === 'ancient') building = c;
     }
   }
   if (lastHit) {
     u.issueOrder({ type: 'attack', targetId: lastHit.id });
   } else if (deny) {
     u.issueOrder({ type: 'attack', targetId: deny.id });
-  } else if (!enemyCreepNear && tower) {
-    // 有兵线掩护才推塔
-    const allies = w.queryRadius(tower.pos, 600, (a) => a.team === u.team && a.kind === 'creep');
-    if (allies.length >= 2) u.issueOrder({ type: 'attack', targetId: tower.id });
+  } else if (!enemyCreepNear && building) {
+    // 有兵线掩护才拆建筑
+    const allies = w.queryRadius(building.pos, 700, (a) => a.team === u.team && a.kind === 'creep');
+    if (allies.length >= 2) u.issueOrder({ type: 'attack', targetId: building.id });
   }
 }
 

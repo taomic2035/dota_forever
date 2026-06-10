@@ -13,6 +13,7 @@ import { InputManager } from './engine/input';
 import { Hud } from './ui/hud';
 import { KillFeed } from './ui/killfeed';
 import { ShopPanel } from './ui/shop';
+import { EndScreen } from './ui/endscreen';
 import { tryBuyback } from './sim/hero';
 import { useItem } from './sim/items';
 import { itemDef } from './data/items';
@@ -51,6 +52,7 @@ renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
 const hud = new Hud(app);
 const killfeed = new KillFeed(app);
 const shop = new ShopPanel(app);
+const endScreen = new EndScreen(app);
 /** 等待地面点击的物品槽位,-1 = 无 */
 let pendingItemSlot = -1;
 
@@ -115,6 +117,7 @@ const loop = new GameLoop({
     renderer.render(world, hero?.id ?? -1);
     hud.update(world, hero);
     shop.update(world, hero);
+    endScreen.check(world, mode === 'play' ? Team.Dawn : null);
   },
 });
 loop.speed = speed;

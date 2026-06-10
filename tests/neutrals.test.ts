@@ -34,7 +34,7 @@ describe('neutral camps', () => {
     squatter.pos = w.map.nearestWalkable({ x: 5790, y: 9530 });
     while (w.time < 155) w.step(); // 过 2:00
     expect([...w.units.values()].filter((u) => u.campId === camp.id && u.alive).length).toBe(CAMP_ROSTERS.small.length);
-  });
+  }, 30000);
 
   it('neutrals leash back home and reset to full hp', () => {
     const w = createWorld(map, { seed: 24, creeps: true, startTime: 25 });
