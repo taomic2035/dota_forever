@@ -5,6 +5,7 @@
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
 import { heroAttributes } from '../sim/hero';
+import { itemDef } from '../data/items';
 
 export class Hud {
   root: HTMLElement;
@@ -74,6 +75,24 @@ export class Hud {
           <div>攻 ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)} · 甲 ${hero.calc.armor.toFixed(1)}</div>
           <div>杀 ${m.kills} / 死 ${m.deaths} / 助 ${m.assists} · 补 ${m.lastHits}/${m.denies}</div>
         </div>
+        <div style="display:grid;grid-template-columns:repeat(3,38px);gap:3px;">
+          ${hero.inventory.map((inst, i) => this.itemSlot(world, inst, i)).join('')}
+        </div>
       </div>`;
+  }
+
+  private itemSlot(world: World, inst: import('../sim/items').ItemInstance | null, i: number): string {
+    if (!inst) {
+      return `<div style="width:38px;height:30px;border:1px solid #2c3520;border-radius:4px;background:#0d100a;
+        font-size:9px;color:#444;display:flex;align-items:center;justify-content:center">${i + 1}</div>`;
+    }
+    const def = itemDef(inst.itemKey);
+    const onCd = world.time < inst.cooldownUntil;
+    return `<div title="${def.name}:${def.description}" style="width:38px;height:30px;border:1px solid #5a6a3a;border-radius:4px;
+      background:${onCd ? '#1a1a1a' : '#222b18'};font-size:10px;color:#cfd8a0;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}">
+      <span style="white-space:nowrap">${def.name.slice(0, 3)}</span>
+      ${inst.charges > 0 ? `<span style="font-size:9px;color:#ffd54f">×${inst.charges}</span>` : ''}
+    </div>`;
   }
 }

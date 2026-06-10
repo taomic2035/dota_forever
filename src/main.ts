@@ -12,7 +12,10 @@ import { GameLoop } from './engine/loop';
 import { InputManager } from './engine/input';
 import { Hud } from './ui/hud';
 import { KillFeed } from './ui/killfeed';
+import { ShopPanel } from './ui/shop';
 import { tryBuyback } from './sim/hero';
+import { useItem } from './sim/items';
+import { itemDef } from './data/items';
 
 const params = new URLSearchParams(location.search);
 const seed = Number(params.get('seed') ?? 20260610);
@@ -47,6 +50,9 @@ const renderer = new Renderer(app, world, camera);
 renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
 const hud = new Hud(app);
 const killfeed = new KillFeed(app);
+const shop = new ShopPanel(app);
+/** 等待地面点击的物品槽位,-1 = 无 */
+let pendingItemSlot = -1;
 
 window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'b' && hero && !hero.alive) tryBuyback(world, hero);
@@ -61,9 +67,11 @@ const input = new InputManager(renderer.canvas, camera, {
     else hero.issueOrder({ type: 'move', pos: map.nearestWalkable(p) });
   },
   onLeftClick(p) {
-    // 点击己方小兵(<50%)反补;空地取消
     if (!hero?.alive) return;
-    void p;
+    if (pendingItemSlot >= 0) {
+      useItem(world, hero, pendingItemSlot, map.nearestWalkable(p));
+      pendingItemSlot = -1;
+    }
   },
   onAttackMove(p) {
     if (!hero?.alive) return;
@@ -72,11 +80,28 @@ const input = new InputManager(renderer.canvas, camera, {
     else hero.issueOrder({ type: 'attackmove', pos: map.nearestWalkable(p) });
   },
   onCastKey(_i, _p) { /* M3 技能 */ },
+  onItemKey(slot, p) {
+    if (!hero?.alive) return;
+    const inst = hero.inventory[slot];
+    if (!inst) return;
+    const def = itemDef(inst.itemKey);
+    if (!def.active) return;
+    if (def.active.targetMode === 'none') {
+      useItem(world, hero, slot);
+    } else if (def.active.targetMode === 'point') {
+      // 鼠标处快速施放
+      useItem(world, hero, slot, map.nearestWalkable(p));
+    } else {
+      const target = world.queryRadius(p, 80, (u) => u.alive)[0];
+      if (target) useItem(world, hero, slot, undefined, target);
+    }
+  },
   onStop() { hero?.issueOrder({ type: 'stop' }); },
   onHold() { hero?.issueOrder({ type: 'hold' }); },
   onCenterHero() { if (hero) camera.centerOn(hero.pos); },
   onTogglePause() { loop.paused = !loop.paused; },
   onToggleScoreboard(_s) { /* M5 */ },
+  onToggleShop() { shop.toggle(); },
 });
 
 const loop = new GameLoop({
@@ -89,6 +114,7 @@ const loop = new GameLoop({
     input.update(16.7);
     renderer.render(world, hero?.id ?? -1);
     hud.update(world, hero);
+    shop.update(world, hero);
   },
 });
 loop.speed = speed;

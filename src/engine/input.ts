@@ -11,11 +11,13 @@ export interface InputCallbacks {
   onLeftClick(world: Vec2): void;
   onAttackMove(world: Vec2): void;
   onCastKey(index: number, world: Vec2): void; // QWER → 0-3
+  onItemKey(slot: number, world: Vec2): void; // 1-6 → 0-5
   onStop(): void;
   onHold(): void;
   onCenterHero(): void;
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
+  onToggleShop(): void;
 }
 
 export class InputManager {
@@ -75,9 +77,13 @@ export class InputManager {
         case 'w': this.quickCast(1, world); break;
         case 'e': this.quickCast(2, world); break;
         case 'r': this.quickCast(3, world); break;
+        case '1': case '2': case '3': case '4': case '5': case '6':
+          this.cb.onItemKey(Number(e.key) - 1, world);
+          break;
         case 'a': this.pendingCast = -2; break;
         case 's': this.pendingCast = -1; this.cb.onStop(); break;
         case 'h': this.cb.onHold(); break;
+        case 'f': this.cb.onToggleShop(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
