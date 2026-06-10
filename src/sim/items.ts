@@ -113,7 +113,8 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   if (!def.active) return false;
   if (w.time < inst.cooldownUntil) return false;
   if (def.active.manaCost && hero.mp < def.active.manaCost) return false;
-  if (def.charges !== undefined && inst.charges <= 0) return false;
+  // 可再充能物品(魔棒/药瓶)由 onUse 自管充能;一次性消耗品需有充能
+  if (def.charges !== undefined && !def.rechargeable && inst.charges <= 0) return false;
   if (def.active.targetMode === 'point' && !pos) return false;
   if (def.active.targetMode === 'unit' && !target) return false;
   if (def.active.castRange && pos && def.active.castRange < 90000) {
