@@ -87,6 +87,8 @@ export function isVisibleTo(w: World, viewerTeam: Team, unit: Unit): boolean {
   if (!w.vision) return true;
   if (!cellVisible(w, viewerTeam, unit.pos)) return false;
   if (stateOf(unit).invisible) {
+    // 显影之尘标记直接可见
+    if (unit.modifiers.some((m) => m.key === 'item_dusted')) return true;
     for (const ts of w.vision.trueSight[viewerTeam as 0 | 1]) {
       if (V.dist(ts.pos, unit.pos) <= ts.r) return true;
     }

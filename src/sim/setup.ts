@@ -11,6 +11,7 @@ import { installEconomy } from './economy';
 import { installModifiers } from './modifiers';
 import { installHeroRespawn } from './hero';
 import { installVision } from './vision';
+import { installItems } from './items';
 
 export interface WorldOptions {
   seed: number;
@@ -35,5 +36,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installEconomy(w);
   installHeroRespawn(w);
   installVision(w);
+  installItems(w);
   return w;
 }

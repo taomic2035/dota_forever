@@ -134,6 +134,8 @@ export class Unit {
   modifiers: Modifier[] = [];
   abilities: AbilityInstance[] = [];
   inventory: (ItemInstance | null)[] = [null, null, null, null, null, null];
+  /** 储藏处(基地) */
+  stash: (ItemInstance | null)[] = [null, null, null, null, null, null];
 
   // 施法状态(abilities.ts 驱动)
   casting: { abilityIndex: number; pointUntil: number; pos?: Vec2; targetId?: EntityId } | null = null;
