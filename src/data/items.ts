@@ -296,6 +296,7 @@ ITEMS.push(
 
 // ---------- 高级主动/光环装备 ----------
 import { spellDamage } from '../sim/abilities';
+import { applyRune } from '../sim/runes';
 import { purge } from '../sim/modifiers';
 
 ITEMS.push(
@@ -434,4 +435,37 @@ ITEMS.push(
       },
     },
     description: '光环:周围友军 +15% 吸血与 +12% 攻击力。' },
+);
+
+// ---------- 魔法药瓶 ----------
+ITEMS.push(
+  { key: 'bottle', name: '魔法药瓶', cost: 600, category: 'consumable', charges: 3, rechargeable: true,
+    active: {
+      name: '畅饮', cooldown: 0.5, targetMode: 'none',
+      onUse(w, user) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'bottle');
+        if (!inst) return false;
+        // 瓶中有符优先释放
+        if (inst.runeKey) {
+          applyRune(w, user, inst.runeKey as import('./balance').RuneType);
+          inst.runeKey = undefined;
+          inst.runeExpiresAt = undefined;
+          return true;
+        }
+        if (inst.charges <= 0) return false;
+        if (user.hp >= user.calc.maxHp && user.mp >= user.calc.maxMp) return false;
+        applyModifier(w, user, {
+          key: 'item_bottle_regen', duration: 3, isBuff: true,
+          stats: { bonusHpRegen: 45, bonusMpRegen: 23 },
+          tickInterval: 0.1,
+          onTick(world, u, m) {
+            m.data!.start ??= m.expiresAt - 3;
+            if (u.lastDamagedAt > (m.data!.start as number) + 0.05) m.expiresAt = -Infinity;
+          },
+        }, user.id);
+        inst.charges--;
+        return true;
+      },
+    },
+    description: '3 充能;每次 3 秒内恢复 135 生命 70 法力,受击中断;泉水自动续满;可储存符文。' },
 );

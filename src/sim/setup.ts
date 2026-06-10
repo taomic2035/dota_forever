@@ -12,6 +12,7 @@ import { installModifiers } from './modifiers';
 import { installHeroRespawn } from './hero';
 import { installVision } from './vision';
 import { installItems } from './items';
+import { installRunes } from './runes';
 
 export interface WorldOptions {
   seed: number;
@@ -37,5 +38,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installHeroRespawn(w);
   installVision(w);
   installItems(w);
+  installRunes(w);
   return w;
 }

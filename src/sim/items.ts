@@ -14,6 +14,9 @@ export interface ItemInstance {
   itemKey: string;
   charges: number;
   cooldownUntil: number;
+  /** 瓶装符文 */
+  runeKey?: string;
+  runeExpiresAt?: number;
 }
 
 export function makeItem(key: string): ItemInstance {
@@ -224,10 +227,18 @@ export function installItems(w: World): void {
         }
       }
     }
-    // 守卫到期由 modifier onExpire 处理;这里清理已死守卫
+    // 守卫到期由 modifier onExpire 处理;这里清理已死守卫;泉水续瓶
     if (world.tick % 30 === 0) {
       for (const u of [...world.units.values()]) {
         if (u.kind === 'ward' && !u.alive && world.time - u.diedAt > 2) world.removeUnit(u.id);
+      }
+      for (const f of world.units.values()) {
+        if (!f.alive || f.buildingKind !== 'fountain') continue;
+        for (const ally of world.queryRadius(f.pos, 1100, (x) => x.team === f.team && x.isHero())) {
+          for (const inst of ally.inventory) {
+            if (inst?.itemKey === 'bottle' && inst.charges < 3 && !inst.runeKey) inst.charges = 3;
+          }
+        }
       }
     }
   });

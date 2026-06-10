@@ -45,6 +45,8 @@ export class World {
   vision?: import('./vision').VisionData;
   /** 夜晚标志(daynight 系统驱动) */
   isNight = false;
+  /** 当前在场符文(installRunes 维护,至多一个) */
+  runes: import('./runes').RuneSpawn[] = [];
   /** 比赛实际开始前的准备时间偏移(time 从 -PREP 开始走) */
   constructor(map: GameMap, seed: number, startTime = -75) {
     this.map = map;
