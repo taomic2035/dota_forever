@@ -79,7 +79,7 @@ export function spawnHero(w: World, def: HeroDef, team: Team, pos?: { x: number;
   return u;
 }
 
-/** 英雄复活系统(买活在 M3/M4 完善,此处处理自然复活)。 */
+/** 英雄复活系统:到达复活时刻自动在泉水重生(买活见 tryBuyback,不灭之盾见 reviveHero)。 */
 export function installHeroRespawn(w: World): void {
   const system: WorldSystem = (world) => {
     for (const u of world.units.values()) {

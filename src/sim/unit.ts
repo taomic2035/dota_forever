@@ -1,6 +1,6 @@
 /**
  * 单位实体:英雄/小兵/野怪/建筑共用一个类,以 kind + 数据区分。
- * M1 仅实现移动;战斗在 combat.ts,状态效果在 modifiers.ts。
+ * 移动逻辑在本文件;战斗在 combat.ts,状态效果在 modifiers.ts,技能在 abilities.ts。
  */
 import { V, type Vec2 } from '../core/vec2';
 import { turnTowards } from '../core/mathx';
@@ -52,7 +52,7 @@ export interface UnitStats {
   xpBounty: number;
 }
 
-/** 经 modifier 聚合后的实际面板(每 tick 重算,M3 起生效;当前=base 镜像)。 */
+/** 经 modifier 与装备聚合后的实际面板(combat.recalcUnit 每 tick 由 base 重算)。 */
 export interface CalcStats extends UnitStats {
   ias: number; // 总攻速加成
   evasion: number;
@@ -195,7 +195,7 @@ export class Unit {
     this.channeling = null;
   }
 
-  /** M1 移动执行;战斗类 order 由 combat 扩展处理。 */
+  /** 移动指令执行;攻击/施法等战斗类 order 由 combat.ordersSystem 接管。 */
   stepMovement(w: World): void {
     const o = this.order;
     if (!o) return;

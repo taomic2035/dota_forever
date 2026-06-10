@@ -98,7 +98,7 @@ export class InputManager {
 
   private dragging = false;
 
-  /** 技能键:点目标技能进入待确认,瞬发技能由上层直接处理(M3 区分)。 */
+  /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
   private quickCast(i: number, world: Vec2) {
     this.cb.onCastKey(i, world);
   }

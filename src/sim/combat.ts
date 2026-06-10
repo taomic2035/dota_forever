@@ -129,7 +129,7 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   return amount;
 }
 
-/** 状态聚合占位:M3 modifier 实装后由扩展覆盖。 */
+/** 单位控制状态聚合(由 modifiers.ts 的 setStateResolver 注入,避免循环依赖)。 */
 export let stateOf: (u: Unit) => {
   stunned?: boolean; rooted?: boolean; silenced?: boolean; disarmed?: boolean;
   invisible?: boolean; magicImmune?: boolean; physImmune?: boolean; phased?: boolean;
@@ -163,7 +163,7 @@ export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomp
   if (dealt > 0 && attacker.calc.lifesteal > 0 && !target.isBuilding()) {
     attacker.hp = Math.min(attacker.calc.maxHp, attacker.hp + dealt * attacker.calc.lifesteal);
   }
-  // 攻击命中钩子(法球等,M3 注册)
+  // 攻击命中钩子(法球类技能由 abilities.ts 注册)
   for (const hook of attackHitHooks) hook(w, attacker, target, dealt);
 }
 
@@ -449,7 +449,7 @@ const CORPSE_TIME = 2.5;
 export function cleanupSystem(w: World): void {
   for (const u of [...w.units.values()]) {
     if (u.alive) continue;
-    if (u.isHero()) continue; // 英雄等待复活(M3)
+    if (u.isHero()) continue; // 英雄不移除,等待复活系统处理
     const linger = u.isBuilding() ? 60 : CORPSE_TIME;
     if (w.time - u.diedAt > linger) w.removeUnit(u.id);
   }

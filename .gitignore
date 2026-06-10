@@ -1,4 +1,25 @@
+# 依赖与构建产物
 node_modules/
 dist/
+*.tsbuildinfo
+
+# Vite / Vitest 缓存与覆盖率
+.vite/
+coverage/
+
+# Playwright 测试产物
+test-results/
+playwright-report/
+.playwright/
+
+# 日志与本地环境
 *.log
+*.local
+.env
+.env.*
+
+# 编辑器与系统
 .DS_Store
+.idea/
+.vscode/
+*.swp
