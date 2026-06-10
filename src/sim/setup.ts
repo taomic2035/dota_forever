@@ -13,6 +13,7 @@ import { installHeroRespawn } from './hero';
 import { installVision } from './vision';
 import { installItems } from './items';
 import { installRunes } from './runes';
+import { installNeutrals } from './neutrals';
 
 export interface WorldOptions {
   seed: number;
@@ -39,5 +40,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installVision(w);
   installItems(w);
   installRunes(w);
+  if (opts.creeps) installNeutrals(w); // 与兵线一起代表“真实对局”
   return w;
 }
