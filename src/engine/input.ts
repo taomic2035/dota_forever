@@ -19,7 +19,8 @@ export interface InputCallbacks {
 }
 
 export class InputManager {
-  mouse: Vec2 = { x: 0, y: 0 };
+  /** null = 鼠标尚未进入画面(headless/刚加载),此时不做边缘平移 */
+  mouse: Vec2 | null = null;
   /** 待目标确认的技能编号(按 QWER 后等待点击),-1 = 无;-2 = A 移动待确认 */
   pendingCast = -1;
   edgePan = true;
@@ -68,7 +69,7 @@ export class InputManager {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keys.add(e.key.toLowerCase());
-      const world = this.camera.screenToWorld(this.mouse);
+      const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
       switch (e.key.toLowerCase()) {
         case 'q': this.quickCast(0, world); break;
         case 'w': this.quickCast(1, world); break;
@@ -101,7 +102,7 @@ export class InputManager {
     const m = this.mouse;
     const margin = 14;
     const speed = 1.1 * dtMs;
-    if (this.edgePan && document.hasFocus()) {
+    if (m && this.edgePan && document.hasFocus()) {
       if (m.x < margin) this.camera.pan(-speed, 0);
       if (m.x > this.camera.viewW - margin) this.camera.pan(speed, 0);
       if (m.y < margin) this.camera.pan(0, -speed);
