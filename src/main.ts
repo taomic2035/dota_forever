@@ -11,6 +11,8 @@ import { Renderer } from './render/renderer';
 import { GameLoop } from './engine/loop';
 import { InputManager } from './engine/input';
 import { Hud } from './ui/hud';
+import { KillFeed } from './ui/killfeed';
+import { tryBuyback } from './sim/hero';
 
 const params = new URLSearchParams(location.search);
 const seed = Number(params.get('seed') ?? 20260610);
@@ -44,6 +46,11 @@ camera.centerOn(hero?.pos ?? { x: 7520, y: 7520 });
 const renderer = new Renderer(app, world, camera);
 renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
 const hud = new Hud(app);
+const killfeed = new KillFeed(app);
+
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'b' && hero && !hero.alive) tryBuyback(world, hero);
+});
 
 const input = new InputManager(renderer.canvas, camera, {
   onRightClick(p) {
@@ -75,6 +82,7 @@ const input = new InputManager(renderer.canvas, camera, {
 const loop = new GameLoop({
   step() {
     world.step();
+    killfeed.consume(world);
   },
   render(alpha) {
     renderer.alpha = alpha;

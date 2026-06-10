@@ -8,6 +8,7 @@ import {
   ARMOR_PER_AGI, IAS_PER_AGI, BASE_HP, BASE_MP, BASE_HP_REGEN, BASE_MP_REGEN,
   HERO_BASE_MAGIC_RESIST, STAT_BONUS_PER_LEVEL, UNIT_RADIUS,
   HERO_VISION_DAY, HERO_VISION_NIGHT, ACQUIRE_RANGE_MELEE, ACQUIRE_RANGE_RANGED,
+  buybackCost,
 } from '../data/balance';
 import type { HeroDef } from '../data/heroes/types';
 import { Team } from './map';
@@ -89,6 +90,16 @@ export function installHeroRespawn(w: World): void {
     }
   };
   w.systems.push(system);
+}
+
+/** 买活:支付金币立即在泉水复活。 */
+export function tryBuyback(w: World, u: Unit): boolean {
+  if (u.alive || !u.heroMeta) return false;
+  const cost = buybackCost(u.level);
+  if (u.heroMeta.gold < cost) return false;
+  u.heroMeta.gold -= cost;
+  reviveHero(w, u);
+  return true;
 }
 
 export function reviveHero(w: World, u: Unit): void {
