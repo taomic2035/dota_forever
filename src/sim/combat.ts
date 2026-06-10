@@ -277,8 +277,7 @@ function idleCombat(w: World, u: Unit): void {
 /** 追击 + 攻击循环。 */
 export function attackRoutine(w: World, u: Unit, t: Unit): void {
   if (inAttackRange(u, t)) {
-    u.path = [];
-    u.pathGoal = null;
+    // 不清空路径缓存:脱战重新追击时按 goal 差异自然重算,避免高频 A*
     u.facing = turnTowards(u.facing, V.angle(u.pos, t.pos), TURN_RATE * w.dt);
     tryStartWindup(w, u, t);
   } else if (!stateOf(u).rooted) {

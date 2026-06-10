@@ -3,6 +3,7 @@ import { GameMap, Team } from './sim/map';
 import type { World } from './sim/world';
 import { createWorld } from './sim/setup';
 import { spawnHero } from './sim/hero';
+import { installBotAI } from './sim/ai/bots';
 import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { Camera } from './render/camera';
@@ -23,11 +24,20 @@ app.addEventListener('contextmenu', (e) => e.preventDefault());
 const map = new GameMap();
 const world: World = createWorld(map, { seed, creeps: true });
 
-// 玩家英雄(观战模式不生成)
+// 阵容:每队 5 人(玩家占晨曦一个位置,其余为 bot)
 let hero: Unit | undefined;
 if (mode === 'play') {
   hero = spawnHero(world, heroByKey(heroKey) ?? HEROES[0], Team.Dawn);
 }
+for (const team of [Team.Dawn, Team.Night]) {
+  const botCount = team === Team.Dawn && hero ? 4 : 5;
+  for (let i = 0; i < botCount; i++) {
+    // 排除玩家已选英雄,循环取剩余
+    const pool = HEROES.filter((h) => !(team === Team.Dawn && hero && h.key === hero.heroDef!.key));
+    spawnHero(world, pool[i % pool.length], team);
+  }
+}
+installBotAI(world, (id) => hero?.id === id);
 
 const camera = new Camera();
 camera.centerOn(hero?.pos ?? { x: 7520, y: 7520 });

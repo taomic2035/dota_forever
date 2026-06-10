@@ -7,7 +7,7 @@ import { turnTowards } from '../core/mathx';
 import type { AttackType, ArmorType } from '../data/balance';
 import { TURN_RATE } from '../data/balance';
 import type { World } from './world';
-import { findPath } from './pathfinding';
+import { findPath, lineWalkable } from './pathfinding';
 import type { Modifier } from './modifiers';
 import type { AbilityInstance } from './abilities';
 import type { ItemInstance } from './items';
@@ -128,6 +128,8 @@ export class Unit {
   orderQueue: Order[] = [];
   path: Vec2[] = [];
   pathGoal: Vec2 | null = null;
+  /** 卡住后允许重寻路的时刻(节流) */
+  repathAt = -Infinity;
 
   modifiers: Modifier[] = [];
   abilities: AbilityInstance[] = [];
@@ -198,11 +200,16 @@ export class Unit {
 
   /** 朝目标点沿路径移动一 tick;路径缓存,目标变化才重算。 */
   moveAlongPathTo(w: World, goal: Vec2): void {
-    if (!this.pathGoal || V.dist(this.pathGoal, goal) > 96) {
-      this.path = findPath(w.map, this.pos, goal);
+    if (!this.pathGoal || V.dist(this.pathGoal, goal) > 150) {
+      // 视线直达 → 免 A*(兵线走廊与开阔地的主要形态;采样成本远低于搜索)
+      if (V.dist(this.pos, goal) < 2400 && lineWalkable(w.map, this.pos, goal)) {
+        this.path = [V.clone(goal)];
+      } else {
+        this.path = findPath(w.map, this.pos, goal);
+        // 去掉起点(就是自己位置)
+        if (this.path.length > 1) this.path.shift();
+      }
       this.pathGoal = V.clone(goal);
-      // 去掉起点(就是自己位置)
-      if (this.path.length > 1) this.path.shift();
     }
     if (this.path.length === 0) return;
     let next = this.path[0];
@@ -218,10 +225,23 @@ export class Unit {
     // 自己已在阻挡格(被技能位移/出生点异常)时允许自由移动逃脱
     if (w.map.isWalkable(newPos) || !w.map.isWalkable(this.pos)) {
       this.pos = newPos;
-    } else {
-      const snapped = w.map.nearestWalkable(newPos);
-      if (V.dist(snapped, this.pos) < step * 2) this.pos = snapped;
-      else this.path = []; // 卡住,下 tick 重新寻路
+      return;
+    }
+    // 沿墙滑动:分别尝试 X/Y 单轴移动
+    const slideX = { x: newPos.x, y: this.pos.y };
+    if (w.map.isWalkable(slideX)) {
+      this.pos = slideX;
+      return;
+    }
+    const slideY = { x: this.pos.x, y: newPos.y };
+    if (w.map.isWalkable(slideY)) {
+      this.pos = slideY;
+      return;
+    }
+    // 真卡住:节流重寻路(防止每 tick 一次 A*)
+    if (w.time >= this.repathAt) {
+      this.repathAt = w.time + 0.5;
+      this.path = [];
       this.pathGoal = null;
     }
   }

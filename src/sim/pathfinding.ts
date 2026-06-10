@@ -56,7 +56,30 @@ export function lineWalkable(map: GameMap, a: Vec2, b: Vec2): boolean {
   return true;
 }
 
+/** 性能统计(诊断用)。 */
+export const PATH_STATS = { calls: 0, expansions: 0, failed: 0, ms: 0 };
+
+/** 复用的寻路缓冲(generation 戳记免清零)。模拟单线程,安全。 */
+let SCR: {
+  n: number;
+  g: Float64Array;
+  parent: Int32Array;
+  stamp: Int32Array;
+  closed: Int32Array;
+  gen: number;
+} | null = null;
+
 export function findPath(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
+  const __t0 = performance.now();
+  try {
+    return findPathInner(map, from, to);
+  } finally {
+    PATH_STATS.ms += performance.now() - __t0;
+  }
+}
+
+function findPathInner(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
+  PATH_STATS.calls++;
   const start = map.cellOf(map.nearestWalkable(from));
   const goalPos = map.nearestWalkable(to);
   const goal = map.cellOf(goalPos);
@@ -66,11 +89,17 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
 
   if (startI === goalI) return [V.clone(goalPos)];
 
-  const g = new Float64Array(N).fill(Infinity);
-  const parent = new Int32Array(N).fill(-1);
-  const closed = new Uint8Array(N);
+  if (!SCR || SCR.n !== N) {
+    SCR = { n: N, g: new Float64Array(N), parent: new Int32Array(N), stamp: new Int32Array(N), closed: new Int32Array(N), gen: 0 };
+  }
+  SCR.gen++;
+  const { g, parent, stamp, closed } = SCR;
+  const gen = SCR.gen;
+  const gAt = (i: number) => (stamp[i] === gen ? g[i] : Infinity);
   const heap = new MinHeap();
   g[startI] = 0;
+  stamp[startI] = gen;
+  parent[startI] = -1;
   heap.push(0, startI);
 
   const h = (i: number) => {
@@ -83,12 +112,12 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
   let bestH = h(startI);
   let found = false;
   let expanded = 0;
-  const MAX_EXPAND = 60000;
+  const MAX_EXPAND = 12000; // 超限按最近接近点返回,调用方下次重试
 
   while (heap.size && expanded < MAX_EXPAND) {
     const cur = heap.pop();
-    if (closed[cur]) continue;
-    closed[cur] = 1;
+    if (closed[cur] === gen) continue;
+    closed[cur] = gen;
     expanded++;
     if (cur === goalI) { found = true; break; }
     const hh = h(cur);
@@ -102,16 +131,19 @@ export function findPath(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
         if (!map.isWalkableCell(cx + dx, cy) || !map.isWalkableCell(cx, cy + dy)) continue;
       }
       const ni = ny * W + nx;
-      if (closed[ni]) continue;
+      if (closed[ni] === gen) continue;
       const ng = g[cur] + cost;
-      if (ng < g[ni]) {
+      if (ng < gAt(ni)) {
         g[ni] = ng;
+        stamp[ni] = gen;
         parent[ni] = cur;
         heap.push(ng + h(ni), ni);
       }
     }
   }
 
+  PATH_STATS.expansions += expanded;
+  if (!found) PATH_STATS.failed++;
   const endI = found ? goalI : best;
   // 回溯
   const cells: number[] = [];
