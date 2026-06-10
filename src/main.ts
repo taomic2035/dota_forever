@@ -32,6 +32,7 @@ if (mode === 'play') {
 const camera = new Camera();
 camera.centerOn(hero?.pos ?? { x: 7520, y: 7520 });
 const renderer = new Renderer(app, world, camera);
+renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
 const hud = new Hud(app);
 
 const input = new InputManager(renderer.canvas, camera, {

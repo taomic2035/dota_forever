@@ -6,6 +6,8 @@ import type { World } from '../sim/world';
 import { Team } from '../sim/map';
 import type { Unit } from '../sim/unit';
 import { Camera } from './camera';
+import { FogRenderer } from './fog';
+import { isVisibleTo } from '../sim/vision';
 import { WORLD } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
 
@@ -27,6 +29,9 @@ export class Renderer {
   ctx: CanvasRenderingContext2D;
   terrain: HTMLCanvasElement;
   camera: Camera;
+  fog: FogRenderer;
+  /** 观察者阵营;null = 全图视野(观战) */
+  viewerTeam: Team | null = null;
   /** 渲染插值系数(0-1),由主循环每帧设置 */
   alpha = 1;
   showPaths = false;
@@ -38,6 +43,7 @@ export class Renderer {
     parent.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d')!;
     this.terrain = this.bakeTerrain(world);
+    this.fog = new FogRenderer(world.map.GW, world.map.GH);
     this.handleResize();
     window.addEventListener('resize', () => this.handleResize());
   }
@@ -130,10 +136,27 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.strokeRect(o.x, o.y, e.x - o.x, e.y - o.y);
 
-    // 单位(按 y 排序近似遮挡)
-    const units = [...world.units.values()].filter((u) => u.alive);
+    // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)
+    const units = [...world.units.values()].filter(
+      (u) => u.alive && (this.viewerTeam === null || isVisibleTo(world, this.viewerTeam, u)),
+    );
     units.sort((a, b) => a.pos.y - b.pos.y);
     for (const u of units) this.drawUnit(world, u, u.id === selectedId);
+
+    // 弹道
+    for (const p of world.projectiles) {
+      const sp = this.camera.worldToScreen(p.pos);
+      ctx.fillStyle = p.style === 'hammer' ? '#ffd54f' : '#cfe8ff';
+      ctx.beginPath();
+      ctx.arc(sp.x, sp.y, Math.max(2, this.s(14)), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 迷雾
+    if (this.viewerTeam !== null) {
+      this.fog.update(world, this.viewerTeam);
+      this.fog.draw(ctx, this.camera, world.map.CELL);
+    }
   }
 
   drawUnit(world: World, u: Unit, selected: boolean) {

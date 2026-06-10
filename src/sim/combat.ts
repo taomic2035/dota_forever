@@ -316,7 +316,13 @@ function launchAttack(w: World, u: Unit, t: Unit): void {
   }
 }
 
-/** 目标获取:优先非建筑、按距离。 */
+/** 由 vision.ts 注入的可见性查询(默认全可见)。 */
+export let visibilityCheck: (w: World, viewerTeam: number, unit: Unit) => boolean = () => true;
+export function setVisibilityCheck(fn: typeof visibilityCheck): void {
+  visibilityCheck = fn;
+}
+
+/** 目标获取:优先非建筑、按距离;迷雾/隐身中的目标不可获取。 */
 export function acquireTarget(w: World, u: Unit): Unit | undefined {
   const r = u.calc.acquireRange;
   let bestUnit: Unit | undefined;
@@ -328,6 +334,7 @@ export function acquireTarget(w: World, u: Unit): Unit | undefined {
     if (!isEnemy(u, v)) continue;
     if (stateOf(v).invisible || v.invulnerable) continue;
     if (v.kind === 'ward') continue;
+    if (!visibilityCheck(w, u.team, v)) continue;
     const d2 = V.distSq(u.pos, v.pos);
     if (d2 > r2) continue;
     if (v.isBuilding()) {

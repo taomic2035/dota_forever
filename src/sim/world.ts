@@ -41,6 +41,10 @@ export class World {
   systems: WorldSystem[] = [];
   projectiles: Projectile[] = [];
   gameOver: Team | null = null;
+  /** 视野数据(installVision 初始化) */
+  vision?: import('./vision').VisionData;
+  /** 夜晚标志(daynight 系统驱动) */
+  isNight = false;
   /** 比赛实际开始前的准备时间偏移(time 从 -PREP 开始走) */
   constructor(map: GameMap, seed: number, startTime = -75) {
     this.map = map;

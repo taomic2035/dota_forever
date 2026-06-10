@@ -10,6 +10,7 @@ import { installCreeps } from './creeps';
 import { installEconomy } from './economy';
 import { installModifiers } from './modifiers';
 import { installHeroRespawn } from './hero';
+import { installVision } from './vision';
 
 export interface WorldOptions {
   seed: number;
@@ -33,5 +34,6 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   if (opts.creeps) installCreeps(w);
   installEconomy(w);
   installHeroRespawn(w);
+  installVision(w);
   return w;
 }
