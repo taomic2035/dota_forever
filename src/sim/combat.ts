@@ -6,7 +6,7 @@ import { V } from '../core/vec2';
 import { turnTowards } from '../core/mathx';
 import {
   DAMAGE_MATRIX, armorReduction, MAX_IAS_BONUS, TURN_RATE,
-  UPHILL_MISS_CHANCE,
+  UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT,
   type AttackType,
 } from '../data/balance';
 import type { World } from './world';
@@ -106,6 +106,12 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   target.hp -= amount;
   target.lastAttackerId = evt.source;
   target.lastDamagedAt = w.time;
+  {
+    const src = w.getUnit(evt.source);
+    if (src && src.team !== target.team && (src.isHero() || src.kind === 'tower' || src.kind === 'boss')) {
+      target.blinkLockedUntil = w.time + BLINK_DAMAGE_LOCKOUT;
+    }
+  }
   w.emit({ kind: 'unit_damaged', unitId: target.id, sourceId: evt.source, amount, pos: V.clone(target.pos) });
   if (target.hp <= 0) {
     kill(w, target, evt.source);

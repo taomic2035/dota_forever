@@ -31,6 +31,10 @@ export interface ItemDef {
     /** 返回 false 表示未生效(不消耗) */
     onUse(w: World, user: Unit, pos?: Vec2, target?: Unit): boolean;
   };
+  /** 充能可再生(魔棒类):使用不删除物品 */
+  rechargeable?: boolean;
+  /** 持有期间常驻 modifier(光环/灼烧等),背包同步管理 */
+  holderModifier?: import('../sim/modifiers').ModifierDef;
   recipe?: { components: string[]; recipeCost: number };
   description: string;
 }
@@ -240,8 +244,20 @@ export function isDusted(u: Unit): boolean {
 
 // ---------- 基础补充(合成原料) ----------
 ITEMS.push(
-  { key: 'magic_stick', name: '魔力短杖', cost: 200, category: 'arcane', charges: 0,
-    description: '周围敌人施法时获得充能;使用恢复生命与法力(充能逻辑见强化魔杖)。' },
+  { key: 'magic_stick', name: '魔力短杖', cost: 200, category: 'arcane', charges: 0, rechargeable: true,
+    active: {
+      name: '能量释放', cooldown: 13, targetMode: 'none',
+      onUse(w, user) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'magic_stick');
+        if (!inst || inst.charges <= 0) return false;
+        const restore = inst.charges * 15;
+        user.hp = Math.min(user.calc.maxHp, user.hp + restore);
+        user.mp = Math.min(user.calc.maxMp, user.mp + restore);
+        inst.charges = 0;
+        return true;
+      },
+    },
+    description: '周围敌人施法时获得充能(上限 10);使用时每充能恢复 15 生命/法力。' },
   { key: 'morbid_mask', name: '噬血面具', cost: 900, category: 'weapon',
     stats: { lifesteal: 0.10 }, description: '攻击吸取 10% 伤害为生命。' },
 );
@@ -276,4 +292,146 @@ ITEMS.push(
     stats: { bonusMagicResist: 0.30, bonusHpRegen: 4 },
     recipe: { components: ['cloak', 'ring_regen'], recipeCost: 200 },
     description: '+30% 魔抗 +4 生命回复。' },
+);
+
+// ---------- 高级主动/光环装备 ----------
+import { spellDamage } from '../sim/abilities';
+import { purge } from '../sim/modifiers';
+
+ITEMS.push(
+  { key: 'magic_wand', name: '强化魔杖', cost: 509, category: 'combined', charges: 0, rechargeable: true,
+    stats: { bonusStr: 3, bonusAgi: 3, bonusInt: 3 },
+    recipe: { components: ['magic_stick', 'branch', 'branch', 'branch'], recipeCost: 150 },
+    active: {
+      name: '能量释放', cooldown: 13, targetMode: 'none',
+      onUse(w, user) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'magic_wand');
+        if (!inst || inst.charges <= 0) return false;
+        const restore = inst.charges * 15;
+        user.hp = Math.min(user.calc.maxHp, user.hp + restore);
+        user.mp = Math.min(user.calc.maxMp, user.mp + restore);
+        inst.charges = 0;
+        return true;
+      },
+    },
+    description: '+3 全属性;周围敌人施法时积攒充能(上限 17),使用时每充能恢复 15 生命/法力。' },
+
+  { key: 'blink', name: '闪烁短刃', cost: 2150, category: 'arcane',
+    active: {
+      name: '闪烁', cooldown: 14, targetMode: 'point', castRange: 99999,
+      onUse(w, user, pos) {
+        if (!pos) return false;
+        if (w.time < user.blinkLockedUntil) return false;
+        const d = V.dist(user.pos, pos);
+        const MAX = 1200;
+        const dest = d <= MAX ? pos : V.add(user.pos, V.scale(V.norm(V.sub(pos, user.pos)), MAX * 0.8));
+        blinkTo(w, user, dest);
+        w.emit({ kind: 'fx', fx: 'blink', pos: V.clone(user.pos) });
+        return true;
+      },
+    },
+    description: '闪烁至目标点(最远 1200);受到英雄伤害后 3 秒内不可使用。' },
+
+  { key: 'bkb', name: '永恒壁垒', cost: 3900, category: 'combined',
+    stats: { bonusDamage: 24, bonusStr: 10 },
+    recipe: { components: ['mithril_hammer', 'ogre_axe'], recipeCost: 1300 },
+    active: {
+      name: '魔法免疫', cooldown: 75, targetMode: 'none',
+      onUse(w, user) {
+        purge(w, user, false); // 解除负面
+        applyModifier(w, user, {
+          key: 'item_bkb', duration: 6, isBuff: true,
+          states: { magicImmune: true },
+        }, user.id);
+        w.emit({ kind: 'fx', fx: 'bkb', pos: V.clone(user.pos), radius: 120 });
+        return true;
+      },
+    },
+    description: '+24 攻击 +10 力量;主动:魔法免疫 6 秒。' },
+
+  { key: 'radiance', name: '辉光战甲', cost: 5150, category: 'combined',
+    stats: { bonusDamage: 60 },
+    recipe: { components: ['sacred_relic'], recipeCost: 1350 },
+    holderModifier: {
+      key: 'item_radiance_aura',
+      aura: {
+        radius: 700, affects: 'enemy',
+        grant: {
+          key: 'item_radiance_burn', tickInterval: 0.5,
+          onTick(w, u, m) {
+            const src = w.getUnit(m.sourceId);
+            if (src) spellDamage(w, src, u, 17.5); // 35 dps
+          },
+        },
+      },
+    },
+    description: '+60 攻击;灼烧周围 700 内敌人,每秒 35 点魔法伤害。' },
+
+  { key: 'satanic', name: '噬血魔刃', cost: 5000, category: 'combined',
+    stats: { bonusStr: 25, lifesteal: 0.20 },
+    recipe: { components: ['reaver', 'morbid_mask'], recipeCost: 1100 },
+    active: {
+      name: '不洁狂热', cooldown: 35, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, {
+          key: 'item_satanic_active', duration: 4, isBuff: true,
+          stats: { lifesteal: 1.0 },
+        }, user.id);
+        return true;
+      },
+    },
+    description: '+25 力量,攻击吸血 20%;主动:4 秒内吸血提升至 120%。' },
+
+  { key: 'assault', name: '战争号角', cost: 5350, category: 'combined',
+    stats: { bonusArmor: 10, bonusAttackSpeed: 0.55 },
+    recipe: { components: ['platemail', 'hyperstone', 'chainmail'], recipeCost: 1300 },
+    holderModifier: {
+      key: 'item_assault_aura',
+      aura: {
+        radius: 900, affects: 'ally',
+        grant: { key: 'item_assault_buff', isBuff: true, stats: { bonusAttackSpeed: 0.15 } },
+      },
+    },
+    description: '+10 护甲 +55% 攻速;光环:周围友军 +15% 攻速。' },
+
+  { key: 'shiva', name: '寒冰守卫', cost: 4700, category: 'combined',
+    stats: { bonusArmor: 15, bonusInt: 25 },
+    recipe: { components: ['platemail', 'mystic_staff'], recipeCost: 600 },
+    active: {
+      name: '寒霜冲击', manaCost: 100, cooldown: 30, targetMode: 'none',
+      onUse(w, user) {
+        for (const e of w.queryRadius(user.pos, 700, (t) => t.team !== user.team && !t.isBuilding() && t.kind !== 'ward')) {
+          spellDamage(w, user, e, 200);
+          applyModifier(w, e, { key: 'item_shiva_slow', duration: 3, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
+        }
+        w.emit({ kind: 'fx', fx: 'frostnova', pos: V.clone(user.pos), radius: 700 });
+        return true;
+      },
+    },
+    description: '+15 护甲 +25 智力;主动:冰环爆发 200 伤害并减速 40%。' },
+
+  { key: 'arcane_boots', name: '秘法之靴', cost: 1500, category: 'combined',
+    stats: { bonusMoveSpeed: 55 },
+    recipe: { components: ['boots', 'energy_booster'], recipeCost: 0 },
+    active: {
+      name: '法力涌动', cooldown: 45, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of w.queryRadius(user.pos, 600, (t) => t.team === user.team && t.isHero())) {
+          a.mp = Math.min(a.calc.maxMp, a.mp + 135);
+        }
+        return true;
+      },
+    },
+    description: '+55 移速;主动:为周围英雄恢复 135 法力。' },
+
+  { key: 'vladmir', name: '吸血战旗', cost: 2275, category: 'combined',
+    recipe: { components: ['morbid_mask', 'ring_regen', 'sobi_mask'], recipeCost: 700 },
+    holderModifier: {
+      key: 'item_vladmir_aura',
+      aura: {
+        radius: 900, affects: 'ally',
+        grant: { key: 'item_vladmir_buff', isBuff: true, stats: { lifesteal: 0.15, bonusDamagePct: 0.12 } },
+      },
+    },
+    description: '光环:周围友军 +15% 吸血与 +12% 攻击力。' },
 );

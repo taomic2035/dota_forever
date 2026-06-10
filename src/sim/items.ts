@@ -123,7 +123,7 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   if (!ok) return false;
   if (def.active.manaCost) hero.mp -= def.active.manaCost;
   inst.cooldownUntil = w.time + def.active.cooldown;
-  if (def.charges !== undefined) {
+  if (def.charges !== undefined && !def.rechargeable) {
     inst.charges--;
     if (inst.charges <= 0) {
       hero.inventory[slot] = null;
@@ -133,8 +133,41 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   return true;
 }
 
+/** 持有型 modifier 同步(辉光/号角/战旗等)。 */
+export function syncHolderModifiers(w: World, hero: Unit): void {
+  const held = new Set<string>();
+  for (const inst of hero.inventory) {
+    if (!inst) continue;
+    const def = itemDef(inst.itemKey);
+    if (def.holderModifier) held.add(def.holderModifier.key);
+  }
+  // 移除失去的
+  for (let i = hero.modifiers.length - 1; i >= 0; i--) {
+    const m = hero.modifiers[i];
+    if (m.key.startsWith('item_') && m.def.aura && !held.has(m.key) && m.sourceId === hero.id) {
+      hero.modifiers.splice(i, 1);
+    }
+  }
+  // 补充新增的
+  for (const inst of hero.inventory) {
+    if (!inst) continue;
+    const def = itemDef(inst.itemKey);
+    if (!def.holderModifier) continue;
+    if (!hero.modifiers.some((m) => m.key === def.holderModifier!.key && m.sourceId === hero.id)) {
+      hero.modifiers.push({
+        key: def.holderModifier.key,
+        sourceId: hero.id,
+        expiresAt: Infinity,
+        def: def.holderModifier,
+        data: {},
+      });
+    }
+  }
+}
+
 /** 背包变化后的钩子(合成检查由 recipes 注册)。 */
 export const inventoryHooks: Array<(w: World, hero: Unit) => void> = [];
+inventoryHooks.push(syncHolderModifiers);
 export function afterInventoryChange(w: World, hero: Unit): void {
   for (const h of inventoryHooks) h(w, hero);
 }
@@ -172,8 +205,25 @@ function itemFold(u: Unit): void {
 }
 recalcExtensions.unshift(itemFold); // 在英雄属性折算前(属性加成需先入 bonusAttr)
 
+const STICK_CAP: Record<string, number> = { magic_stick: 10, magic_wand: 17 };
+
 export function installItems(w: World): void {
   w.systems.push((world) => {
+    // 魔棒充能:敌方英雄在 1200 内施法完成 → +1
+    for (const e of world.events) {
+      if (e.kind !== 'cast_done') continue;
+      const caster = world.getUnit(e.unitId);
+      if (!caster?.isHero()) continue;
+      for (const h of world.units.values()) {
+        if (!h.isHero() || !h.alive || h.team === caster.team) continue;
+        if (V.dist(h.pos, caster.pos) > 1200) continue;
+        for (const inst of h.inventory) {
+          if (!inst) continue;
+          const cap = STICK_CAP[inst.itemKey];
+          if (cap && inst.charges < cap) inst.charges++;
+        }
+      }
+    }
     // 守卫到期由 modifier onExpire 处理;这里清理已死守卫
     if (world.tick % 30 === 0) {
       for (const u of [...world.units.values()]) {

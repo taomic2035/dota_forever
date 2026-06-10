@@ -148,6 +148,8 @@ export class Unit {
   windupTargetId: EntityId | 0 = 0;
   lastAttackerId: EntityId | 0 = 0;
   lastDamagedAt = -Infinity;
+  /** 受英雄/塔/Boss 伤害后闪烁类道具锁定至该时刻 */
+  blinkLockedUntil = -Infinity;
 
   constructor(init: UnitInit) {
     this.id = NEXT_ID++;
