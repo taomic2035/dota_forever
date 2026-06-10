@@ -6,22 +6,26 @@ import { GameMap } from './map';
 import { World } from './world';
 import { recalcSystem, ordersSystem, projectileSystem, cleanupSystem } from './combat';
 import { spawnBuildings, buildingsSystem } from './buildings';
+import { installCreeps } from './creeps';
 
 export interface WorldOptions {
   seed: number;
   startTime?: number;
   /** 不生成建筑(纯战斗单测用) */
   noBuildings?: boolean;
+  /** 启用兵线 */
+  creeps?: boolean;
 }
 
 export function createWorld(map: GameMap, opts: WorldOptions): World {
   const w = new World(map, opts.seed, opts.startTime);
   w.systems.push(recalcSystem);
-  // 占位插槽:后续兵线/经济/AI/视野按各自 install 函数插入
+  // installXxx 系列用 splice(1) 插在重算之后、指令之前
   w.systems.push(ordersSystem);
   w.systems.push(projectileSystem);
   w.systems.push(buildingsSystem);
   w.systems.push(cleanupSystem);
   if (!opts.noBuildings) spawnBuildings(w);
+  if (opts.creeps) installCreeps(w);
   return w;
 }
