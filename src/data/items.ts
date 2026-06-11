@@ -894,3 +894,162 @@ ITEMS.push(
     recipe: { components: ['demon_edge', 'sacred_relic'], recipeCost: 600 },
     description: '+330 攻击:全游戏最高的纯攻击加成,孤注一掷的逆转利器。' },
 );
+
+// ---------- 进阶物品批次 4(团队增益/合成线/控制) ----------
+import { createIllusion } from '../sim/abilities';
+
+ITEMS.push(
+  // 梅肯斯姆:团队治疗
+  { key: 'mekansm', name: '梅肯斯姆', cost: 2100, category: 'combined',
+    stats: { bonusArmor: 5, bonusHpRegen: 4, bonusMpRegen: 2 },
+    recipe: { components: ['chainmail', 'sobi_mask', 'ring_regen'], recipeCost: 875 },
+    active: {
+      name: '回春术', manaCost: 75, cooldown: 45, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of alliesIn(w, user, user.pos, 600)) {
+          a.hp = Math.min(a.calc.maxHp, a.hp + 250);
+          applyModifier(w, a, { key: 'item_mek_armor', duration: 20, isBuff: true, stats: { bonusArmor: 5 } }, user.id);
+        }
+        w.emit({ kind: 'fx', fx: 'mekansm', pos: V.clone(user.pos), radius: 600 });
+        return true;
+      },
+    },
+    description: '+5 护甲 +回复;主动:治疗附近全体友军 250 并提供护甲(团队保命核心)。' },
+
+  // 远古战鼓:团队加速(充能)
+  { key: 'drum', name: '远古战鼓', cost: 1850, category: 'combined',
+    stats: { bonusStr: 9, bonusAgi: 9, bonusInt: 9 }, charges: 5, rechargeable: true,
+    recipe: { components: ['belt', 'band', 'robe'], recipeCost: 500 },
+    active: {
+      name: '战意', cooldown: 30, targetMode: 'none',
+      onUse(w, user) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'drum');
+        if (!inst || inst.charges <= 0) return false;
+        inst.charges--;
+        for (const a of alliesIn(w, user, user.pos, 900)) {
+          applyModifier(w, a, { key: 'item_drum_buff', duration: 6, isBuff: true, stats: { bonusAttackSpeed: 0.25, bonusMoveSpeed: 25 } }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+9 全属性;主动(5 充能):提升附近友军攻速与移速 6 秒。' },
+
+  // 点金手:转化单位为金钱
+  { key: 'midas', name: '点金手', cost: 2050, category: 'combined',
+    stats: { bonusAttackSpeed: 0.3 },
+    recipe: { components: ['gloves_haste'], recipeCost: 1550 },
+    active: {
+      name: '点金', cooldown: 100, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        if (!target || target.isHero() || target.isBuilding()) return false;
+        if (user.heroMeta) user.heroMeta.gold += 160;
+        target.hp = 0; target.alive = false; target.diedAt = w.time;
+        w.emit({ kind: 'fx', fx: 'midas', pos: V.clone(target.pos) });
+        return true;
+      },
+    },
+    description: '+30% 攻速;主动:点化一个非英雄单位,立即获得额外金钱(发育核心)。' },
+
+  // 祭品之瓶:萃取治疗/伤害(充能)
+  { key: 'urn', name: '萃取之瓶', cost: 875, category: 'combined',
+    stats: { bonusStr: 6, bonusMpRegen: 2 }, charges: 3, rechargeable: true,
+    recipe: { components: ['gauntlet', 'gauntlet', 'sobi_mask'], recipeCost: 250 },
+    active: {
+      name: '萃取', cooldown: 8, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'urn');
+        if (!inst || inst.charges <= 0) return false;
+        const t = target ?? user;
+        inst.charges--;
+        if (t.team === user.team) {
+          applyModifier(w, t, { key: 'item_urn_heal', duration: 6, isBuff: true, stats: { bonusHpRegen: 50 } }, user.id);
+        } else {
+          applyModifier(w, t, { key: 'item_urn_dmg', duration: 8, tickInterval: 1, onTick: (world, u) => _spellDamage(world, user, u, 40) }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+6 力量 +回复;主动(3 充能):治疗友军或持续灼伤敌人。' },
+
+  // 萨格之刃:致残(减速法球)
+  { key: 'sange', name: '萨格之刃', cost: 2000, category: 'combined',
+    stats: { bonusStr: 16, bonusHpRegen: 5 },
+    recipe: { components: ['ogre_axe', 'belt'], recipeCost: 550 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.5)) return;
+      applyModifier(w, target, { key: 'item_maim', duration: 4, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.2 } }, attacker.id);
+    },
+    description: '+16 力量 +5 生命回复;攻击有概率致残目标(减速+降攻速)。' },
+
+  // 赤红甲:萨格+散叶合成
+  { key: 'sange_yasha', name: '赤红甲', cost: 4850, category: 'combined',
+    stats: { bonusStr: 16, bonusAgi: 16, bonusAttackSpeed: 0.1, bonusMoveSpeedPct: 0.12 },
+    recipe: { components: ['sange', 'yasha'], recipeCost: 800 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.5)) return;
+      applyModifier(w, target, { key: 'item_maim', duration: 4, stats: { bonusMoveSpeedPct: -0.35, bonusAttackSpeed: -0.25 } }, attacker.id);
+    },
+    description: '+16 力量 +16 敏捷 +攻速/移速;攻击致残:全能向的核心合成。' },
+
+  // 幻影斧:分身 + 自净
+  { key: 'manta', name: '幻影斧', cost: 4710, category: 'combined',
+    stats: { bonusAgi: 26, bonusStr: 10, bonusAttackSpeed: 0.1, bonusMoveSpeedPct: 0.1 },
+    recipe: { components: ['yasha', 'ogre_axe', 'blade_alacrity'], recipeCost: 660 },
+    active: {
+      name: '幻象分身', manaCost: 100, cooldown: 30, targetMode: 'none',
+      onUse(w, user) {
+        purge(w, user, false); // 驱散自身减益(可解除部分控制)
+        createIllusion(w, user, 2, 0.33, 3, 20);
+        return true;
+      },
+    },
+    description: '+26 敏捷 +10 力量 +攻速/移速;主动:分裂出 2 个幻象并驱散自身减益。' },
+
+  // 金箍棒:必中 + 重击
+  { key: 'mkb', name: '金箍棒', cost: 5100, category: 'combined',
+    stats: { bonusDamage: 40, bonusAttackSpeed: 0.45 },
+    recipe: { components: ['demon_edge', 'hyperstone'], recipeCost: 600 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.35)) return;
+      _spellDamage(w, attacker, target, 100);
+      applyModifier(w, target, { key: 'item_mkb_bash', duration: 0.4, states: { stunned: true } }, attacker.id);
+    },
+    description: '+40 攻击 +45% 攻速;攻击 35% 触发重击(额外魔法伤害+短眩)。' },
+
+  // 缚足锤:概率眩晕
+  { key: 'basher', name: '缚足锤', cost: 2500, category: 'combined',
+    stats: { bonusDamage: 24, bonusStr: 10 },
+    recipe: { components: ['mithril_hammer', 'belt'], recipeCost: 450 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.2)) return;
+      applyModifier(w, target, { key: 'item_basher_bash', duration: 0.8, states: { stunned: true } }, attacker.id);
+    },
+    description: '+24 攻击 +10 力量;攻击有 20% 概率短暂眩晕目标。' },
+
+  // 莲花宝珠:护盾 + 自净
+  { key: 'lotus', name: '莲花宝珠', cost: 2750, category: 'combined',
+    stats: { bonusArmor: 10, bonusMp: 250, bonusMpRegen: 3 },
+    recipe: { components: ['platemail', 'energy_booster'], recipeCost: 350 },
+    active: {
+      name: '法力莲花', cooldown: 20, targetMode: 'none',
+      onUse(w, user) {
+        purge(w, user, false);
+        const m = applyModifier(w, user, { key: 'item_lotus_shield', duration: 6, isBuff: true }, user.id);
+        m.data!.shield = 300;
+        return true;
+      },
+    },
+    description: '+10 护甲 +250 法力;主动:驱散自身减益并获得 300 点护盾。' },
+
+  // 天鹰之戟:攻击距离
+  { key: 'dragon_lance', name: '天鹰之戟', cost: 1450, category: 'combined',
+    stats: { bonusStr: 13, bonusAgi: 13, bonusAttackRange: 140 },
+    recipe: { components: ['ogre_axe', 'band'], recipeCost: 0 },
+    description: '+13 力量 +13 敏捷 +140 攻击距离:远程核心的拉开身位之选。' },
+
+  // 法术之刃:法术增强
+  { key: 'kaya', name: '法术之刃', cost: 1600, category: 'combined',
+    stats: { bonusInt: 14, spellAmp: 0.15, bonusMpRegen: 3 },
+    recipe: { components: ['staff_wizardry', 'robe'], recipeCost: 150 },
+    description: '+14 智力 +15% 法术增强 +法力回复:法核的早期增伤件。' },
+);

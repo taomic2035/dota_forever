@@ -235,6 +235,111 @@ describe('advanced items batch 3', () => {
   });
 });
 
+describe('advanced items batch 4', () => {
+  function enemyAt(dx: number, over: Record<string, unknown> = {}): Unit {
+    return w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: dx, y: 0 })), name: 't', stats: { ...REIN_STATS(), ...over } });
+  }
+  // 逐 tick 轮询,捕获短时(0.4~0.8s)触发型 modifier
+  function attackUntilProc(target: Unit, key: string, ticks: number): boolean {
+    h.issueOrder({ type: 'attack', targetId: target.id });
+    for (let i = 0; i < ticks; i++) { w.step(); if (target.modifiers.some((m) => m.key === key)) return true; }
+    return false;
+  }
+
+  it('梅肯斯姆:团队治疗+护甲', () => {
+    const slot = give(h, 'mekansm'); h.mp = 200;
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    ally.hp = 200;
+    useItem(w, h, slot);
+    run(3);
+    expect(ally.hp).toBeGreaterThan(200);
+    expect(hasModifier(ally, 'item_mek_armor')).toBe(true);
+  });
+
+  it('远古战鼓:团队加速并消耗充能', () => {
+    const slot = give(h, 'drum');
+    const inst = h.inventory.find((i) => i?.itemKey === 'drum')!;
+    expect(inst.charges).toBe(5);
+    useItem(w, h, slot);
+    run(3);
+    expect(hasModifier(h, 'item_drum_buff')).toBe(true);
+    expect(inst.charges).toBe(4);
+  });
+
+  it('点金手:点化小兵获得金钱', () => {
+    const slot = give(h, 'midas');
+    const gold0 = h.heroMeta!.gold;
+    const creep = w.spawnUnit({ kind: 'creep', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })), name: 'c', stats: { ...REIN_STATS(), maxHp: 550 } });
+    useItem(w, h, slot, undefined, creep);
+    run(2);
+    expect(creep.alive).toBe(false);
+    expect(h.heroMeta!.gold).toBeGreaterThan(gold0);
+  });
+
+  it('萃取之瓶:对敌持续伤害并消耗充能', () => {
+    const slot = give(h, 'urn');
+    const inst = h.inventory.find((i) => i?.itemKey === 'urn')!;
+    const t = enemyAt(200, { magicResist: 0 });
+    const hp0 = t.hp;
+    useItem(w, h, slot, undefined, t);
+    run(60);
+    expect(t.hp).toBeLessThan(hp0);
+    expect(inst.charges).toBe(2);
+  });
+
+  it('萨格之刃:攻击致残', () => {
+    give(h, 'sange');
+    const t = enemyAt(110, { maxHp: 100000 });
+    expect(attackUntilProc(t, 'item_maim', 30 * 8)).toBe(true);
+  });
+
+  it('赤红甲:攻击致残', () => {
+    give(h, 'sange_yasha');
+    const t = enemyAt(110, { maxHp: 100000 });
+    expect(attackUntilProc(t, 'item_maim', 30 * 8)).toBe(true);
+  });
+
+  it('幻影斧:分裂出 2 个幻象', () => {
+    const slot = give(h, 'manta'); h.mp = 200;
+    useItem(w, h, slot);
+    run(3);
+    const illu = [...w.units.values()].filter((u) => u.kind === 'illusion' && u.summonOwnerId === h.id && u.alive);
+    expect(illu.length).toBe(2);
+  });
+
+  it('金箍棒:攻击触发重击眩晕', () => {
+    give(h, 'mkb');
+    const t = enemyAt(110, { maxHp: 100000, magicResist: 0 });
+    expect(attackUntilProc(t, 'item_mkb_bash', 30 * 12)).toBe(true);
+  });
+
+  it('缚足锤:攻击触发眩晕', () => {
+    give(h, 'basher');
+    const t = enemyAt(110, { maxHp: 100000 });
+    expect(attackUntilProc(t, 'item_basher_bash', 30 * 16)).toBe(true);
+  });
+
+  it('莲花宝珠:护盾吸收伤害', () => {
+    const slot = give(h, 'lotus');
+    useItem(w, h, slot);
+    run(1);
+    expect(hasModifier(h, 'item_lotus_shield')).toBe(true);
+    const hp0 = h.hp;
+    applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200, flags: { pure: true } });
+    expect(h.hp).toBe(hp0); // 被护盾吸收
+  });
+
+  it('天鹰之戟:增加攻击距离', () => {
+    give(h, 'dragon_lance'); w.step();
+    expect(h.calc.attackRange).toBeGreaterThan(REIN.attackRange + 100);
+  });
+
+  it('法术之刃:提供法术增强', () => {
+    give(h, 'kaya'); w.step();
+    expect(h.calc.spellAmp).toBeGreaterThanOrEqual(0.15);
+  });
+});
+
 function REIN_STATS() {
   return {
     maxHp: 2000, hpRegen: 0, maxMp: 300, mpRegen: 0, dmgMin: 0, dmgMax: 0,
