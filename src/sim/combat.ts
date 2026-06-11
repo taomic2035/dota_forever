@@ -49,7 +49,7 @@ export function recalcUnit(u: Unit): void {
   c.visionDay = b.visionDay; c.visionNight = b.visionNight;
   c.acquireRange = b.acquireRange;
   c.ias = 0; c.evasion = 0; c.critChance = 0; c.critMultiplier = 1.5;
-  c.lifesteal = 0; c.trueSight = 0;
+  c.lifesteal = 0; c.trueSight = 0; c.spellAmp = 0;
   // 聚合顺序固定:modifier 数值(含属性加成写入 bonusAttr)→ 英雄属性折算
   modifierFold(u);
   for (const ext of recalcExtensions) ext(u);
@@ -448,6 +448,10 @@ export function projectileSystem(w: World): void {
 const CORPSE_TIME = 2.5;
 export function cleanupSystem(w: World): void {
   for (const u of [...w.units.values()]) {
+    // 召唤物到期消失
+    if (u.alive && u.summonExpiresAt !== undefined && w.time >= u.summonExpiresAt) {
+      kill(w, u, 0);
+    }
     if (u.alive) continue;
     if (u.isHero()) continue; // 英雄不移除,等待复活系统处理
     const linger = u.isBuilding() ? 60 : CORPSE_TIME;

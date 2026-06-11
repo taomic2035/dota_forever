@@ -35,13 +35,18 @@ function dummy(x = 7300, y = 8000): Unit {
 function run(n: number) { for (let i = 0; i < n; i++) w.step(); }
 
 describe('roster', () => {
-  it('has 10 unique heroes with full kits', () => {
-    expect(HEROES.length).toBe(10);
+  it('has a growing roster of unique heroes, each with a full 4-ability kit', () => {
+    expect(HEROES.length).toBeGreaterThanOrEqual(10);
     const keys = new Set(HEROES.map((h) => h.key));
-    expect(keys.size).toBe(10);
+    expect(keys.size, '英雄 key 必须唯一').toBe(HEROES.length);
+    const names = new Set(HEROES.map((h) => h.name));
+    expect(names.size, '英雄名必须唯一').toBe(HEROES.length);
     for (const h of HEROES) {
       expect(h.abilities.length, h.key).toBe(4);
       expect(h.abilities[3].ultimate ?? false, `${h.key} R 应为大招`).toBe(true);
+      // 每个技能 key 在该英雄内唯一
+      const aKeys = new Set(h.abilities.map((a) => a.key));
+      expect(aKeys.size, `${h.key} 技能 key 重复`).toBe(4);
     }
   });
 });

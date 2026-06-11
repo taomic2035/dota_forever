@@ -202,8 +202,9 @@ export function alliesIn(w: World, caster: Unit, pos: Vec2, radius: number): Uni
 
 export function damageArea(w: World, caster: Unit, pos: Vec2, radius: number, amount: number, spell = true): number {
   let hit = 0;
+  const amt = spell ? amount * (1 + caster.calc.spellAmp) : amount;
   for (const t of enemiesIn(w, caster, pos, radius)) {
-    applyDamage(w, t, { source: caster.id, attackType: 'spell', amount, flags: { spell } });
+    applyDamage(w, t, { source: caster.id, attackType: 'spell', amount: amt, flags: { spell } });
     hit++;
   }
   return hit;
@@ -219,7 +220,8 @@ export function modifierArea(w: World, caster: Unit, pos: Vec2, radius: number, 
 }
 
 export function spellDamage(w: World, caster: Unit, target: Unit, amount: number): number {
-  return applyDamage(w, target, { source: caster.id, attackType: 'spell', amount, flags: { spell: true } });
+  const amt = amount * (1 + caster.calc.spellAmp);
+  return applyDamage(w, target, { source: caster.id, attackType: 'spell', amount: amt, flags: { spell: true } });
 }
 
 /** 技能弹道。 */
@@ -239,4 +241,54 @@ export function blinkTo(w: World, u: Unit, pos: Vec2): void {
   u.prevPos = V.clone(u.pos);
   u.path = [];
   u.pathGoal = null;
+}
+
+export interface SummonSpec {
+  name: string;
+  hp: number;
+  dmg: [number, number];
+  armor: number;
+  ms: number;
+  range?: number;          // 100 = 近战
+  bat?: number;
+  duration: number;        // 存活秒数
+  magicResist?: number;
+  attackType?: import('../data/balance').AttackType;
+  armorType?: import('../data/balance').ArmorType;
+}
+
+/**
+ * 召唤一个归属召唤者阵营的单位(以 'creep' kind 复用兵线/战斗逻辑)。
+ * 默认下达 attackmove 朝最近敌方主基地推进;若给 follow 则跟随召唤者附近。
+ * 到时由 modifier onExpire 移除。
+ */
+export function summonUnit(
+  w: World, owner: Unit, spec: SummonSpec, pos: Vec2, follow = false,
+): Unit {
+  const u = w.spawnUnit({
+    kind: 'creep',
+    team: owner.team,
+    pos: w.map.nearestWalkable(pos),
+    name: spec.name,
+    stats: {
+      maxHp: spec.hp, hpRegen: 0.5, maxMp: 0, mpRegen: 0,
+      dmgMin: spec.dmg[0], dmgMax: spec.dmg[1],
+      attackType: spec.attackType ?? 'normal', armorType: spec.armorType ?? 'medium',
+      armor: spec.armor, magicResist: spec.magicResist ?? 0,
+      attackRange: spec.range ?? 100, attackPoint: 0.35, bat: spec.bat ?? 1.5,
+      projectileSpeed: (spec.range ?? 100) > 200 ? 900 : 0,
+      moveSpeed: spec.ms, collisionRadius: 20,
+      visionDay: 800, visionNight: 700, acquireRange: 600,
+      bountyMin: 18, bountyMax: 24, xpBounty: 20,
+    },
+  });
+  u.summonExpiresAt = w.time + spec.duration;
+  u.summonOwnerId = owner.id;
+  if (!follow) {
+    const enemyAncient = [...w.units.values()].find((b) => b.buildingKind === 'ancient' && b.team !== owner.team);
+    u.issueOrder({ type: 'attackmove', pos: enemyAncient ? V.clone(enemyAncient.pos) : V.clone(pos) });
+  } else {
+    u.issueOrder({ type: 'attackmove', pos: V.clone(owner.pos) });
+  }
+  return u;
 }

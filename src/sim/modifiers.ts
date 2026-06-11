@@ -30,6 +30,7 @@ export interface StatMods {
   lifesteal: number;
   bonusAttackRange: number;
   trueSightRadius: number;
+  spellAmp: number;
 }
 
 export interface StateMods {
@@ -177,6 +178,7 @@ export function foldModifiers(u: Unit): void {
     c.lifesteal += s.lifesteal ?? 0;
     c.attackRange += s.bonusAttackRange ?? 0;
     c.trueSight = Math.max(c.trueSight, s.trueSightRadius ?? 0);
+    c.spellAmp += s.spellAmp ?? 0;
   }
   if (dmgPct !== 0) {
     c.dmgMin *= 1 + dmgPct;

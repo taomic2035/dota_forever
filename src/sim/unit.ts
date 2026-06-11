@@ -60,6 +60,7 @@ export interface CalcStats extends UnitStats {
   critMultiplier: number;
   lifesteal: number;
   trueSight: number; // 真视半径,0=无
+  spellAmp: number;  // 法术增强 0.2 = +20%
 }
 
 export interface UnitInit {
@@ -124,6 +125,9 @@ export class Unit {
   homePos?: Vec2;
   /** 不灭之盾:原地复活点(消费后清除) */
   aegisRevivePos?: Vec2;
+  /** 召唤物:到期时刻与召唤者 */
+  summonExpiresAt?: number;
+  summonOwnerId?: EntityId;
   /** 英雄定义引用(data/heroes) */
   heroDef?: import('../data/heroes/types').HeroDef;
   /** 物品/技能给予的属性加成(modifier 聚合写入) */
@@ -167,7 +171,7 @@ export class Unit {
     this.pos = V.clone(init.pos);
     this.prevPos = V.clone(init.pos);
     this.base = { ...init.stats };
-    this.calc = { ...init.stats, ias: 0, evasion: 0, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0 };
+    this.calc = { ...init.stats, ias: 0, evasion: 0, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0, spellAmp: 0 };
     this.hp = this.base.maxHp;
     this.mp = this.base.maxMp;
   }
