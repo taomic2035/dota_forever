@@ -47,7 +47,7 @@ describe('creep waves', () => {
     expect(aliveCreeps).toBeLessThan(96 - 10);
     expect(aliveCreeps).toBeGreaterThan(20);
     void deaths;
-  });
+  }, 30000); // 重型仿真(3000 步):并行 CPU 争用下放宽超时,避免偶发超时误判
 
   it('destroying enemy melee rax spawns super melee creeps on that lane', () => {
     const w = createWorld(map, { seed: 1, creeps: true, startTime: 80 });

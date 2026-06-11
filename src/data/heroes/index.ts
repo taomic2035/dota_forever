@@ -114,10 +114,11 @@ import { BATCH15 } from './batch15';
 import { BATCH16 } from './batch16';
 import { BATCH17 } from './batch17';
 import { BATCH18 } from './batch18';
+import { BATCH19 } from './batch19';
 
 export const HEROES: HeroDef[] = [
   REIN, LIYA, ZOLA, AILI,
-  ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5, ...BATCH6, ...BATCH7, ...BATCH8, ...BATCH9, ...BATCH10, ...BATCH11, ...BATCH12, ...BATCH13, ...BATCH14, ...BATCH15, ...BATCH16, ...BATCH17, ...BATCH18,
+  ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5, ...BATCH6, ...BATCH7, ...BATCH8, ...BATCH9, ...BATCH10, ...BATCH11, ...BATCH12, ...BATCH13, ...BATCH14, ...BATCH15, ...BATCH16, ...BATCH17, ...BATCH18, ...BATCH19,
 ];
 
 export function heroByKey(key: string): HeroDef | undefined {
