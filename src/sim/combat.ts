@@ -49,7 +49,7 @@ export function recalcUnit(u: Unit): void {
   c.visionDay = b.visionDay; c.visionNight = b.visionNight;
   c.acquireRange = b.acquireRange;
   c.ias = 0; c.evasion = 0; c.critChance = 0; c.critMultiplier = 1.5;
-  c.lifesteal = 0; c.trueSight = 0; c.spellAmp = 0;
+  c.lifesteal = 0; c.trueSight = 0; c.spellAmp = 0; c.incomingDamageReduction = 0;
   // 聚合顺序固定:modifier 数值(含属性加成写入 bonusAttr)→ 英雄属性折算
   modifierFold(u);
   for (const ext of recalcExtensions) ext(u);
@@ -102,6 +102,8 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     amount *= 1 - armorReduction(target.calc.armor);
   }
 
+  // 通用承伤减免(棘背魔/壁垒等)
+  if (target.calc.incomingDamageReduction > 0) amount *= 1 - target.calc.incomingDamageReduction;
   // 幻象受伤翻倍
   if (target.kind === 'illusion') amount *= target.illuIncoming;
 

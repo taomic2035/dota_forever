@@ -61,6 +61,7 @@ export interface CalcStats extends UnitStats {
   lifesteal: number;
   trueSight: number; // 真视半径,0=无
   spellAmp: number;  // 法术增强 0.2 = +20%
+  incomingDamageReduction: number; // 承伤减免 0.2 = -20%
 }
 
 export interface UnitInit {
@@ -177,7 +178,7 @@ export class Unit {
     this.pos = V.clone(init.pos);
     this.prevPos = V.clone(init.pos);
     this.base = { ...init.stats };
-    this.calc = { ...init.stats, ias: 0, evasion: 0, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0, spellAmp: 0 };
+    this.calc = { ...init.stats, ias: 0, evasion: 0, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0, spellAmp: 0, incomingDamageReduction: 0 };
     this.hp = this.base.maxHp;
     this.mp = this.base.maxMp;
   }

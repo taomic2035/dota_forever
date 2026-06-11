@@ -101,8 +101,12 @@ import { BATCH2 } from './batch2';
 import { BATCH3 } from './batch3';
 import { BATCH4 } from './batch4';
 import { BATCH5 } from './batch5';
+import { BATCH6 } from './batch6';
 
-export const HEROES: HeroDef[] = [REIN, LIYA, ZOLA, AILI, ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5];
+export const HEROES: HeroDef[] = [
+  REIN, LIYA, ZOLA, AILI,
+  ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5, ...BATCH6,
+];
 
 export function heroByKey(key: string): HeroDef | undefined {
   return HEROES.find((h) => h.key === key);

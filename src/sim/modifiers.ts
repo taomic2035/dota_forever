@@ -31,6 +31,8 @@ export interface StatMods {
   bonusAttackRange: number;
   trueSightRadius: number;
   spellAmp: number;
+  /** 承伤减免 0.2 = 受到的伤害减少 20%(多来源取最大,非叠乘) */
+  incomingDamageReduction: number;
 }
 
 export interface StateMods {
@@ -181,12 +183,15 @@ export function foldModifiers(u: Unit): void {
     c.attackRange += s.bonusAttackRange ?? 0;
     c.trueSight = Math.max(c.trueSight, s.trueSightRadius ?? 0);
     c.spellAmp += s.spellAmp ?? 0;
+    c.incomingDamageReduction = Math.max(c.incomingDamageReduction, s.incomingDamageReduction ?? 0);
   }
   if (dmgPct !== 0) {
     c.dmgMin *= 1 + dmgPct;
     c.dmgMax *= 1 + dmgPct;
   }
-  c.moveSpeed = Math.max(MIN_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, (c.moveSpeed + msFlat) * (1 + msPct)));
+  const ms = (c.moveSpeed + msFlat) * (1 + msPct);
+  // 基础移速为 0 的单位(固定守卫等)保持不动;否则钳制到 [MIN, MAX]
+  c.moveSpeed = c.moveSpeed <= 0 ? 0 : Math.max(MIN_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, ms));
 }
 setModifierFold(foldModifiers);
 
