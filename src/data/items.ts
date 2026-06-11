@@ -687,3 +687,210 @@ ITEMS.push(
     recipe: { components: ['point_booster', 'staff_wizardry', 'ogre_axe', 'blade_alacrity'], recipeCost: 0 },
     description: '+10 全属性 +175 生命/法力:强化英雄综合能力的标志性神杖。' },
 );
+
+// ---------- 进阶物品批次 3(团战控制/法核/生存) ----------
+import { modifierArea, alliesIn } from '../sim/abilities';
+
+ITEMS.push(
+  // 先锋盾:前排减伤
+  { key: 'vanguard', name: '先锋之盾', cost: 2150, category: 'combined',
+    stats: { bonusHp: 250, bonusHpRegen: 6, incomingDamageReduction: 0.12 },
+    recipe: { components: ['vitality_booster', 'ring_regen'], recipeCost: 700 },
+    description: '+250 生命 +6 生命回复;受到的所有伤害减免 12%(前排核心)。' },
+
+  // 蝶舞之翼:敏捷核心终极
+  { key: 'butterfly', name: '蝶舞之翼', cost: 5800, category: 'combined',
+    stats: { bonusAgi: 30, bonusDamage: 30, bonusAttackSpeed: 0.3, evasion: 0.35 },
+    recipe: { components: ['eaglehorn', 'blade_alacrity', 'blade_alacrity'], recipeCost: 500 },
+    description: '+30 敏捷 +30 攻击 +30% 攻速 +35% 闪避:敏捷核心的标志性装备。' },
+
+  // 寒霜之心:巨量属性 + 冰冷攻击减速
+  { key: 'skadi', name: '寒霜之心', cost: 7500, category: 'combined',
+    stats: { bonusStr: 16, bonusAgi: 16, bonusInt: 16, bonusHp: 200, bonusMp: 200 },
+    recipe: { components: ['eaglehorn', 'reaver', 'point_booster'], recipeCost: 0 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding()) return;
+      applyModifier(w, target, { key: 'item_skadi_cold', duration: 3, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.3 } }, attacker.id);
+    },
+    description: '+16 全属性 +200 生命/法力;攻击附带冰冷,使目标减速 3 秒(近战更强)。' },
+
+  // 雷神之锤:漩涡升级,连锁更强 + 静电护盾
+  { key: 'mjollnir', name: '雷神之锤', cost: 5200, category: 'combined',
+    stats: { bonusDamage: 24, bonusAttackSpeed: 0.5 },
+    recipe: { components: ['maelstrom', 'hyperstone'], recipeCost: 0 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.35)) return;
+      const visited = new Set<number>();
+      let cur: Unit | undefined = target; let prev = attacker.pos;
+      for (let i = 0; i < 5 && cur; i++) {
+        visited.add(cur.id);
+        _spellDamage(w, attacker, cur, 180);
+        w.emit({ kind: 'fx', fx: 'lightning', pos: V.clone(prev), pos2: V.clone(cur.pos) });
+        prev = cur.pos;
+        cur = w.queryRadius(cur.pos, 550, (t) => t.team !== attacker.team && !t.isBuilding() && !visited.has(t.id) && t.kind !== 'ward')[0];
+      }
+    },
+    active: {
+      name: '静电护盾', cooldown: 25, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_mjollnir_shield', duration: 15, isBuff: true, data: { retaliate: 0.35 } }, user.id);
+        return true;
+      },
+    },
+    description: '+24 攻击 +50% 攻速;攻击 35% 触发连锁闪电;主动:静电护盾,15 秒内反弹所受物理伤害。' },
+
+  // 净魂之刃:法力燃烧 + 驱散
+  { key: 'diffusal', name: '净魂之刃', cost: 2000, category: 'combined',
+    stats: { bonusAgi: 22, bonusInt: 6 },
+    recipe: { components: ['blade_alacrity', 'robe'], recipeCost: 550 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || target.calc.maxMp <= 0) return;
+      const burn = Math.min(target.mp, 40);
+      if (burn <= 0) return;
+      target.mp -= burn;
+      _spellDamage(w, attacker, target, burn * 0.8);
+    },
+    active: {
+      name: '净魂', cooldown: 12, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        const t = target ?? user;
+        if (t.team === user.team) { purge(w, t, false); return true; }
+        purge(w, t, true);
+        applyModifier(w, t, { key: 'item_diffusal_slow', duration: 4, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
+        return true;
+      },
+    },
+    description: '+22 敏捷 +6 智力;攻击燃烧目标法力并造成伤害;主动:驱散目标(敌减速/友净化)。' },
+
+  // 深渊之刃:强力点控 + 概率晕
+  { key: 'abyssal', name: '深渊之刃', cost: 5400, category: 'combined',
+    stats: { bonusStr: 10, bonusDamage: 30 },
+    recipe: { components: ['reaver', 'claymore'], recipeCost: 1000 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.2)) return;
+      applyModifier(w, target, { key: 'item_abyssal_bash', duration: 0.6, states: { stunned: true } }, attacker.id);
+    },
+    active: {
+      name: '深渊禁锢', cooldown: 30, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_abyssal_stun', duration: 2, states: { stunned: true } }, user.id);
+        _spellDamage(w, user, target, 100);
+        return true;
+      },
+    },
+    description: '+10 力量 +30 攻击;攻击 20% 概率短晕;主动:无视魔免眩晕目标 2 秒。' },
+
+  // 幽魂权杖:相位规避(免疫物理,无法攻击)
+  { key: 'ghost', name: '幽魂权杖', cost: 1600, category: 'arcane', secretShop: true,
+    stats: { bonusStr: 6, bonusAgi: 6, bonusInt: 6 },
+    active: {
+      name: '虚化', cooldown: 25, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_ghost', duration: 4, isBuff: true, states: { physImmune: true, disarmed: true } }, user.id);
+        return true;
+      },
+    },
+    description: '+6 全属性;主动:虚化 4 秒,免疫物理伤害但无法普攻(逃生/反手核心)。' },
+
+  // 飓风之杖:旋风控制/自救
+  { key: 'eul', name: '飓风之杖', cost: 2050, category: 'combined',
+    stats: { bonusInt: 10, bonusMpRegen: 4, bonusMoveSpeed: 40 },
+    recipe: { components: ['staff_wizardry', 'sobi_mask'], recipeCost: 725 },
+    active: {
+      name: '旋风', manaCost: 100, cooldown: 16, targetMode: 'unit', castRange: 700,
+      onUse(w, user, _pos, target) {
+        const t = target ?? user;
+        if (t.team !== user.team) {
+          applyModifier(w, t, { key: 'item_eul_cyclone', duration: 2.5, states: { rooted: true, silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.95 } }, user.id);
+        } else {
+          purge(w, t, false);
+          applyModifier(w, t, { key: 'item_eul_self', duration: 1.2, isBuff: true, stats: { bonusMoveSpeedPct: 0.2 } }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+10 智力 +4 法力回复 +40 移速;主动:卷起目标 2.5 秒(敌方禁锢/己方净化)。' },
+
+  // 妖术法球:硬控变形
+  { key: 'hex', name: '妖术法球', cost: 4400, category: 'combined',
+    stats: { bonusInt: 30, bonusMp: 150, bonusMpRegen: 3 },
+    recipe: { components: ['mystic_staff', 'ogre_axe'], recipeCost: 700 },
+    active: {
+      name: '妖术', manaCost: 100, cooldown: 20, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.65 } }, user.id);
+        return true;
+      },
+    },
+    description: '+30 智力 +150 法力;主动:将目标变为无害形态 2 秒(沉默+缴械+重度减速)。' },
+
+  // 神灭之球:法术爆发
+  { key: 'dagon', name: '神灭之球', cost: 2700, category: 'combined',
+    stats: { bonusInt: 13, bonusStr: 5, bonusAgi: 3, bonusDamage: 9 },
+    recipe: { components: ['null_talisman', 'staff_wizardry'], recipeCost: 1175 },
+    active: {
+      name: '神灭', manaCost: 120, cooldown: 35, targetMode: 'unit', castRange: 700,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        _spellDamage(w, user, target, 400);
+        w.emit({ kind: 'fx', fx: 'dagon', pos: V.clone(target.pos) });
+        return true;
+      },
+    },
+    description: '+13 智力 +少量属性;主动:对目标造成 400 点爆发魔法伤害。' },
+
+  // 虚空面纱:范围魔抗削弱(法术增伤)
+  { key: 'veil', name: '虚空面纱', cost: 1850, category: 'combined',
+    stats: { bonusMagicResist: 0.2, bonusInt: 6, bonusHpRegen: 3, bonusMpRegen: 2 },
+    recipe: { components: ['sobi_mask', 'ring_regen', 'cloak'], recipeCost: 625 },
+    active: {
+      name: '裂法', manaCost: 75, cooldown: 22, targetMode: 'point', castRange: 800,
+      onUse(w, user, pos) {
+        const at = pos ?? user.pos;
+        modifierArea(w, user, at, 600, { key: 'item_veil', duration: 12, stats: { bonusMagicResist: -0.25, bonusMoveSpeedPct: -0.1 } }, 'enemy');
+        w.emit({ kind: 'fx', fx: 'veil', pos: V.clone(at), radius: 600 });
+        return true;
+      },
+    },
+    description: '+20% 魔抗 +回复;主动:区域内敌人魔抗降低 25%(放大全队法术伤害)。' },
+
+  // 洞察烟斗:全队魔法护盾
+  { key: 'pipe', name: '洞察烟斗', cost: 2100, category: 'combined',
+    stats: { bonusHp: 200, bonusMagicResist: 0.3, bonusHpRegen: 8 },
+    recipe: { components: ['hood', 'ring_regen'], recipeCost: 650 },
+    active: {
+      name: '洞察', cooldown: 35, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of alliesIn(w, user, user.pos, 900)) {
+          const m = applyModifier(w, a, { key: 'item_pipe_shield', duration: 10, isBuff: true }, user.id);
+          m.data!.shield = 400;
+        }
+        return true;
+      },
+    },
+    description: '+200 生命 +30% 魔抗 +8 生命回复;主动:为附近友军提供 400 点护盾 10 秒。' },
+
+  // 刷新之球:重置冷却
+  { key: 'refresher', name: '刷新之球', cost: 5500, category: 'combined',
+    stats: { bonusInt: 12, bonusHp: 250, bonusMp: 250, bonusHpRegen: 4, bonusMpRegen: 4 },
+    recipe: { components: ['mystic_staff', 'vitality_booster', 'energy_booster'], recipeCost: 700 },
+    active: {
+      name: '刷新', manaCost: 375, cooldown: 180, targetMode: 'none',
+      onUse(w, user) {
+        for (const ab of user.abilities) ab.cooldownUntil = -Infinity;
+        for (const inst of user.inventory) {
+          if (inst && inst.itemKey !== 'refresher') inst.cooldownUntil = -Infinity;
+        }
+        return true;
+      },
+    },
+    description: '+12 智力 +250 生命/法力;主动:刷新所有技能与物品的冷却时间。' },
+
+  // 圣剑:极致攻击(高风险高回报)
+  { key: 'rapier', name: '圣剑', cost: 6800, category: 'combined',
+    stats: { bonusDamage: 330 },
+    recipe: { components: ['demon_edge', 'sacred_relic'], recipeCost: 600 },
+    description: '+330 攻击:全游戏最高的纯攻击加成,孤注一掷的逆转利器。' },
+);

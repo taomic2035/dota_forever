@@ -3,7 +3,7 @@
  * 合成在 recipes.ts。
  */
 import { V } from '../core/vec2';
-import { SELL_REFUND } from '../data/balance';
+import { SELL_REFUND, MAX_MOVE_SPEED } from '../data/balance';
 import { itemDef, type ItemDef } from '../data/items';
 import { Team } from './map';
 import type { World } from './world';
@@ -179,19 +179,22 @@ export function afterInventoryChange(w: World, hero: Unit): void {
 /** 物品数值折算进 calc(含背包,不含储藏)。 */
 function itemFold(u: Unit): void {
   if (!u.isHero()) return;
+  const c = u.calc;
+  let msFlat = 0, msPct = 0, dmgPct = 0;
   for (const inst of u.inventory) {
     if (!inst) continue;
     const def = itemDef(inst.itemKey);
     const s = def.stats;
     if (!s) continue;
-    const c = u.calc;
     c.maxHp += s.bonusHp ?? 0;
     c.maxMp += s.bonusMp ?? 0;
     c.dmgMin += s.bonusDamage ?? 0;
     c.dmgMax += s.bonusDamage ?? 0;
+    dmgPct += s.bonusDamagePct ?? 0;
     c.armor += s.bonusArmor ?? 0;
     c.ias += s.bonusAttackSpeed ?? 0;
-    c.moveSpeed += s.bonusMoveSpeed ?? 0;
+    msFlat += s.bonusMoveSpeed ?? 0;
+    msPct += s.bonusMoveSpeedPct ?? 0;
     u.bonusAttr.str += s.bonusStr ?? 0;
     u.bonusAttr.agi += s.bonusAgi ?? 0;
     u.bonusAttr.int += s.bonusInt ?? 0;
@@ -204,7 +207,14 @@ function itemFold(u: Unit): void {
       c.critMultiplier = s.critMultiplier ?? 1.5;
     }
     c.lifesteal += s.lifesteal ?? 0;
+    c.attackRange += s.bonusAttackRange ?? 0;
     c.trueSight = Math.max(c.trueSight, s.trueSightRadius ?? 0);
+    c.spellAmp += s.spellAmp ?? 0;
+    c.incomingDamageReduction = Math.max(c.incomingDamageReduction, s.incomingDamageReduction ?? 0);
+  }
+  if (dmgPct !== 0) { c.dmgMin *= 1 + dmgPct; c.dmgMax *= 1 + dmgPct; }
+  if (msFlat !== 0 || msPct !== 0) {
+    c.moveSpeed = c.moveSpeed <= 0 ? 0 : Math.min(MAX_MOVE_SPEED, (c.moveSpeed + msFlat) * (1 + msPct));
   }
 }
 recalcExtensions.unshift(itemFold); // 在英雄属性折算前(属性加成需先入 bonusAttr)
