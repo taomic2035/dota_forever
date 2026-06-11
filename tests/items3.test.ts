@@ -538,6 +538,83 @@ describe('advanced items batch 6', () => {
   });
 });
 
+describe('advanced items batch 7', () => {
+  function enemyAt(dx: number, over: Record<string, unknown> = {}): Unit {
+    return w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: dx, y: 0 })), name: 't', stats: { ...REIN_STATS(), ...over } });
+  }
+
+  it('仙灵之火:即时回血', () => {
+    const slot = give(h, 'faerie_fire'); h.hp = 200;
+    useItem(w, h, slot);
+    expect(h.hp).toBeGreaterThan(200);
+  });
+
+  it('魔法芒果:即时回蓝', () => {
+    const slot = give(h, 'mango'); h.mp = 0;
+    useItem(w, h, slot);
+    expect(h.mp).toBeGreaterThan(50);
+  });
+
+  it('王冠:提供全属性', () => {
+    const str0 = h.calc.dmgMax;
+    give(h, 'crown'); w.step();
+    expect(h.bonusAttr.str).toBeGreaterThanOrEqual(4);
+    void str0;
+  });
+
+  it('隼之锋刃:法力+攻速', () => {
+    const mp0 = h.calc.maxMp;
+    give(h, 'falcon_blade'); w.step();
+    expect(h.calc.maxMp).toBeGreaterThan(mp0);
+    expect(h.calc.ias).toBeGreaterThan(0);
+  });
+
+  it('相位鞋:相位穿行', () => {
+    const slot = give(h, 'phase_boots');
+    useItem(w, h, slot);
+    run(2);
+    expect(hasModifier(h, 'item_phase')).toBe(true);
+  });
+
+  it('真知宝石:持有真视', () => {
+    give(h, 'gem_truesight'); w.step();
+    expect(h.calc.trueSight).toBeGreaterThanOrEqual(900);
+  });
+
+  it('神圣链锭:治疗友军', () => {
+    const slot = give(h, 'holy_locket'); h.mp = 200;
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    ally.hp = 200;
+    useItem(w, h, slot, undefined, ally);
+    run(2);
+    expect(ally.hp).toBeGreaterThan(200);
+  });
+
+  it('阴邪契约:削减敌方护甲', () => {
+    const slot = give(h, 'wraith_pact'); h.mp = 200;
+    const t = enemyAt(300);
+    w.step();
+    const armor0 = t.calc.armor;
+    useItem(w, h, slot, V.add(h.pos, { x: 300, y: 0 }));
+    run(3);
+    expect(t.calc.armor).toBeLessThan(armor0);
+  });
+
+  it('亡者之牙:激活虚灵攻击', () => {
+    const slot = give(h, 'revenant_brooch');
+    useItem(w, h, slot);
+    run(2);
+    expect(hasModifier(h, 'item_revenant_active')).toBe(true);
+  });
+
+  it('永恒之碟:保命减伤', () => {
+    const slot = give(h, 'aeon_disk');
+    useItem(w, h, slot); w.step();
+    expect(hasModifier(h, 'item_aeon_barrier')).toBe(true);
+    expect(h.calc.incomingDamageReduction).toBeGreaterThan(0.5);
+  });
+});
+
 function REIN_STATS() {
   return {
     maxHp: 2000, hpRegen: 0, maxMp: 300, mpRegen: 0, dmgMin: 0, dmgMax: 0,

@@ -1383,3 +1383,112 @@ ITEMS.push(
     },
     description: '+16 力/智 +12% 法术增强 +回复;攻击致残:力法两用的全能核心。' },
 );
+
+// ---------- 进阶物品批次 7(消耗品/散件/剩余进阶) ----------
+ITEMS.push(
+  // 仙灵之火:即时小回复
+  { key: 'faerie_fire', name: '仙灵之火', cost: 70, category: 'consumable', charges: 1,
+    stats: { bonusDamage: 2 },
+    active: {
+      name: '饮用', cooldown: 0, targetMode: 'none',
+      onUse(w, user) { user.hp = Math.min(user.calc.maxHp, user.hp + 85); return true; },
+    },
+    description: '+2 攻击;主动:立即回复 85 点生命(救命散件)。' },
+
+  // 魔法芒果:即时回蓝
+  { key: 'mango', name: '魔法芒果', cost: 70, category: 'consumable', charges: 1,
+    stats: { bonusHpRegen: 1 },
+    active: {
+      name: '食用', cooldown: 0, targetMode: 'none',
+      onUse(w, user) { user.mp = Math.min(user.calc.maxMp, user.mp + 110); return true; },
+    },
+    description: '+1 生命回复;主动:立即回复 110 点法力。' },
+
+  // 王冠:全属性散件
+  { key: 'crown', name: '王冠', cost: 450, category: 'attribute',
+    stats: { bonusStr: 4, bonusAgi: 4, bonusInt: 4 },
+    description: '+4 全属性:廉价的全能属性散件。' },
+
+  // 隼之锋刃:法力 + 攻速
+  { key: 'falcon_blade', name: '隼之锋刃', cost: 1200, category: 'combined',
+    stats: { bonusDamage: 10, bonusAttackSpeed: 0.15, bonusMp: 150, bonusMpRegen: 2 },
+    recipe: { components: ['band', 'sobi_mask'], recipeCost: 425 },
+    description: '+10 攻击 +15% 攻速 +150 法力 +法力回复:前期续航小核。' },
+
+  // 相位鞋:穿越 + 提速
+  { key: 'phase_boots', name: '相位鞋', cost: 1500, category: 'combined',
+    stats: { bonusMoveSpeed: 45, bonusDamage: 24 },
+    recipe: { components: ['boots', 'broadsword'], recipeCost: 0 },
+    active: {
+      name: '相位', cooldown: 8, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_phase', duration: 4, isBuff: true, states: { phased: true }, stats: { bonusMoveSpeedPct: 0.24 } }, user.id);
+        return true;
+      },
+    },
+    description: '+45 移速 +24 攻击;主动:相位穿行(穿越单位并加速 4 秒)。' },
+
+  // 真知宝石:持有真视
+  { key: 'gem_truesight', name: '真知宝石', cost: 700, category: 'armor',
+    stats: { trueSightRadius: 900 },
+    description: '持有时获得 900 范围真视,可看见隐身单位(阵亡掉落)。' },
+
+  // 神圣链锭:爆发治疗
+  { key: 'holy_locket', name: '神圣链锭', cost: 1900, category: 'combined',
+    stats: { bonusHp: 150, bonusMp: 150, bonusHpRegen: 4, bonusMpRegen: 2 },
+    recipe: { components: ['ring_regen', 'sobi_mask', 'chainmail'], recipeCost: 675 },
+    active: {
+      name: '神圣涌动', manaCost: 50, cooldown: 16, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        const t = target && target.team === user.team ? target : user;
+        t.hp = Math.min(t.calc.maxHp, t.hp + 250);
+        return true;
+      },
+    },
+    description: '+生命/法力/回复;主动:为友军即时治疗 250 点。' },
+
+  // 阴邪契约:破甲削抗光环式主动
+  { key: 'wraith_pact', name: '阴邪契约', cost: 3000, category: 'combined',
+    stats: { bonusHp: 300, bonusMagicResist: 0.16, bonusArmor: 5 },
+    recipe: { components: ['cloak', 'ring_regen', 'platemail'], recipeCost: 700 },
+    active: {
+      name: '阴邪领域', manaCost: 50, cooldown: 30, targetMode: 'point', castRange: 700,
+      onUse(w, user, pos) {
+        const at = pos ?? user.pos;
+        modifierArea(w, user, at, 500, { key: 'item_wraith_pact', duration: 12, stats: { bonusMagicResist: -0.18, bonusArmor: -4 } }, 'enemy');
+        return true;
+      },
+    },
+    description: '+300 生命 +魔抗/护甲;主动:区域内敌人削减护甲与魔抗(放大全队输出)。' },
+
+  // 亡者之牙:虚灵攻击
+  { key: 'revenant_brooch', name: '亡者之牙', cost: 4000, category: 'combined',
+    stats: { bonusDamage: 40, bonusMp: 200, spellAmp: 0.1 },
+    recipe: { components: ['demon_edge', 'energy_booster'], recipeCost: 600 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !hasModifier(attacker, 'item_revenant_active')) return;
+      _spellDamage(w, attacker, target, 70);
+    },
+    active: {
+      name: '虚灵之触', cooldown: 18, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_revenant_active', duration: 6, isBuff: true, stats: { bonusAttackRange: 250 } }, user.id);
+        return true;
+      },
+    },
+    description: '+40 攻击 +200 法力 +法术增强;主动:6 秒内攻击附带大量魔法伤害并增程。' },
+
+  // 永恒之碟:保命屏障
+  { key: 'aeon_disk', name: '永恒之碟', cost: 2800, category: 'combined',
+    stats: { bonusHp: 250, bonusMp: 250, bonusHpRegen: 5 },
+    recipe: { components: ['vitality_booster', 'energy_booster'], recipeCost: 700 },
+    active: {
+      name: '时光之碟', cooldown: 60, targetMode: 'none',
+      onUse(w, user) {
+        purge(w, user, false); // 驱散自身减益
+        applyModifier(w, user, { key: 'item_aeon_barrier', duration: 5, isBuff: true, stats: { incomingDamageReduction: 0.55 } }, user.id);
+        return true;
+      },
+    },
+    description: '+250 生命/法力;主动:驱散自身减益并在 5 秒内大幅减伤(保命神器)。' },
+);
