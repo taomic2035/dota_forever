@@ -10,7 +10,7 @@ export function isNightAt(time: number): boolean {
 
 export function installDayNight(w: World): void {
   const system: WorldSystem = (world) => {
-    const night = isNightAt(world.time);
+    const night = isNightAt(world.time) || world.time < world.forceNightUntil;
     if (night !== world.isNight) {
       world.isNight = night;
       world.emit({ kind: 'fx', fx: night ? 'nightfall' : 'daybreak', pos: { x: 7520, y: 7520 } });

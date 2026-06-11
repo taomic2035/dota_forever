@@ -188,8 +188,10 @@ export class Renderer {
         ctx.fill();
       }
     } else {
-      // 本体
-      ctx.fillStyle = fill;
+      const isIllusion = u.kind === 'illusion';
+      // 幻象用英雄色但半透明区分
+      if (isIllusion) ctx.globalAlpha = 0.55;
+      ctx.fillStyle = isIllusion && u.heroDef ? u.heroDef.color : fill;
       ctx.strokeStyle = '#0d0f0a';
       ctx.lineWidth = Math.max(1, this.s(4));
       ctx.beginPath();
@@ -203,14 +205,15 @@ export class Renderer {
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(p.x + Math.cos(u.facing) * r * 1.05, p.y + Math.sin(u.facing) * r * 1.05);
       ctx.stroke();
-      // 英雄金圈
-      if (u.isHero()) {
-        ctx.strokeStyle = '#d9b44a';
+      // 英雄金圈 / 幻象虚圈
+      if (u.isHero() || isIllusion) {
+        ctx.strokeStyle = isIllusion ? '#9e9e9e' : '#d9b44a';
         ctx.lineWidth = Math.max(1, this.s(3));
         ctx.beginPath();
         ctx.arc(p.x, p.y, r * 1.18, 0, Math.PI * 2);
         ctx.stroke();
       }
+      ctx.globalAlpha = 1;
     }
 
     if (selected) {

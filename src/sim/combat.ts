@@ -102,6 +102,9 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     amount *= 1 - armorReduction(target.calc.armor);
   }
 
+  // 幻象受伤翻倍
+  if (target.kind === 'illusion') amount *= target.illuIncoming;
+
   if (amount <= 0) return 0;
   // 护盾吸收(modifier.data.shield)
   for (const m of target.modifiers) {
@@ -162,6 +165,7 @@ export function kill(w: World, target: Unit, killerId: EntityId): void {
 /** 普攻伤害结算(掷骰/暴击/吸血)。 */
 export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomputed?: number): void {
   let amount = precomputed ?? rollAttackDamage(w, attacker);
+  if (attacker.kind === 'illusion') amount *= attacker.illuOutgoing; // 幻象出伤打折
   let crit = false;
   if (attacker.calc.critChance > 0 && w.rng.chance(attacker.calc.critChance)) {
     amount *= attacker.calc.critMultiplier;

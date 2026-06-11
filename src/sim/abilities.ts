@@ -258,6 +258,39 @@ export interface SummonSpec {
 }
 
 /**
+ * 创建源英雄的幻象:复制当前面板,出伤打折、受伤翻倍,无法施法,定时消失。
+ * 以 'illusion' kind 区分(不计英雄数/胜负/英雄赏金),渲染时仍显示为该英雄。
+ */
+export function createIllusion(
+  w: World, source: Unit, count: number, outgoing: number, incoming: number, duration: number,
+): Unit[] {
+  const out: Unit[] = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const offset = { x: Math.cos(angle) * 90, y: Math.sin(angle) * 90 };
+    const u = w.spawnUnit({
+      kind: 'illusion',
+      team: source.team,
+      pos: w.map.nearestWalkable(V.add(source.pos, offset)),
+      name: source.name,
+      stats: { ...source.base },
+    });
+    u.heroDef = source.heroDef;        // 渲染识别(颜色/字形)
+    u.level = source.level;
+    u.illuOutgoing = outgoing;
+    u.illuIncoming = incoming;
+    u.summonExpiresAt = w.time + duration;
+    u.summonOwnerId = source.id;
+    u.hp = u.base.maxHp;
+    // 跟随源英雄朝其面向推进
+    const ahead = V.add(source.pos, { x: Math.cos(source.facing) * 300, y: Math.sin(source.facing) * 300 });
+    u.issueOrder({ type: 'attackmove', pos: w.map.nearestWalkable(ahead) });
+    out.push(u);
+  }
+  return out;
+}
+
+/**
  * 召唤一个归属召唤者阵营的单位(以 'creep' kind 复用兵线/战斗逻辑)。
  * 默认下达 attackmove 朝最近敌方主基地推进;若给 follow 则跟随召唤者附近。
  * 到时由 modifier onExpire 移除。

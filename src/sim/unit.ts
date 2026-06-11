@@ -14,7 +14,7 @@ import type { ItemInstance } from './items';
 import type { BuildingKind, Lane } from '../data/mapLayout';
 
 export type EntityId = number;
-export type UnitKind = 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward';
+export type UnitKind = 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward' | 'illusion';
 
 export type OrderType = 'move' | 'attack' | 'attackmove' | 'cast' | 'hold' | 'stop';
 export interface Order {
@@ -131,6 +131,9 @@ export class Unit {
   /** 嘲讽:在此时刻前被迫攻击 tauntSourceId */
   tauntedUntil = -Infinity;
   tauntSourceId: EntityId | 0 = 0;
+  /** 幻象:出伤系数(默认 1)与受伤系数(默认 1);kind==='illusion' 时生效 */
+  illuOutgoing = 1;
+  illuIncoming = 1;
   /** 英雄定义引用(data/heroes) */
   heroDef?: import('../data/heroes/types').HeroDef;
   /** 物品/技能给予的属性加成(modifier 聚合写入) */
