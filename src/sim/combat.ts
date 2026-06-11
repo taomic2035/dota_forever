@@ -102,6 +102,17 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     amount *= 1 - armorReduction(target.calc.armor);
   }
 
+  // 实例格挡(折光等):完全免疫整次伤害,消耗一层(对非反弹伤害)
+  if (!flags.reflected) {
+    for (const m of target.modifiers) {
+      if ((m.data?.blockInstances ?? 0) > 0) {
+        m.data!.blockInstances! -= 1;
+        if (m.data!.blockInstances! <= 0) m.expiresAt = -Infinity;
+        w.emit({ kind: 'fx', fx: 'refract', pos: V.clone(target.pos) });
+        return 0;
+      }
+    }
+  }
   // 通用承伤减免(棘背魔/壁垒等)
   if (target.calc.incomingDamageReduction > 0) amount *= 1 - target.calc.incomingDamageReduction;
   // 幻象受伤翻倍
