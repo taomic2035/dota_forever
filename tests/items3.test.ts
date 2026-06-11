@@ -3,7 +3,7 @@ import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { makeItem, useItem, syncHolderModifiers } from '../src/sim/items';
-import { hasModifier } from '../src/sim/modifiers';
+import { hasModifier, applyModifier } from '../src/sim/modifiers';
 import { applyDamage } from '../src/sim/combat';
 import { REIN, LIYA } from '../src/data/heroes';
 import { V } from '../src/core/vec2';
@@ -337,6 +337,112 @@ describe('advanced items batch 4', () => {
   it('法术之刃:提供法术增强', () => {
     give(h, 'kaya'); w.step();
     expect(h.calc.spellAmp).toBeGreaterThanOrEqual(0.15);
+  });
+});
+
+describe('advanced items batch 5', () => {
+  function enemyAt(dx: number, over: Record<string, unknown> = {}): Unit {
+    return w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: dx, y: 0 })), name: 't', stats: { ...REIN_STATS(), ...over } });
+  }
+
+  it('天堂之戟:缴械目标', () => {
+    const slot = give(h, 'heavens_halberd');
+    const t = enemyAt(400);
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(hasModifier(t, 'item_halberd_disarm')).toBe(true);
+  });
+
+  it('雷神枷锁:范围缠绕+伤害', () => {
+    const slot = give(h, 'gleipnir'); h.mp = 200;
+    const t = enemyAt(300, { magicResist: 0 });
+    const hp0 = t.hp;
+    useItem(w, h, slot, V.add(h.pos, { x: 300, y: 0 }));
+    run(3);
+    expect(hasModifier(t, 'item_gleipnir_root')).toBe(true);
+    expect(t.hp).toBeLessThan(hp0);
+  });
+
+  it('静默之刃:主动隐身', () => {
+    const slot = give(h, 'silver_edge');
+    useItem(w, h, slot);
+    run(3);
+    expect(hasModifier(h, 'item_silveredge')).toBe(true);
+  });
+
+  it('以太之镜:法术增强+攻击距离', () => {
+    give(h, 'aether_lens'); w.step();
+    expect(h.calc.spellAmp).toBeGreaterThanOrEqual(0.12);
+    expect(h.calc.attackRange).toBeGreaterThan(REIN.attackRange);
+  });
+
+  it('奥术核心:高法术增强', () => {
+    give(h, 'octarine'); w.step();
+    expect(h.calc.spellAmp).toBeGreaterThanOrEqual(0.2);
+  });
+
+  it('深红甲盾:团队减伤主动', () => {
+    const slot = give(h, 'crimson_guard'); h.mp = 200; w.step();
+    expect(h.calc.incomingDamageReduction).toBeGreaterThan(0.1);
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    useItem(w, h, slot);
+    run(3);
+    expect(hasModifier(ally, 'item_crimson_buff')).toBe(true);
+  });
+
+  it('卫士胫甲:团队治疗+驱散', () => {
+    const slot = give(h, 'guardian_greaves'); h.mp = 200;
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    ally.hp = 200;
+    applyModifier(w, ally, { key: 'test_slow', duration: 10, stats: { bonusMoveSpeedPct: -0.5 } }, ally.id);
+    useItem(w, h, slot);
+    run(3);
+    expect(ally.hp).toBeGreaterThan(200);
+    expect(hasModifier(ally, 'test_slow')).toBe(false); // 被驱散
+  });
+
+  it('银月之冠:破甲敌方', () => {
+    const slot = give(h, 'solar_crest'); h.mp = 200;
+    const t = enemyAt(400);
+    w.step();
+    const armor0 = t.calc.armor;
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(t.calc.armor).toBeLessThan(armor0);
+  });
+
+  it('飓风长戟:推开目标', () => {
+    const slot = give(h, 'hurricane_pike');
+    const t = enemyAt(400);
+    t.facing = 0;
+    const x0 = t.pos.x;
+    useItem(w, h, slot, undefined, t);
+    run(5);
+    expect(t.pos.x).toBeGreaterThan(x0 + 300);
+  });
+
+  it('阴邪之罐:灼伤敌方并消耗充能', () => {
+    const slot = give(h, 'spirit_vessel');
+    const inst = h.inventory.find((i) => i?.itemKey === 'spirit_vessel')!;
+    const t = enemyAt(400, { magicResist: 0 });
+    const hp0 = t.hp;
+    useItem(w, h, slot, undefined, t);
+    run(60);
+    expect(t.hp).toBeLessThan(hp0);
+    expect(inst.charges).toBe(3);
+  });
+
+  it('月之碎片:极致攻速', () => {
+    give(h, 'moon_shard'); w.step();
+    expect(h.calc.ias).toBeGreaterThan(1.0);
+  });
+
+  it('血棘:沉默目标', () => {
+    const slot = give(h, 'bloodthorn');
+    const t = spawnHero(w, LIYA, Team.Night, w.map.nearestWalkable(V.add(h.pos, { x: 400, y: 0 })));
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(hasModifier(t, 'item_bloodthorn_silence')).toBe(true);
   });
 });
 

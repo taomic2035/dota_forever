@@ -689,7 +689,7 @@ ITEMS.push(
 );
 
 // ---------- 进阶物品批次 3(团战控制/法核/生存) ----------
-import { modifierArea, alliesIn } from '../sim/abilities';
+import { modifierArea, alliesIn, damageArea, enemiesIn } from '../sim/abilities';
 
 ITEMS.push(
   // 先锋盾:前排减伤
@@ -1052,4 +1052,181 @@ ITEMS.push(
     stats: { bonusInt: 14, spellAmp: 0.15, bonusMpRegen: 3 },
     recipe: { components: ['staff_wizardry', 'robe'], recipeCost: 150 },
     description: '+14 智力 +15% 法术增强 +法力回复:法核的早期增伤件。' },
+);
+
+// ---------- 进阶物品批次 5(升级线/团队/控制) ----------
+ITEMS.push(
+  // 天堂之戟:致残 + 缴械
+  { key: 'heavens_halberd', name: '天堂之戟', cost: 4000, category: 'combined',
+    stats: { bonusStr: 20, bonusDamage: 25, bonusHpRegen: 5 },
+    recipe: { components: ['sange', 'platemail'], recipeCost: 600 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.5)) return;
+      applyModifier(w, target, { key: 'item_maim', duration: 4, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.2 } }, attacker.id);
+    },
+    active: {
+      name: '缴械', cooldown: 22, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_halberd_disarm', duration: 3.5, states: { disarmed: true } }, user.id);
+        return true;
+      },
+    },
+    description: '+20 力量 +25 攻击;攻击致残;主动:缴械目标 3.5 秒(无法普攻)。' },
+
+  // 雷神枷锁:范围缠绕 + 连锁闪电
+  { key: 'gleipnir', name: '雷神枷锁', cost: 5850, category: 'combined',
+    stats: { bonusInt: 25, bonusDamage: 24, bonusHp: 200, bonusMp: 150 },
+    recipe: { components: ['atos', 'maelstrom'], recipeCost: 0 },
+    active: {
+      name: '万雷', manaCost: 50, cooldown: 22, targetMode: 'point', castRange: 1000,
+      onUse(w, user, pos) {
+        if (!pos) return false;
+        damageArea(w, user, pos, 350, 200);
+        modifierArea(w, user, pos, 350, { key: 'item_gleipnir_root', duration: 2.5, states: { rooted: true }, stats: { bonusMoveSpeedPct: -0.4 } }, 'enemy');
+        // 连锁闪电
+        const visited = new Set<number>();
+        let cur: Unit | undefined = enemiesIn(w, user, pos, 350)[0]; let prev = pos;
+        for (let i = 0; i < 4 && cur; i++) {
+          visited.add(cur.id);
+          _spellDamage(w, user, cur, 120);
+          w.emit({ kind: 'fx', fx: 'lightning', pos: V.clone(prev), pos2: V.clone(cur.pos) });
+          prev = cur.pos;
+          cur = w.queryRadius(cur.pos, 500, (t) => t.team !== user.team && !t.isBuilding() && !visited.has(t.id) && t.kind !== 'ward')[0];
+        }
+        w.emit({ kind: 'fx', fx: 'gleipnir', pos: V.clone(pos), radius: 350 });
+        return true;
+      },
+    },
+    description: '+25 智力 +24 攻击 +生命/法力;主动:范围缠绕 2.5 秒并触发连锁闪电。' },
+
+  // 静默之刃:隐身突袭升级
+  { key: 'silver_edge', name: '静默之刃', cost: 4600, category: 'combined',
+    stats: { bonusDamage: 40, bonusAttackSpeed: 0.3, bonusStr: 10 },
+    recipe: { components: ['shadow_blade', 'ogre_axe'], recipeCost: 600 },
+    active: {
+      name: '潜行突袭', cooldown: 14, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_silveredge', duration: 14, isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.2 } }, user.id);
+        return true;
+      },
+    },
+    description: '+40 攻击 +30% 攻速 +10 力量;主动:隐身加速,下次攻击爆发(脱离即现身)。' },
+
+  // 以太之镜:法术增强 + 法力
+  { key: 'aether_lens', name: '以太之镜', cost: 2100, category: 'combined',
+    stats: { bonusMp: 250, spellAmp: 0.12, bonusMpRegen: 3, bonusAttackRange: 75 },
+    recipe: { components: ['energy_booster', 'robe'], recipeCost: 650 },
+    description: '+250 法力 +12% 法术增强 +75 攻击距离:法系的增程增伤件。' },
+
+  // 奥术核心:法核终极属性
+  { key: 'octarine', name: '奥术核心', cost: 5500, category: 'combined',
+    stats: { bonusInt: 25, bonusHp: 350, bonusMp: 350, spellAmp: 0.2, bonusHpRegen: 6, bonusMpRegen: 4 },
+    recipe: { components: ['mystic_staff', 'vitality_booster', 'energy_booster'], recipeCost: 700 },
+    description: '+25 智力 +350 生命/法力 +20% 法术增强:法核的综合终极装。' },
+
+  // 深红甲盾:团队减伤
+  { key: 'crimson_guard', name: '深红甲盾', cost: 3300, category: 'combined',
+    stats: { bonusHp: 250, bonusArmor: 6, bonusHpRegen: 6, incomingDamageReduction: 0.12 },
+    recipe: { components: ['vanguard', 'chainmail'], recipeCost: 600 },
+    active: {
+      name: '深红卫盾', manaCost: 50, cooldown: 40, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of alliesIn(w, user, user.pos, 750)) {
+          applyModifier(w, a, { key: 'item_crimson_buff', duration: 8, isBuff: true, stats: { incomingDamageReduction: 0.3, bonusArmor: 5 } }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+250 生命 +6 护甲 +12% 减伤;主动:为附近友军大幅减伤 8 秒(团战开盾)。' },
+
+  // 卫士胫甲:团队治疗 + 驱散
+  { key: 'guardian_greaves', name: '卫士胫甲', cost: 4200, category: 'combined',
+    stats: { bonusArmor: 5, bonusHpRegen: 6, bonusMpRegen: 4, bonusMoveSpeed: 65 },
+    recipe: { components: ['mekansm', 'arcane_boots'], recipeCost: 600 },
+    active: {
+      name: '机械神力', manaCost: 50, cooldown: 35, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of alliesIn(w, user, user.pos, 650)) {
+          a.hp = Math.min(a.calc.maxHp, a.hp + 350);
+          purge(w, a, false); // 驱散友军减益
+        }
+        return true;
+      },
+    },
+    description: '+5 护甲 +回复 +65 移速;主动:大范围治疗 350 并驱散友军身上的减益。' },
+
+  // 银月之冠:破甲/强化
+  { key: 'solar_crest', name: '银月之冠', cost: 2200, category: 'combined',
+    stats: { bonusArmor: 6, bonusAttackSpeed: 0.2, evasion: 0.1, bonusMpRegen: 2 },
+    recipe: { components: ['medallion', 'gloves_haste'], recipeCost: 625 },
+    active: {
+      name: '银月', cooldown: 9, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        if (!target) return false;
+        if (target.team === user.team) {
+          applyModifier(w, target, { key: 'item_solar_buff', duration: 10, isBuff: true, stats: { bonusArmor: 8, evasion: 0.2, bonusAttackSpeed: 0.2 } }, user.id);
+        } else {
+          applyModifier(w, target, { key: 'item_solar_debuff', duration: 10, stats: { bonusArmor: -8, bonusMoveSpeedPct: -0.15 } }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+6 护甲 +攻速 +闪避;主动:强化友军(护甲/闪避/攻速)或削弱敌人(破甲/减速)。' },
+
+  // 飓风长戟:推开 + 远程
+  { key: 'hurricane_pike', name: '飓风长戟', cost: 3650, category: 'combined',
+    stats: { bonusStr: 20, bonusAgi: 20, bonusAttackRange: 140, bonusHpRegen: 4 },
+    recipe: { components: ['dragon_lance', 'force_staff'], recipeCost: 0 },
+    active: {
+      name: '飓风', cooldown: 15, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        const t = target ?? user;
+        const dir = { x: Math.cos(t.facing), y: Math.sin(t.facing) };
+        blinkTo(w, t, V.add(t.pos, V.scale(dir, 600)));
+        applyModifier(w, user, { key: 'item_pike_range', duration: 4, isBuff: true, stats: { bonusAttackRange: 250, bonusAttackSpeed: 0.4 } }, user.id);
+        return true;
+      },
+    },
+    description: '+20 力量 +20 敏捷 +140 攻击距离;主动:推开目标并短暂获得超远攻击距离。' },
+
+  // 阴邪之罐:萃取升级(充能)
+  { key: 'spirit_vessel', name: '阴邪之罐', cost: 2200, category: 'combined',
+    stats: { bonusStr: 8, bonusHpRegen: 4, bonusMpRegen: 3 }, charges: 4, rechargeable: true,
+    recipe: { components: ['urn', 'ring_regen', 'sobi_mask'], recipeCost: 650 },
+    active: {
+      name: '阴邪萃取', cooldown: 8, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'spirit_vessel');
+        if (!inst || inst.charges <= 0) return false;
+        const t = target ?? user;
+        inst.charges--;
+        if (t.team === user.team) {
+          applyModifier(w, t, { key: 'item_vessel_heal', duration: 8, isBuff: true, stats: { bonusHpRegen: 60 } }, user.id);
+        } else {
+          applyModifier(w, t, { key: 'item_vessel_dmg', duration: 8, stats: { bonusMoveSpeedPct: -0.15 }, tickInterval: 1, onTick: (world, u) => _spellDamage(world, user, u, 50) }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '+8 力量 +回复;主动(4 充能):强力治疗友军或持续灼伤敌人。' },
+
+  // 月之碎片:极致攻速
+  { key: 'moon_shard', name: '月之碎片', cost: 4000, category: 'weapon', secretShop: true,
+    stats: { bonusAttackSpeed: 1.2 },
+    description: '+120% 攻击速度:后期物理核心的攻速终极件。' },
+
+  // 血棘:沉默 + 暴击
+  { key: 'bloodthorn', name: '血棘', cost: 7200, category: 'combined',
+    stats: { bonusInt: 30, bonusAttackSpeed: 0.35, bonusDamage: 30, critChance: 0.3, critMultiplier: 1.8, spellAmp: 0.1 },
+    recipe: { components: ['orchid', 'demon_edge'], recipeCost: 0 },
+    active: {
+      name: '血棘禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', castRange: 900,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_bloodthorn_silence', duration: 5, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.2 } }, user.id);
+        return true;
+      },
+    },
+    description: '+30 智力 +攻速/暴击 +法术增强;主动:沉默并削弱目标 5 秒。' },
 );
