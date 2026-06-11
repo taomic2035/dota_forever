@@ -1585,3 +1585,55 @@ ITEMS.push(
     },
     description: '+20% 魔抗 +15% 攻速;攻击削减目标的法术增强(克制法核)。' },
 );
+
+// ---------- 进阶物品批次 9(基础组件补全,达经典物品规模) ----------
+ITEMS.push(
+  // 守护指环:廉价护甲散件
+  { key: 'ring_protection', name: '守护指环', cost: 175, category: 'armor',
+    stats: { bonusArmor: 2 },
+    description: '+2 护甲:最廉价的护甲散件。' },
+
+  // 攻击之刃:廉价攻击散件
+  { key: 'blades_of_attack', name: '攻击之刃', cost: 450, category: 'weapon',
+    stats: { bonusDamage: 9 },
+    description: '+9 攻击力:廉价的攻击散件。' },
+
+  // 短棍:攻速散件
+  { key: 'quarterstaff', name: '短棍', cost: 875, category: 'weapon',
+    stats: { bonusAttackSpeed: 0.25 },
+    description: '+25% 攻击速度。' },
+
+  // 闪避护符:闪避散件(蝶翼前置)
+  { key: 'talisman_evasion', name: '闪避护符', cost: 1300, category: 'armor',
+    stats: { evasion: 0.2 },
+    description: '+20% 闪避:蝶舞之翼等闪避装的前置组件。' },
+
+  // 终极法球:全属性组件
+  { key: 'ultimate_orb', name: '终极法球', cost: 2050, category: 'attribute', secretShop: true,
+    stats: { bonusStr: 10, bonusAgi: 10, bonusInt: 10 },
+    description: '+10 全属性:寒霜之心等高阶装的核心组件。' },
+
+  // 灵魂之协:生命法力组件
+  { key: 'soul_booster', name: '灵魂之协', cost: 3300, category: 'combined',
+    stats: { bonusHp: 250, bonusMp: 250, bonusHpRegen: 6, bonusMpRegen: 3 },
+    recipe: { components: ['vitality_booster', 'energy_booster', 'point_booster'], recipeCost: 0 },
+    description: '+250 生命/法力 +回复:血石等装的生命法力核心(注:与升级件协同定价)。' },
+
+  // 标枪:概率穿刺
+  { key: 'javelin', name: '标枪', cost: 1100, category: 'weapon',
+    stats: { bonusDamage: 19 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.2)) return;
+      _spellDamage(w, attacker, target, 40);
+    },
+    description: '+19 攻击;攻击有 20% 概率附带额外穿刺伤害(金箍棒前置)。' },
+
+  // 枯萎石:破甲散件
+  { key: 'blight_stone', name: '枯萎石', cost: 300, category: 'weapon',
+    stats: { bonusDamage: 4 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding()) return;
+      applyModifier(w, target, { key: 'item_blight_armor', duration: 4, stackable: false, stats: { bonusArmor: -2 } }, attacker.id);
+    },
+    description: '+4 攻击;攻击使目标护甲降低(湮灭之刃前置)。' },
+);

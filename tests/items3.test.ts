@@ -688,6 +688,41 @@ describe('advanced items batch 8', () => {
   });
 });
 
+describe('advanced items batch 9', () => {
+  it('基础组件:属性正确折算', () => {
+    give(h, 'ultimate_orb'); w.step();
+    expect(h.bonusAttr.str).toBeGreaterThanOrEqual(10);
+    const ev0 = h.calc.evasion;
+    give(h, 'talisman_evasion'); w.step();
+    expect(h.calc.evasion).toBeGreaterThan(ev0);
+    give(h, 'quarterstaff'); w.step();
+    expect(h.calc.ias).toBeGreaterThan(0);
+  });
+
+  it('灵魂之协:生命法力', () => {
+    const hp0 = h.calc.maxHp;
+    give(h, 'soul_booster'); w.step();
+    expect(h.calc.maxHp).toBeGreaterThan(hp0 + 200);
+  });
+
+  it('标枪:概率穿刺', () => {
+    give(h, 'javelin');
+    const t = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: 110, y: 0 })), name: 't', stats: { ...REIN_STATS(), maxHp: 100000, magicResist: 0 } });
+    const hp0 = t.hp;
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    run(30 * 6);
+    expect(t.hp).toBeLessThan(hp0);
+  });
+
+  it('枯萎石:攻击破甲', () => {
+    give(h, 'blight_stone');
+    const t = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: 110, y: 0 })), name: 't', stats: { ...REIN_STATS() } });
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    run(40);
+    expect(hasModifier(t, 'item_blight_armor')).toBe(true);
+  });
+});
+
 function REIN_STATS() {
   return {
     maxHp: 2000, hpRegen: 0, maxMp: 300, mpRegen: 0, dmgMin: 0, dmgMax: 0,
