@@ -1230,3 +1230,156 @@ ITEMS.push(
     },
     description: '+30 智力 +攻速/暴击 +法术增强;主动:沉默并削弱目标 5 秒。' },
 );
+
+// ---------- 进阶物品批次 6(剩余经典/升级线) ----------
+ITEMS.push(
+  // 疾风之纹:廉价移速
+  { key: 'wind_lace', name: '疾风之纹', cost: 250, category: 'armor',
+    stats: { bonusMoveSpeed: 30 },
+    description: '+30 移动速度:最廉价的提速小件。' },
+
+  // 以太之刃:虚化目标 + 法术爆发
+  { key: 'ethereal_blade', name: '以太之刃', cost: 3200, category: 'combined',
+    stats: { bonusAgi: 10, bonusInt: 10, bonusMp: 150 },
+    recipe: { components: ['ghost', 'energy_booster'], recipeCost: 600 },
+    active: {
+      name: '以太冲击', manaCost: 75, cooldown: 20, targetMode: 'unit', castRange: 700,
+      onUse(w, user, _pos, target) {
+        if (!target) return false;
+        applyModifier(w, target, { key: 'item_ethereal', duration: 3, states: { physImmune: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
+        if (target.team !== user.team) _spellDamage(w, user, target, 250);
+        w.emit({ kind: 'fx', fx: 'ethereal', pos: V.clone(target.pos) });
+        return true;
+      },
+    },
+    description: '+10 敏/智 +150 法力;主动:使目标虚化(免疫物理/无法普攻)并造成法术爆发。' },
+
+  // 流星锤:延迟范围砸落
+  { key: 'meteor_hammer', name: '流星锤', cost: 2200, category: 'combined',
+    stats: { bonusInt: 10, bonusHpRegen: 6, bonusArmor: 3 },
+    recipe: { components: ['staff_wizardry', 'chainmail'], recipeCost: 650 },
+    active: {
+      name: '流星', manaCost: 100, cooldown: 30, targetMode: 'point', castRange: 700,
+      onUse(w, user, pos) {
+        if (!pos) return false;
+        const at = V.clone(pos);
+        applyModifier(w, user, {
+          key: `item_meteor_${w.tick}`, duration: 1.7, isBuff: true, tickInterval: 1.5,
+          onTick(world, _u, m) {
+            damageArea(world, user, at, 350, 250);
+            modifierArea(world, user, at, 350, { key: 'item_meteor_stun', duration: 1.6, states: { stunned: true } }, 'enemy');
+            world.emit({ kind: 'fx', fx: 'meteor', pos: at, radius: 350 });
+            m.expiresAt = -Infinity;
+          },
+        }, user.id);
+        w.emit({ kind: 'fx', fx: 'meteor_warn', pos: at, radius: 350 });
+        return true;
+      },
+    },
+    description: '+10 智力 +回复/护甲;主动:1.5 秒后召落流星,眩晕并重创区域内敌人。' },
+
+  // 否决坠饰:驱散 + 禁锢
+  { key: 'nullifier', name: '否决坠饰', cost: 2000, category: 'combined',
+    stats: { bonusMagicResist: 0.12, bonusDamage: 25 },
+    recipe: { components: ['cloak', 'sobi_mask', 'robe'], recipeCost: 675 },
+    active: {
+      name: '否决', manaCost: 75, cooldown: 13, targetMode: 'unit', castRange: 750,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        purge(w, target, true); // 移除其增益
+        applyModifier(w, target, { key: 'item_nullifier_mute', duration: 4, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.3 } }, user.id);
+        return true;
+      },
+    },
+    description: '+12% 魔抗 +25 攻击;主动:驱散目标增益并禁用其施法、减速 4 秒。' },
+
+  // 永恒之纱:法术屏障
+  { key: 'eternal_shroud', name: '永恒之纱', cost: 2800, category: 'combined',
+    stats: { bonusHp: 250, bonusMagicResist: 0.2, bonusHpRegen: 5 },
+    recipe: { components: ['hood', 'vitality_booster'], recipeCost: 600 },
+    active: {
+      name: '法术屏障', cooldown: 30, targetMode: 'none',
+      onUse(w, user) {
+        const m = applyModifier(w, user, { key: 'item_eternal_barrier', duration: 12, isBuff: true }, user.id);
+        m.data!.shield = 400;
+        return true;
+      },
+    },
+    description: '+250 生命 +20% 魔抗;主动:获得 400 点护盾抵御伤害(抗法核心)。' },
+
+  // 散华:净魂之刃升级
+  { key: 'disperser', name: '散华', cost: 3600, category: 'combined',
+    stats: { bonusAgi: 30 },
+    recipe: { components: ['diffusal', 'blade_alacrity'], recipeCost: 600 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || target.calc.maxMp <= 0) return;
+      const burn = Math.min(target.mp, 60);
+      if (burn <= 0) return;
+      target.mp -= burn;
+      _spellDamage(w, attacker, target, burn);
+    },
+    active: {
+      name: '消散', cooldown: 10, targetMode: 'unit', castRange: 600,
+      onUse(w, user, _pos, target) {
+        const t = target ?? user;
+        if (t.team === user.team) { purge(w, t, false); applyModifier(w, t, { key: 'item_disperser_haste', duration: 4, isBuff: true, stats: { bonusMoveSpeedPct: 0.25 } }, user.id); }
+        else applyModifier(w, t, { key: 'item_disperser_slow', duration: 4, stats: { bonusMoveSpeedPct: -0.45 } }, user.id);
+        return true;
+      },
+    },
+    description: '+30 敏捷;攻击燃烧更多法力;主动:净化友军并加速 / 重度减速敌人。' },
+
+  // 渔叉:拉近自身
+  { key: 'harpoon', name: '渔叉', cost: 2600, category: 'combined',
+    stats: { bonusStr: 12, bonusAgi: 12, bonusAttackSpeed: 0.2 },
+    recipe: { components: ['ogre_axe', 'blade_alacrity'], recipeCost: 600 },
+    active: {
+      name: '抛叉', cooldown: 16, targetMode: 'unit', castRange: 1000,
+      onUse(w, user, _pos, target) {
+        if (!target) return false;
+        blinkTo(w, user, w.map.nearestWalkable(V.add(target.pos, V.scale(V.norm(V.sub(user.pos, target.pos)), 150))));
+        applyModifier(w, target, { key: 'item_harpoon_slow', duration: 3, stats: { bonusMoveSpeedPct: -0.3 } }, user.id);
+        user.issueOrder({ type: 'attack', targetId: target.id });
+        return true;
+      },
+    },
+    description: '+12 力/敏 +20% 攻速;主动:抛叉将自己拉到目标身边并减速之(追杀利器)。' },
+
+  // 支配头盔:吸血光环
+  { key: 'helm_dominator', name: '支配头盔', cost: 2000, category: 'combined',
+    stats: { bonusDamage: 20, bonusArmor: 5, lifesteal: 0.18 },
+    recipe: { components: ['morbid_mask', 'chainmail'], recipeCost: 550 },
+    holderModifier: {
+      key: 'item_helm_aura', isBuff: true,
+      aura: { radius: 900, affects: 'ally', grant: { key: 'item_helm_lifesteal', isBuff: true, stats: { lifesteal: 0.15 } } },
+    },
+    description: '+20 攻击 +5 护甲 +18% 吸血;为附近友军提供吸血光环。' },
+
+  // 风之波荡:自救旋风
+  { key: 'wind_waker', name: '风之波荡', cost: 3200, category: 'combined',
+    stats: { bonusInt: 20, bonusMoveSpeed: 40, bonusMpRegen: 4 },
+    recipe: { components: ['eul', 'cloak'], recipeCost: 600 },
+    active: {
+      name: '自旋', manaCost: 100, cooldown: 26, targetMode: 'none',
+      onUse(w, user) {
+        user.invulnerable = true;
+        applyModifier(w, user, {
+          key: 'item_windwaker', duration: 2.5, isBuff: true, states: { rooted: true, disarmed: true, silenced: true },
+          onExpire(_w, u) { u.invulnerable = false; },
+        }, user.id);
+        user.hp = Math.min(user.calc.maxHp, user.hp + 200);
+        return true;
+      },
+    },
+    description: '+20 智力 +40 移速;主动:将自己卷入旋风(无敌但无法行动 2.5 秒)并回复生命。' },
+
+  // 永世法衣:法术之刃+萨格
+  { key: 'kaya_sange', name: '永世法衣', cost: 3600, category: 'combined',
+    stats: { bonusStr: 16, bonusInt: 16, spellAmp: 0.12, bonusHpRegen: 5 },
+    recipe: { components: ['kaya', 'sange'], recipeCost: 0 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding() || !w.rng.chance(0.5)) return;
+      applyModifier(w, target, { key: 'item_maim', duration: 4, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.2 } }, attacker.id);
+    },
+    description: '+16 力/智 +12% 法术增强 +回复;攻击致残:力法两用的全能核心。' },
+);

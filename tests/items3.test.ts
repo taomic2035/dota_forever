@@ -446,6 +446,98 @@ describe('advanced items batch 5', () => {
   });
 });
 
+describe('advanced items batch 6', () => {
+  function enemyAt(dx: number, over: Record<string, unknown> = {}): Unit {
+    return w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: dx, y: 0 })), name: 't', stats: { ...REIN_STATS(), ...over } });
+  }
+
+  it('疾风之纹:提升移速', () => {
+    const ms0 = h.calc.moveSpeed;
+    give(h, 'wind_lace'); w.step();
+    expect(h.calc.moveSpeed).toBeGreaterThan(ms0);
+  });
+
+  it('以太之刃:虚化目标(免疫物理)+法术爆发', () => {
+    const slot = give(h, 'ethereal_blade'); h.mp = 200;
+    const t = enemyAt(400, { magicResist: 0 });
+    const hp0 = t.hp;
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(hasModifier(t, 'item_ethereal')).toBe(true);
+    expect(t.hp).toBeLessThan(hp0); // 法术爆发
+    expect(applyDamage(w, t, { source: 0, attackType: 'hero', amount: 300 })).toBe(0); // 物理免疫
+  });
+
+  it('流星锤:延迟砸落眩晕', () => {
+    const slot = give(h, 'meteor_hammer'); h.mp = 200;
+    const t = enemyAt(300, { magicResist: 0, moveSpeed: 0, acquireRange: 0 });
+    const hp0 = t.hp;
+    useItem(w, h, slot, V.add(h.pos, { x: 300, y: 0 }));
+    run(10);
+    expect(t.hp).toBe(hp0); // 尚未砸落
+    run(50);
+    expect(t.hp).toBeLessThan(hp0);
+    expect(hasModifier(t, 'item_meteor_stun')).toBe(true);
+  });
+
+  it('否决坠饰:禁锢敌方', () => {
+    const slot = give(h, 'nullifier'); h.mp = 200;
+    const t = enemyAt(400);
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(hasModifier(t, 'item_nullifier_mute')).toBe(true);
+  });
+
+  it('永恒之纱:护盾吸收', () => {
+    const slot = give(h, 'eternal_shroud');
+    useItem(w, h, slot);
+    run(1);
+    expect(hasModifier(h, 'item_eternal_barrier')).toBe(true);
+    const hp0 = h.hp;
+    applyDamage(w, h, { source: 0, attackType: 'hero', amount: 300, flags: { pure: true } });
+    expect(h.hp).toBe(hp0); // 被屏障吸收
+  });
+
+  it('散华:攻击燃烧法力', () => {
+    give(h, 'disperser');
+    const t = enemyAt(110, { magicResist: 0 });
+    t.mp = 200;
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    run(40);
+    expect(t.mp).toBeLessThan(200);
+  });
+
+  it('渔叉:拉近自身并减速', () => {
+    const slot = give(h, 'harpoon'); const t = enemyAt(800, { moveSpeed: 0, acquireRange: 0 });
+    const d0 = V.dist(h.pos, t.pos);
+    useItem(w, h, slot, undefined, t);
+    run(3);
+    expect(V.dist(h.pos, t.pos)).toBeLessThan(d0); // 拉近
+    expect(hasModifier(t, 'item_harpoon_slow')).toBe(true);
+  });
+
+  it('支配头盔:吸血光环', () => {
+    give(h, 'helm_dominator');
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    run(30);
+    expect(hasModifier(ally, 'item_helm_lifesteal')).toBe(true);
+  });
+
+  it('风之波荡:自旋无敌', () => {
+    const slot = give(h, 'wind_waker'); h.mp = 200;
+    useItem(w, h, slot);
+    run(2);
+    expect(hasModifier(h, 'item_windwaker')).toBe(true);
+    expect(h.invulnerable).toBe(true);
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 500 })).toBe(0);
+  });
+
+  it('永世法衣:法术增强', () => {
+    give(h, 'kaya_sange'); w.step();
+    expect(h.calc.spellAmp).toBeGreaterThanOrEqual(0.12);
+  });
+});
+
 function REIN_STATS() {
   return {
     maxHp: 2000, hpRegen: 0, maxMp: 300, mpRegen: 0, dmgMin: 0, dmgMax: 0,
