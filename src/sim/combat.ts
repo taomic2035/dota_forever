@@ -151,9 +151,17 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     }
   }
   if (target.hp <= 0) {
-    // 薄葬/免死:存在 preventDeath 修饰符时保留 1 点生命,不被击杀
-    if (target.modifiers.some((m) => (m.def.data?.preventDeath ?? 0) > 0)) {
-      target.hp = 1;
+    // 免死:preventDeath 保留 1 血;reviveFull 则回满血并一次性消耗(重生)
+    const grave = target.modifiers.find((m) => (m.def.data?.preventDeath ?? 0) > 0);
+    if (grave) {
+      if ((grave.def.data?.reviveFull ?? 0) > 0) {
+        target.hp = target.calc.maxHp;
+        target.mp = target.calc.maxMp;
+        grave.expiresAt = -Infinity; // 重生后消耗
+        w.emit({ kind: 'fx', fx: 'reincarnate', pos: V.clone(target.pos) });
+      } else {
+        target.hp = 1;
+      }
     } else {
       kill(w, target, evt.source);
     }
