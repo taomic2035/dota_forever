@@ -31,6 +31,8 @@ export interface ItemDef {
     /** 返回 false 表示未生效(不消耗) */
     onUse(w: World, user: Unit, pos?: Vec2, target?: Unit): boolean;
   };
+  /** 攻击命中触发(法球/特效类:漩涡链电、黯灭减甲等) */
+  onAttack?(w: World, attacker: Unit, target: Unit, dealt: number): void;
   /** 充能可再生(魔棒类):使用不删除物品 */
   rechargeable?: boolean;
   /** 持有期间常驻 modifier(光环/灼烧等),背包同步管理 */
@@ -468,4 +470,220 @@ ITEMS.push(
       },
     },
     description: '3 充能;每次 3 秒内恢复 135 生命 70 法力,受击中断;泉水自动续满;可储存符文。' },
+);
+
+// ---------- 进阶物品批次 2(法球/控制/位移/召唤) ----------
+import { summonUnit } from '../sim/abilities';
+import { spellDamage as _spellDamage } from '../sim/abilities';
+
+ITEMS.push(
+  // 远行鞋:全图传送 + 高额移速
+  { key: 'travel_boots', name: '远行之靴', cost: 2200, category: 'combined',
+    stats: { bonusMoveSpeed: 100 },
+    recipe: { components: ['boots'], recipeCost: 1700 },
+    active: {
+      name: '远行传送', manaCost: 50, cooldown: 50, targetMode: 'point', castRange: 99999,
+      onUse(w, user, pos) {
+        if (!pos) return false;
+        let best: Unit | null = null, bestD = Infinity;
+        for (const b of w.units.values()) {
+          if (!b.alive || b.team !== user.team || !(b.isBuilding() || b.kind === 'creep')) continue;
+          const d = V.dist(b.pos, pos); if (d < bestD) { bestD = d; best = b; }
+        }
+        const dest = best ? best.pos : pos;
+        applyModifier(w, user, {
+          key: 'item_travel', duration: 3, states: { rooted: true, disarmed: true, silenced: true },
+          onExpire(world, u, m) {
+            if (m.data!.cancelled || !u.alive) return;
+            blinkTo(world, u, world.map.nearestWalkable(V.add(dest, { x: 100, y: 100 })));
+            world.emit({ kind: 'fx', fx: 'tp_arrive', pos: V.clone(dest) });
+          },
+          tickInterval: 0.1,
+          onTick(world, u, m) { if (u.modifiers.some((x) => x.def.states?.stunned)) { m.data!.cancelled = 1; m.expiresAt = -Infinity; } },
+        }, user.id);
+        return true;
+      },
+    },
+    description: '+100 移速;主动:传送到任意己方单位附近(全图)。' },
+
+  // 诡计之雾:小队隐身
+  { key: 'smoke', name: '诡计之雾', cost: 100, category: 'consumable', charges: 1,
+    active: {
+      name: '隐匿', cooldown: 0, targetMode: 'none',
+      onUse(w, user) {
+        for (const a of w.queryRadius(user.pos, 1200, (t) => t.team === user.team && t.isHero())) {
+          applyModifier(w, a, { key: 'item_smoke', duration: 35, isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeed: 15 } }, user.id);
+        }
+        return true;
+      },
+    },
+    description: '使附近友方英雄隐身(攻击或靠近敌方建筑则失效),便于游走。' },
+
+  // 影刃:隐身突袭
+  { key: 'shadow_blade', name: '影锋', cost: 3000, category: 'combined',
+    stats: { bonusDamage: 30, bonusAttackSpeed: 0.3 },
+    recipe: { components: ['claymore', 'gloves_haste'], recipeCost: 1100 },
+    active: {
+      name: '隐匿突袭', cooldown: 16, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_shadowblade', duration: 14, isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeed: 30 } }, user.id);
+        return true;
+      },
+    },
+    description: '+30 攻击 +30% 攻速;主动:隐身并加速,下次攻击附带爆发(脱离即现身)。' },
+
+  // 散夜对剑:敏捷/攻速/移速
+  { key: 'yasha', name: '散叶之刃', cost: 2050, category: 'combined',
+    stats: { bonusAgi: 16, bonusAttackSpeed: 0.15, bonusMoveSpeedPct: 0.1 },
+    recipe: { components: ['blade_alacrity', 'band'], recipeCost: 600 },
+    description: '+16 敏捷 +15% 攻速 +10% 移速。' },
+
+  // 漩涡:攻击触发连锁闪电
+  { key: 'maelstrom', name: '风暴之锤', cost: 3100, category: 'combined',
+    stats: { bonusDamage: 24, bonusAttackSpeed: 0.25 },
+    recipe: { components: ['mithril_hammer', 'gloves_haste', 'broadsword'], recipeCost: 0 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding()) return;
+      if (!w.rng.chance(0.3)) return;
+      // 连锁闪电:跳跃 4 次
+      const visited = new Set<number>();
+      let cur: Unit | undefined = target; let prev = attacker.pos;
+      for (let i = 0; i < 4 && cur; i++) {
+        visited.add(cur.id);
+        _spellDamage(w, attacker, cur, 130);
+        w.emit({ kind: 'fx', fx: 'lightning', pos: V.clone(prev), pos2: V.clone(cur.pos) });
+        prev = cur.pos;
+        cur = w.queryRadius(cur.pos, 500, (t) => t.team !== attacker.team && !t.isBuilding() && !visited.has(t.id) && t.kind !== 'ward')[0];
+      }
+    },
+    description: '+24 攻击 +25% 攻速;攻击有 30% 概率触发连锁闪电(造成魔法伤害)。' },
+
+  // 黯灭:攻击附带破甲
+  { key: 'desolator', name: '湮灭之刃', cost: 3500, category: 'combined',
+    stats: { bonusDamage: 50 },
+    recipe: { components: ['mithril_hammer', 'mithril_hammer'], recipeCost: 300 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding()) return;
+      applyModifier(w, target, { key: 'item_desolator_armor', duration: 7, stats: { bonusArmor: -6 } }, attacker.id);
+    },
+    description: '+50 攻击;攻击使目标护甲降低 6 点,持续 7 秒。' },
+
+  // 林肯法球:格挡指向性法术(被动,每 13 秒一次)
+  { key: 'linken', name: '守护宝珠', cost: 4800, category: 'combined',
+    stats: { bonusDamage: 15, bonusStr: 10, bonusAgi: 10, bonusInt: 10, bonusHpRegen: 6, bonusMpRegen: 1.5 },
+    recipe: { components: ['mystic_staff', 'vitality_booster'], recipeCost: 1000 },
+    holderModifier: {
+      key: 'item_linken_aura',
+      // 实际格挡逻辑在 spell 施放处检查;此处仅作为标记 modifier(简化:提供属性)
+    },
+    description: '+15 攻击 +10 全属性 +生命/法力回复;持有时具备法术屏障(标记)。' },
+
+  // 飓风长戟:推动
+  { key: 'force_staff', name: '原力法杖', cost: 2200, category: 'combined',
+    stats: { bonusInt: 10, bonusHpRegen: 4 },
+    recipe: { components: ['staff_wizardry', 'ring_regen', 'sobi_mask'], recipeCost: 525 },
+    active: {
+      name: '原力', cooldown: 15, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        const t = target ?? user;
+        const dir = { x: Math.cos(t.facing), y: Math.sin(t.facing) };
+        blinkTo(w, t, V.add(t.pos, V.scale(dir, 600)));
+        w.emit({ kind: 'fx', fx: 'force', pos: V.clone(t.pos) });
+        return true;
+      },
+    },
+    description: '+10 智力 +4 生命回复;主动:将目标(可己可敌)朝其面向推开 600。' },
+
+  // 阿托斯之棍:缠绕
+  { key: 'atos', name: '挽紧之杖', cost: 2750, category: 'combined',
+    stats: { bonusInt: 20, bonusHp: 250 },
+    recipe: { components: ['staff_wizardry', 'vitality_booster'], recipeCost: 650 },
+    active: {
+      name: '缠绕', manaCost: 50, cooldown: 18, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_atos_root', duration: 2.5, states: { rooted: true }, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
+        return true;
+      },
+    },
+    description: '+20 智力 +250 生命;主动:缠绕敌方目标 2.5 秒(无法移动)。' },
+
+  // 微光披风:友军隐身保护
+  { key: 'glimmer', name: '微光披风', cost: 1950, category: 'combined',
+    stats: { bonusMagicResist: 0.16, bonusMpRegen: 1.5 },
+    recipe: { components: ['cloak', 'sobi_mask'], recipeCost: 1075 },
+    active: {
+      name: '微光', cooldown: 15, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        const t = target && target.team === user.team ? target : user;
+        applyModifier(w, t, { key: 'item_glimmer', duration: 5, isBuff: true, states: { invisible: true }, stats: { bonusMagicResist: 0.45, bonusMoveSpeedPct: 0.15 } }, user.id);
+        return true;
+      },
+    },
+    description: '+16% 魔抗;主动:使友军隐身并大幅提升魔抗 5 秒。' },
+
+  // 慧光:破甲(主动,对目标与自身)
+  { key: 'medallion', name: '勇气勋章', cost: 1075, category: 'combined',
+    stats: { bonusArmor: 6, bonusMpRegen: 1.5 },
+    recipe: { components: ['chainmail', 'sobi_mask'], recipeCost: 200 },
+    active: {
+      name: '强化勇气', cooldown: 8, targetMode: 'unit', castRange: 800,
+      onUse(w, user, _pos, target) {
+        if (!target) return false;
+        applyModifier(w, target, { key: 'item_medallion_armor', duration: 7, stats: { bonusArmor: target.team === user.team ? 7 : -7 } }, user.id);
+        return true;
+      },
+    },
+    description: '+6 护甲;主动:削减敌方(或强化友方)7 点护甲,持续 7 秒。' },
+
+  // 死灵书:召唤一对亡灵
+  { key: 'necronomicon', name: '亡者之书', cost: 2660, category: 'combined',
+    stats: { bonusInt: 12, bonusDamage: 18, bonusMpRegen: 2 },
+    recipe: { components: ['staff_wizardry', 'belt'], recipeCost: 1210 },
+    active: {
+      name: '召唤亡者', manaCost: 50, cooldown: 80, targetMode: 'none',
+      onUse(w, user) {
+        for (let i = 0; i < 2; i++) {
+          summonUnit(w, user, {
+            name: '亡者随从', hp: 600, dmg: [40, 50], armor: 4, ms: 340,
+            range: i === 0 ? 100 : 500, duration: 40, magicResist: 0.3,
+            attackType: i === 0 ? 'normal' : 'pierce',
+          }, V.add(user.pos, { x: i === 0 ? -80 : 80, y: 60 }), true);
+        }
+        return true;
+      },
+    },
+    description: '+12 智力 +18 攻击;主动:召唤一近一远两个亡者随从作战 40 秒。' },
+
+  // 血精石:生存核心
+  { key: 'bloodstone', name: '血石', cost: 4400, category: 'combined',
+    stats: { bonusHp: 500, bonusMp: 400, bonusHpRegen: 12, bonusMpRegen: 4 },
+    recipe: { components: ['vitality_booster', 'energy_booster', 'point_booster'], recipeCost: 1100 },
+    description: '+500 生命 +400 法力 +高额双回复:法师与前排的生存核心。' },
+
+  // 银月纷争:沉默 + 法术增强
+  { key: 'orchid', name: '纷争面纱', cost: 4800, category: 'combined',
+    stats: { bonusInt: 25, bonusAttackSpeed: 0.3, bonusMpRegen: 2, spellAmp: 0.1 },
+    recipe: { components: ['mystic_staff', 'hyperstone'], recipeCost: 0 },
+    active: {
+      name: '禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', castRange: 900,
+      onUse(w, user, _pos, target) {
+        if (!target || target.team === user.team) return false;
+        applyModifier(w, target, { key: 'item_orchid_silence', duration: 5, states: { silenced: true } }, user.id);
+        return true;
+      },
+    },
+    description: '+25 智力 +30% 攻速 +10% 法术增强;主动:沉默目标 5 秒。' },
+
+  // 卫士胫甲:回复与移速
+  { key: 'tranquil', name: '静谧之鞋', cost: 925, category: 'combined',
+    stats: { bonusMoveSpeed: 70, bonusArmor: 5, bonusHpRegen: 10 },
+    recipe: { components: ['boots', 'ring_regen'], recipeCost: 75 },
+    description: '+70 移速 +5 护甲 +10 生命回复:经济友好的续航之鞋。' },
+
+  // 大根(通用神杖):全属性强化
+  { key: 'scepter', name: '魔晶神杖', cost: 4200, category: 'combined',
+    stats: { bonusStr: 10, bonusAgi: 10, bonusInt: 10, bonusHp: 175, bonusMp: 175 },
+    recipe: { components: ['point_booster', 'staff_wizardry', 'ogre_axe', 'blade_alacrity'], recipeCost: 0 },
+    description: '+10 全属性 +175 生命/法力:强化英雄综合能力的标志性神杖。' },
 );

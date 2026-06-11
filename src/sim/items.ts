@@ -8,7 +8,7 @@ import { itemDef, type ItemDef } from '../data/items';
 import { Team } from './map';
 import type { World } from './world';
 import type { Unit } from './unit';
-import { recalcExtensions } from './combat';
+import { recalcExtensions, attackHitHooks } from './combat';
 
 export interface ItemInstance {
   itemKey: string;
@@ -208,6 +208,15 @@ function itemFold(u: Unit): void {
   }
 }
 recalcExtensions.unshift(itemFold); // 在英雄属性折算前(属性加成需先入 bonusAttr)
+
+// 物品攻击触发(法球/特效):命中后遍历攻击者背包
+attackHitHooks.push((w, attacker, target, dealt) => {
+  if (dealt <= 0) return;
+  for (const inst of attacker.inventory) {
+    if (!inst) continue;
+    itemDef(inst.itemKey).onAttack?.(w, attacker, target, dealt);
+  }
+});
 
 const STICK_CAP: Record<string, number> = { magic_stick: 10, magic_wand: 17 };
 
