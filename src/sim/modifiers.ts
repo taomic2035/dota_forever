@@ -75,6 +75,8 @@ export interface ModifierDef {
   onExpire?(w: World, u: Unit, m: Modifier): void;
   /** 纯标记(驱散用):true 为增益 */
   isBuff?: boolean;
+  /** 静态参数(非 stats 聚合的特殊机制读取,如 retaliate 反伤系数) */
+  data?: Record<string, number>;
 }
 
 export function applyModifier(w: World, target: Unit, def: ModifierDef, sourceId: EntityId): Modifier {

@@ -16,7 +16,7 @@ export interface DamageEvent {
   source: EntityId;
   attackType: AttackType;
   amount: number;
-  flags?: { spell?: boolean; pure?: boolean; noLifesteal?: boolean };
+  flags?: { spell?: boolean; pure?: boolean; noLifesteal?: boolean; reflected?: boolean };
 }
 
 export function isEnemy(a: Unit, b: Unit): boolean {
@@ -123,6 +123,17 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     }
   }
   w.emit({ kind: 'unit_damaged', unitId: target.id, sourceId: evt.source, amount, pos: V.clone(target.pos) });
+  // 反击/反伤(retaliate):仅对非反弹的物理伤害,反弹纯粹伤害给来源,标记防递归
+  if (!flags.spell && !flags.reflected) {
+    let retal = 0;
+    for (const m of target.modifiers) retal += m.def.data?.retaliate ?? 0;
+    if (retal > 0) {
+      const src = w.getUnit(evt.source);
+      if (src && src.alive && src.team !== target.team && !src.isBuilding()) {
+        applyDamage(w, src, { source: target.id, attackType: 'hero', amount: amount * retal, flags: { pure: true, reflected: true } });
+      }
+    }
+  }
   if (target.hp <= 0) {
     kill(w, target, evt.source);
   }
@@ -211,6 +222,15 @@ export function ordersSystem(w: World): void {
           u.windupTargetId = 0;
         }
         continue; // 前摇期间不移动
+      }
+    }
+
+    // 嘲讽:被迫攻击嘲讽来源,无视当前指令
+    if (w.time < u.tauntedUntil) {
+      const taunter = w.getUnit(u.tauntSourceId);
+      if (taunter && taunter.alive) {
+        attackRoutine(w, u, taunter);
+        continue;
       }
     }
 

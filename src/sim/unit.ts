@@ -128,6 +128,9 @@ export class Unit {
   /** 召唤物:到期时刻与召唤者 */
   summonExpiresAt?: number;
   summonOwnerId?: EntityId;
+  /** 嘲讽:在此时刻前被迫攻击 tauntSourceId */
+  tauntedUntil = -Infinity;
+  tauntSourceId: EntityId | 0 = 0;
   /** 英雄定义引用(data/heroes) */
   heroDef?: import('../data/heroes/types').HeroDef;
   /** 物品/技能给予的属性加成(modifier 聚合写入) */
