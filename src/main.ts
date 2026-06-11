@@ -135,6 +135,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const loop = new GameLoop({
     step() {
       world.step();
+      renderer.fx.consume(world, renderer.viewerTeam);
       killfeed.consume(world);
       audio.consume(world, hero);
     },
@@ -151,11 +152,11 @@ function startGame(mode: 'play' | 'spectate'): void {
   loop.speed = speed;
   loop.start();
 
-  window.__game = { world, hero, camera, loop };
+  window.__game = { world, hero, camera, loop, renderer };
 }
 
 declare global {
   interface Window {
-    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop };
+    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop; renderer: Renderer };
   }
 }
