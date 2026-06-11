@@ -151,7 +151,12 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     }
   }
   if (target.hp <= 0) {
-    kill(w, target, evt.source);
+    // 薄葬/免死:存在 preventDeath 修饰符时保留 1 点生命,不被击杀
+    if (target.modifiers.some((m) => (m.def.data?.preventDeath ?? 0) > 0)) {
+      target.hp = 1;
+    } else {
+      kill(w, target, evt.source);
+    }
   }
   return amount;
 }
