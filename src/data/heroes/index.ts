@@ -103,10 +103,11 @@ import { BATCH4 } from './batch4';
 import { BATCH5 } from './batch5';
 import { BATCH6 } from './batch6';
 import { BATCH7 } from './batch7';
+import { BATCH8 } from './batch8';
 
 export const HEROES: HeroDef[] = [
   REIN, LIYA, ZOLA, AILI,
-  ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5, ...BATCH6, ...BATCH7,
+  ...BATCH2, ...BATCH3, ...BATCH4, ...BATCH5, ...BATCH6, ...BATCH7, ...BATCH8,
 ];
 
 export function heroByKey(key: string): HeroDef | undefined {

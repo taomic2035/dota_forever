@@ -191,6 +191,31 @@ attackHitHooks.push((w, attacker, target, dealt) => {
   }
 });
 
+// ---------- 通用攻击衍生效果(数据驱动,供英雄/物品复用) ----------
+// 由 modifier.def.data 上的约定键触发,不绑定任何具体英雄:
+//   攻击者持有 cleavePct → 对目标周围溅射物理伤害(劈砍/强化)
+//   目标持有 retaliateSlowPct → 攻击者被减速(冰甲类反伤)
+// 注:溅射走 applyDamage,不经攻击流水线,不会再次触发本钩子(无递归)。
+attackHitHooks.push((w, attacker, target, dealt) => {
+  if (dealt <= 0) return;
+  for (const m of attacker.modifiers) {
+    const pct = m.def.data?.cleavePct;
+    if (!pct) continue;
+    const radius = m.def.data?.cleaveRadius ?? 250;
+    for (const e of w.queryRadius(target.pos, radius, (t) => isEnemy(attacker, t) && t.id !== target.id && !t.isBuilding())) {
+      applyDamage(w, e, { source: attacker.id, attackType: attacker.calc.attackType, amount: dealt * pct });
+    }
+  }
+  for (const m of target.modifiers) {
+    const slow = m.def.data?.retaliateSlowPct;
+    if (!slow) continue;
+    applyModifier(w, attacker, {
+      key: `${m.key}_retaliate`, duration: m.def.data?.retaliateSlowDur ?? 1.5,
+      stats: { bonusMoveSpeedPct: -slow, bonusAttackSpeed: -(m.def.data?.retaliateSlowAs ?? slow) },
+    }, target.id);
+  }
+});
+
 // ---------- 技能效果工具箱(英雄数据使用) ----------
 export function enemiesIn(w: World, caster: Unit, pos: Vec2, radius: number): Unit[] {
   return w.queryRadius(pos, radius, (t) => isEnemy(caster, t) && !t.isBuilding() && t.kind !== 'ward');
