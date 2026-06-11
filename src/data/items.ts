@@ -1492,3 +1492,96 @@ ITEMS.push(
     },
     description: '+250 生命/法力;主动:驱散自身减益并在 5 秒内大幅减伤(保命神器)。' },
 );
+
+// ---------- 进阶物品批次 8(散件/光环/续航,补齐物品库) ----------
+ITEMS.push(
+  // 砍伐之斧:对非英雄额外伤害(补刀)
+  { key: 'quelling_blade', name: '砍伐之斧', cost: 200, category: 'weapon',
+    stats: { bonusDamage: 6 },
+    onAttack(w, attacker, target) {
+      if (target.isHero() || target.isBuilding()) return;
+      _spellDamage(w, attacker, target, 36);
+    },
+    description: '+6 攻击;对非英雄单位的攻击附带额外伤害(补刀利器)。' },
+
+  // 灵魂之戒:献祭生命换取法力
+  { key: 'soul_ring', name: '灵魂之戒', cost: 800, category: 'combined',
+    stats: { bonusArmor: 2, bonusHpRegen: 3 },
+    recipe: { components: ['sobi_mask', 'ring_regen'], recipeCost: 125 },
+    active: {
+      name: '献祭', cooldown: 25, targetMode: 'none',
+      onUse(w, user) { user.hp = Math.max(1, user.hp - 150); user.mp = Math.min(user.calc.maxMp, user.mp + 150); return true; },
+    },
+    description: '+2 护甲 +回复;主动:消耗 150 生命换取 150 法力(法力续航)。' },
+
+  // 树肢:持续回血消耗品
+  { key: 'tango', name: '树肢', cost: 90, category: 'consumable', charges: 4,
+    active: {
+      name: '食用', cooldown: 0, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_tango_regen', duration: 8, isBuff: true, stats: { bonusHpRegen: 14 } }, user.id);
+        return true;
+      },
+    },
+    description: '4 充能;主动:8 秒内持续回复生命(前期续航)。' },
+
+  // 坚韧球:生命法力回复
+  { key: 'perseverance', name: '坚韧球', cost: 950, category: 'combined',
+    stats: { bonusDamage: 10, bonusHpRegen: 6, bonusMpRegen: 3 },
+    recipe: { components: ['robe', 'ring_regen'], recipeCost: 150 },
+    description: '+10 攻击 +生命/法力回复:核心英雄的续航组件。' },
+
+  // 遗忘法杖:攻击/法力组件
+  { key: 'oblivion_staff', name: '遗忘法杖', cost: 1275, category: 'combined',
+    stats: { bonusDamage: 15, bonusAttackSpeed: 0.1, bonusMpRegen: 4 },
+    recipe: { components: ['robe', 'sobi_mask', 'gloves_haste'], recipeCost: 0 },
+    description: '+15 攻击 +10% 攻速 +法力回复:法系战士的过渡组件。' },
+
+  // 疯狂面具:嗜血狂暴
+  { key: 'mask_of_madness', name: '疯狂面具', cost: 1800, category: 'combined',
+    stats: { lifesteal: 0.2, bonusDamage: 10 },
+    recipe: { components: ['morbid_mask'], recipeCost: 900 },
+    active: {
+      name: '狂暴', cooldown: 18, targetMode: 'none',
+      onUse(w, user) {
+        applyModifier(w, user, { key: 'item_madness_buff', duration: 8, isBuff: true, stats: { bonusAttackSpeed: 1.0, bonusMoveSpeedPct: 0.2 } }, user.id);
+        return true;
+      },
+    },
+    description: '+20% 吸血 +10 攻击;主动:狂暴 8 秒(极大攻速与移速)。' },
+
+  // 圆环:护甲 + 法力光环
+  { key: 'ring_basilius', name: '圆环', cost: 500, category: 'combined',
+    stats: { bonusArmor: 3, bonusDamage: 6 },
+    recipe: { components: ['ring_regen', 'gauntlet'], recipeCost: 0 },
+    holderModifier: {
+      key: 'item_basilius_aura', isBuff: true,
+      aura: { radius: 900, affects: 'ally', grant: { key: 'item_basilius_mana', isBuff: true, stats: { bonusMpRegen: 1 } } },
+    },
+    description: '+3 护甲 +6 攻击;为附近友军提供法力回复光环。' },
+
+  // 护额:生命回复光环
+  { key: 'headdress', name: '护额', cost: 550, category: 'combined',
+    stats: { bonusStr: 2, bonusAgi: 2, bonusInt: 2 },
+    recipe: { components: ['sobi_mask', 'branch', 'branch'], recipeCost: 119 },
+    holderModifier: {
+      key: 'item_headdress_aura', isBuff: true,
+      aura: { radius: 900, affects: 'ally', grant: { key: 'item_headdress_regen', isBuff: true, stats: { bonusHpRegen: 3 } } },
+    },
+    description: '+2 全属性;为附近友军提供生命回复光环(团队续航)。' },
+
+  // 虚无宝石:法力回复散件
+  { key: 'void_stone', name: '虚无宝石', cost: 850, category: 'arcane',
+    stats: { bonusMpRegen: 4 },
+    description: '+4 法力回复:法系英雄的法力续航散件。' },
+
+  // 法师克星:魔抗 + 攻击削减法术增强
+  { key: 'mage_slayer', name: '法师克星', cost: 2400, category: 'combined',
+    stats: { bonusMagicResist: 0.2, bonusAttackSpeed: 0.15, bonusMpRegen: 3 },
+    recipe: { components: ['oblivion_staff', 'cloak'], recipeCost: 575 },
+    onAttack(w, attacker, target) {
+      if (target.isBuilding()) return;
+      applyModifier(w, target, { key: 'item_mageslayer_debuff', duration: 4, stats: { spellAmp: -0.35 } }, attacker.id);
+    },
+    description: '+20% 魔抗 +15% 攻速;攻击削减目标的法术增强(克制法核)。' },
+);

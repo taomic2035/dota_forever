@@ -615,6 +615,79 @@ describe('advanced items batch 7', () => {
   });
 });
 
+describe('advanced items batch 8', () => {
+  it('砍伐之斧:对小兵附带额外伤害', () => {
+    give(h, 'quelling_blade');
+    const creep = w.spawnUnit({ kind: 'creep', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: 110, y: 0 })), name: 'c', stats: { ...REIN_STATS(), maxHp: 100000, magicResist: 0, dmgMin: 0, dmgMax: 0 } });
+    h.issueOrder({ type: 'attack', targetId: creep.id });
+    run(40);
+    expect(creep.hp).toBeLessThan(100000);
+  });
+
+  it('灵魂之戒:献祭生命换法力', () => {
+    const slot = give(h, 'soul_ring'); w.step();
+    h.hp = 1000; h.mp = 0;
+    useItem(w, h, slot);
+    expect(h.hp).toBeLessThan(1000);
+    expect(h.mp).toBeGreaterThan(100);
+  });
+
+  it('树肢:持续回血', () => {
+    const slot = give(h, 'tango'); h.hp = 500;
+    useItem(w, h, slot);
+    run(20);
+    expect(hasModifier(h, 'item_tango_regen')).toBe(true);
+    expect(h.hp).toBeGreaterThan(500);
+  });
+
+  it('坚韧球:回复与攻击', () => {
+    give(h, 'perseverance'); w.step();
+    expect(h.calc.hpRegen).toBeGreaterThan(0);
+    expect(h.calc.mpRegen).toBeGreaterThan(0);
+  });
+
+  it('遗忘法杖:攻击+攻速', () => {
+    give(h, 'oblivion_staff'); w.step();
+    expect(h.calc.ias).toBeGreaterThan(0);
+  });
+
+  it('疯狂面具:狂暴提速', () => {
+    const slot = give(h, 'mask_of_madness');
+    useItem(w, h, slot);
+    run(2);
+    expect(hasModifier(h, 'item_madness_buff')).toBe(true);
+  });
+
+  it('圆环:法力回复光环', () => {
+    give(h, 'ring_basilius');
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    run(30);
+    expect(hasModifier(ally, 'item_basilius_mana')).toBe(true);
+  });
+
+  it('护额:生命回复光环', () => {
+    give(h, 'headdress');
+    const ally = spawnHero(w, LIYA, Team.Dawn, w.map.nearestWalkable(V.add(h.pos, { x: 200, y: 0 })));
+    run(30);
+    expect(hasModifier(ally, 'item_headdress_regen')).toBe(true);
+  });
+
+  it('虚无宝石:法力回复', () => {
+    const mr0 = h.calc.mpRegen;
+    give(h, 'void_stone'); w.step();
+    expect(h.calc.mpRegen).toBeGreaterThan(mr0);
+  });
+
+  it('法师克星:攻击削减目标法术增强', () => {
+    give(h, 'mage_slayer');
+    const t = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable(V.add(h.pos, { x: 110, y: 0 })), name: 't', stats: { ...REIN_STATS() } });
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    run(40);
+    expect(hasModifier(t, 'item_mageslayer_debuff')).toBe(true);
+    expect(t.calc.spellAmp).toBeLessThan(0);
+  });
+});
+
 function REIN_STATS() {
   return {
     maxHp: 2000, hpRegen: 0, maxMp: 300, mpRegen: 0, dmgMin: 0, dmgMax: 0,
