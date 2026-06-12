@@ -6,7 +6,13 @@
 import type { Vec2 } from '../core/vec2';
 import { Camera } from '../render/camera';
 import { CommandMode } from './commandMode';
-import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from './controlSettings';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  normalizeControlSettings,
+  resolveAbilityCastMode,
+  resolveItemCastMode,
+  type ControlSettings,
+} from './controlSettings';
 
 export interface InputCallbacks {
   onRightClick(world: Vec2): void;
@@ -49,7 +55,7 @@ export class InputManager {
     private cb: InputCallbacks,
     controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS,
   ) {
-    this.controlSettings = { ...controlSettings };
+    this.controlSettings = normalizeControlSettings(controlSettings);
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
       const world = this.camera.screenToWorld(this.mouse);
@@ -161,7 +167,7 @@ export class InputManager {
   private dragging = false;
 
   setControlSettings(settings: ControlSettings): void {
-    this.controlSettings = { ...settings };
+    this.controlSettings = normalizeControlSettings(settings);
   }
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
@@ -170,10 +176,11 @@ export class InputManager {
     this.commandMode.beginCast(i, waitsForTarget);
     if (waitsForTarget) {
       this.activatePendingCast(i, world);
-      if (this.controlSettings.abilityCast === 'quick') {
+      const castMode = resolveAbilityCastMode(this.controlSettings, i);
+      if (castMode === 'quick') {
         this.smartHold = null;
         this.finishPendingCast(i, world);
-      } else if (this.controlSettings.abilityCast === 'smart') {
+      } else if (castMode === 'smart') {
         this.smartHold = { kind: 'cast', index: i, key };
       } else {
         this.smartHold = null;
@@ -189,10 +196,11 @@ export class InputManager {
     this.commandMode.beginItem(slot, waitsForTarget);
     if (waitsForTarget) {
       this.activatePendingItem(slot, world);
-      if (this.controlSettings.itemCast === 'quick') {
+      const castMode = resolveItemCastMode(this.controlSettings, slot);
+      if (castMode === 'quick') {
         this.smartHold = null;
         this.finishPendingItem(slot, world);
-      } else if (this.controlSettings.itemCast === 'smart') {
+      } else if (castMode === 'smart') {
         this.smartHold = { kind: 'item', index: slot, key };
       } else {
         this.smartHold = null;

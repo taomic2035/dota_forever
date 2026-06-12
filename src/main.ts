@@ -59,11 +59,35 @@ function loadControlSettings(params: URLSearchParams): ControlSettings {
     stored = DEFAULT_CONTROL_SETTINGS;
   }
   const base = normalizeControlSettings(stored);
+  const abilityCasts = base.abilityCasts.slice();
+  const itemCasts = base.itemCasts.slice();
+  ['abilityQ', 'abilityW', 'abilityE', 'abilityR'].forEach((key, index) => {
+    applyCastOverrideParam(abilityCasts, index, params.get(key));
+  });
+  ['item1', 'item2', 'item3', 'item4', 'item5', 'item6'].forEach((key, index) => {
+    applyCastOverrideParam(itemCasts, index, params.get(key));
+  });
   return normalizeControlSettings({
     ...base,
     abilityCast: parseCastInputMode(params.get('abilityCast')) ?? base.abilityCast,
     itemCast: parseCastInputMode(params.get('itemCast')) ?? base.itemCast,
+    abilityCasts,
+    itemCasts,
   });
+}
+
+function applyCastOverrideParam(
+  overrides: ControlSettings['abilityCasts'],
+  index: number,
+  value: string | null,
+): void {
+  if (value === null) return;
+  if (value.toLowerCase() === 'auto') {
+    overrides[index] = undefined;
+    return;
+  }
+  const mode = parseCastInputMode(value);
+  if (mode) overrides[index] = mode;
 }
 
 function saveControlSettings(settings: ControlSettings): void {

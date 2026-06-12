@@ -1,6 +1,13 @@
 /** 主菜单与英雄选择(通过 URL 参数启动对局,无内部状态)。 */
 import { HEROES } from '../data/heroes';
-import { castInputModeLabel, cycleCastInputMode, type ControlSettings } from '../engine/controlSettings';
+import {
+  ABILITY_CAST_SLOT_COUNT,
+  ITEM_CAST_SLOT_COUNT,
+  castInputModeLabel,
+  cycleCastInputMode,
+  cycleCastInputOverride,
+  type ControlSettings,
+} from '../engine/controlSettings';
 
 const ROLE_NAME: Record<string, string> = {
   carry: '核心', support: '辅助', ganker: '游走', tank: '先手',
@@ -86,6 +93,13 @@ export function createPauseMenu(
   onResume: () => void,
   controls?: PauseMenuControlOptions,
 ): { toggle: () => void } {
+  const abilityHotkeys = ['Q', 'W', 'E', 'R'];
+  const abilityButtons = Array.from({ length: ABILITY_CAST_SLOT_COUNT }, (_, index) =>
+    `<button id="pm-ability-cast-slot-${index}" data-ability-cast-slot="${index}" style="${slotBtnCss('#152031', '#7ec8e3')}"></button>`,
+  ).join('');
+  const itemButtons = Array.from({ length: ITEM_CAST_SLOT_COUNT }, (_, index) =>
+    `<button id="pm-item-cast-slot-${index}" data-item-cast-slot="${index}" style="${slotBtnCss('#272314', '#d9b44a')}"></button>`,
+  ).join('');
   const root = document.createElement('div');
   root.style.cssText =
     'position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;' +
@@ -95,6 +109,12 @@ export function createPauseMenu(
     ${controls ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
       <button id="pm-ability-cast" style="${compactBtnCss('#1d2330', '#7ec8e3')}"></button>
       <button id="pm-item-cast" style="${compactBtnCss('#2c2a18', '#d9b44a')}"></button>
+    </div>
+    <div style="width:430px;display:flex;flex-direction:column;gap:7px">
+      <div style="${sectionLabelCss('#7ec8e3')}">Abilities</div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">${abilityButtons}</div>
+      <div style="${sectionLabelCss('#d9b44a')}">Items</div>
+      <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:6px">${itemButtons}</div>
     </div>` : ''}
     <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
     <button id="pm-restart" style="${btnCss('#3a3422', '#ffd54f')}">重新开始</button>
@@ -113,6 +133,15 @@ export function createPauseMenu(
     const item = root.querySelector('#pm-item-cast') as HTMLButtonElement | null;
     if (ability) ability.textContent = `Ability ${castInputModeLabel(settings.abilityCast)}`;
     if (item) item.textContent = `Item ${castInputModeLabel(settings.itemCast)}`;
+    root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
+      const slot = Number(button.dataset.abilityCastSlot);
+      const hotkey = abilityHotkeys[slot] ?? '?';
+      button.textContent = `${hotkey} ${slotOverrideLabel(settings.abilityCasts[slot])}`;
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-item-cast-slot]').forEach((button) => {
+      const slot = Number(button.dataset.itemCastSlot);
+      button.textContent = `${slot + 1} ${slotOverrideLabel(settings.itemCasts[slot])}`;
+    });
   };
   root.querySelector('#pm-ability-cast')?.addEventListener('click', () => {
     if (!controls) return;
@@ -126,6 +155,28 @@ export function createPauseMenu(
     controls.onChange({ ...settings, itemCast: cycleCastInputMode(settings.itemCast) });
     syncControls();
   });
+  root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!controls) return;
+      const slot = Number(button.dataset.abilityCastSlot);
+      const settings = controls.getSettings();
+      const abilityCasts = settings.abilityCasts.slice();
+      abilityCasts[slot] = cycleCastInputOverride(abilityCasts[slot]);
+      controls.onChange({ ...settings, abilityCasts });
+      syncControls();
+    });
+  });
+  root.querySelectorAll<HTMLButtonElement>('[data-item-cast-slot]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!controls) return;
+      const slot = Number(button.dataset.itemCastSlot);
+      const settings = controls.getSettings();
+      const itemCasts = settings.itemCasts.slice();
+      itemCasts[slot] = cycleCastInputOverride(itemCasts[slot]);
+      controls.onChange({ ...settings, itemCasts });
+      syncControls();
+    });
+  });
   syncControls();
   root.querySelector('#pm-resume')!.addEventListener('click', toggle);
   root.querySelector('#pm-restart')!.addEventListener('click', () => location.reload());
@@ -136,4 +187,17 @@ export function createPauseMenu(
 function compactBtnCss(bg: string, color: string): string {
   return `height:44px;font-size:13px;border-radius:6px;border:1px solid ${color}55;\
 background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:0;`;
+}
+
+function slotBtnCss(bg: string, color: string): string {
+  return `height:34px;font-size:11px;border-radius:5px;border:1px solid ${color}44;\
+background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:0;white-space:nowrap;`;
+}
+
+function sectionLabelCss(color: string): string {
+  return `font-size:11px;color:${color};text-transform:uppercase;letter-spacing:0;text-align:left;`;
+}
+
+function slotOverrideLabel(mode: ControlSettings['abilityCasts'][number]): string {
+  return mode ? castInputModeLabel(mode) : 'Auto';
 }
