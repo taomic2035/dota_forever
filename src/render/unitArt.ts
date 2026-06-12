@@ -15,6 +15,22 @@ export type BodyShape =
   | 'wisp';     // 守卫/微型
 
 export type WeaponKind = 'sword' | 'staff' | 'bow' | 'claw' | 'hammer' | 'spear' | 'none';
+export type UnitVisualRole =
+  | 'tank'
+  | 'mage'
+  | 'rangedCarry'
+  | 'meleeCarry'
+  | 'support'
+  | 'assassin'
+  | 'creepMelee'
+  | 'creepRanged'
+  | 'creepSiege'
+  | 'neutralSmall'
+  | 'neutralLarge'
+  | 'neutralAncient'
+  | 'boss'
+  | 'ward'
+  | 'building';
 
 export interface UnitArt {
   shape: BodyShape;
@@ -25,6 +41,8 @@ export interface UnitArt {
   /** 基础绘制半径(世界单位,带可见下限) */
   radius: number;
   weapon: WeaponKind;
+  role: UnitVisualRole;
+  weight: 'light' | 'medium' | 'heavy' | 'boss';
   glyph?: string;
 }
 
@@ -46,22 +64,31 @@ const MIN_R = 12;
 
 export function unitArt(u: ArtInput): UnitArt {
   if (u.kind === 'ward') {
-    return { shape: 'wisp', primary: u.team === 0 ? '#7ad6a0' : '#d98a8a', accent: '#fff7c8', radius: 10, weapon: 'none' };
+    return { shape: 'wisp', primary: u.team === 0 ? '#7ad6a0' : '#d98a8a', accent: '#fff7c8', radius: 10, weapon: 'none', role: 'ward', weight: 'light' };
   }
   if (u.kind === 'hero' || u.kind === 'illusion') {
     return heroArt(u);
   }
   if (u.kind === 'boss') {
-    return { shape: 'beast', primary: '#6d4030', accent: '#ffca5a', radius: Math.max(40, u.collisionRadius * 0.7), weapon: 'claw' };
+    return { shape: 'beast', primary: '#6d4030', accent: '#ffca5a', radius: Math.max(40, u.collisionRadius * 0.7), weapon: 'claw', role: 'boss', weight: 'boss' };
   }
   if (u.kind === 'neutral') {
-    return { shape: 'beast', primary: '#5d6b4a', accent: '#c9b07a', radius: Math.max(16, u.collisionRadius * 0.85), weapon: 'claw' };
+    const role = neutralRole(u);
+    return {
+      shape: 'beast',
+      primary: '#5d6b4a',
+      accent: '#c9b07a',
+      radius: Math.max(16, u.collisionRadius * 0.85),
+      weapon: 'claw',
+      role,
+      weight: role === 'neutralAncient' ? 'heavy' : role === 'neutralLarge' ? 'medium' : 'light',
+    };
   }
   if (u.kind === 'creep') {
     return creepArt(u);
   }
   // tower/building 在 renderer 单独绘制;给个兜底
-  return { shape: 'bulk', primary: '#777', accent: '#aaa', radius: Math.max(MIN_R, u.collisionRadius), weapon: 'none' };
+  return { shape: 'bulk', primary: '#777', accent: '#aaa', radius: Math.max(MIN_R, u.collisionRadius), weapon: 'none', role: 'building', weight: 'heavy' };
 }
 
 function heroArt(u: ArtInput): UnitArt {
@@ -70,16 +97,24 @@ function heroArt(u: ArtInput): UnitArt {
   const ranged = u.attackRange > 350;
   let shape: BodyShape;
   let weapon: WeaponKind;
+  let role: UnitVisualRole;
   if (d?.aiRole === 'tank' || d?.primary === 'str') {
     shape = 'bulk';
     weapon = ranged ? 'staff' : 'hammer';
+    role = 'tank';
   } else if (d?.primary === 'int') {
     shape = 'robe';
     weapon = 'staff';
+    role = d.aiRole === 'support' ? 'support' : 'mage';
+  } else if (d?.aiRole === 'ganker') {
+    shape = 'blade';
+    weapon = ranged ? 'bow' : 'sword';
+    role = 'assassin';
   } else {
     // 敏捷
     shape = 'blade';
     weapon = ranged ? 'bow' : 'sword';
+    role = ranged ? 'rangedCarry' : 'meleeCarry';
   }
   return {
     shape,
@@ -87,6 +122,8 @@ function heroArt(u: ArtInput): UnitArt {
     accent: lighten(color, 60),
     radius: Math.max(18, u.collisionRadius),
     weapon,
+    role,
+    weight: role === 'tank' ? 'heavy' : 'medium',
     glyph: d?.glyph,
   };
 }
@@ -95,14 +132,22 @@ function creepArt(u: ArtInput): UnitArt {
   const teamCol = u.team === 0 ? '#5a8f4e' : '#b14e46';
   const accent = u.team === 0 ? '#cfe8b0' : '#f0c4b0';
   const isSuper = u.name.startsWith('超级');
-  if (u.name.includes('投石车') || u.name.includes('攻城')) {
-    return { shape: 'siege', primary: '#6b5436', accent: '#cdb079', radius: 24, weapon: 'none' };
+  const lower = u.name.toLowerCase();
+  if (u.name.includes('投石车') || u.name.includes('攻城') || lower.includes('siege')) {
+    return { shape: 'siege', primary: '#6b5436', accent: '#cdb079', radius: 24, weapon: 'none', role: 'creepSiege', weight: 'heavy' };
   }
-  const ranged = u.attackRange > 200 || u.name.includes('远程') || u.name.includes('弓');
+  const ranged = u.attackRange > 200 || u.name.includes('远程') || u.name.includes('弓') || lower.includes('ranged') || lower.includes('caster') || lower.includes('archer');
   if (ranged) {
-    return { shape: 'archer', primary: teamCol, accent, radius: isSuper ? 17 : 14, weapon: 'bow' };
+    return { shape: 'archer', primary: teamCol, accent, radius: isSuper ? 17 : 14, weapon: 'bow', role: 'creepRanged', weight: isSuper ? 'medium' : 'light' };
   }
-  return { shape: 'grunt', primary: teamCol, accent, radius: isSuper ? 18 : 15, weapon: 'sword' };
+  return { shape: 'grunt', primary: teamCol, accent, radius: isSuper ? 18 : 15, weapon: 'sword', role: 'creepMelee', weight: isSuper ? 'medium' : 'light' };
+}
+
+function neutralRole(u: ArtInput): UnitVisualRole {
+  const n = u.name.toLowerCase();
+  if (n.includes('ancient') || u.name.includes('远古')) return 'neutralAncient';
+  if (n.includes('large') || n.includes('giant') || n.includes('golem') || u.collisionRadius >= 24) return 'neutralLarge';
+  return 'neutralSmall';
 }
 
 /** 提亮十六进制色,delta 0-255。 */

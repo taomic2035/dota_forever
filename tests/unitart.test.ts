@@ -69,3 +69,25 @@ describe('unitArt 半径下限', () => {
     expect(a.radius).toBeGreaterThanOrEqual(12);
   });
 });
+
+describe('unitArt visual identity metadata', () => {
+  it('classifies hero combat roles for in-world identity marks', () => {
+    expect(unitArt(hero('str', 128, { heroDef: { primary: 'str', color: '#888', glyph: 'T', aiRole: 'tank' } })).role).toBe('tank');
+    expect(unitArt(hero('int', 600, { heroDef: { primary: 'int', color: '#88f', glyph: 'S', aiRole: 'support' } })).role).toBe('support');
+    expect(unitArt(hero('agi', 128, { heroDef: { primary: 'agi', color: '#f88', glyph: 'A', aiRole: 'ganker' } })).role).toBe('assassin');
+    expect(unitArt(hero('agi', 600, { heroDef: { primary: 'agi', color: '#8f8', glyph: 'R', aiRole: 'carry' } })).role).toBe('rangedCarry');
+  });
+
+  it('classifies lane unit identities', () => {
+    expect(unitArt({ kind: 'creep', team: 0, name: 'melee soldier', attackRange: 100, collisionRadius: 16 }).role).toBe('creepMelee');
+    expect(unitArt({ kind: 'creep', team: 0, name: 'ranged caster', attackRange: 500, collisionRadius: 16 }).role).toBe('creepRanged');
+    expect(unitArt({ kind: 'creep', team: 0, name: 'siege engine', attackRange: 700, collisionRadius: 24 }).role).toBe('creepSiege');
+  });
+
+  it('classifies neutral and boss scale identities', () => {
+    expect(unitArt({ kind: 'neutral', team: 2, name: 'small wolf', attackRange: 100, collisionRadius: 18 }).role).toBe('neutralSmall');
+    expect(unitArt({ kind: 'neutral', team: 2, name: 'large golem', attackRange: 100, collisionRadius: 26 }).role).toBe('neutralLarge');
+    expect(unitArt({ kind: 'neutral', team: 2, name: 'ancient dragon', attackRange: 100, collisionRadius: 32 }).role).toBe('neutralAncient');
+    expect(unitArt({ kind: 'boss', team: 2, name: 'pit lord', attackRange: 150, collisionRadius: 80 }).role).toBe('boss');
+  });
+});
