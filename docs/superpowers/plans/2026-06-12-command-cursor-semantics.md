@@ -22,7 +22,7 @@
 
 ## Task 1: Cursor Theme Helper
 
-- [ ] Add failing tests for cursor intent visual mapping:
+- [x] Add failing tests for cursor intent visual mapping:
   - hostile cast uses red hostile icon/color.
   - support cast uses green support icon/color.
   - point cast uses blue ground icon/color.
@@ -30,10 +30,10 @@
   - attack-move uses amber crosshair.
   - item ground targeting keeps item-gold styling while using ground icon.
   - reject message escapes its label.
-- [ ] Run `npm test -- tests/commandCursorTheme.test.ts` and confirm the expected missing-module failure.
-- [ ] Implement `src/ui/commandCursorTheme.ts`.
-- [ ] Run `npm test -- tests/commandCursorTheme.test.ts`.
-- [ ] Commit as `feat(ux): add semantic cursor theme`.
+- [x] Run `npm test -- tests/commandCursorTheme.test.ts` and confirm the expected missing-module failure.
+- [x] Implement `src/ui/commandCursorTheme.ts`.
+- [x] Run `npm test -- tests/commandCursorTheme.test.ts`.
+- [x] Commit as `feat(ux): add semantic cursor theme`.
 
 ## Task 2: Cursor Intent Integration
 

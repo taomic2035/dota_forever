@@ -4,6 +4,7 @@ export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'reject' | 'stop
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
 export type CursorIntentKind = 'attackmove' | 'cast' | 'item';
+export type CursorTargetHint = 'enemy' | 'ally' | 'allyOrSelf' | 'self' | 'ground' | 'any' | 'attack';
 export type CommandMessageKind = 'reject';
 
 export interface WorldPulse {
@@ -38,6 +39,7 @@ export interface CursorIntent {
   time: number;
   ttl?: number;
   color?: string;
+  targetHint?: CursorTargetHint;
 }
 
 export interface CommandMessage {
