@@ -94,11 +94,13 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     // 幽灵/以太状态:免疫物理,但额外承受 40% 魔法伤害(M12)
     if (stateOf(target).physImmune) amount *= 1.4;
   } else {
-    if (stateOf(target).physImmune) return 0;
-    // 闪避 + 低打高 miss。必中(MKB)无视闪避,但不免疫地形(低打高)落空。
+    const isChaos = evt.attackType === 'chaos';
+    if (!isChaos && stateOf(target).physImmune) return 0; // chaos 穿以太(physImmune)
+    // 闪避 + 低打高 miss。必中(MKB)同时无视闪避与上坡(低打高)落空。
     const source = w.getUnit(evt.source);
-    let missChance = source?.calc.trueStrike ? 0 : target.calc.evasion;
-    if (source && w.map.heightAt(source.pos) < w.map.heightAt(target.pos)) {
+    const trueStrike = source?.calc.trueStrike ?? false;
+    let missChance = trueStrike ? 0 : target.calc.evasion;
+    if (!trueStrike && source && w.map.heightAt(source.pos) < w.map.heightAt(target.pos)) {
       missChance = 1 - (1 - missChance) * (1 - UPHILL_MISS_CHANCE);
     }
     if (missChance > 0 && w.rng.chance(missChance)) {
@@ -106,7 +108,7 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
       return 0;
     }
     amount *= DAMAGE_MATRIX[evt.attackType][target.calc.armorType];
-    amount *= 1 - armorReduction(target.calc.armor);
+    if (!isChaos) amount *= 1 - armorReduction(target.calc.armor); // chaos 无视护甲减伤
   }
 
   // 实例格挡:完全免疫整次伤害,消耗一层(对非反弹伤害)。

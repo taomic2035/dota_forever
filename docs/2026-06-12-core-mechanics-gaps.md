@@ -119,9 +119,10 @@
 - **A4 实例格挡分类**:折光(Refraction)经典只挡物理,此前误挡法术/纯粹 → 加 `blockPhysicalOnly` 标记;尖刺甲壳(Spiked Carapace)保持全类型(经典即反弹任意伤害)。
 - **B1 被控禁用物品**:`useItem` 此前不查施法者状态,被眩晕/妖术单位仍能 BKB/TP 自救 → 新增 `muted` 态,门控 `stunned||muted`(沉默不禁物品,BKB 正用于反沉默);妖术(item_hex)设 muted。
 - **B2 AoE 尊重穿魔免**:`modifierArea` 对魔免目标就地 `continue`,绕过 `piercesSpellImmunity` → 改为委托 `applyModifier`/`immuneToDebuff` 统一判定(穿透/无敌/buff/友方来源)。
+- **A2/A3 chaos 攻击类型**:加 `isChaos` 守卫——chaos 穿以太(physImmune)且无视护甲减伤(矩阵已全 1.0);对现有非-chaos 攻击零影响。
+- **MKB 免上坡 miss**:必中(trueStrike)此前仍吃 25% 低打高落空 → 改为必中同时无视闪避与上坡 miss(经典 MKB 行为)。
 
 **留档不改(存疑或有意取舍)**
 - **aegis 击杀赏金**(审计标 P0):审计称「持盾被杀不给击杀方赏金/经验」,但与 DotA 1/2 已知行为相悖(持盾被杀**计击杀且给赏金**,盾仅负责复活)。保持现状(给赏金),如需对标某版本再以权威机制核实。
-- **chaos 攻击类型**被 physImmune 拦 + 仍吃护甲(A2/A3):**当前无任何单位使用 chaos**,纯潜伏逻辑,待有使用方再补。
-- **连杀阶梯 / buyback 系数 1.5**:属可调数值(M10 校准近似),非正确性缺陷。
-- **MKB 不免上坡 miss / Nightmare 不传递 / 冰甲减速不穿魔免**:P2,影响小或无当前使用方。
+- **连杀阶梯 / buyback 系数 1.5**:可调数值(M10 校准近似),版本间差异大,非正确性缺陷;如要对齐某经典版本可单独调 + batchsim 复验。
+- **Nightmare 传递 / 冰甲减速穿魔免**:P2,前者实现复杂(睡眠在攻击者间转移 + 防抖)、后者语义存疑(物理触发减速是否穿 BKB),价值低,留待有需求再补。
