@@ -22,6 +22,7 @@ import { learnAbility, learnStatBonus } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
+import { CommandCursor } from './ui/commandCursor';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -68,6 +69,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
+  const commandCursor = new CommandCursor(app);
   const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
     ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
   });
@@ -84,6 +86,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const input = new InputManager(renderer.canvas, camera, {
     onRightClick(p) {
       if (!hero?.alive) return;
+      ux.clearCursorIntent();
       const target = world.queryRadius(p, 60, (u) => u.team !== hero!.team && !u.invulnerable)[0];
       if (target) {
         hero.issueOrder({ type: 'attack', targetId: target.id });
@@ -96,6 +99,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     onLeftClick(p) {
       if (!hero?.alive) return;
+      ux.clearCursorIntent();
       if (pendingItemSlot >= 0) {
         useItem(world, hero, pendingItemSlot, map.nearestWalkable(p));
         pendingItemSlot = -1;
@@ -152,6 +156,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (!inst) return;
       const def = itemDef(inst.itemKey);
       if (!def.active) return;
+      ux.setCursorIntent({ kind: 'item', label: `ITEM ${slot + 1}`, time: world.time, ttl: 0.45, color: '#d9b44a' });
       if (def.active.targetMode === 'none') {
         useItem(world, hero, slot);
       } else if (def.active.targetMode === 'point') {
@@ -173,11 +178,25 @@ function startGame(mode: 'play' | 'spectate'): void {
     onTogglePause() { loop.paused = !loop.paused; },
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
+    onPointerMove(screen) {
+      ux.setCursorPosition(screen);
+    },
     onPendingAttackMove(active) {
-      if (!active) ux.clearTargeting();
+      if (active) {
+        ux.setCursorIntent({ kind: 'attackmove', label: 'A-MOVE', time: world.time, color: '#ffd45a' });
+      } else {
+        ux.clearTargeting();
+        ux.clearCursorIntent();
+      }
     },
     onPendingCast(i) {
-      if (i === null || !hero) ux.clearTargeting();
+      if (i === null || !hero) {
+        ux.clearTargeting();
+        ux.clearCursorIntent();
+      } else {
+        const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
+        ux.setCursorIntent({ kind: 'cast', label: `CAST ${hotkey}`, time: world.time, ttl: 0.45, color: '#5aa2ff' });
+      }
     },
   });
 
@@ -193,6 +212,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       input.update(16.7);
       renderer.render(world, hero?.id ?? -1, ux);
       hud.update(world, hero, ux);
+      commandCursor.update(world.time, ux);
       shop.update(world, hero);
       minimap.render(world, renderer.viewerTeam, ux);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);

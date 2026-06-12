@@ -18,6 +18,7 @@ export interface InputCallbacks {
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
   onToggleShop(): void;
+  onPointerMove(screen: Vec2, world: Vec2): void;
   onPendingAttackMove(active: boolean): void;
   onPendingCast(index: number | null): void;
 }
@@ -37,6 +38,7 @@ export class InputManager {
   ) {
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
+      this.cb.onPointerMove(this.mouse, this.camera.screenToWorld(this.mouse));
       if (this.dragging) {
         this.camera.pan(-(e.movementX), -(e.movementY));
       }
