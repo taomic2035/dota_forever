@@ -264,7 +264,8 @@ export function damageArea(w: World, caster: Unit, pos: Vec2, radius: number, am
 export function modifierArea(w: World, caster: Unit, pos: Vec2, radius: number, def: ModifierDef, affects: 'ally' | 'enemy'): number {
   const targets = affects === 'enemy' ? enemiesIn(w, caster, pos, radius) : alliesIn(w, caster, pos, radius);
   for (const t of targets) {
-    if (affects === 'enemy' && stateOf(t).magicImmune) continue;
+    // 免疫判定收口于 applyModifier/immuneToDebuff(尊重 piercesSpellImmunity、无敌、buff、友方来源)。
+    // 此处不再就地跳过魔免——否则穿魔免 AoE 会被错误拦截(B2)。
     applyModifier(w, t, def, caster.id);
   }
   return targets.length;

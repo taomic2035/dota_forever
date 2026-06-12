@@ -43,6 +43,8 @@ export interface StateMods {
   rooted?: boolean;
   silenced?: boolean;
   disarmed?: boolean;
+  /** 禁用物品(妖术/变形/缴械之外的「禁物品」态)。沉默只禁施法,不禁物品;此态专禁物品。 */
+  muted?: boolean;
   invisible?: boolean;
   magicImmune?: boolean;
   phased?: boolean;
@@ -189,6 +191,7 @@ export function modifierStates(u: Unit): StateMods {
     if (st.rooted) s.rooted = true;
     if (st.silenced) s.silenced = true;
     if (st.disarmed) s.disarmed = true;
+    if (st.muted) s.muted = true;
     if (st.invisible) s.invisible = true;
     if (st.magicImmune) s.magicImmune = true;
     if (st.phased) s.phased = true;

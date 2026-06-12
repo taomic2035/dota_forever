@@ -528,6 +528,7 @@ const OLIVE_Q: AbilityDef = {
       stats: { bonusDamage: REFRACT_DMG[lvl - 1] },
     }, caster.id);
     m.data!.blockInstances = REFRACT_INST[lvl - 1];
+    m.data!.blockPhysicalOnly = 1; // 折光只挡物理攻击,法术/纯粹穿透(A4)
     w.emit({ kind: 'fx', fx: 'refract', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {

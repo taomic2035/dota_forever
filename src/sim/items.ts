@@ -130,6 +130,8 @@ export function itemUseReason(w: World, hero: Unit, slot: number): ItemUseReason
 export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y: number }, target?: Unit): boolean {
   const inst = hero.inventory[slot];
   if (!inst || !hero.alive) return false;
+  // B1:被眩晕 / 妖术(muted)的单位不能使用物品。沉默只禁施法、不禁物品(BKB 正用于反沉默)。
+  if (stateOf(hero).stunned || stateOf(hero).muted) return false;
   const def = itemDef(inst.itemKey);
   if (!def.active) return false;
   if (w.time < inst.cooldownUntil) return false;

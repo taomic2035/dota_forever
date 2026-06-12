@@ -109,10 +109,12 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     amount *= 1 - armorReduction(target.calc.armor);
   }
 
-  // 实例格挡(折光等):完全免疫整次伤害,消耗一层(对非反弹伤害)
+  // 实例格挡:完全免疫整次伤害,消耗一层(对非反弹伤害)。
+  // blockPhysicalOnly(折光/Refraction)只挡物理,法术/纯粹穿透;无此标记(尖刺甲壳)挡所有类型。
   if (!flags.reflected) {
     for (const m of target.modifiers) {
       if ((m.data?.blockInstances ?? 0) > 0) {
+        if (m.data?.blockPhysicalOnly && (flags.spell || flags.pure)) continue;
         m.data!.blockInstances! -= 1;
         if (m.data!.blockInstances! <= 0) m.expiresAt = -Infinity;
         w.emit({ kind: 'fx', fx: 'refract', pos: V.clone(target.pos) });
@@ -200,7 +202,7 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
 /** 单位控制状态聚合(由 modifiers.ts 的 setStateResolver 注入,避免循环依赖)。 */
 export let stateOf: (u: Unit) => {
   stunned?: boolean; rooted?: boolean; silenced?: boolean; disarmed?: boolean;
-  invisible?: boolean; magicImmune?: boolean; physImmune?: boolean; phased?: boolean;
+  muted?: boolean; invisible?: boolean; magicImmune?: boolean; physImmune?: boolean; phased?: boolean;
 } = () => EMPTY_STATE;
 const EMPTY_STATE = {};
 export function setStateResolver(fn: typeof stateOf): void {

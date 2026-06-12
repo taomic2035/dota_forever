@@ -156,17 +156,20 @@ describe('格罗姆', () => {
 });
 
 describe('奥莉薇', () => {
-  it('折光:格挡数次伤害实例', () => {
+  it('折光:格挡数次物理实例,法术/纯粹穿透(A4)', () => {
     const h = spawnHero(w, OLIVE, Team.Dawn, { x: 7000, y: 8000 });
-    learnAbility(w, h, 0); // 折光 lvl1 = 格挡 3 次
+    learnAbility(w, h, 0); // 折光 lvl1 = 格挡 3 次物理
     h.issueOrder({ type: 'cast', abilityIndex: 0 });
     run(3);
-    // 前 3 次伤害被完全格挡
-    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200, flags: { pure: true } })).toBe(0);
-    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200, flags: { pure: true } })).toBe(0);
-    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200, flags: { pure: true } })).toBe(0);
-    // 第 4 次穿透
-    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200, flags: { pure: true } })).toBeGreaterThan(0);
+    // 折光只挡物理:法术/纯粹穿透,且不消耗格挡层
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 100, flags: { spell: true } })).toBeGreaterThan(0);
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 100, flags: { pure: true } })).toBeGreaterThan(0);
+    // 前 3 次物理被完全格挡
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200 })).toBe(0);
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200 })).toBe(0);
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200 })).toBe(0);
+    // 第 4 次物理穿透
+    expect(applyDamage(w, h, { source: 0, attackType: 'hero', amount: 200 })).toBeGreaterThan(0);
   });
   it('灵能之刃:攻击溅射目标身后的敌人', () => {
     const h = spawnHero(w, OLIVE, Team.Dawn, { x: 7000, y: 8000 });

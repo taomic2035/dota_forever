@@ -825,7 +825,7 @@ ITEMS.push(
       name: '妖术', manaCost: 100, cooldown: 20, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
-        applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.65 } }, user.id);
+        applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true, muted: true }, stats: { bonusMoveSpeedPct: -0.65 } }, user.id);
         return true;
       },
     },
