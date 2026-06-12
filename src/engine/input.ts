@@ -8,6 +8,7 @@ import { Camera } from '../render/camera';
 import { CommandMode } from './commandMode';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  cameraPanSpeedMultiplier,
   normalizeControlSettings,
   resolveAbilityCastMode,
   resolveItemCastMode,
@@ -62,6 +63,7 @@ export class InputManager {
     controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS,
   ) {
     this.controlSettings = normalizeControlSettings(controlSettings);
+    this.edgePan = this.controlSettings.cameraEdgePan;
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
       const world = this.camera.screenToWorld(this.mouse);
@@ -176,6 +178,7 @@ export class InputManager {
 
   setControlSettings(settings: ControlSettings): void {
     this.controlSettings = normalizeControlSettings(settings);
+    this.edgePan = this.controlSettings.cameraEdgePan;
   }
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
@@ -274,7 +277,7 @@ export class InputManager {
   update(dtMs: number) {
     const m = this.mouse;
     const margin = 14;
-    const speed = 1.1 * dtMs;
+    const speed = cameraPanSpeedMultiplier(this.controlSettings.cameraPanSpeed) * dtMs;
     if (m && this.edgePan && document.hasFocus()) {
       if (m.x < margin) this.camera.pan(-speed, 0);
       if (m.x > this.camera.viewW - margin) this.camera.pan(speed, 0);

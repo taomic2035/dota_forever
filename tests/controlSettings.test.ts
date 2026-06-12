@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  cameraPanSpeedLabel,
+  cameraPanSpeedMultiplier,
   castInputModeOverrideLabel,
   cycleCastInputOverride,
+  cycleCameraPanSpeed,
   castInputModeLabel,
   cycleCastInputMode,
   normalizeControlSettings,
+  parseCameraPanSpeed,
   parseCastInputMode,
   resolveAbilityCastMode,
   resolveItemCastMode,
@@ -26,6 +30,14 @@ describe('control settings', () => {
     expect(parseCastInputMode(null)).toBeUndefined();
   });
 
+  it('parses camera speed query values', () => {
+    expect(parseCameraPanSpeed('slow')).toBe('slow');
+    expect(parseCameraPanSpeed('normal')).toBe('normal');
+    expect(parseCameraPanSpeed('fast')).toBe('fast');
+    expect(parseCameraPanSpeed('bad')).toBeUndefined();
+    expect(parseCameraPanSpeed(null)).toBeUndefined();
+  });
+
   it('normalizes partial settings and rejects unknown modes', () => {
     expect(normalizeControlSettings({ abilityCast: 'quick' })).toEqual({
       ...DEFAULT_CONTROL_SETTINGS,
@@ -34,6 +46,14 @@ describe('control settings', () => {
     expect(normalizeControlSettings({ abilityCast: 'bad', itemCast: 'smart' })).toEqual({
       ...DEFAULT_CONTROL_SETTINGS,
       itemCast: 'smart',
+    });
+    expect(normalizeControlSettings({ cameraEdgePan: false, cameraPanSpeed: 'fast' })).toEqual({
+      ...DEFAULT_CONTROL_SETTINGS,
+      cameraEdgePan: false,
+      cameraPanSpeed: 'fast',
+    });
+    expect(normalizeControlSettings({ cameraEdgePan: 'off', cameraPanSpeed: 'turbo' })).toEqual({
+      ...DEFAULT_CONTROL_SETTINGS,
     });
   });
 
@@ -44,6 +64,7 @@ describe('control settings', () => {
       abilityCasts: ['quick', 'bad', 'smart', null, 'normal'],
       itemCasts: ['smart', 'normal', 'bad'],
     })).toEqual({
+      ...DEFAULT_CONTROL_SETTINGS,
       abilityCast: 'normal',
       itemCast: 'quick',
       abilityCasts: ['quick', undefined, 'smart', undefined],
@@ -71,6 +92,12 @@ describe('control settings', () => {
     expect(cycleCastInputOverride('smart')).toBeUndefined();
   });
 
+  it('cycles camera pan speeds in slow normal fast order', () => {
+    expect(cycleCameraPanSpeed('slow')).toBe('normal');
+    expect(cycleCameraPanSpeed('normal')).toBe('fast');
+    expect(cycleCameraPanSpeed('fast')).toBe('slow');
+  });
+
   it('provides short display labels', () => {
     expect(castInputModeLabel('normal')).toBe('Normal');
     expect(castInputModeLabel('quick')).toBe('Quick');
@@ -80,5 +107,13 @@ describe('control settings', () => {
   it('labels override slots with inherited auto fallback', () => {
     expect(castInputModeOverrideLabel(undefined, 'quick')).toBe('Auto Quick');
     expect(castInputModeOverrideLabel('smart', 'quick')).toBe('Smart');
+  });
+
+  it('provides camera speed labels and multipliers', () => {
+    expect(cameraPanSpeedLabel('slow')).toBe('Slow');
+    expect(cameraPanSpeedLabel('normal')).toBe('Normal');
+    expect(cameraPanSpeedLabel('fast')).toBe('Fast');
+    expect(cameraPanSpeedMultiplier('slow')).toBeLessThan(cameraPanSpeedMultiplier('normal'));
+    expect(cameraPanSpeedMultiplier('fast')).toBeGreaterThan(cameraPanSpeedMultiplier('normal'));
   });
 });

@@ -3,7 +3,9 @@ import { HEROES } from '../data/heroes';
 import {
   ABILITY_CAST_SLOT_COUNT,
   ITEM_CAST_SLOT_COUNT,
+  cameraPanSpeedLabel,
   castInputModeLabel,
+  cycleCameraPanSpeed,
   cycleCastInputMode,
   cycleCastInputOverride,
   type ControlSettings,
@@ -110,6 +112,10 @@ export function createPauseMenu(
       <button id="pm-ability-cast" style="${compactBtnCss('#1d2330', '#7ec8e3')}"></button>
       <button id="pm-item-cast" style="${compactBtnCss('#2c2a18', '#d9b44a')}"></button>
     </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
+      <button id="pm-camera-speed" style="${compactBtnCss('#18271f', '#8fd17a')}"></button>
+      <button id="pm-edge-pan" style="${compactBtnCss('#221a2c', '#c39cff')}"></button>
+    </div>
     <div style="width:430px;display:flex;flex-direction:column;gap:7px">
       <div style="${sectionLabelCss('#7ec8e3')}">Abilities</div>
       <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">${abilityButtons}</div>
@@ -131,8 +137,12 @@ export function createPauseMenu(
     const settings = controls.getSettings();
     const ability = root.querySelector('#pm-ability-cast') as HTMLButtonElement | null;
     const item = root.querySelector('#pm-item-cast') as HTMLButtonElement | null;
+    const camera = root.querySelector('#pm-camera-speed') as HTMLButtonElement | null;
+    const edgePan = root.querySelector('#pm-edge-pan') as HTMLButtonElement | null;
     if (ability) ability.textContent = `Ability ${castInputModeLabel(settings.abilityCast)}`;
     if (item) item.textContent = `Item ${castInputModeLabel(settings.itemCast)}`;
+    if (camera) camera.textContent = `Camera ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
+    if (edgePan) edgePan.textContent = `Edge ${settings.cameraEdgePan ? 'On' : 'Off'}`;
     root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.abilityCastSlot);
       const hotkey = abilityHotkeys[slot] ?? '?';
@@ -153,6 +163,18 @@ export function createPauseMenu(
     if (!controls) return;
     const settings = controls.getSettings();
     controls.onChange({ ...settings, itemCast: cycleCastInputMode(settings.itemCast) });
+    syncControls();
+  });
+  root.querySelector('#pm-camera-speed')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, cameraPanSpeed: cycleCameraPanSpeed(settings.cameraPanSpeed) });
+    syncControls();
+  });
+  root.querySelector('#pm-edge-pan')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, cameraEdgePan: !settings.cameraEdgePan });
     syncControls();
   });
   root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {

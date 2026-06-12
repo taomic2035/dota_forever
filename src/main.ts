@@ -27,6 +27,7 @@ import { CommandCursor } from './ui/commandCursor';
 import {
   DEFAULT_CONTROL_SETTINGS,
   normalizeControlSettings,
+  parseCameraPanSpeed,
   parseCastInputMode,
   type ControlSettings,
 } from './engine/controlSettings';
@@ -74,7 +75,17 @@ function loadControlSettings(params: URLSearchParams): ControlSettings {
     itemCast: parseCastInputMode(params.get('itemCast')) ?? base.itemCast,
     abilityCasts,
     itemCasts,
+    cameraEdgePan: parseBooleanParam(params.get('edgePan')) ?? base.cameraEdgePan,
+    cameraPanSpeed: parseCameraPanSpeed(params.get('cameraSpeed')) ?? base.cameraPanSpeed,
   });
+}
+
+function parseBooleanParam(value: string | null): boolean | undefined {
+  if (value === null) return undefined;
+  const normalized = value.toLowerCase();
+  if (normalized === '1' || normalized === 'true' || normalized === 'on') return true;
+  if (normalized === '0' || normalized === 'false' || normalized === 'off') return false;
+  return undefined;
 }
 
 function applyCastOverrideParam(
