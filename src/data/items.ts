@@ -577,9 +577,9 @@ ITEMS.push(
     recipe: { components: ['mystic_staff', 'vitality_booster'], recipeCost: 1000 },
     holderModifier: {
       key: 'item_linken_aura',
-      // 实际格挡逻辑在 spell 施放处检查;此处仅作为标记 modifier(简化:提供属性)
+      // 法术屏障标记:格挡逻辑见 modifiers.tryLinkenBlock(在 abilities.executeCast / items.useItem 单体敌对路径检查)
     },
-    description: '+15 攻击 +10 全属性 +生命/法力回复;持有时具备法术屏障(标记)。' },
+    description: '+15 攻击 +10 全属性 +生命/法力回复;每 13 秒格挡一次敌方单体指向技能/物品。' },
 
   // 飓风长戟:推动
   { key: 'force_staff', name: '原力法杖', cost: 2200, category: 'combined',

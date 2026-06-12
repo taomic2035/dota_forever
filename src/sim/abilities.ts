@@ -9,7 +9,7 @@ import type { AbilityDef } from '../data/heroes/types';
 import type { World } from './world';
 import { Unit, type Order, type EntityId } from './unit';
 import { castHooks, attackHitHooks, stateOf, applyDamage, isEnemy } from './combat';
-import { applyModifier, removeModifier, type ModifierDef } from './modifiers';
+import { applyModifier, removeModifier, tryLinkenBlock, type ModifierDef } from './modifiers';
 import { targetMatchesFilter } from './targeting';
 
 export interface AbilityInstance {
@@ -180,6 +180,10 @@ function executeCast(w: World, u: Unit, index: number, pos?: Vec2, targetId?: En
   inst.cooldownUntil = w.time + (def.cooldown?.[lvl - 1] ?? 0);
   const target = targetId ? w.getUnit(targetId) : undefined;
   w.emit({ kind: 'cast_done', unitId: u.id, abilityKey: def.key, pos, targetId });
+  // M4 林肯法球:单体敌对指向技被格挡 → 已付蓝/CD,效果作废
+  if (def.targetMode === 'unit' && target && isEnemy(u, target) && tryLinkenBlock(w, target, u.id)) {
+    return;
+  }
   if (def.channel) {
     u.channeling = {
       abilityIndex: index,

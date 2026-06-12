@@ -141,6 +141,23 @@ export function hasModifier(u: Unit, key: string): boolean {
   return u.modifiers.some((m) => m.key === key);
 }
 
+const LINKEN_BLOCK_CD = 13;
+/**
+ * M4 林肯法球:敌方单体指向技/物命中持有者时格挡一次。返回 true 表示已格挡(调用方应作废该效果)。
+ * 仅格挡**敌方来源**;格挡后进入 13s 冷却。在 abilities.executeCast / items.useItem 的单体敌对路径调用。
+ */
+export function tryLinkenBlock(w: World, target: Unit, sourceId: EntityId): boolean {
+  const src = w.getUnit(sourceId);
+  if (!src || src.team === target.team) return false;
+  const m = target.modifiers.find((mm) => mm.key === 'item_linken_aura');
+  if (!m) return false;
+  if ((m.data?.blockReadyAt ?? -Infinity) > w.time) return false; // 格挡冷却中(默认就绪)
+  m.data ??= {};
+  m.data.blockReadyAt = w.time + LINKEN_BLOCK_CD;
+  w.emit({ kind: 'fx', fx: 'linkenblock', pos: V.clone(target.pos) });
+  return true;
+}
+
 /** 驱散:移除可驱散的 buff(对敌)或 debuff(对友)。 */
 export function purge(w: World, u: Unit, removeBuffs: boolean): void {
   for (let i = u.modifiers.length - 1; i >= 0; i--) {

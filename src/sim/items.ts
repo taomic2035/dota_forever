@@ -9,6 +9,7 @@ import { Team } from './map';
 import type { World } from './world';
 import type { Unit } from './unit';
 import { recalcExtensions, attackHitHooks } from './combat';
+import { tryLinkenBlock } from './modifiers';
 import { targetMatchesFilter } from './targeting';
 
 export interface ItemInstance {
@@ -139,6 +140,12 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   // 权威目标校验:单位目标须满足声明的队伍/种类过滤
   if (def.active.targetMode === 'unit' && target &&
       !targetMatchesFilter(hero, target, def.active.targetTeam, def.active.targetKind)) return false;
+  // M4 林肯法球:对敌方单体主动被格挡 → 仍付蓝/CD,效果作废
+  if (def.active.targetMode === 'unit' && target && tryLinkenBlock(w, target, hero.id)) {
+    if (def.active.manaCost) hero.mp -= def.active.manaCost;
+    inst.cooldownUntil = w.time + def.active.cooldown;
+    return true;
+  }
   if (def.active.castRange && pos && def.active.castRange < 90000) {
     if (V.dist(hero.pos, pos) > def.active.castRange) {
       pos = V.add(hero.pos, V.scale(V.norm(V.sub(pos, hero.pos)), def.active.castRange));
