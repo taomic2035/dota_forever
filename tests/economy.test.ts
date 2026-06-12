@@ -117,4 +117,19 @@ describe('economy', () => {
     expect(vGold - victim.heroMeta!.gold).toBeGreaterThanOrEqual(150 - 5); // 30×5
     expect(victim.heroMeta!.respawnAt).toBeGreaterThan(w.time);
   });
+
+  it('neutral kill shares xp with the killer team only, not enemies', () => {
+    const w = createWorld(map, { seed: 3, noBuildings: true, startTime: 0 });
+    const killer = mk(w, 'hero', Team.Dawn, 7000, 8000, { dmgMin: 500, dmgMax: 500 });
+    const enemyNear = mk(w, 'hero', Team.Night, 7300, 8000); // 圈内敌人,但不该吃中立经验
+    const neutral = w.spawnUnit({
+      kind: 'neutral', team: Team.Neutral, pos: { x: 7100, y: 8000 }, name: 'camp',
+      stats: stats({ dmgMin: 0, dmgMax: 0, maxHp: 200, xpBounty: 100 }),
+    });
+    killer.issueOrder({ type: 'attack', targetId: neutral.id });
+    for (let i = 0; i < 120 && neutral.alive; i++) w.step();
+    expect(neutral.alive).toBe(false);
+    expect(killer.heroMeta!.xp).toBeCloseTo(100, 5); // 击杀方独享全额
+    expect(enemyNear.heroMeta!.xp).toBe(0);          // 敌方不该吃中立经验
+  });
 });

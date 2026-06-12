@@ -39,6 +39,7 @@ export const BASE_MP = 0;
 export const BASE_HP_REGEN = 0.25;
 export const BASE_MP_REGEN = 0.01;
 export const HERO_BASE_MAGIC_RESIST = 0.25;
+export const MAGIC_RESIST_CAP = 0.85; // 魔抗上限;聚合时只在最终统一 clamp 一次(见 combat.recalcUnit)
 export const DEFAULT_BAT = 1.7;
 export const MAX_IAS_BONUS = 4.0;   // +400%
 export const MIN_ATTACK_INTERVAL_FACTOR = 1 / 5;

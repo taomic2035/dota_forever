@@ -200,7 +200,7 @@ function itemFold(u: Unit): void {
     u.bonusAttr.int += s.bonusInt ?? 0;
     c.hpRegen += s.bonusHpRegen ?? 0;
     c.mpRegen += s.bonusMpRegen ?? 0;
-    c.magicResist = Math.min(0.85, c.magicResist + (s.bonusMagicResist ?? 0));
+    c.magicResist += s.bonusMagicResist ?? 0; // 累加,统一 clamp 见 combat.recalcUnit
     c.evasion = Math.max(c.evasion, s.evasion ?? 0);
     if ((s.critChance ?? 0) > c.critChance) {
       c.critChance = s.critChance!;

@@ -11,11 +11,11 @@ import type { Unit, EntityId } from '../unit';
 import { isVisibleTo } from '../vision';
 import { abilityReady, learnAbility, learnStatBonus, canLearn, canLearnStatBonus } from '../abilities';
 import { inAttackRange } from '../combat';
-import { buyItem, shopAt, useItem } from '../items';
+import { buyItem, shopAt, useItem, takeFromStash } from '../items';
 import { purchaseKeyFor } from '../recipes';
 import { itemDef } from '../../data/items';
 
-interface BotState {
+export interface BotState {
   lane: Lane;
   nextThink: number;
   mode: 'lane' | 'retreat' | 'defend';
@@ -75,15 +75,19 @@ export function installBotAI(w: World, isPlayerControlled: (id: EntityId) => boo
         shopping(world, u, st);
         think(world, u, st);
       }
-      microLastHit(world, u);
+      microLastHit(world, u, st);
     }
   };
   w.systems.push(system);
 }
 
 /** 在商店范围内按出装序列购买;泉水顺手用治疗品。 */
-function shopping(w: World, u: Unit, st: BotState): void {
+export function shopping(w: World, u: Unit, st: BotState): void {
   if (!u.heroDef || shopAt(w, u) !== 'home') return;
+  // 先取回滞留储藏处的物品(买进储藏后若不取出则永远用不上,白费金钱)
+  for (let s = 0; s < u.stash.length; s++) {
+    if (u.stash[s]) takeFromStash(w, u, s);
+  }
   const build = BUILDS[u.heroDef.aiRole] ?? BUILDS.tank;
   let guard = 6;
   while (st.buildIndex < build.length && guard-- > 0) {
@@ -379,7 +383,8 @@ function laneProgress(wps: Vec2[], pos: Vec2): number {
 }
 
 /** 微操:补刀/反补/推塔(仅在站桩或移动时打断)。 */
-function microLastHit(w: World, u: Unit): void {
+export function microLastHit(w: World, u: Unit, st: BotState): void {
+  if (st.mode === 'retreat') return;              // 撤退中不被补刀/推塔指令打断
   if (u.order && u.order.type !== 'move') return; // 已有战斗指令
   if (u.casting || u.channeling) return;
   const avgDmg = (u.calc.dmgMin + u.calc.dmgMax) / 2;

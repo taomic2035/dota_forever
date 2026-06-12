@@ -6,7 +6,7 @@ import { V } from '../core/vec2';
 import { turnTowards } from '../core/mathx';
 import {
   DAMAGE_MATRIX, armorReduction, MAX_IAS_BONUS, TURN_RATE,
-  UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT,
+  UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT, MAGIC_RESIST_CAP,
   type AttackType,
 } from '../data/balance';
 import type { World } from './world';
@@ -53,6 +53,8 @@ export function recalcUnit(u: Unit): void {
   // 聚合顺序固定:modifier 数值(含属性加成写入 bonusAttr)→ 英雄属性折算
   modifierFold(u);
   for (const ext of recalcExtensions) ext(u);
+  // 魔抗在 fold 中只累加,这里统一 clamp 一次(避免逐项 clamp 导致丢抗与顺序相关)
+  c.magicResist = Math.min(MAGIC_RESIST_CAP, c.magicResist);
   if (u.hp > c.maxHp) u.hp = c.maxHp;
   if (u.mp > c.maxMp) u.mp = c.maxMp;
 }

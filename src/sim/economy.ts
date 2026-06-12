@@ -35,6 +35,12 @@ function enemyHeroesNear(w: World, pos: { x: number; y: number }, team: Team, ra
   );
 }
 
+function heroesOnTeamNear(w: World, pos: { x: number; y: number }, team: Team, radius: number): Unit[] {
+  return [...w.units.values()].filter(
+    (u) => u.isHero() && u.alive && u.team === team && V.dist(u.pos, pos) <= radius,
+  );
+}
+
 export function installEconomy(w: World): void {
   let nextPayday = Math.max(0, w.time) + PERIODIC_GOLD_INTERVAL;
 
@@ -55,9 +61,13 @@ export function installEconomy(w: World): void {
       const killer = world.getUnit(e.killerId);
 
       if (victim.kind === 'creep' || victim.kind === 'neutral' || victim.kind === 'boss') {
-        const denied = killer !== undefined && killer.team === victim.team;
-        // 经验圈
-        const sharers = enemyHeroesNear(world, victim.pos, victim.team, XP_SHARE_RADIUS);
+        const jungle = victim.kind === 'neutral' || victim.kind === 'boss';
+        // 中立/Boss 的 team 是 Neutral,没有「对方阵营」语义,不存在反补
+        const denied = !jungle && killer !== undefined && killer.team === victim.team;
+        // 经验圈:小兵给该兵的对方阵营;中立/Boss 给击杀方阵营
+        const sharers = jungle
+          ? (killer ? heroesOnTeamNear(world, victim.pos, killer.team, XP_SHARE_RADIUS) : [])
+          : enemyHeroesNear(world, victim.pos, victim.team, XP_SHARE_RADIUS);
         const xpTotal = victim.base.xpBounty * (denied ? DENY_XP_FACTOR : 1);
         for (const h of sharers) addXp(world, h, xpTotal / Math.max(1, sharers.length));
         // 金币
