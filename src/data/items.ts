@@ -397,10 +397,10 @@ ITEMS.push(
       key: 'item_assault_aura',
       aura: {
         radius: 900, affects: 'ally',
-        grant: { key: 'item_assault_buff', isBuff: true, stats: { bonusAttackSpeed: 0.15 } },
+        grant: { key: 'item_assault_buff', isBuff: true, stats: { bonusAttackSpeed: 0.30, bonusArmor: 5 } },
       },
     },
-    description: '+10 护甲 +55% 攻速;光环:周围友军 +15% 攻速。' },
+    description: '+10 护甲 +55% 攻速;光环:周围友军 +30% 攻速、+5 护甲(敌方减甲光环见后续多光环框架)。' },
 
   { key: 'shiva', name: '寒冰守卫', cost: 4700, category: 'combined',
     stats: { bonusArmor: 15, bonusInt: 25 },
@@ -419,7 +419,7 @@ ITEMS.push(
     description: '+15 护甲 +25 智力;主动:冰环爆发 200 伤害并减速 40%。' },
 
   { key: 'arcane_boots', name: '秘法之靴', cost: 1500, category: 'combined',
-    stats: { bonusMoveSpeed: 55 },
+    stats: { bonusMoveSpeed: 55, bonusMp: 250 }, // 含能量之球 +250 法力
     recipe: { components: ['boots', 'energy_booster'], recipeCost: 0 },
     active: {
       name: '法力涌动', cooldown: 45, targetMode: 'none',
@@ -430,7 +430,7 @@ ITEMS.push(
         return true;
       },
     },
-    description: '+55 移速;主动:为周围英雄恢复 135 法力。' },
+    description: '+55 移速 +250 法力;主动:为周围英雄恢复 135 法力。' },
 
   { key: 'vladmir', name: '吸血战旗', cost: 2275, category: 'combined',
     recipe: { components: ['morbid_mask', 'ring_regen', 'sobi_mask'], recipeCost: 700 },
@@ -438,10 +438,10 @@ ITEMS.push(
       key: 'item_vladmir_aura',
       aura: {
         radius: 900, affects: 'ally',
-        grant: { key: 'item_vladmir_buff', isBuff: true, stats: { lifesteal: 0.15, bonusDamagePct: 0.12 } },
+        grant: { key: 'item_vladmir_buff', isBuff: true, stats: { lifesteal: 0.15, bonusDamagePct: 0.12, bonusArmor: 5 } },
       },
     },
-    description: '光环:周围友军 +15% 吸血与 +12% 攻击力。' },
+    description: '光环:周围友军 +15% 吸血、+12% 攻击力、+5 护甲。' },
 );
 
 // ---------- 魔法药瓶 ----------
