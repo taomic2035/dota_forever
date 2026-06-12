@@ -238,7 +238,7 @@ function itemFold(u: Unit): void {
     u.bonusAttr.int += s.bonusInt ?? 0;
     c.hpRegen += s.bonusHpRegen ?? 0;
     c.mpRegen += s.bonusMpRegen ?? 0;
-    c.magicResist += s.bonusMagicResist ?? 0; // 累加,统一 clamp 见 combat.recalcUnit
+    if (s.bonusMagicResist) c.magicResist = 1 - (1 - c.magicResist) * (1 - s.bonusMagicResist); // 多源乘算叠加(A1),统一 clamp 见 combat.recalcUnit
     if (s.evasion) c.evasion = 1 - (1 - c.evasion) * (1 - s.evasion); // 独立概率叠加
     if (s.trueStrike) c.trueStrike = true;
     if ((s.critChance ?? 0) > c.critChance) {

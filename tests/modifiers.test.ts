@@ -113,20 +113,20 @@ describe('modifiers', () => {
     expect(u.calc.dmgMin).toBe(50 + 20);
   });
 
-  it('magic resist folds additively with one clamp (order-independent)', () => {
-    // 升抗 + 减抗:0.25 + 0.7 - 0.3 = 0.65,不应被中途 clamp 丢抗
+  it('magic resist folds multiplicatively with one clamp (order-independent)', () => {
+    // 多源乘算(A1):1-(1-0.25)(1-0.7)(1+0.3) = 1-0.2925 = 0.7075,且不应被中途 clamp 丢抗
     const a = mk(Team.Dawn);
     applyModifier(w, a, { key: 'mr_up', stats: { bonusMagicResist: 0.7 } }, a.id);
     applyModifier(w, a, { key: 'mr_down', stats: { bonusMagicResist: -0.3 } }, a.id);
     w.step();
-    expect(a.calc.magicResist).toBeCloseTo(0.65, 5);
+    expect(a.calc.magicResist).toBeCloseTo(0.7075, 5);
 
-    // 反序施加,结果相同(聚合顺序无关 → 确定性)
+    // 反序施加,结果相同(乘算可交换 → 聚合顺序无关 → 确定性)
     const b = mk(Team.Night);
     applyModifier(w, b, { key: 'mr_down', stats: { bonusMagicResist: -0.3 } }, b.id);
     applyModifier(w, b, { key: 'mr_up', stats: { bonusMagicResist: 0.7 } }, b.id);
     w.step();
-    expect(b.calc.magicResist).toBeCloseTo(0.65, 5);
+    expect(b.calc.magicResist).toBeCloseTo(0.7075, 5);
 
     // 上限只在最后 clamp 一次
     const c = mk(Team.Dawn, 7400, 8000);
