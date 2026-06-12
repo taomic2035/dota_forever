@@ -22,27 +22,27 @@
 
 ## Task 1: Command State
 
-- [ ] Add failing tests for pending item, invalid item confirm retention, item replacement, and ability replacing item.
-- [ ] Run `npm test -- tests/commandMode.test.ts` and confirm failures.
-- [ ] Extend `CommandMode`.
-- [ ] Run `npm test -- tests/commandMode.test.ts`.
+- [x] Add failing tests for pending item, invalid item confirm retention, item replacement, and ability replacing item.
+- [x] Run `npm test -- tests/commandMode.test.ts` and confirm failures.
+- [x] Extend `CommandMode`.
+- [x] Run `npm test -- tests/commandMode.test.ts`.
 
 ## Task 2: Input and Main Integration
 
-- [ ] Add item prepare/preview/confirm callbacks to `InputManager`.
-- [ ] Change 1-6 handling to pending for point/unit active items.
-- [ ] Keep no-target active items instant.
-- [ ] Keep failed unit item confirmation pending.
-- [ ] Clear pending item on right-click, Escape, and Stop.
-- [ ] Run typecheck and focused tests.
-- [ ] Commit as `feat(ux): add pending item command mode`.
+- [x] Add item prepare/preview/confirm callbacks to `InputManager`.
+- [x] Change 1-6 handling to pending for point/unit active items.
+- [x] Keep no-target active items instant.
+- [x] Keep failed unit item confirmation pending.
+- [x] Clear pending item on right-click, Escape, and Stop.
+- [x] Run typecheck and focused tests.
+- [x] Commit as `feat(ux): add pending item command mode`.
 
 ## Task 3: Screenshot, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-item-targeting.png`.
-- [ ] Write `docs/ux/2026-06-12-item-targeting-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete item targeting pass`.
+- [x] Capture `docs/screenshots/ux-item-targeting.png`.
+- [x] Write `docs/ux/2026-06-12-item-targeting-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete item targeting pass`.
 
 ## Self-Review
 
