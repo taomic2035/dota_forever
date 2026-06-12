@@ -57,7 +57,7 @@ export function showMenu(parent: HTMLElement): void {
     }).join('');
     root.innerHTML = `${title}
       <div style="font-size:17px;color:#cfd8a0;margin-bottom:14px">选择你的英雄(悬停查看技能)</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:900px">${cards}</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-content:flex-start;max-width:900px;max-height:62vh;overflow-y:auto;padding:4px">${cards}</div>
       <div style="display:flex;gap:14px;margin-top:22px">
         <button id="btn-random" style="${btnCss('#3a3422', '#ffd54f')}">随机英雄</button>
         <button id="btn-back" style="${btnCss('#222', '#999')}">返回</button>

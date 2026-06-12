@@ -1,7 +1,7 @@
 /**
  * 英雄注册表。全部为本项目原创英雄(名称/称号/技能文案均为原创,
  * 技能机制为经典 MOBA 原型的重新组合)。
- * 共 10 名:本文件 4 名 + batch2.ts 6 名,每名 4 个技能(Q/W/E + 大招 R)。
+ * 共 112 名(本文件 rein/liya/zola/aili + batch2–batch19),每名 4 个技能(Q/W/E + 大招 R)。
  */
 import type { HeroDef } from './types';
 import { REIN_ABILITIES } from './rein';
