@@ -377,6 +377,7 @@ export class Renderer {
     }
 
     this.drawBars(u, p, r);
+    if (u.isHero() && r > 13) this.drawStatusStrip(world, u, p, r);
 
     if (this.showPaths && u.path.length) {
       ctx.strokeStyle = 'rgba(255,255,0,0.35)';
@@ -614,6 +615,57 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(x, y, Math.max(1.5, r * 0.14), 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+
+  /** 状态条:HP 条上方一排小方块,表示限时 buff/debuff(绿=增益,橙=减益,红=控制),底部细条示剩余。 */
+  private drawStatusStrip(world: World, u: Unit, p: Vec2, r: number): void {
+    const ctx = this.ctx;
+    const now = world.time;
+    // 限时、按 key 去重、控制优先
+    const seen = new Set<string>();
+    const list: { color: string; frac: number; prio: number }[] = [];
+    for (const m of u.modifiers) {
+      if (m.expiresAt === Infinity || m.expiresAt <= now) continue;
+      if (seen.has(m.key)) continue;
+      seen.add(m.key);
+      const st = m.def.states;
+      const control = !!(st && (st.stunned || st.rooted || st.silenced || st.disarmed));
+      let color: string;
+      let prio: number;
+      if (control) { color = '#ff3b3b'; prio = 0; }
+      else if (m.def.isBuff === true) { color = '#6fe06f'; prio = 2; }
+      else {
+        const src = world.getUnit(m.sourceId);
+        const fromEnemy = src ? src.team !== u.team : false;
+        if (fromEnemy) { color = '#ff9e40'; prio = 1; }
+        else { color = '#6fe06f'; prio = 2; }
+      }
+      const dur = m.def.duration;
+      const frac = dur && dur > 0 ? Math.max(0, Math.min(1, (m.expiresAt - now) / dur)) : 1;
+      list.push({ color, frac, prio });
+    }
+    if (!list.length) return;
+    list.sort((a, b) => a.prio - b.prio);
+    const show = list.slice(0, 6);
+    const sz = Math.max(4, this.s(9));
+    const gap = Math.max(1, this.s(2));
+    const totalW = show.length * sz + (show.length - 1) * gap;
+    const hbH = Math.max(2.5, this.s(7));
+    const barY = p.y - r - hbH - Math.max(4, this.s(9));
+    let x = p.x - totalW / 2;
+    const y = barY - sz - 2;
+    for (const s of show) {
+      ctx.fillStyle = 'rgba(8,8,8,0.85)';
+      ctx.fillRect(x - 1, y - 1, sz + 2, sz + 2);
+      ctx.fillStyle = s.color;
+      ctx.fillRect(x, y, sz, sz);
+      // 剩余时间细条(底部)
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(x, y + sz - Math.max(1, sz * 0.22), sz, Math.max(1, sz * 0.22));
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x, y + sz - Math.max(1, sz * 0.22), sz * s.frac, Math.max(1, sz * 0.22));
+      x += sz + gap;
     }
   }
 
