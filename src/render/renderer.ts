@@ -14,6 +14,7 @@ import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
 import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
+import { terrainVisualAt } from './mapReadability';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -77,11 +78,8 @@ export class Renderer {
         const h = map.height[i];
         const n = ((cx * 73856093) ^ (cy * 19349663)) % 11;
         const tint = n - 5;
-        let color: string;
-        if (h === 0) color = '#2f4651'; // 河道水
-        else if (h === 2) color = '#41502f'; // 高台(更亮的草)
-        else color = '#2c3a22'; // 平地
-        g.fillStyle = shade(color, tint);
+        const visual = terrainVisualAt(map, cx, cy);
+        g.fillStyle = shade(visual.palette.base, tint);
         g.fillRect(cx * S, cy * S, S, S);
         if (h === 0) {
           // 水面:细碎高光点(确定性)
@@ -89,6 +87,21 @@ export class Renderer {
             g.fillStyle = 'rgba(150,195,215,0.20)';
             g.fillRect(cx * S + S * 0.3, cy * S + S * 0.3, S * 0.4, S * 0.22);
           }
+        }
+        if (visual.kind === 'lane') {
+          g.fillStyle = 'rgba(180,145,85,0.16)';
+          g.fillRect(cx * S + S * 0.08, cy * S + S * 0.42, S * 0.84, S * 0.16);
+        } else if (visual.kind === 'ramp') {
+          g.strokeStyle = 'rgba(225,205,135,0.18)';
+          g.lineWidth = Math.max(1, S * 0.14);
+          g.beginPath();
+          g.moveTo(cx * S + S * 0.1, cy * S + S * 0.8);
+          g.lineTo(cx * S + S * 0.8, cy * S + S * 0.1);
+          g.stroke();
+        } else if (visual.kind === 'base') {
+          g.strokeStyle = 'rgba(230,210,145,0.08)';
+          g.lineWidth = 1;
+          g.strokeRect(cx * S + 0.5, cy * S + 0.5, S - 1, S - 1);
         }
       }
     }
@@ -103,6 +116,11 @@ export class Renderer {
         if (h !== 2 && cy > 0 && map.height[map.cellIndex(cx, cy - 1)] === 2) {
           g.fillStyle = 'rgba(0,0,0,0.28)';
           g.fillRect(cx * S, cy * S, S, S * 0.5);
+        }
+        const visual = terrainVisualAt(map, cx, cy);
+        if (visual.edge && visual.kind !== 'river') {
+          g.fillStyle = visual.height === 2 ? 'rgba(255,238,170,0.06)' : 'rgba(0,0,0,0.16)';
+          g.fillRect(cx * S, cy * S, S, S);
         }
         if (walk === 0 && h === 2) {
           g.fillStyle = 'rgba(20,26,16,0.6)';
@@ -293,18 +311,45 @@ export class Renderer {
       ctx.arc(c.x, c.y, rr, 0, Math.PI * 2);
       ctx.stroke();
       if (s.secret) {
+        const r = this.s(48);
         ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(150,210,255,0.85)';
-        ctx.font = `700 ${Math.max(11, this.s(48))}px system-ui`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('◈', c.x, c.y);
-        ctx.font = `${Math.max(8, this.s(20))}px system-ui`;
-        ctx.fillStyle = 'rgba(150,210,255,0.7)';
-        ctx.fillText('秘密商店', c.x, c.y + this.s(70));
+        ctx.fillStyle = 'rgba(80,190,235,0.20)';
+        ctx.strokeStyle = 'rgba(150,225,255,0.88)';
+        ctx.lineWidth = Math.max(1, this.s(3));
+        ctx.beginPath();
+        ctx.moveTo(c.x, c.y - r * 0.55);
+        ctx.lineTo(c.x + r * 0.55, c.y);
+        ctx.lineTo(c.x, c.y + r * 0.55);
+        ctx.lineTo(c.x - r * 0.55, c.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else {
+        const r = this.s(30);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,210,90,0.18)';
+        ctx.strokeStyle = 'rgba(255,220,120,0.62)';
+        ctx.lineWidth = Math.max(1, this.s(2));
+        ctx.beginPath();
+        ctx.rect(c.x - r * 0.45, c.y - r * 0.45, r * 0.9, r * 0.9);
+        ctx.fill();
+        ctx.stroke();
       }
     }
     ctx.setLineDash([]);
+    for (const rs of RUNE_SPOTS) {
+      const p = this.camera.worldToScreen(rs);
+      const rr = this.s(74);
+      ctx.strokeStyle = 'rgba(255,215,90,0.32)';
+      ctx.lineWidth = Math.max(1, this.s(2));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(185,120,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rr * 0.55, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     // 深渊领主巢穴
     const pit = this.camera.worldToScreen(PIT_POS);
     const pr = this.s(420);
@@ -313,11 +358,18 @@ export class Renderer {
     ctx.beginPath();
     ctx.arc(pit.x, pit.y, pr, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(200,120,220,0.55)';
-    ctx.font = `${Math.max(10, this.s(46))}px system-ui`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('☠', pit.x, pit.y);
+    const fang = this.s(64);
+    ctx.fillStyle = 'rgba(210,120,235,0.24)';
+    ctx.strokeStyle = 'rgba(230,160,255,0.70)';
+    ctx.lineWidth = Math.max(1, this.s(3));
+    ctx.beginPath();
+    ctx.moveTo(pit.x, pit.y - fang * 0.7);
+    ctx.lineTo(pit.x + fang * 0.58, pit.y + fang * 0.45);
+    ctx.lineTo(pit.x, pit.y + fang * 0.15);
+    ctx.lineTo(pit.x - fang * 0.58, pit.y + fang * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
 
