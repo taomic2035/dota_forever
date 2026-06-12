@@ -10,7 +10,7 @@ import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { MiniMap } from './render/minimap';
 import { GameLoop } from './engine/loop';
-import { InputManager } from './engine/input';
+import { InputManager, type CastInputOptions } from './engine/input';
 import { Hud } from './ui/hud';
 import { KillFeed } from './ui/killfeed';
 import { ShopPanel } from './ui/shop';
@@ -36,6 +36,7 @@ import {
   type TargetKindFilter,
   type TargetTeamFilter,
 } from './engine/targetFilters';
+import { resolveSelfCastTarget, targetTeamAllowsSelfCast } from './engine/selfCast';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
 
 const params = new URLSearchParams(location.search);
@@ -250,6 +251,21 @@ function startGame(mode: 'play' | 'spectate'): void {
     return 'invalid-target';
   };
 
+  const selfTarget = (
+    filter?: TargetTeamFilter,
+    kindFilter?: TargetKindFilter,
+  ) => (hero ? resolveSelfCastTarget(hero, filter, kindFilter) : undefined);
+
+  const selfCastReject = (
+    filter?: TargetTeamFilter,
+    kindFilter?: TargetKindFilter,
+  ): RejectReason => {
+    if (!hero) return 'invalid-target';
+    return targetTeamAllowsSelfCast(filter) && !selfTarget(filter, kindFilter)
+      ? 'wrong-target-type'
+      : 'wrong-team';
+  };
+
   const previewCast = (i: number, p: { x: number; y: number }) => {
     const info = castInfo(i);
     if (!hero || !info) return false;
@@ -361,7 +377,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.addWorldPulse({ kind: 'attackmove', pos, time: world.time });
       }
     },
-    onPrepareCast(i, p) {
+    onPrepareCast(i, p, options?: CastInputOptions) {
       const info = castInfo(i);
       if (!hero || !info) {
         if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
@@ -375,13 +391,14 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearTargeting();
         return false;
       }
+      if (options?.selfCast && info.def.targetMode === 'unit') return true;
       previewCast(i, p);
       return true;
     },
     onPreviewCast(i, p) {
       previewCast(i, p);
     },
-    onCastKey(i, p) {
+    onCastKey(i, p, options?: CastInputOptions) {
       const info = castInfo(i);
       if (!hero || !info) {
         if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
@@ -397,7 +414,9 @@ function startGame(mode: 'play' | 'spectate'): void {
         return true;
       }
       if (info.def.targetMode === 'unit') {
-        const target = targetAt(p, info.def.targetTeam, info.def.targetKind);
+        const target = options?.selfCast
+          ? selfTarget(info.def.targetTeam, info.def.targetKind)
+          : targetAt(p, info.def.targetTeam, info.def.targetKind);
         if (target) {
           hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
@@ -406,13 +425,18 @@ function startGame(mode: 'play' | 'spectate'): void {
           ux.clearTargeting();
           return true;
         }
+        if (options?.selfCast) {
+          ux.clearTargeting();
+          showReject(selfCastReject(info.def.targetTeam, info.def.targetKind), hero.pos, `ability-${i}`);
+          return false;
+        }
         previewCast(i, p);
         showReject(targetFilterReject(p, info.def.targetTeam, info.def.targetKind), p, `ability-${i}`);
         return false;
       }
       return true;
     },
-    onPrepareItem(slot, p) {
+    onPrepareItem(slot, p, options?: CastInputOptions) {
       const info = itemInfo(slot);
       if (!hero || !info) {
         if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
@@ -431,13 +455,14 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearTargeting();
         return false;
       }
+      if (options?.selfCast && info.active.targetMode === 'unit') return true;
       previewItem(slot, p);
       return true;
     },
     onPreviewItem(slot, p) {
       previewItem(slot, p);
     },
-    onItemKey(slot, p) {
+    onItemKey(slot, p, options?: CastInputOptions) {
       const info = itemInfo(slot);
       if (!hero || !info) {
         if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
@@ -458,7 +483,9 @@ function startGame(mode: 'play' | 'spectate'): void {
         return ok;
       }
       if (info.active.targetMode === 'unit') {
-        const target = targetAt(p, info.active.targetTeam, info.active.targetKind);
+        const target = options?.selfCast
+          ? selfTarget(info.active.targetTeam, info.active.targetKind)
+          : targetAt(p, info.active.targetTeam, info.active.targetKind);
         if (target) {
           const ok = useItem(world, hero, slot, undefined, target);
           ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
@@ -471,6 +498,11 @@ function startGame(mode: 'play' | 'spectate'): void {
             showReject(itemUseFailureReason(slot), target.pos, `item-${slot}`);
           }
           return ok;
+        }
+        if (options?.selfCast) {
+          ux.clearTargeting();
+          showReject(selfCastReject(info.active.targetTeam, info.active.targetKind), hero.pos, `item-${slot}`);
+          return false;
         }
         previewItem(slot, p);
         showReject(targetFilterReject(p, info.active.targetTeam, info.active.targetKind), p, `item-${slot}`);
@@ -492,6 +524,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     onToggleShop() { shop.toggle(); },
     onPointerMove(screen) {
       ux.setCursorPosition(screen);
+    },
+    canSelfCast(i) {
+      const info = castInfo(i);
+      return !!hero && !!info && info.def.targetMode === 'unit';
+    },
+    canSelfItem(slot) {
+      const info = itemInfo(slot);
+      return !!hero && !!info && info.active.targetMode === 'unit';
     },
     onPendingAttackMove(active) {
       if (active) {

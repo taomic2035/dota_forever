@@ -14,16 +14,22 @@ import {
   type ControlSettings,
 } from './controlSettings';
 
+export interface CastInputOptions {
+  selfCast?: boolean;
+}
+
 export interface InputCallbacks {
   onRightClick(world: Vec2): void;
   onLeftClick(world: Vec2): void;
   onAttackMove(world: Vec2): void;
-  onPrepareCast(index: number, world: Vec2): boolean;
-  onPreviewCast(index: number, world: Vec2): void;
-  onCastKey(index: number, world: Vec2): boolean | void; // QWER -> 0-3
-  onPrepareItem(slot: number, world: Vec2): boolean;
-  onPreviewItem(slot: number, world: Vec2): void;
-  onItemKey(slot: number, world: Vec2): boolean | void; // 1-6 -> 0-5
+  onPrepareCast(index: number, world: Vec2, options?: CastInputOptions): boolean;
+  onPreviewCast(index: number, world: Vec2, options?: CastInputOptions): void;
+  onCastKey(index: number, world: Vec2, options?: CastInputOptions): boolean | void; // QWER -> 0-3
+  onPrepareItem(slot: number, world: Vec2, options?: CastInputOptions): boolean;
+  onPreviewItem(slot: number, world: Vec2, options?: CastInputOptions): void;
+  onItemKey(slot: number, world: Vec2, options?: CastInputOptions): boolean | void; // 1-6 -> 0-5
+  canSelfCast?(index: number): boolean;
+  canSelfItem?(slot: number): boolean;
   onStop(): void;
   onHold(): void;
   onCenterHero(): void;
@@ -119,12 +125,14 @@ export class InputManager {
       this.keys.add(e.key.toLowerCase());
       const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
       switch (e.key.toLowerCase()) {
-        case 'q': this.handleCastHotkey(0, 'q', world); break;
-        case 'w': this.handleCastHotkey(1, 'w', world); break;
-        case 'e': this.handleCastHotkey(2, 'e', world); break;
-        case 'r': this.handleCastHotkey(3, 'r', world); break;
+        case 'q': this.handleCastHotkey(0, 'q', world, { selfCast: e.altKey && this.cb.canSelfCast?.(0) === true }); break;
+        case 'w': this.handleCastHotkey(1, 'w', world, { selfCast: e.altKey && this.cb.canSelfCast?.(1) === true }); break;
+        case 'e': this.handleCastHotkey(2, 'e', world, { selfCast: e.altKey && this.cb.canSelfCast?.(2) === true }); break;
+        case 'r': this.handleCastHotkey(3, 'r', world, { selfCast: e.altKey && this.cb.canSelfCast?.(3) === true }); break;
         case '1': case '2': case '3': case '4': case '5': case '6':
-          this.handleItemHotkey(Number(e.key) - 1, e.key, world);
+          this.handleItemHotkey(Number(e.key) - 1, e.key, world, {
+            selfCast: e.altKey && this.cb.canSelfItem?.(Number(e.key) - 1) === true,
+          });
           break;
         case 'a':
           this.commandMode.beginAttackMove();
@@ -171,10 +179,15 @@ export class InputManager {
   }
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
-  private handleCastHotkey(i: number, key: string, world: Vec2) {
-    const waitsForTarget = this.cb.onPrepareCast(i, world);
+  private handleCastHotkey(i: number, key: string, world: Vec2, options: CastInputOptions = {}) {
+    const waitsForTarget = this.cb.onPrepareCast(i, world, options);
     this.commandMode.beginCast(i, waitsForTarget);
     if (waitsForTarget) {
+      if (options.selfCast) {
+        this.smartHold = null;
+        this.finishPendingCast(i, world, options);
+        return;
+      }
       this.activatePendingCast(i, world);
       const castMode = resolveAbilityCastMode(this.controlSettings, i);
       if (castMode === 'quick') {
@@ -191,10 +204,15 @@ export class InputManager {
     }
   }
 
-  private handleItemHotkey(slot: number, key: string, world: Vec2) {
-    const waitsForTarget = this.cb.onPrepareItem(slot, world);
+  private handleItemHotkey(slot: number, key: string, world: Vec2, options: CastInputOptions = {}) {
+    const waitsForTarget = this.cb.onPrepareItem(slot, world, options);
     this.commandMode.beginItem(slot, waitsForTarget);
     if (waitsForTarget) {
+      if (options.selfCast) {
+        this.smartHold = null;
+        this.finishPendingItem(slot, world, options);
+        return;
+      }
       this.activatePendingItem(slot, world);
       const castMode = resolveItemCastMode(this.controlSettings, slot);
       if (castMode === 'quick') {
@@ -225,18 +243,18 @@ export class InputManager {
     this.cb.onPreviewItem(slot, world);
   }
 
-  private finishPendingCast(i: number, world: Vec2): boolean {
-    const consumed = this.cb.onCastKey(i, world) !== false;
-    this.commandMode.consumePrimary({ keepPending: !consumed });
-    if (consumed) this.cb.onPendingCast(null);
+  private finishPendingCast(i: number, world: Vec2, options: CastInputOptions = {}): boolean {
+    const consumed = this.cb.onCastKey(i, world, options) !== false;
+    this.commandMode.consumePrimary({ keepPending: !consumed && !options.selfCast });
+    if (consumed || options.selfCast) this.cb.onPendingCast(null);
     else this.cb.onPreviewCast(i, world);
     return consumed;
   }
 
-  private finishPendingItem(slot: number, world: Vec2): boolean {
-    const consumed = this.cb.onItemKey(slot, world) !== false;
-    this.commandMode.consumePrimary({ keepPending: !consumed });
-    if (consumed) this.cb.onPendingItem(null);
+  private finishPendingItem(slot: number, world: Vec2, options: CastInputOptions = {}): boolean {
+    const consumed = this.cb.onItemKey(slot, world, options) !== false;
+    this.commandMode.consumePrimary({ keepPending: !consumed && !options.selfCast });
+    if (consumed || options.selfCast) this.cb.onPendingItem(null);
     else this.cb.onPreviewItem(slot, world);
     return consumed;
   }
