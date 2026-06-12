@@ -7,8 +7,9 @@ import { Team } from '../sim/map';
 import type { Camera } from './camera';
 import { isVisibleTo } from '../sim/vision';
 import { TEAM_COLOR } from './renderer';
-import { WORLD, PIT_POS } from '../data/mapLayout';
+import { WORLD } from '../data/mapLayout';
 import type { UxFeedback } from '../ui/uxFeedback';
+import { landmarkVisuals } from './mapReadability';
 
 const SIZE = 232;
 
@@ -79,17 +80,54 @@ export class MiniMap {
       ctx.globalAlpha = 1;
     }
 
-    // 固定地标(始终可见的地图知识):秘密商店 / 深渊领主巢穴
-    ctx.font = '9px system-ui';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (const s of world.map.shops) {
-      if (!s.secret) continue;
-      ctx.fillStyle = 'rgba(150,210,255,0.9)';
-      ctx.fillText('◈', s.pos.x * k, s.pos.y * k);
+    // 固定地标(始终可见的地图知识):商店 / 野区 / 符文 / 深渊领主巢穴
+    for (const landmark of landmarkVisuals(world.map)) {
+      const x = landmark.pos.x * k;
+      const y = landmark.pos.y * k;
+      if (landmark.kind === 'secretShop') {
+        ctx.fillStyle = 'rgba(90,210,255,0.35)';
+        ctx.strokeStyle = 'rgba(160,235,255,0.95)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 4);
+        ctx.lineTo(x + 4, y);
+        ctx.lineTo(x, y + 4);
+        ctx.lineTo(x - 4, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (landmark.kind === 'pit') {
+        ctx.fillStyle = 'rgba(206,147,216,0.45)';
+        ctx.strokeStyle = 'rgba(235,170,255,0.95)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x + 4.5, y + 3.5);
+        ctx.lineTo(x, y + 1.2);
+        ctx.lineTo(x - 4.5, y + 3.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (landmark.kind === 'rune') {
+        ctx.strokeStyle = 'rgba(255,215,90,0.95)';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.2, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (landmark.kind === 'camp') {
+        const color =
+          landmark.tier === 'ancient' ? '#d7b36a' :
+          landmark.tier === 'large' ? '#b99a6b' :
+          landmark.tier === 'medium' ? '#8fb06a' :
+          '#6f8f5c';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.75;
+        ctx.beginPath();
+        ctx.arc(x, y, landmark.tier === 'ancient' ? 2.6 : 1.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
     }
-    ctx.fillStyle = 'rgba(206,147,216,0.95)';
-    ctx.fillText('☠', PIT_POS.x * k, PIT_POS.y * k);
 
     // 单位
     for (const u of world.units.values()) {
