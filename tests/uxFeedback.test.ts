@@ -71,4 +71,22 @@ describe('UxFeedback', () => {
     ux.clearCursorIntent();
     expect(ux.cursorIntentAt(99)).toBeNull();
   });
+
+  it('shows transient command messages near the cursor', () => {
+    const ux = new UxFeedback();
+    ux.setCommandMessage({ kind: 'reject', label: 'NO MANA', time: 20, color: '#ff3040' });
+
+    expect(ux.commandMessageAt(20.4)?.label).toBe('NO MANA');
+    expect(ux.commandMessageAt(21.1)).toBeNull();
+  });
+
+  it('replaces and clears command messages deterministically', () => {
+    const ux = new UxFeedback();
+    ux.setCommandMessage({ kind: 'reject', label: 'NO MANA', time: 5 });
+    ux.setCommandMessage({ kind: 'reject', label: 'ON COOLDOWN', time: 5.2 });
+
+    expect(ux.commandMessageAt(5.3)?.label).toBe('ON COOLDOWN');
+    ux.clearCommandMessage();
+    expect(ux.commandMessageAt(5.3)).toBeNull();
+  });
 });

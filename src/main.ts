@@ -18,7 +18,8 @@ import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { useItem } from './sim/items';
-import { abilityReady, learnAbility, learnStatBonus } from './sim/abilities';
+import { learnAbility, learnStatBonus } from './sim/abilities';
+import { stateOf } from './sim/combat';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
@@ -77,12 +78,56 @@ function startGame(mode: 'play' | 'spectate'): void {
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; });
 
   let pendingItemSlot = -1;
+  type RejectReason =
+    | 'dead'
+    | 'not-learned'
+    | 'passive'
+    | 'cooldown'
+    | 'no-mana'
+    | 'silenced'
+    | 'empty-slot'
+    | 'no-active'
+    | 'no-charges'
+    | 'invalid-target'
+    | 'blocked';
+  const rejectLabel: Record<RejectReason, string> = {
+    dead: 'DEAD',
+    'not-learned': 'NOT LEARNED',
+    passive: 'PASSIVE',
+    cooldown: 'ON COOLDOWN',
+    'no-mana': 'NO MANA',
+    silenced: 'SILENCED',
+    'empty-slot': 'EMPTY SLOT',
+    'no-active': 'NO ACTIVE',
+    'no-charges': 'NO CHARGES',
+    'invalid-target': 'INVALID TARGET',
+    blocked: "CAN'T USE",
+  };
+  const showReject = (reason: RejectReason, pos: { x: number; y: number }, hudKey?: string) => {
+    if (hudKey) ux.flashHudSlot(hudKey, 'reject', world.time);
+    ux.setCommandMessage({ kind: 'reject', label: rejectLabel[reason], time: world.time, color: '#ff3040' });
+    ux.addWorldPulse({ kind: 'reject', pos, time: world.time });
+  };
 
-  const castInfo = (i: number) => {
-    if (!hero?.alive) return null;
+  const castRejectReason = (i: number): RejectReason | null => {
+    if (!hero?.alive) return 'dead';
     const def = hero.heroDef?.abilities[i];
     const inst = hero.abilities[i];
-    if (!def || !inst || inst.level <= 0 || def.targetMode === 'passive' || !abilityReady(world, hero, i)) return null;
+    if (!def || !inst || inst.level <= 0) return 'not-learned';
+    if (def.targetMode === 'passive' || (def.passiveModifier && !def.onCast && !def.channel)) return 'passive';
+    if (world.time < inst.cooldownUntil) return 'cooldown';
+    const mana = def.manaCost?.[Math.max(0, inst.level - 1)] ?? 0;
+    if (hero.mp < mana) return 'no-mana';
+    if (stateOf(hero).silenced) return 'silenced';
+    return null;
+  };
+
+  const castInfo = (i: number) => {
+    if (castRejectReason(i)) return null;
+    if (!hero) return null;
+    const def = hero.heroDef?.abilities[i];
+    const inst = hero.abilities[i];
+    if (!def || !inst) return null;
     const range = def.castRange?.[Math.max(0, inst.level - 1)] ?? 700;
     return { def, inst, range };
   };
@@ -109,15 +154,37 @@ function startGame(mode: 'play' | 'spectate'): void {
   };
 
   const itemInfo = (slot: number) => {
-    if (!hero?.alive) return null;
+    if (itemRejectReason(slot)) return null;
+    if (!hero) return null;
     const inst = hero.inventory[slot];
     if (!inst) return null;
     const def = itemDef(inst.itemKey);
-    if (!def.active) return null;
-    if (world.time < inst.cooldownUntil) return null;
-    if (def.active.manaCost && hero.mp < def.active.manaCost) return null;
-    if (def.charges !== undefined && !def.rechargeable && inst.charges <= 0) return null;
-    return { inst, def, active: def.active, range: def.active.castRange ?? 700 };
+    const active = def.active;
+    if (!active) return null;
+    return { inst, def, active, range: active.castRange ?? 700 };
+  };
+
+  function itemRejectReason(slot: number): RejectReason | null {
+    if (!hero?.alive) return 'dead';
+    const inst = hero.inventory[slot];
+    if (!inst) return 'empty-slot';
+    const def = itemDef(inst.itemKey);
+    if (!def.active) return 'no-active';
+    if (world.time < inst.cooldownUntil) return 'cooldown';
+    if (def.active.manaCost && hero.mp < def.active.manaCost) return 'no-mana';
+    if (def.charges !== undefined && inst.charges <= 0) return 'no-charges';
+    return null;
+  }
+
+  const itemUseFailureReason = (slot: number): RejectReason => {
+    const reason = itemRejectReason(slot);
+    if (reason) return reason;
+    const inst = hero?.inventory[slot];
+    if (inst) {
+      const def = itemDef(inst.itemKey);
+      if (def.rechargeable && inst.charges <= 0) return 'no-charges';
+    }
+    return 'blocked';
   };
 
   const previewItem = (slot: number, p: { x: number; y: number }) => {
@@ -182,12 +249,10 @@ function startGame(mode: 'play' | 'spectate'): void {
     onPrepareCast(i, p) {
       const info = castInfo(i);
       if (!hero || !info) {
-        if (hero) {
-          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
-          ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
-        }
+        if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
         return false;
       }
+      ux.clearCommandMessage();
       if (info.def.targetMode === 'none') {
         hero.issueOrder({ type: 'cast', abilityIndex: i });
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
@@ -204,16 +269,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     onCastKey(i, p) {
       const info = castInfo(i);
       if (!hero || !info) {
-        if (hero) {
-          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
-          ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
-        }
+        if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
         return false;
       }
       if (info.def.targetMode === 'point') {
         const pos = map.nearestWalkable(p);
         hero.issueOrder({ type: 'cast', abilityIndex: i, pos });
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
+        ux.clearCommandMessage();
         ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
         ux.clearTargeting();
         return true;
@@ -223,13 +286,13 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (target) {
           hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
+          ux.clearCommandMessage();
           ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
           ux.clearTargeting();
           return true;
         }
         previewCast(i, p);
-        ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
-        ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+        showReject('invalid-target', p, `ability-${i}`);
         return false;
       }
       return true;
@@ -237,12 +300,19 @@ function startGame(mode: 'play' | 'spectate'): void {
     onPrepareItem(slot, p) {
       const info = itemInfo(slot);
       if (!hero || !info) {
-        if (hero) ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
         return false;
       }
+      ux.clearCommandMessage();
       if (info.active.targetMode === 'none') {
         const ok = useItem(world, hero, slot);
-        ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos: hero.pos, time: world.time });
+        ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
+        if (ok) {
+          ux.clearCommandMessage();
+          ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
+        } else {
+          showReject(itemUseFailureReason(slot), hero.pos, `item-${slot}`);
+        }
         ux.clearTargeting();
         return false;
       }
@@ -255,28 +325,40 @@ function startGame(mode: 'play' | 'spectate'): void {
     onItemKey(slot, p) {
       const info = itemInfo(slot);
       if (!hero || !info) {
-        if (hero) ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
         return false;
       }
       if (info.active.targetMode === 'point') {
         const pos = map.nearestWalkable(p);
         const ok = useItem(world, hero, slot, pos);
-        ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos, time: world.time });
-        if (ok) ux.clearTargeting();
-        else previewItem(slot, p);
+        ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
+        if (ok) {
+          ux.clearCommandMessage();
+          ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
+          ux.clearTargeting();
+        } else {
+          previewItem(slot, p);
+          showReject(itemUseFailureReason(slot), pos, `item-${slot}`);
+        }
         return ok;
       }
       if (info.active.targetMode === 'unit') {
         const target = targetAt(p);
         if (target) {
           const ok = useItem(world, hero, slot, undefined, target);
-          ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos: target.pos, targetId: target.id, time: world.time });
-          if (ok) ux.clearTargeting();
-          else previewItem(slot, p);
+          ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
+          if (ok) {
+            ux.clearCommandMessage();
+            ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
+            ux.clearTargeting();
+          } else {
+            previewItem(slot, p);
+            showReject(itemUseFailureReason(slot), target.pos, `item-${slot}`);
+          }
           return ok;
         }
         previewItem(slot, p);
-        ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+        showReject('invalid-target', p, `item-${slot}`);
         return false;
       }
       return true;

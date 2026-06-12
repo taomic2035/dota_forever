@@ -4,6 +4,7 @@ export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'reject' | 'stop
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
 export type CursorIntentKind = 'attackmove' | 'cast' | 'item';
+export type CommandMessageKind = 'reject';
 
 export interface WorldPulse {
   kind: WorldPulseKind;
@@ -39,13 +40,23 @@ export interface CursorIntent {
   color?: string;
 }
 
+export interface CommandMessage {
+  kind: CommandMessageKind;
+  label: string;
+  time: number;
+  ttl?: number;
+  color?: string;
+}
+
 const WORLD_PULSE_LIFE = 0.55;
 const HUD_FLASH_LIFE = 0.45;
+const COMMAND_MESSAGE_LIFE = 0.85;
 
 export class UxFeedback {
   private pulses: WorldPulse[] = [];
   private hudFlashes: HudFlash[] = [];
   private cursorIntent: CursorIntent | null = null;
+  private commandMessage: CommandMessage | null = null;
   targeting: TargetingState | null = null;
   cursorPosition: Vec2 | null = null;
 
@@ -86,6 +97,24 @@ export class UxFeedback {
       return null;
     }
     return this.cursorIntent;
+  }
+
+  setCommandMessage(message: CommandMessage): void {
+    this.commandMessage = { ...message };
+  }
+
+  clearCommandMessage(): void {
+    this.commandMessage = null;
+  }
+
+  commandMessageAt(now: number): CommandMessage | null {
+    if (!this.commandMessage) return null;
+    const ttl = this.commandMessage.ttl ?? COMMAND_MESSAGE_LIFE;
+    if (now - this.commandMessage.time > ttl) {
+      this.commandMessage = null;
+      return null;
+    }
+    return this.commandMessage;
   }
 
   flashHudSlot(key: string, kind: HudFlashKind, time: number): void {

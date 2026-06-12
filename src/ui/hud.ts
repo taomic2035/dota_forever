@@ -60,7 +60,7 @@ export class Hud {
     const dead = !hero.alive;
     const respawnIn = Math.max(0, Math.ceil(meta.respawnAt - world.time));
     const abilityHtml = (hero.heroDef?.abilities ?? []).map((_, i) => this.abilitySlot(world, hero, i, ux)).join('');
-    const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i)).join('');
+    const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
 
     this.bottom.innerHTML = `
       <div style="display:grid;grid-template-columns:260px 1fr 260px;gap:10px;height:100%;">
@@ -168,18 +168,24 @@ export class Hud {
     </div>`;
   }
 
-  private itemSlot(world: World, inst: ItemInstance | null, i: number): string {
+  private itemSlot(world: World, inst: ItemInstance | null, i: number, ux?: UxFeedback): string {
+    const flash = ux?.hudFlashFor(`item-${i}`, world.time);
+    const flashShadow =
+      flash?.kind === 'reject' ? 'box-shadow:0 0 0 2px #ff3040 inset,0 0 10px #ff3040;' :
+      flash?.kind === 'confirm' ? 'box-shadow:0 0 0 2px #d9b44a inset,0 0 10px #d9b44a;' :
+      '';
     if (!inst) {
-      return `<div style="position:relative;width:64px;height:64px;border:1px solid #2c3520;border-radius:4px;background:#0d100a;
+      return `<div style="position:relative;width:64px;height:64px;border:1px solid ${flash?.kind === 'reject' ? '#ff3040' : '#2c3520'};border-radius:4px;background:#0d100a;${flashShadow}
         font-size:10px;color:#555;display:flex;align-items:center;justify-content:center">
         <span style="position:absolute;top:2px;left:4px;color:#777">${i + 1}</span>
       </div>`;
     }
     const def = itemDef(inst.itemKey);
     const onCd = world.time < inst.cooldownUntil;
-    return `<div title="${def.name}: ${def.description}" style="position:relative;width:64px;height:64px;border:1px solid #5a6a3a;border-radius:4px;
+    const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
+    return `<div title="${def.name}: ${def.description}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
       background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}">
+      align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${i + 1}</span>
       <span style="white-space:nowrap">${def.name.slice(0, 4)}</span>
       ${inst.charges > 0 ? `<span style="font-size:10px;color:#ffd54f">x${inst.charges}</span>` : ''}
