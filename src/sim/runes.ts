@@ -7,6 +7,7 @@ import { RUNE_INTERVAL, RUNE_EFFECTS, RUNE_TYPES, type RuneType } from '../data/
 import type { World, WorldSystem } from './world';
 import type { Unit } from './unit';
 import { applyModifier, removeModifier } from './modifiers';
+import { createIllusion } from './abilities';
 
 export interface RuneSpawn {
   type: RuneType;
@@ -18,6 +19,7 @@ export const RUNE_NAME: Record<RuneType, string> = {
   doubledamage: '双倍伤害符文',
   regen: '恢复符文',
   invis: '隐身符文',
+  illusion: '幻象符文',
 };
 
 const PICKUP_RANGE = 175;
@@ -44,11 +46,15 @@ export function applyRune(w: World, hero: Unit, type: RuneType): void {
         if (u.hp >= u.calc.maxHp && u.mp >= u.calc.maxMp) m.expiresAt = -Infinity;
       },
     }, hero.id);
-  } else {
+  } else if (type === 'invis') {
     applyModifier(w, hero, {
       key: 'rune_invis', duration: RUNE_EFFECTS.invis.duration, isBuff: true,
       states: { invisible: true },
     }, hero.id);
+  } else {
+    // 幻象符:生成 N 个幻象(出伤打折、受伤翻倍)
+    createIllusion(w, hero, RUNE_EFFECTS.illusion.count, 0.33, 2.0, RUNE_EFFECTS.illusion.duration);
+    w.emit({ kind: 'fx', fx: 'images', pos: V.clone(hero.pos) });
   }
   w.emit({ kind: 'rune_taken', rune: type, unitId: hero.id });
 }
@@ -57,21 +63,23 @@ export function installRunes(w: World): void {
   let nextSpawn = Math.max(0, w.time);
 
   const system: WorldSystem = (world) => {
-    // 刷新
+    // 刷新:两个河道符文点**各刷一枚**(经典 DotA:双符文并存,玩家可争两个)
     if (world.time >= nextSpawn) {
       nextSpawn += RUNE_INTERVAL;
-      const spotIdx = world.rng.int(0, 1);
-      const type = world.rng.pick(RUNE_TYPES);
-      world.runes = [{ type, pos: V.clone(world.map.runeSpots[spotIdx]) }];
-      world.emit({ kind: 'rune_spawned', rune: type, pos: V.clone(world.map.runeSpots[spotIdx]) });
+      world.runes = world.map.runeSpots.map((spot) => {
+        const type = world.rng.pick(RUNE_TYPES);
+        world.emit({ kind: 'rune_spawned', rune: type, pos: V.clone(spot) });
+        return { type, pos: V.clone(spot) };
+      });
     }
 
-    // 拾取(每 5 tick 查一次)
+    // 拾取(每 5 tick 查一次)。多枚符文并存:各自独立拾取。
     if (world.tick % 5 !== 0 || world.runes.length === 0) return;
     for (const hero of world.units.values()) {
       if (!hero.isHero() || !hero.alive) continue;
-      const rune = world.runes[0];
-      if (!rune || V.dist(hero.pos, rune.pos) > PICKUP_RANGE) continue;
+      const idx = world.runes.findIndex((r) => V.dist(hero.pos, r.pos) <= PICKUP_RANGE);
+      if (idx < 0) continue;
+      const rune = world.runes[idx];
       // 持瓶优先装瓶
       const bottle = hero.inventory.find((i) => i?.itemKey === 'bottle' && !i.runeKey && i.charges < 3);
       if (bottle) {
@@ -80,7 +88,7 @@ export function installRunes(w: World): void {
       } else {
         applyRune(world, hero, rune.type);
       }
-      world.runes.length = 0;
+      world.runes.splice(idx, 1); // 仅移除被取走的那一枚
     }
 
     // 瓶中符 2 分钟自动生效

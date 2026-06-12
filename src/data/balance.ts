@@ -145,13 +145,14 @@ export const UPHILL_MISS_CHANCE = 0.25;
 
 // ---------- 符文 ----------
 export const RUNE_INTERVAL = 120;
-export const RUNE_TYPES = ['haste', 'doubledamage', 'regen', 'invis'] as const;
+export const RUNE_TYPES = ['haste', 'doubledamage', 'regen', 'invis', 'illusion'] as const;
 export type RuneType = (typeof RUNE_TYPES)[number];
 export const RUNE_EFFECTS = {
   haste: { duration: 25, moveSpeed: 522 },
   doubledamage: { duration: 45, factor: 2 },
   regen: { duration: 30, hp: 100, mp: 67 }, // 受伤/施法即停
   invis: { duration: 36 },
+  illusion: { duration: 75, count: 2 }, // 拾取生成 2 个幻象
 };
 
 // ---------- 野区 ----------
