@@ -6,6 +6,7 @@ dist/
 # Vite / Vitest 缓存与覆盖率
 .vite/
 coverage/
+.superpowers/
 
 # Playwright 测试产物
 test-results/
