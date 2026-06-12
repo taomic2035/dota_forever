@@ -230,6 +230,7 @@ export class FxLayer {
         ctx.arc(sp.x, sp.y, rad, 0, Math.PI * 2);
         ctx.stroke();
         ctx.shadowBlur = 0;
+        if (p.kind === 'ring') this.drawRingPattern(ctx, sp, rad, z, p, u);
         if (p.kind === 'levelup') {
           // 升级:向上的金色光柱细线
           ctx.globalAlpha = (1 - u) * 0.8;
@@ -256,7 +257,7 @@ export class FxLayer {
         ctx.lineWidth = Math.max(2, 7 * z) * (1 - u * 0.5);
         ctx.beginPath();
         // 闪电系折线抖动
-        const isJag = p.color === '#ffe23a';
+        const isJag = p.pattern === 'jagged';
         if (isJag) {
           const segs = 6;
           ctx.moveTo(a.x, a.y);
@@ -272,6 +273,7 @@ export class FxLayer {
           ctx.lineTo(b.x, b.y);
         }
         ctx.stroke();
+        this.drawBeamPattern(ctx, a, b, z, p, u);
         ctx.shadowBlur = 0;
         break;
       }
@@ -302,6 +304,7 @@ export class FxLayer {
           ctx.arc(sp.x + Math.cos(a) * rr, sp.y + Math.sin(a) * rr, Math.max(1, 2.5 * z), 0, Math.PI * 2);
           ctx.fill();
         }
+        this.drawFieldPattern(ctx, sp, rad, z, p, u, fade);
         break;
       }
       case 'impact':
@@ -411,6 +414,266 @@ export class FxLayer {
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, r * 0.25 + 2, 0, Math.PI * 2);
         ctx.fill();
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  private drawRingPattern(ctx: CanvasRenderingContext2D, sp: Vec2, rad: number, z: number, p: FxParticle, u: number): void {
+    const fade = Math.max(0, 1 - u);
+    ctx.strokeStyle = p.color;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = 8 * z;
+    ctx.lineWidth = Math.max(1, 2.5 * z);
+    const count = p.pattern === 'runes' ? 10 : p.pattern === 'shards' || p.pattern === 'jagged' ? 12 : 8;
+    ctx.globalAlpha = fade * 0.62;
+
+    if (p.pattern === 'halo') {
+      for (const k of [0.78, 1.18]) {
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, rad * k, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + p.seed * 0.01 + u * 0.8;
+      const nx = Math.cos(a);
+      const ny = Math.sin(a);
+      const tx = -ny;
+      const ty = nx;
+      const wobble = 1 + 0.04 * Math.sin(p.t * 8 + i + p.seed);
+      const base = rad * wobble;
+      const x = sp.x + nx * base;
+      const y = sp.y + ny * base;
+      switch (p.pattern) {
+        case 'shards': {
+          const len = Math.max(8, 18 * z);
+          ctx.beginPath();
+          ctx.moveTo(x - tx * 4 * z, y - ty * 4 * z);
+          ctx.lineTo(x + nx * len, y + ny * len);
+          ctx.lineTo(x + tx * 4 * z, y + ty * 4 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'jagged': {
+          ctx.beginPath();
+          ctx.moveTo(x - tx * 10 * z, y - ty * 10 * z);
+          ctx.lineTo(x + nx * 7 * z, y + ny * 7 * z);
+          ctx.lineTo(x + tx * 10 * z, y + ty * 10 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'cloud': {
+          ctx.globalAlpha = fade * 0.32;
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(4, 9 * z), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = fade * 0.62;
+          break;
+        }
+        case 'cracks': {
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(sp.x + nx * rad * 0.68 + tx * 7 * z, sp.y + ny * rad * 0.68 + ty * 7 * z);
+          ctx.lineTo(sp.x + nx * rad * 0.46 - tx * 5 * z, sp.y + ny * rad * 0.46 - ty * 5 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'runes': {
+          const s = Math.max(3, 7 * z);
+          ctx.strokeRect(x - s * 0.5, y - s * 0.5, s, s);
+          break;
+        }
+        case 'splatter': {
+          ctx.beginPath();
+          ctx.arc(x + nx * 4 * z, y + ny * 4 * z, Math.max(2, 5 * z), 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        }
+        case 'embers':
+        case 'spark':
+        default: {
+          ctx.beginPath();
+          ctx.moveTo(x - nx * 6 * z, y - ny * 6 * z);
+          ctx.lineTo(x + nx * 12 * z, y + ny * 12 * z);
+          ctx.stroke();
+          break;
+        }
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  private drawFieldPattern(ctx: CanvasRenderingContext2D, sp: Vec2, rad: number, z: number, p: FxParticle, u: number, fade: number): void {
+    ctx.strokeStyle = p.color;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = 6 * z;
+    ctx.lineWidth = Math.max(1, 2 * z);
+    const count = p.pattern === 'cloud' ? 14 : p.pattern === 'runes' ? 9 : 7;
+    ctx.globalAlpha = fade * 0.34;
+
+    if (p.pattern === 'halo') {
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, rad * (i / 4), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      return;
+    }
+
+    for (let i = 0; i < count; i++) {
+      const orbit = frac(p.seed * 0.002 + i * 0.41 + p.t * 0.08);
+      const a = (i / count) * Math.PI * 2 + p.t * 0.9 + p.seed * 0.01;
+      const rr = rad * (0.18 + 0.68 * orbit);
+      const x = sp.x + Math.cos(a) * rr;
+      const y = sp.y + Math.sin(a) * rr * 0.82;
+      switch (p.pattern) {
+        case 'shards': {
+          ctx.beginPath();
+          ctx.moveTo(x - 7 * z, y + 5 * z);
+          ctx.lineTo(x, y - 12 * z);
+          ctx.lineTo(x + 7 * z, y + 5 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'jagged': {
+          ctx.beginPath();
+          ctx.moveTo(x - 12 * z, y);
+          ctx.lineTo(x - 2 * z, y - 8 * z);
+          ctx.lineTo(x + 4 * z, y + 6 * z);
+          ctx.lineTo(x + 14 * z, y - 3 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'cloud': {
+          ctx.globalAlpha = fade * 0.22;
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(6, 14 * z) * (0.75 + 0.4 * orbit), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = fade * 0.34;
+          break;
+        }
+        case 'cracks': {
+          const a2 = a + Math.PI * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(a2) * 16 * z, y + Math.sin(a2) * 16 * z);
+          ctx.lineTo(x + Math.cos(a2 + 0.6) * 26 * z, y + Math.sin(a2 + 0.6) * 26 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'runes': {
+          const s = Math.max(4, 8 * z);
+          ctx.strokeRect(x - s * 0.5, y - s * 0.5, s, s);
+          break;
+        }
+        case 'splatter': {
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(2, 5 * z) * (1 + orbit), 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        }
+        case 'embers':
+        case 'spark':
+        default: {
+          ctx.beginPath();
+          ctx.moveTo(x - 8 * z, y);
+          ctx.lineTo(x + 8 * z, y);
+          ctx.moveTo(x, y - 8 * z);
+          ctx.lineTo(x, y + 8 * z);
+          ctx.stroke();
+          break;
+        }
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  private drawBeamPattern(ctx: CanvasRenderingContext2D, a: Vec2, b: Vec2, z: number, p: FxParticle, u: number): void {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const nx = -dy / len;
+    const ny = dx / len;
+    const tx = dx / len;
+    const ty = dy / len;
+    const fade = Math.max(0, 1 - u);
+    ctx.strokeStyle = p.color;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = 8 * z;
+    ctx.lineWidth = Math.max(1, 2.5 * z);
+    ctx.globalAlpha = fade * 0.62;
+
+    const count = p.pattern === 'jagged' ? 6 : 5;
+    for (let i = 1; i <= count; i++) {
+      const t = i / (count + 1);
+      const x = a.x + dx * t;
+      const y = a.y + dy * t;
+      const wobble = (((p.seed >> i) & 7) - 3) * z;
+      switch (p.pattern) {
+        case 'shards': {
+          ctx.beginPath();
+          ctx.moveTo(x - nx * 11 * z + tx * 5 * z, y - ny * 11 * z + ty * 5 * z);
+          ctx.lineTo(x + nx * 15 * z, y + ny * 15 * z);
+          ctx.lineTo(x - nx * 11 * z - tx * 5 * z, y - ny * 11 * z - ty * 5 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'jagged': {
+          ctx.beginPath();
+          ctx.moveTo(x - tx * 18 * z, y - ty * 18 * z);
+          ctx.lineTo(x + nx * (12 * z + wobble), y + ny * (12 * z + wobble));
+          ctx.lineTo(x + tx * 18 * z, y + ty * 18 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'cloud': {
+          ctx.globalAlpha = fade * 0.24;
+          ctx.beginPath();
+          ctx.arc(x + nx * wobble, y + ny * wobble, Math.max(5, 12 * z), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = fade * 0.62;
+          break;
+        }
+        case 'cracks': {
+          ctx.beginPath();
+          ctx.moveTo(x - nx * 18 * z, y - ny * 18 * z);
+          ctx.lineTo(x + nx * 2 * z, y + ny * 2 * z);
+          ctx.lineTo(x + nx * 18 * z + tx * 10 * z, y + ny * 18 * z + ty * 10 * z);
+          ctx.stroke();
+          break;
+        }
+        case 'halo': {
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(5, 12 * z), 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+        }
+        case 'runes': {
+          const s = Math.max(4, 8 * z);
+          ctx.strokeRect(x - s * 0.5, y - s * 0.5, s, s);
+          break;
+        }
+        case 'splatter': {
+          ctx.beginPath();
+          ctx.arc(x + nx * wobble, y + ny * wobble, Math.max(2, 5 * z), 0, Math.PI * 2);
+          ctx.fill();
+          break;
+        }
+        case 'embers':
+        case 'spark':
+        default: {
+          ctx.beginPath();
+          ctx.moveTo(x - nx * 10 * z, y - ny * 10 * z);
+          ctx.lineTo(x + nx * 10 * z, y + ny * 10 * z);
+          ctx.stroke();
+          break;
+        }
       }
     }
     ctx.shadowBlur = 0;

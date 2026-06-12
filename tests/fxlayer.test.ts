@@ -47,6 +47,20 @@ describe('FxLayer.consume 几何判定', () => {
     expect(ring).toBeTruthy();
     expect(ring!.pattern).toBe('jagged');
   });
+  it('spell beams carry impact pattern metadata', () => {
+    const fx = new FxLayer();
+    fx.consume(fakeWorld([{ kind: 'fx', fx: 'lightning', pos: { x: 0, y: 0 }, pos2: { x: 200, y: 0 } }]), null);
+    const beam = fx.particles.find((p) => p.kind === 'beam');
+    expect(beam).toBeTruthy();
+    expect(beam!.pattern).toBe('jagged');
+  });
+  it('spell fields carry impact pattern metadata', () => {
+    const fx = new FxLayer();
+    fx.consume(fakeWorld([{ kind: 'fx', fx: 'miasma', pos: { x: 0, y: 0 }, radius: 280, duration: 8 }]), null);
+    const field = fx.particles.find((p) => p.kind === 'field');
+    expect(field).toBeTruthy();
+    expect(field!.pattern).toBe('cloud');
+  });
 });
 
 describe('FxLayer.consume 其他事件', () => {
