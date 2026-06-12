@@ -13,6 +13,7 @@ import { isVisibleTo } from '../sim/vision';
 import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
+import type { UxFeedback } from '../ui/uxFeedback';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -150,7 +151,7 @@ export class Renderer {
     return V.lerp(u.prevPos, u.pos, this.alpha);
   }
 
-  render(world: World, selectedId: number) {
+  render(world: World, selectedId: number, ux?: UxFeedback) {
     const { ctx, camera } = this;
     ctx.fillStyle = '#0a0c08';
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -176,6 +177,7 @@ export class Renderer {
 
     // 地图标记(商店范围 / Boss 巢穴)——地形之上、单位之下
     this.drawMapMarkers(world);
+    if (ux) this.drawUxPulses(world, ux);
 
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)
     const units = [...world.units.values()].filter(
@@ -204,6 +206,38 @@ export class Renderer {
   }
 
   /** 地图标记:本方商店范围(基地金环/秘密商店青环 + ◈)与深渊领主巢穴。 */
+  private drawUxPulses(world: World, ux: UxFeedback): void {
+    const ctx = this.ctx;
+    for (const pulse of ux.worldPulsesAt(world.time)) {
+      const age = world.time - pulse.time;
+      const u = Math.max(0, Math.min(1, age / 0.55));
+      const p = this.camera.worldToScreen(pulse.pos);
+      const color =
+        pulse.kind === 'move' ? '#7cff6b' :
+        pulse.kind === 'attack' ? '#ff4c42' :
+        pulse.kind === 'attackmove' ? '#ffd45a' :
+        pulse.kind === 'reject' ? '#ff3040' :
+        pulse.kind === 'ping' ? '#48d8ff' :
+        '#cfe8ff';
+      ctx.save();
+      ctx.globalAlpha = 1 - u;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1.5, this.s(5) * (1 - u * 0.35));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, this.s(34 + 80 * u), 0, Math.PI * 2);
+      ctx.stroke();
+      if (pulse.kind === 'attack' || pulse.kind === 'attackmove') {
+        ctx.beginPath();
+        ctx.moveTo(p.x - this.s(22), p.y);
+        ctx.lineTo(p.x + this.s(22), p.y);
+        ctx.moveTo(p.x, p.y - this.s(22));
+        ctx.lineTo(p.x, p.y + this.s(22));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
   private drawMapMarkers(world: World): void {
     const ctx = this.ctx;
     ctx.save();

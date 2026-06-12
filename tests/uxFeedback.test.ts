@@ -28,4 +28,12 @@ describe('UxFeedback', () => {
     expect(ux.hudFlashFor('ability-2', 5.2)?.kind).toBe('reject');
     expect(ux.hudFlashFor('ability-2', 5.7)).toBeNull();
   });
+
+  it('replaces targeting state when a new ability is selected', () => {
+    const ux = new UxFeedback();
+    ux.setTargeting({ abilityIndex: 0, mode: 'area', origin: { x: 0, y: 0 }, range: 600, radius: 250 });
+    ux.setTargeting({ abilityIndex: 2, mode: 'unit', origin: { x: 50, y: 60 }, range: 700 });
+
+    expect(ux.targeting).toEqual({ abilityIndex: 2, mode: 'unit', origin: { x: 50, y: 60 }, range: 700 });
+  });
 });

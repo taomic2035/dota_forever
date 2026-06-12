@@ -18,6 +18,8 @@ export interface InputCallbacks {
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
   onToggleShop(): void;
+  onPendingAttackMove(active: boolean): void;
+  onPendingCast(index: number | null): void;
 }
 
 export class InputManager {
@@ -43,14 +45,18 @@ export class InputManager {
       const world = this.camera.screenToWorld({ x: e.offsetX, y: e.offsetY });
       if (e.button === 2) {
         this.pendingCast = -1;
+        this.cb.onPendingCast(null);
+        this.cb.onPendingAttackMove(false);
         this.cb.onRightClick(world);
       } else if (e.button === 0) {
         if (this.pendingCast >= 0) {
           this.cb.onCastKey(this.pendingCast, world);
           this.pendingCast = -1;
+          this.cb.onPendingCast(null);
         } else if (this.pendingCast === -2) {
           this.cb.onAttackMove(world);
           this.pendingCast = -1;
+          this.cb.onPendingAttackMove(false);
         } else {
           this.cb.onLeftClick(world);
         }
@@ -80,14 +86,27 @@ export class InputManager {
         case '1': case '2': case '3': case '4': case '5': case '6':
           this.cb.onItemKey(Number(e.key) - 1, world);
           break;
-        case 'a': this.pendingCast = -2; break;
-        case 's': this.pendingCast = -1; this.cb.onStop(); break;
+        case 'a':
+          this.pendingCast = -2;
+          this.cb.onPendingAttackMove(true);
+          this.cb.onPendingCast(null);
+          break;
+        case 's':
+          this.pendingCast = -1;
+          this.cb.onPendingCast(null);
+          this.cb.onPendingAttackMove(false);
+          this.cb.onStop();
+          break;
         case 'h': this.cb.onHold(); break;
         case 'f': this.cb.onToggleShop(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
-        case 'escape': this.pendingCast = -1; break;
+        case 'escape':
+          this.pendingCast = -1;
+          this.cb.onPendingCast(null);
+          this.cb.onPendingAttackMove(false);
+          break;
       }
     });
     window.addEventListener('keyup', (e) => {
@@ -100,6 +119,7 @@ export class InputManager {
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
   private quickCast(i: number, world: Vec2) {
+    this.cb.onPendingCast(i);
     this.cb.onCastKey(i, world);
   }
 

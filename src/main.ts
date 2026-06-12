@@ -21,6 +21,7 @@ import { useItem } from './sim/items';
 import { learnAbility, learnStatBonus } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
+import { UxFeedback } from './ui/uxFeedback';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -66,6 +67,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const shop = new ShopPanel(app);
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
+  const ux = new UxFeedback();
   const minimap = new MiniMap(app, renderer.terrain, camera);
   const audio = new AudioDirector();
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; });
@@ -81,8 +83,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     onRightClick(p) {
       if (!hero?.alive) return;
       const target = world.queryRadius(p, 60, (u) => u.team !== hero!.team && !u.invulnerable)[0];
-      if (target) hero.issueOrder({ type: 'attack', targetId: target.id });
-      else hero.issueOrder({ type: 'move', pos: map.nearestWalkable(p) });
+      if (target) {
+        hero.issueOrder({ type: 'attack', targetId: target.id });
+        ux.addWorldPulse({ kind: 'attack', pos: target.pos, targetId: target.id, time: world.time });
+      } else {
+        const pos = map.nearestWalkable(p);
+        hero.issueOrder({ type: 'move', pos });
+        ux.addWorldPulse({ kind: 'move', pos, time: world.time });
+      }
     },
     onLeftClick(p) {
       if (!hero?.alive) return;
@@ -94,15 +102,24 @@ function startGame(mode: 'play' | 'spectate'): void {
     onAttackMove(p) {
       if (!hero?.alive) return;
       const denyTarget = world.queryRadius(p, 60, (u) => u.team === hero!.team && u.kind === 'creep' && u.hp / u.calc.maxHp < 0.5)[0];
-      if (denyTarget) hero.issueOrder({ type: 'attack', targetId: denyTarget.id });
-      else hero.issueOrder({ type: 'attackmove', pos: map.nearestWalkable(p) });
+      if (denyTarget) {
+        hero.issueOrder({ type: 'attack', targetId: denyTarget.id });
+        ux.addWorldPulse({ kind: 'attack', pos: denyTarget.pos, targetId: denyTarget.id, time: world.time });
+      } else {
+        const pos = map.nearestWalkable(p);
+        hero.issueOrder({ type: 'attackmove', pos });
+        ux.addWorldPulse({ kind: 'attackmove', pos, time: world.time });
+      }
     },
     onCastKey(i, p) {
       if (!hero?.alive) return;
       const def = hero.heroDef?.abilities[i];
       const inst = hero.abilities[i];
-      if (!def || !inst || inst.level <= 0) return;
-      if (def.targetMode === 'passive') return;
+      if (!def || !inst || inst.level <= 0 || def.targetMode === 'passive') {
+        ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
+        ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        return;
+      }
       if (def.targetMode === 'none') {
         hero.issueOrder({ type: 'cast', abilityIndex: i });
       } else if (def.targetMode === 'point') {
@@ -127,12 +144,24 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (target) useItem(world, hero, slot, undefined, target);
       }
     },
-    onStop() { hero?.issueOrder({ type: 'stop' }); },
-    onHold() { hero?.issueOrder({ type: 'hold' }); },
+    onStop() {
+      if (hero) ux.addWorldPulse({ kind: 'stop', pos: hero.pos, time: world.time });
+      hero?.issueOrder({ type: 'stop' });
+    },
+    onHold() {
+      if (hero) ux.addWorldPulse({ kind: 'hold', pos: hero.pos, time: world.time });
+      hero?.issueOrder({ type: 'hold' });
+    },
     onCenterHero() { if (hero) camera.centerOn(hero.pos); },
     onTogglePause() { loop.paused = !loop.paused; },
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
+    onPendingAttackMove(active) {
+      if (!active) ux.clearTargeting();
+    },
+    onPendingCast(i) {
+      if (i === null || !hero) ux.clearTargeting();
+    },
   });
 
   const loop = new GameLoop({
@@ -145,7 +174,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     render(alpha) {
       renderer.alpha = alpha;
       input.update(16.7);
-      renderer.render(world, hero?.id ?? -1);
+      renderer.render(world, hero?.id ?? -1, ux);
       hud.update(world, hero);
       shop.update(world, hero);
       minimap.render(world, renderer.viewerTeam);
@@ -155,11 +184,11 @@ function startGame(mode: 'play' | 'spectate'): void {
   loop.speed = speed;
   loop.start();
 
-  window.__game = { world, hero, camera, loop, renderer };
+  window.__game = { world, hero, camera, loop, renderer, ux };
 }
 
 declare global {
   interface Window {
-    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop; renderer: Renderer };
+    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop; renderer: Renderer; ux: UxFeedback };
   }
 }
