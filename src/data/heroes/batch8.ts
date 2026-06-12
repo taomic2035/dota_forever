@@ -477,7 +477,7 @@ const LYK_W: AbilityDef = {
 const RITUAL_PCT = [0.3, 0.4, 0.5, 0.6];
 
 const LYK_E: AbilityDef = {
-  key: 'lyk_ritual', name: '黑暗献祭', maxLevel: 4, targetMode: 'unit', targetTeam: 'ally',
+  key: 'lyk_ritual', name: '黑暗献祭', maxLevel: 4, targetMode: 'unit', targetTeam: 'ally', targetKind: 'creep',
   castRange: [600, 600, 600, 600], manaCost: [0, 0, 0, 0], cooldown: [40, 32, 24, 16],
   castPoint: 0.2, tags: ['buff'],
   description: '献祭一名己方小兵,按其生命上限百分比回复自身法力。',
@@ -540,7 +540,7 @@ const DEVOUR_DMG = [300, 500, 700, 900];
 const DEVOUR_GOLD = [40, 80, 120, 160];
 
 const DUM_Q: AbilityDef = {
-  key: 'dum_devour', name: '吞噬', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
+  key: 'dum_devour', name: '吞噬', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy', targetKind: 'nonHeroNonBuilding',
   castRange: [200, 200, 200, 200], manaCost: [40, 40, 40, 40], cooldown: [40, 34, 28, 22],
   castPoint: 0.3, tags: ['nuke'],
   description: '吞食一个非英雄单位造成巨额伤害,得手则获得金钱与永久攻击成长。',

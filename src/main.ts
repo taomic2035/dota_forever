@@ -24,7 +24,7 @@ import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
 import { CommandCursor } from './ui/commandCursor';
-import { findFilteredTarget, type TargetTeamFilter } from './engine/targetFilters';
+import { findFilteredTarget, type TargetKindFilter, type TargetTeamFilter } from './engine/targetFilters';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
 
 const params = new URLSearchParams(location.search);
@@ -134,7 +134,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     return { def, inst, range };
   };
 
-  const targetAt = (p: { x: number; y: number }, filter?: TargetTeamFilter) => {
+  const targetAt = (
+    p: { x: number; y: number },
+    filter?: TargetTeamFilter,
+    kindFilter?: TargetKindFilter,
+  ) => {
     if (!hero) return undefined;
     return findFilteredTarget(
       (pos, radius, pred) => world.queryRadius(pos, radius, pred),
@@ -142,6 +146,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       p,
       90,
       filter,
+      kindFilter,
     );
   };
 
@@ -149,7 +154,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     const info = castInfo(i);
     if (!hero || !info) return false;
     const mode = info.def.targetMode === 'unit' ? 'unit' : 'area';
-    const target = mode === 'unit' ? targetAt(p, info.def.targetTeam) : null;
+    const target = mode === 'unit' ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
     const valid = mode === 'unit' ? !!target : true;
     ux.setTargeting({
       abilityIndex: i,
@@ -201,7 +206,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     const info = itemInfo(slot);
     if (!hero || !info) return false;
     const mode = info.active.targetMode === 'unit' ? 'unit' : 'area';
-    const target = mode === 'unit' ? targetAt(p, info.active.targetTeam) : null;
+    const target = mode === 'unit' ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
     const valid = mode === 'unit' ? !!target : true;
     ux.setTargeting({
       abilityIndex: -1,
@@ -292,7 +297,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         return true;
       }
       if (info.def.targetMode === 'unit') {
-        const target = targetAt(p, info.def.targetTeam);
+        const target = targetAt(p, info.def.targetTeam, info.def.targetKind);
         if (target) {
           hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
@@ -353,7 +358,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         return ok;
       }
       if (info.active.targetMode === 'unit') {
-        const target = targetAt(p, info.active.targetTeam);
+        const target = targetAt(p, info.active.targetTeam, info.active.targetKind);
         if (target) {
           const ok = useItem(world, hero, slot, undefined, target);
           ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);

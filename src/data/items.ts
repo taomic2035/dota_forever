@@ -3,7 +3,7 @@
  * 价格与数值为经典量级的原创配置,集中可调。
  */
 import { V, type Vec2 } from '../core/vec2';
-import type { TargetTeamFilter } from '../engine/targetFilters';
+import type { TargetKindFilter, TargetTeamFilter } from '../engine/targetFilters';
 import type { StatMods } from '../sim/modifiers';
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
@@ -29,6 +29,7 @@ export interface ItemDef {
     cooldown: number;
     targetMode: 'none' | 'point' | 'unit';
     targetTeam?: TargetTeamFilter;
+    targetKind?: TargetKindFilter;
     castRange?: number;
     /** 返回 false 表示未生效(不消耗) */
     onUse(w: World, user: Unit, pos?: Vec2, target?: Unit): boolean;
@@ -941,7 +942,7 @@ ITEMS.push(
     stats: { bonusAttackSpeed: 0.3 },
     recipe: { components: ['gloves_haste'], recipeCost: 1550 },
     active: {
-      name: '点金', cooldown: 100, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
+      name: '点金', cooldown: 100, targetMode: 'unit', targetTeam: 'enemy', targetKind: 'nonHeroNonBuilding', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.isHero() || target.isBuilding()) return false;
         if (user.heroMeta) user.heroMeta.gold += 160;

@@ -3,7 +3,7 @@ import type { Vec2 } from '../../core/vec2';
 import type { World } from '../../sim/world';
 import type { Unit } from '../../sim/unit';
 import type { ModifierDef } from '../../sim/modifiers';
-import type { TargetTeamFilter } from '../../engine/targetFilters';
+import type { TargetKindFilter, TargetTeamFilter } from '../../engine/targetFilters';
 
 export type TargetMode = 'none' | 'point' | 'unit' | 'passive';
 
@@ -23,6 +23,7 @@ export interface AbilityDef {
   ultimate?: boolean;
   targetMode: TargetMode;
   targetTeam?: TargetTeamFilter;
+  targetKind?: TargetKindFilter;
   /** 按技能等级索引(长度=maxLevel) */
   castRange?: number[];
   manaCost?: number[];
