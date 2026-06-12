@@ -8,7 +8,7 @@ import { itemDef, type ItemDef } from '../data/items';
 import { Team } from './map';
 import type { World } from './world';
 import type { Unit } from './unit';
-import { recalcExtensions, attackHitHooks } from './combat';
+import { recalcExtensions, attackHitHooks, isEnemy, stateOf } from './combat';
 import { tryLinkenBlock } from './modifiers';
 import { spendGold } from './economy';
 import { targetMatchesFilter } from './targeting';
@@ -141,6 +141,12 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   // 权威目标校验:单位目标须满足声明的队伍/种类过滤
   if (def.active.targetMode === 'unit' && target &&
       !targetMatchesFilter(hero, target, def.active.targetTeam, def.active.targetKind)) return false;
+  // M11 魔免/无敌预筛:对敌方单体,无敌一律不可施法;魔免除非物品声明穿透则拒绝。
+  // 不扣蓝/不进 CD —— 避免「付代价但无效」(M1 在下游挡效果,代价却已付)。
+  if (def.active.targetMode === 'unit' && target && isEnemy(hero, target)) {
+    if (target.invulnerable) return false;
+    if (!def.active.piercesSpellImmunity && stateOf(target).magicImmune) return false;
+  }
   // M4 林肯法球:对敌方单体主动被格挡 → 仍付蓝/CD,效果作废
   if (def.active.targetMode === 'unit' && target && tryLinkenBlock(w, target, hero.id)) {
     if (def.active.manaCost) hero.mp -= def.active.manaCost;

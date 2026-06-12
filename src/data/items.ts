@@ -31,6 +31,8 @@ export interface ItemDef {
     targetTeam?: TargetTeamFilter;
     targetKind?: TargetKindFilter;
     castRange?: number;
+    /** 穿魔免:对魔免敌方单体仍可施(否则 useItem 预筛拒绝,见 M11)。无敌仍一律拦。 */
+    piercesSpellImmunity?: boolean;
     /** 返回 false 表示未生效(不消耗) */
     onUse(w: World, user: Unit, pos?: Vec2, target?: Unit): boolean;
   };
@@ -1287,14 +1289,16 @@ ITEMS.push(
     recipe: { components: ['cloak', 'sobi_mask', 'robe'], recipeCost: 675 },
     active: {
       name: '否决', manaCost: 75, cooldown: 13, targetMode: 'unit', targetTeam: 'enemy', castRange: 750,
+      piercesSpellImmunity: true, // 反魔免专精:可对魔免敌人施放(M11)
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
-        purge(w, target, true); // 移除其增益
-        applyModifier(w, target, { key: 'item_nullifier_mute', duration: 4, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.3 } }, user.id);
+        purge(w, target, true); // 强驱散:移除其增益
+        // 沉默/减速效果同样穿魔免落地(否则 M1 在下游拦掉,与「穿透」语义矛盾)。
+        applyModifier(w, target, { key: 'item_nullifier_mute', duration: 4, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.3 }, data: { piercesSpellImmunity: 1 } }, user.id);
         return true;
       },
     },
-    description: '+12% 魔抗 +25 攻击;主动:驱散目标增益并禁用其施法、减速 4 秒。' },
+    description: '+12% 魔抗 +25 攻击;主动:驱散目标增益并禁用其施法、减速 4 秒(可穿魔免)。' },
 
   // 永恒之纱:法术屏障
   { key: 'eternal_shroud', name: '永恒之纱', cost: 2800, category: 'combined',
