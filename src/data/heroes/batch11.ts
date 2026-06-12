@@ -4,7 +4,7 @@ import type { AbilityDef, HeroDef } from './types';
 import {
   damageArea, enemiesIn, spellDamage, summonUnit,
 } from '../../sim/abilities';
-import { applyModifier, hasModifier } from '../../sim/modifiers';
+import { applyModifier, hasModifier, type ModifierDef } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
 import type { World } from '../../sim/world';
 
@@ -486,23 +486,38 @@ const BAN_W: AbilityDef = {
 
 const NIGHT_DUR = [4, 4.75, 5.5, 6.25];
 
+/**
+ * 噩梦沉睡 modifier:受伤即唤醒,并将噩梦**传递给攻击者**(以剩余时长),
+ * 经典 Nightmare 跳转——含己方误伤(攻击沉睡目标的友军也会入睡)。
+ * remaining 随时间递减,< 0.5s 不再跳转,故链条必然终止(无死循环)。
+ */
+function nightmareSleep(dur: number): ModifierDef {
+  return {
+    key: 'ban_nightmare_sleep', duration: dur, states: { stunned: true, disarmed: true, silenced: true },
+    tickInterval: 0.1,
+    onTick(world, u, m) {
+      m.data!.start ??= m.expiresAt - dur;
+      const start = m.data!.start as number;
+      if (u.lastDamagedAt > start + 0.05) {
+        const remaining = start + dur - world.time;
+        m.expiresAt = -Infinity; // 当前目标唤醒
+        const attacker = world.getUnit(u.lastAttackerId);
+        if (attacker && attacker.alive && attacker.id !== u.id && remaining > 0.5) {
+          applyModifier(world, attacker, nightmareSleep(remaining), m.sourceId);
+        }
+      }
+    },
+  };
+}
+
 const BAN_E: AbilityDef = {
   key: 'ban_nightmare', name: '噩梦', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [21, 20, 19, 18],
   castPoint: 0.3, tags: ['stun'],
-  description: '使目标陷入噩梦沉睡:无法行动(受到伤害会被唤醒)。',
+  description: '使目标陷入噩梦沉睡:无法行动;受伤唤醒,且噩梦传递给攻击者。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    const dur = NIGHT_DUR[lvl - 1];
-    applyModifier(w, target, {
-      key: 'ban_nightmare_sleep', duration: dur, states: { stunned: true, disarmed: true, silenced: true },
-      tickInterval: 0.1,
-      onTick(_world, u, m) {
-        // 受伤唤醒:沉睡施加后再受到伤害则立即结束
-        m.data!.start ??= m.expiresAt - dur;
-        if (u.lastDamagedAt > (m.data!.start as number) + 0.05) m.expiresAt = -Infinity;
-      },
-    }, caster.id);
+    applyModifier(w, target, nightmareSleep(NIGHT_DUR[lvl - 1]), caster.id);
     w.emit({ kind: 'fx', fx: 'nightmare', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {

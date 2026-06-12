@@ -190,6 +190,21 @@ describe('班恩', () => {
     run(5); // 下一次 onTick 检测到受伤 → 唤醒
     expect(hasModifier(t, 'ban_nightmare_sleep')).toBe(false);
   });
+  it('噩梦:受伤唤醒并传递给攻击者', () => {
+    const h = spawnHero(w, BAN, Team.Dawn, { x: 7000, y: 8000 });
+    learnAbility(w, h, 2); h.mp = 200;
+    const sleeper = dummy(7300, 8000);
+    const attacker = dummy(7400, 8000);
+    h.issueOrder({ type: 'cast', abilityIndex: 2, targetId: sleeper.id });
+    run(12);
+    expect(hasModifier(sleeper, 'ban_nightmare_sleep')).toBe(true);
+    expect(hasModifier(attacker, 'ban_nightmare_sleep')).toBe(false);
+    // 攻击者打沉睡者 → 沉睡者醒、噩梦跳到攻击者
+    applyDamage(w, sleeper, { source: attacker.id, attackType: 'hero', amount: 50, flags: { pure: true } });
+    run(5);
+    expect(hasModifier(sleeper, 'ban_nightmare_sleep')).toBe(false); // 醒
+    expect(hasModifier(attacker, 'ban_nightmare_sleep')).toBe(true);  // 被传递入睡
+  });
   it('末日缠绕:引导束缚+持续伤害', () => {
     const h = spawnHero(w, BAN, Team.Dawn, { x: 7000, y: 8000 });
     h.level = 6; h.heroMeta!.skillPoints = 1; h.mp = 400;

@@ -59,15 +59,19 @@ describe('economy formulas', () => {
   it('kill bounty scales with level and streak', () => {
     expect(heroKillBounty(1, 0)).toBe(111); // 100 + 11×1(M10 校准)
     expect(heroKillBounty(10, 0)).toBe(210); // 100 + 11×10
-    expect(heroKillBounty(10, 5)).toBeGreaterThan(heroKillBounty(10, 0));
+    // 终结连杀阶梯:3→+50 5→+200 8+→+500(经典)
+    expect(heroKillBounty(10, 3)).toBe(260);
+    expect(heroKillBounty(10, 5)).toBe(410);
+    expect(heroKillBounty(10, 8)).toBe(710);
+    expect(heroKillBounty(10, 20)).toBe(710); // 8+ 封顶 +500
   });
   it('respawn capped', () => {
     expect(respawnTime(25)).toBeLessThanOrEqual(110);
     expect(respawnTime(1)).toBe(6);
   });
   it('buyback grows quadratically', () => {
-    expect(buybackCost(10)).toBe(250);
-    expect(buybackCost(20)).toBe(700);
+    expect(buybackCost(10)).toBe(300); // 100 + 10²×2
+    expect(buybackCost(20)).toBe(900); // 100 + 20²×2
   });
 });
 

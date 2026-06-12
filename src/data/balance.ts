@@ -77,7 +77,11 @@ export const PERIODIC_GOLD = 1;
 export const PERIODIC_GOLD_INTERVAL = 0.6; // 秒(M10:0.8→0.6,经典约 100 金/分)
 export function heroKillBounty(victimLevel: number, streak: number): number {
   let g = 100 + 11 * victimLevel; // 校准至经典(M10):前期赏金更低、后期更高
-  if (streak >= 3) g += Math.min((streak - 2) * 50, 500); // 终结连杀额外赏金(上限 500)
+  // 终结连杀额外赏金:经典阶梯 3→50 4→100 5→200 6→300 7→400 8+→500
+  if (streak >= 3) {
+    const ladder = [50, 100, 200, 300, 400, 500];
+    g += ladder[Math.min(streak - 3, ladder.length - 1)];
+  }
   return g;
 }
 export const ASSIST_RADIUS = 1000; // 经典助攻圈(M10:1300→1000)
@@ -85,7 +89,7 @@ export function deathGoldLoss(level: number): number {
   return 30 * level;
 }
 export function buybackCost(level: number): number {
-  return Math.floor(100 + level * level * 1.5);
+  return Math.floor(100 + level * level * 2); // 经典 100 + lvl²×2
 }
 /** 买活冷却(秒):防止同一英雄短时间反复买活,后期博弈核心。 */
 export const BUYBACK_COOLDOWN = 300;
