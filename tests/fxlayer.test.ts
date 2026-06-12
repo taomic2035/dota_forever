@@ -51,6 +51,25 @@ describe('FxLayer.consume 其他事件', () => {
     );
     expect(fx.texts.some((t) => t.text.includes('137'))).toBe(true);
   });
+  it('正补 → 金色 +金币 浮动文字', () => {
+    const fx = new FxLayer();
+    const killer = { team: 0 };
+    fx.consume(fakeWorld([{ kind: 'last_hit', unitId: 1, gold: 42, pos: { x: 0, y: 0 } }], { 1: killer }), null);
+    expect(fx.texts.some((t) => t.text === '+42')).toBe(true);
+  });
+  it('反补 → 拒绝 浮动文字', () => {
+    const fx = new FxLayer();
+    const killer = { team: 0 };
+    fx.consume(fakeWorld([{ kind: 'last_hit', unitId: 1, gold: 0, pos: { x: 0, y: 0 }, deny: true }], { 1: killer }), null);
+    expect(fx.texts.some((t) => t.text === '拒绝')).toBe(true);
+  });
+  it('敌方补刀对玩家不显示(team 过滤)', () => {
+    const fx = new FxLayer();
+    const enemy = { team: 1 };
+    // viewerTeam = 0(晨曦),击杀者为永夜 → 不显示
+    fx.consume(fakeWorld([{ kind: 'last_hit', unitId: 1, gold: 42, pos: { x: 0, y: 0 } }], { 1: enemy }), 0);
+    expect(fx.texts.length).toBe(0);
+  });
   it('塔被摧毁 → 爆炸粒子', () => {
     const fx = new FxLayer();
     const tower = { pos: { x: 9, y: 9 }, isBuilding: () => true, team: 1 };

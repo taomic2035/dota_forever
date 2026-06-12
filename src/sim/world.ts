@@ -16,6 +16,7 @@ export type GameEvent =
   | { kind: 'projectile_hit'; pos: Vec2 }
   | { kind: 'hero_level'; unitId: EntityId; level: number }
   | { kind: 'hero_kill'; killerId: EntityId; victimId: EntityId; bounty: number; streakText?: string }
+  | { kind: 'last_hit'; unitId: EntityId; gold: number; pos: Vec2; deny?: boolean }
   | { kind: 'tower_fell'; unitId: EntityId; team: Team; byTeam: Team }
   | { kind: 'rax_fell'; unitId: EntityId; team: Team }
   | { kind: 'game_over'; winner: Team }

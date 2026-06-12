@@ -62,10 +62,15 @@ export function installEconomy(w: World): void {
         for (const h of sharers) addXp(world, h, xpTotal / Math.max(1, sharers.length));
         // 金币
         if (!denied && killer?.isHero() && killer.team !== victim.team) {
-          addGold(killer, world.rng.int(victim.base.bountyMin, victim.base.bountyMax));
+          const g = world.rng.int(victim.base.bountyMin, victim.base.bountyMax);
+          addGold(killer, g);
           killer.heroMeta!.lastHits++;
+          world.emit({ kind: 'last_hit', unitId: killer.id, gold: g, pos: V.clone(victim.pos) });
         }
-        if (denied && killer?.isHero()) killer.heroMeta!.denies++;
+        if (denied && killer?.isHero()) {
+          killer.heroMeta!.denies++;
+          world.emit({ kind: 'last_hit', unitId: killer.id, gold: 0, pos: V.clone(victim.pos), deny: true });
+        }
       } else if (victim.isHero()) {
         const vm = victim.heroMeta!;
         vm.deaths++;
@@ -92,7 +97,10 @@ export function installEconomy(w: World): void {
       } else if (victim.kind === 'tower') {
         const tier = victim.buildingKind === 'tower1' ? 't1' : victim.buildingKind === 'tower2' ? 't2' : victim.buildingKind === 'tower3' ? 't3' : 't4';
         const ts = TOWER_STATS[tier];
-        if (killer?.isHero() && killer.team !== victim.team) addGold(killer, ts.bounty);
+        if (killer?.isHero() && killer.team !== victim.team) {
+          addGold(killer, ts.bounty);
+          world.emit({ kind: 'last_hit', unitId: killer.id, gold: ts.bounty, pos: V.clone(victim.pos) });
+        }
         for (const h of world.units.values()) {
           if (h.isHero() && h.team !== victim.team) addGold(h, ts.teamGold);
         }

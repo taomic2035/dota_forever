@@ -114,6 +114,19 @@ export class FxLayer {
         }
         return;
       }
+      case 'last_hit': {
+        // 仅显示观察方队伍(观战 null 显示全部),避免敌方补刀刷屏
+        const killer = world.getUnit(e.unitId);
+        if (this.viewerTeam !== null && killer?.team !== this.viewerTeam) return;
+        if (!gate(e.pos)) return;
+        if (e.deny) {
+          this.texts.push({ text: '拒绝', pos: { x: e.pos.x, y: e.pos.y - 20 }, color: '#9fd0ff', size: 13, t: 0, life: 0.9, vy: -55 });
+        } else if (e.gold > 0) {
+          this.texts.push({ text: `+${e.gold}`, pos: { x: e.pos.x, y: e.pos.y - 20 }, color: '#ffd24a', size: 14, t: 0, life: 1.0, vy: -55 });
+        }
+        this.trimTexts();
+        return;
+      }
       case 'unit_died': {
         const u = world.getUnit(e.unitId);
         if (!u || (u as any).isBuilding?.()) return; // 建筑由 tower_fell/rax_fell 处理
