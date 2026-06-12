@@ -15,6 +15,7 @@ import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
 import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
 import { terrainVisualAt } from './mapReadability';
+import { projectileVisualFor, type ProjectileSourceKind } from './projectileReadability';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -379,24 +380,31 @@ export class Renderer {
       const sp = this.camera.worldToScreen(p.pos);
       if (sp.x < -40 || sp.y < -40 || sp.x > this.canvas.width + 40 || sp.y > this.canvas.height + 40) continue;
       const target = world.getUnit(p.targetId);
+      const src = world.getUnit(p.sourceId);
       const dir = target ? V.angle(p.pos, target.pos) : 0;
+      const visual = projectileVisualFor({
+        kind: p.kind,
+        sourceTeam: src?.team ?? Team.Neutral,
+        sourceKind: src?.kind as ProjectileSourceKind | undefined,
+        style: p.style,
+      });
       if (p.kind === 'ability') {
         // 发光法球 + 拖尾
-        const col = p.style === 'hammer' ? '#ffd54f' : '#bfe3ff';
-        const rad = Math.max(3, this.s(16));
+        const col = visual.color;
+        const rad = Math.max(3, this.s(visual.thickness));
         ctx.save();
-        ctx.globalAlpha = 0.4;
-        ctx.strokeStyle = col;
+        ctx.globalAlpha = 0.48;
+        ctx.strokeStyle = visual.trail;
         ctx.lineWidth = rad;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(sp.x, sp.y);
-        ctx.lineTo(sp.x - Math.cos(dir) * rad * 2.2, sp.y - Math.sin(dir) * rad * 2.2);
+        ctx.lineTo(sp.x - Math.cos(dir) * this.s(visual.length), sp.y - Math.sin(dir) * this.s(visual.length));
         ctx.stroke();
         ctx.globalAlpha = 1;
         ctx.fillStyle = col;
         ctx.shadowColor = col;
-        ctx.shadowBlur = rad;
+        ctx.shadowBlur = this.s(visual.glow);
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, rad * 0.7, 0, Math.PI * 2);
         ctx.fill();
@@ -404,15 +412,18 @@ export class Renderer {
         ctx.restore();
       } else {
         // 普攻:定向箭矢/弹丸
-        const src = world.getUnit(p.sourceId);
-        const col = src?.team === Team.Night ? '#ff9e80' : src?.team === Team.Dawn ? '#cdeebf' : '#e0e0e0';
-        const len = Math.max(4, this.s(46));
+        const col = visual.color;
+        const len = Math.max(4, this.s(visual.length));
         ctx.save();
         ctx.translate(sp.x, sp.y);
         ctx.rotate(dir);
         ctx.strokeStyle = col;
-        ctx.lineWidth = Math.max(1.5, this.s(5));
+        ctx.lineWidth = Math.max(1.5, this.s(visual.thickness));
         ctx.lineCap = 'round';
+        if (visual.glow > 0) {
+          ctx.shadowColor = col;
+          ctx.shadowBlur = this.s(visual.glow);
+        }
         ctx.beginPath();
         ctx.moveTo(-len * 0.5, 0);
         ctx.lineTo(len * 0.5, 0);
@@ -424,6 +435,13 @@ export class Renderer {
         ctx.moveTo(len * 0.5, 0);
         ctx.lineTo(len * 0.2, len * 0.18);
         ctx.stroke();
+        if (visual.family === 'tower') {
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.arc(len * 0.48, 0, Math.max(2, this.s(4)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.shadowBlur = 0;
         ctx.restore();
       }
     }
