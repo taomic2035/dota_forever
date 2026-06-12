@@ -5,11 +5,12 @@
 import { V } from '../core/vec2';
 import {
   TOWER_STATS, RAX_STATS, ANCIENT_STATS, FOUNTAIN_STATS,
-  TOWER_VISION, FOUNTAIN_AURA_RADIUS, TOWER_HERO_DEFENSE_RADIUS,
+  TOWER_VISION, TOWER_TRUE_SIGHT, FOUNTAIN_AURA_RADIUS, TOWER_HERO_DEFENSE_RADIUS,
   UNIT_RADIUS,
 } from '../data/balance';
 import type { BuildingKind } from '../data/mapLayout';
 import { Team } from './map';
+import { applyModifier } from './modifiers';
 import type { World } from './world';
 import type { Unit, UnitStats } from './unit';
 
@@ -94,6 +95,10 @@ export function spawnBuildings(w: World): void {
     });
     u.buildingKind = b.kind;
     u.lane = b.lane;
+    // 防御塔自带真视(经典:塔周围约 900 揭示隐身,使塔下隐身无效)。
+    if (u.kind === 'tower') {
+      applyModifier(w, u, { key: 'tower_truesight', isBuff: true, stats: { trueSightRadius: TOWER_TRUE_SIGHT } }, u.id);
+    }
   }
   updateAncientProtection(w);
 }

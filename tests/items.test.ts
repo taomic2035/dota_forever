@@ -112,16 +112,17 @@ describe('items: consumables & actives', () => {
   });
 
   it('dusted invisible unit becomes visible', () => {
-    const sneak = spawnHero(w, LIYA, Team.Night, w.map.nearestWalkable({ x: 1900, y: 13300 }));
+    // 中部空地(远离任何 Dawn 塔真视 900,见塔真视 V2 修复);由 Dawn 英雄提供视野(英雄无真视)
+    const sneak = spawnHero(w, LIYA, Team.Night, w.map.nearestWalkable({ x: 8000, y: 8000 }));
     const { applyModifier } = await_import_modifiers();
     applyModifier(w, sneak, { key: 'invis_test', duration: 99, states: { invisible: true } }, sneak.id);
-    for (let i = 0; i < 10; i++) w.step();
-    expect(isVisibleTo(w, Team.Dawn, sneak)).toBe(false);
-    buyItem(w, h, 'dust');
+    buyItem(w, h, 'dust'); // 在基地商店范围购买,再移近
     h.pos = w.map.nearestWalkable({ x: sneak.pos.x + 300, y: sneak.pos.y });
+    for (let i = 0; i < 10; i++) w.step();
+    expect(isVisibleTo(w, Team.Dawn, sneak)).toBe(false); // 在英雄视野内但隐身、无真视 → 不可见
     useItem(w, h, h.inventory.findIndex((i) => i?.itemKey === 'dust'));
     for (let i = 0; i < 10; i++) w.step();
-    expect(isVisibleTo(w, Team.Dawn, sneak)).toBe(true);
+    expect(isVisibleTo(w, Team.Dawn, sneak)).toBe(true); // 显影之尘揭示
   });
 });
 

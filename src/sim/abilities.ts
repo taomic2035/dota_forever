@@ -176,6 +176,7 @@ function progress(w: World, u: Unit): boolean {
     const def = abilityDefAt(u, ch.abilityIndex);
     const inst = u.abilities[ch.abilityIndex];
     if (!def?.channel || !inst) { u.channeling = null; return false; }
+    if (stateOf(u).silenced) { u.channeling = null; return false; } // 沉默中断引导(经典)
     if (w.time >= ch.until) { u.channeling = null; return false; }
     if (w.time >= ch.nextTickAt) {
       ch.nextTickAt += def.channel.tickInterval;
