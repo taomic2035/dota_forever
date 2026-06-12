@@ -3,6 +3,7 @@
  * 价格与数值为经典量级的原创配置,集中可调。
  */
 import { V, type Vec2 } from '../core/vec2';
+import type { TargetTeamFilter } from '../engine/targetFilters';
 import type { StatMods } from '../sim/modifiers';
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
@@ -27,6 +28,7 @@ export interface ItemDef {
     manaCost?: number;
     cooldown: number;
     targetMode: 'none' | 'point' | 'unit';
+    targetTeam?: TargetTeamFilter;
     castRange?: number;
     /** 返回 false 表示未生效(不消耗) */
     onUse(w: World, user: Unit, pos?: Vec2, target?: Unit): boolean;
@@ -583,7 +585,7 @@ ITEMS.push(
     stats: { bonusInt: 10, bonusHpRegen: 4 },
     recipe: { components: ['staff_wizardry', 'ring_regen', 'sobi_mask'], recipeCost: 525 },
     active: {
-      name: '原力', cooldown: 15, targetMode: 'unit', castRange: 800,
+      name: '原力', cooldown: 15, targetMode: 'unit', targetTeam: 'any', castRange: 800,
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         const dir = { x: Math.cos(t.facing), y: Math.sin(t.facing) };
@@ -599,7 +601,7 @@ ITEMS.push(
     stats: { bonusInt: 20, bonusHp: 250 },
     recipe: { components: ['staff_wizardry', 'vitality_booster'], recipeCost: 650 },
     active: {
-      name: '缠绕', manaCost: 50, cooldown: 18, targetMode: 'unit', castRange: 800,
+      name: '缠绕', manaCost: 50, cooldown: 18, targetMode: 'unit', targetTeam: 'enemy', castRange: 800,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_atos_root', duration: 2.5, states: { rooted: true }, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
@@ -613,7 +615,7 @@ ITEMS.push(
     stats: { bonusMagicResist: 0.16, bonusMpRegen: 1.5 },
     recipe: { components: ['cloak', 'sobi_mask'], recipeCost: 1075 },
     active: {
-      name: '微光', cooldown: 15, targetMode: 'unit', castRange: 800,
+      name: '微光', cooldown: 15, targetMode: 'unit', targetTeam: 'allyOrSelf', castRange: 800,
       onUse(w, user, _pos, target) {
         const t = target && target.team === user.team ? target : user;
         applyModifier(w, t, { key: 'item_glimmer', duration: 5, isBuff: true, states: { invisible: true }, stats: { bonusMagicResist: 0.45, bonusMoveSpeedPct: 0.15 } }, user.id);
@@ -627,7 +629,7 @@ ITEMS.push(
     stats: { bonusArmor: 6, bonusMpRegen: 1.5 },
     recipe: { components: ['chainmail', 'sobi_mask'], recipeCost: 200 },
     active: {
-      name: '强化勇气', cooldown: 8, targetMode: 'unit', castRange: 800,
+      name: '强化勇气', cooldown: 8, targetMode: 'unit', targetTeam: 'any', castRange: 800,
       onUse(w, user, _pos, target) {
         if (!target) return false;
         applyModifier(w, target, { key: 'item_medallion_armor', duration: 7, stats: { bonusArmor: target.team === user.team ? 7 : -7 } }, user.id);
@@ -666,7 +668,7 @@ ITEMS.push(
     stats: { bonusInt: 25, bonusAttackSpeed: 0.3, bonusMpRegen: 2, spellAmp: 0.1 },
     recipe: { components: ['mystic_staff', 'hyperstone'], recipeCost: 0 },
     active: {
-      name: '禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', castRange: 900,
+      name: '禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', targetTeam: 'enemy', castRange: 900,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_orchid_silence', duration: 5, states: { silenced: true } }, user.id);
@@ -751,7 +753,7 @@ ITEMS.push(
       _spellDamage(w, attacker, target, burn * 0.8);
     },
     active: {
-      name: '净魂', cooldown: 12, targetMode: 'unit', castRange: 600,
+      name: '净魂', cooldown: 12, targetMode: 'unit', targetTeam: 'any', castRange: 600,
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         if (t.team === user.team) { purge(w, t, false); return true; }
@@ -771,7 +773,7 @@ ITEMS.push(
       applyModifier(w, target, { key: 'item_abyssal_bash', duration: 0.6, states: { stunned: true } }, attacker.id);
     },
     active: {
-      name: '深渊禁锢', cooldown: 30, targetMode: 'unit', castRange: 600,
+      name: '深渊禁锢', cooldown: 30, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_abyssal_stun', duration: 2, states: { stunned: true } }, user.id);
@@ -798,7 +800,7 @@ ITEMS.push(
     stats: { bonusInt: 10, bonusMpRegen: 4, bonusMoveSpeed: 40 },
     recipe: { components: ['staff_wizardry', 'sobi_mask'], recipeCost: 725 },
     active: {
-      name: '旋风', manaCost: 100, cooldown: 16, targetMode: 'unit', castRange: 700,
+      name: '旋风', manaCost: 100, cooldown: 16, targetMode: 'unit', targetTeam: 'any', castRange: 700,
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         if (t.team !== user.team) {
@@ -817,7 +819,7 @@ ITEMS.push(
     stats: { bonusInt: 30, bonusMp: 150, bonusMpRegen: 3 },
     recipe: { components: ['mystic_staff', 'ogre_axe'], recipeCost: 700 },
     active: {
-      name: '妖术', manaCost: 100, cooldown: 20, targetMode: 'unit', castRange: 600,
+      name: '妖术', manaCost: 100, cooldown: 20, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.65 } }, user.id);
@@ -831,7 +833,7 @@ ITEMS.push(
     stats: { bonusInt: 13, bonusStr: 5, bonusAgi: 3, bonusDamage: 9 },
     recipe: { components: ['null_talisman', 'staff_wizardry'], recipeCost: 1175 },
     active: {
-      name: '神灭', manaCost: 120, cooldown: 35, targetMode: 'unit', castRange: 700,
+      name: '神灭', manaCost: 120, cooldown: 35, targetMode: 'unit', targetTeam: 'enemy', castRange: 700,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         _spellDamage(w, user, target, 400);
@@ -1065,7 +1067,7 @@ ITEMS.push(
       applyModifier(w, target, { key: 'item_maim', duration: 4, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.2 } }, attacker.id);
     },
     active: {
-      name: '缴械', cooldown: 22, targetMode: 'unit', castRange: 600,
+      name: '缴械', cooldown: 22, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_halberd_disarm', duration: 3.5, states: { disarmed: true } }, user.id);
@@ -1161,7 +1163,7 @@ ITEMS.push(
     stats: { bonusArmor: 6, bonusAttackSpeed: 0.2, evasion: 0.1, bonusMpRegen: 2 },
     recipe: { components: ['medallion', 'gloves_haste'], recipeCost: 625 },
     active: {
-      name: '银月', cooldown: 9, targetMode: 'unit', castRange: 800,
+      name: '银月', cooldown: 9, targetMode: 'unit', targetTeam: 'any', castRange: 800,
       onUse(w, user, _pos, target) {
         if (!target) return false;
         if (target.team === user.team) {
@@ -1179,7 +1181,7 @@ ITEMS.push(
     stats: { bonusStr: 20, bonusAgi: 20, bonusAttackRange: 140, bonusHpRegen: 4 },
     recipe: { components: ['dragon_lance', 'force_staff'], recipeCost: 0 },
     active: {
-      name: '飓风', cooldown: 15, targetMode: 'unit', castRange: 800,
+      name: '飓风', cooldown: 15, targetMode: 'unit', targetTeam: 'any', castRange: 800,
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         const dir = { x: Math.cos(t.facing), y: Math.sin(t.facing) };
@@ -1195,7 +1197,7 @@ ITEMS.push(
     stats: { bonusStr: 8, bonusHpRegen: 4, bonusMpRegen: 3 }, charges: 4, rechargeable: true,
     recipe: { components: ['urn', 'ring_regen', 'sobi_mask'], recipeCost: 650 },
     active: {
-      name: '阴邪萃取', cooldown: 8, targetMode: 'unit', castRange: 600,
+      name: '阴邪萃取', cooldown: 8, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         const inst = user.inventory.find((i) => i?.itemKey === 'spirit_vessel');
         if (!inst || inst.charges <= 0) return false;
@@ -1221,7 +1223,7 @@ ITEMS.push(
     stats: { bonusInt: 30, bonusAttackSpeed: 0.35, bonusDamage: 30, critChance: 0.3, critMultiplier: 1.8, spellAmp: 0.1 },
     recipe: { components: ['orchid', 'demon_edge'], recipeCost: 0 },
     active: {
-      name: '血棘禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', castRange: 900,
+      name: '血棘禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', targetTeam: 'enemy', castRange: 900,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         applyModifier(w, target, { key: 'item_bloodthorn_silence', duration: 5, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.2 } }, user.id);
@@ -1243,7 +1245,7 @@ ITEMS.push(
     stats: { bonusAgi: 10, bonusInt: 10, bonusMp: 150 },
     recipe: { components: ['ghost', 'energy_booster'], recipeCost: 600 },
     active: {
-      name: '以太冲击', manaCost: 75, cooldown: 20, targetMode: 'unit', castRange: 700,
+      name: '以太冲击', manaCost: 75, cooldown: 20, targetMode: 'unit', targetTeam: 'any', castRange: 700,
       onUse(w, user, _pos, target) {
         if (!target) return false;
         applyModifier(w, target, { key: 'item_ethereal', duration: 3, states: { physImmune: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
@@ -1283,7 +1285,7 @@ ITEMS.push(
     stats: { bonusMagicResist: 0.12, bonusDamage: 25 },
     recipe: { components: ['cloak', 'sobi_mask', 'robe'], recipeCost: 675 },
     active: {
-      name: '否决', manaCost: 75, cooldown: 13, targetMode: 'unit', castRange: 750,
+      name: '否决', manaCost: 75, cooldown: 13, targetMode: 'unit', targetTeam: 'enemy', castRange: 750,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
         purge(w, target, true); // 移除其增益
@@ -1319,7 +1321,7 @@ ITEMS.push(
       _spellDamage(w, attacker, target, burn);
     },
     active: {
-      name: '消散', cooldown: 10, targetMode: 'unit', castRange: 600,
+      name: '消散', cooldown: 10, targetMode: 'unit', targetTeam: 'any', castRange: 600,
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         if (t.team === user.team) { purge(w, t, false); applyModifier(w, t, { key: 'item_disperser_haste', duration: 4, isBuff: true, stats: { bonusMoveSpeedPct: 0.25 } }, user.id); }
@@ -1334,7 +1336,7 @@ ITEMS.push(
     stats: { bonusStr: 12, bonusAgi: 12, bonusAttackSpeed: 0.2 },
     recipe: { components: ['ogre_axe', 'blade_alacrity'], recipeCost: 600 },
     active: {
-      name: '抛叉', cooldown: 16, targetMode: 'unit', castRange: 1000,
+      name: '抛叉', cooldown: 16, targetMode: 'unit', targetTeam: 'enemy', castRange: 1000,
       onUse(w, user, _pos, target) {
         if (!target) return false;
         blinkTo(w, user, w.map.nearestWalkable(V.add(target.pos, V.scale(V.norm(V.sub(user.pos, target.pos)), 150))));
@@ -1438,7 +1440,7 @@ ITEMS.push(
     stats: { bonusHp: 150, bonusMp: 150, bonusHpRegen: 4, bonusMpRegen: 2 },
     recipe: { components: ['ring_regen', 'sobi_mask', 'chainmail'], recipeCost: 675 },
     active: {
-      name: '神圣涌动', manaCost: 50, cooldown: 16, targetMode: 'unit', castRange: 600,
+      name: '神圣涌动', manaCost: 50, cooldown: 16, targetMode: 'unit', targetTeam: 'allyOrSelf', castRange: 600,
       onUse(w, user, _pos, target) {
         const t = target && target.team === user.team ? target : user;
         t.hp = Math.min(t.calc.maxHp, t.hp + 250);

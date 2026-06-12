@@ -438,6 +438,7 @@ const PURIFY_VAL = [90, 160, 230, 300];
 
 const OLAN_Q: AbilityDef = {
   key: 'olan_purify', name: '圣疗术', maxLevel: 4, targetMode: 'unit',
+  targetTeam: 'allyOrSelf',
   castRange: [550, 550, 550, 550], manaCost: [85, 100, 115, 130], cooldown: [11, 10, 9, 8],
   castPoint: 0.25, tags: ['heal', 'nuke'],
   description: '圣光治愈友军,并灼伤其周围的敌人。',
@@ -488,6 +489,7 @@ const SHIELD_VAL = [110, 170, 230, 290];
 
 const OLAN_E: AbilityDef = {
   key: 'olan_shield', name: '信仰守护', maxLevel: 4, targetMode: 'unit',
+  targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [12, 11, 10, 9],
   castPoint: 0.25, tags: ['buff', 'heal'],
   description: '为友军展开圣盾,吸收伤害。',

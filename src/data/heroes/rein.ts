@@ -10,6 +10,7 @@ const HAMMER_STUN = [1.4, 1.6, 1.8, 2.0];
 
 export const REIN_Q: AbilityDef = {
   key: 'rein_hammer', name: '雷霆战锤', maxLevel: 4, targetMode: 'unit',
+  targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [95, 110, 125, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.35, tags: ['nuke', 'stun'],
   description: '掷出战锤,造成魔法伤害并眩晕目标。',

@@ -24,6 +24,7 @@ const CHAIN_JUMPS = [5, 7, 9, 11];
 
 export const ZOLA_Q: AbilityDef = {
   key: 'zola_chain', name: '连环闪电', maxLevel: 4, targetMode: 'unit',
+  targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 105, 120, 135], cooldown: [9, 8, 7, 6],
   castPoint: 0.35, tags: ['nuke', 'aoe'],
   description: '闪电在敌人间弹射,每次跳跃造成伤害。',
@@ -56,6 +57,7 @@ const BOLT_DMG = [100, 175, 250, 325];
 
 export const ZOLA_W: AbilityDef = {
   key: 'zola_bolt', name: '裁决天雷', maxLevel: 4, targetMode: 'unit',
+  targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [95, 115, 135, 155], cooldown: [12, 11, 10, 9],
   castPoint: 0.35, tags: ['nuke', 'stun'],
   description: '召来天雷轰击目标,造成重创并短暂打断。',
