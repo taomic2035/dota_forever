@@ -36,10 +36,10 @@
 
 ## Task 3: Screenshot, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-target-team-audit.png`.
-- [ ] Write `docs/ux/2026-06-12-target-team-audit-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete target team audit pass`.
+- [x] Capture `docs/screenshots/ux-target-team-audit.png`.
+- [x] Write `docs/ux/2026-06-12-target-team-audit-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete target team audit pass`.
 
 ## Self-Review
 
