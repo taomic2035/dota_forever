@@ -75,3 +75,20 @@ describe('parseRgb', () => {
     expect(parseRgb('rgb(10, 20, 30)')).toEqual({ r: 10, g: 20, b: 30 });
   });
 });
+
+describe('fxStyle family metadata', () => {
+  it('returns stable spell family labels', () => {
+    expect(fxStyle('fireblast').family).toBe('fire');
+    expect(fxStyle('frostnova').family).toBe('frost');
+    expect(fxStyle('lightning').family).toBe('lightning');
+    expect(fxStyle('venomnova').family).toBe('poison');
+    expect(fxStyle('blackhole').family).toBe('shadow');
+    expect(fxStyle('overgrowth').family).toBe('nature');
+    expect(fxStyle('fissure').family).toBe('earth');
+    expect(fxStyle('arcanebolt').family).toBe('arcane');
+  });
+
+  it('uses neutral for unknown effects', () => {
+    expect(fxStyle('unknown_effect_without_family').family).toBe('neutral');
+  });
+});

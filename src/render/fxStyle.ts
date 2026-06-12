@@ -6,6 +6,18 @@
  */
 
 export type FxMotion = 'burst' | 'rise' | 'fall' | 'flash' | 'crack';
+export type FxFamily =
+  | 'poison'
+  | 'fire'
+  | 'frost'
+  | 'lightning'
+  | 'holy'
+  | 'shadow'
+  | 'blood'
+  | 'nature'
+  | 'earth'
+  | 'arcane'
+  | 'neutral';
 
 export interface FxStyle {
   /** 主色(描边/填充) */
@@ -14,6 +26,8 @@ export interface FxStyle {
   glow: string;
   /** 点状特效的运动方式 */
   motion: FxMotion;
+  /** 元素家族,供 HUD/弹道/图标统一取色 */
+  family: FxFamily;
 }
 
 export interface Rgb {
@@ -36,27 +50,27 @@ export function parseRgb(s: string): Rgb {
 }
 
 /** 元素分类 → 主色。顺序即优先级(先匹配先得)。 */
-const ELEMENT_TABLE: Array<{ keys: string[]; color: string }> = [
+const ELEMENT_TABLE: Array<{ keys: string[]; color: string; family: FxFamily }> = [
   // 毒/自然腐蚀(绿)——置于影系之前,nethertoxin 等取绿
-  { keys: ['venom', 'poison', 'tox', 'miasma', 'plague', 'nox', 'goo', 'viper', 'corros'], color: '#5fd83a' },
+  { keys: ['venom', 'poison', 'tox', 'miasma', 'plague', 'nox', 'goo', 'viper', 'corros'], color: '#5fd83a', family: 'poison' },
   // 火(橙红)
-  { keys: ['fire', 'flame', 'flam', 'burn', 'scorch', 'pyre', 'ignite', 'meteor', 'ember', 'lava', 'firefly', 'icarus', 'sun', 'solar', 'phoenix', 'macro'], color: '#ff6a2a' },
+  { keys: ['fire', 'flame', 'flam', 'burn', 'scorch', 'pyre', 'ignite', 'meteor', 'ember', 'lava', 'firefly', 'icarus', 'sun', 'solar', 'phoenix', 'macro'], color: '#ff6a2a', family: 'fire' },
   // 霜/冰(青)
-  { keys: ['frost', 'ice', 'cold', 'freez', 'glaci', 'snow', 'blizz', 'avalan', 'winter', 'chill', 'cryo'], color: '#52d4ff' },
+  { keys: ['frost', 'ice', 'cold', 'freez', 'glaci', 'snow', 'blizz', 'avalan', 'winter', 'chill', 'cryo'], color: '#52d4ff', family: 'frost' },
   // 雷电(黄)。避免裸 'arc'(会误吞 arcane);'light' 仅在此处用于 lightning
-  { keys: ['lightning', 'thunder', 'static', 'storm', 'spark', 'overload', 'shock', 'volt', 'tempest', 'rollingthunder'], color: '#ffe23a' },
+  { keys: ['lightning', 'thunder', 'static', 'storm', 'spark', 'overload', 'shock', 'volt', 'tempest', 'rollingthunder'], color: '#ffe23a', family: 'lightning' },
   // 圣/月/光(金白)
-  { keys: ['holy', 'lumen', 'moon', 'lunar', 'celest', 'divine', 'guardian', 'purif', 'beam', 'illumin', 'eclipse', 'starf', 'starb', 'star', 'god', 'angel', 'rebuke'], color: '#ffd86b' },
+  { keys: ['holy', 'lumen', 'moon', 'lunar', 'celest', 'divine', 'guardian', 'purif', 'beam', 'illumin', 'eclipse', 'starf', 'starb', 'star', 'god', 'angel', 'rebuke'], color: '#ffd86b', family: 'holy' },
   // 影/虚空/死亡/灵魂(紫)
-  { keys: ['shadow', 'dark', 'nether', 'void', 'death', 'grave', 'necro', 'soul', 'wraith', 'demon', 'doom', 'curse', 'hex', 'fiend', 'reaper', 'vendetta', 'phantasm', 'phantom', 'terror', 'nightmar', 'culling', 'black', 'eclipse'], color: '#b46cff' },
+  { keys: ['shadow', 'dark', 'nether', 'void', 'death', 'grave', 'necro', 'soul', 'wraith', 'demon', 'doom', 'curse', 'hex', 'fiend', 'reaper', 'vendetta', 'phantasm', 'phantom', 'terror', 'nightmar', 'culling', 'black', 'eclipse'], color: '#b46cff', family: 'shadow' },
   // 血(深红)
-  { keys: ['blood', 'sangu', 'rupture', 'sap', 'drain', 'siphon', 'leech', 'lifebreak'], color: '#e6324b' },
+  { keys: ['blood', 'sangu', 'rupture', 'sap', 'drain', 'siphon', 'leech', 'lifebreak'], color: '#e6324b', family: 'blood' },
   // 自然/林木(叶绿)
-  { keys: ['nature', 'seed', 'sprout', 'overgrow', 'bramble', 'forest', 'wild', 'tree', 'living', 'attendant', 'spirits', 'wolf'], color: '#7ed957' },
+  { keys: ['nature', 'seed', 'sprout', 'overgrow', 'bramble', 'forest', 'wild', 'tree', 'living', 'attendant', 'spirits', 'wolf'], color: '#7ed957', family: 'nature' },
   // 地/岩/沙(土黄)
-  { keys: ['quake', 'fissure', 'stone', 'boulder', 'sand', 'rock', 'earth', 'echoslam', 'avalan', 'epicenter', 'split', 'burrow', 'stomp', 'pulver', 'titan', 'anchor'], color: '#d6a85a' },
+  { keys: ['quake', 'fissure', 'stone', 'boulder', 'sand', 'rock', 'earth', 'echoslam', 'avalan', 'epicenter', 'split', 'burrow', 'stomp', 'pulver', 'titan', 'anchor'], color: '#d6a85a', family: 'earth' },
   // 奥术/秘法(蓝)
-  { keys: ['arcane', 'mana', 'mystic', 'ether', 'astral', 'magic', 'rift', 'flux', 'pulse', 'energy', 'psi', 'kinetic', 'vortex'], color: '#5aa2ff' },
+  { keys: ['arcane', 'mana', 'mystic', 'ether', 'astral', 'magic', 'rift', 'flux', 'pulse', 'energy', 'psi', 'kinetic', 'vortex'], color: '#5aa2ff', family: 'arcane' },
 ];
 
 const RISE_KEYS = ['heal', 'mek', 'attendant', 'bloodlust', 'enrage', 'rage', 'trueform', 'windrun', 'warcry', 'buff', 'empower', 'enchant', 'rally', 'inner', 'shield', 'armor', 'guard', 'repel', 'bkb', 'overcharge', 'chakra', 'surge', 'sprint', 'haste', 'trance', 'shroud', 'carapace', 'fortify', 'guise', 'phaseshift', 'aegis', 'reincarn', 'living', 'purify', 'restore', 'shieldcrash', 'replen', 'embrace', 'fortress'];
@@ -69,9 +83,9 @@ function matchAny(name: string, keys: string[]): boolean {
   return false;
 }
 
-function elementColor(name: string): string {
-  for (const e of ELEMENT_TABLE) if (matchAny(name, e.keys)) return e.color;
-  return '#cfe8ff'; // 兜底:淡蓝白
+function elementOf(name: string): { color: string; family: FxFamily } {
+  for (const e of ELEMENT_TABLE) if (matchAny(name, e.keys)) return { color: e.color, family: e.family };
+  return { color: '#cfe8ff', family: 'neutral' }; // 兜底:淡蓝白
 }
 
 function motionOf(name: string): FxMotion {
@@ -94,8 +108,13 @@ export function fxStyle(name: string): FxStyle {
   const cached = CACHE.get(name);
   if (cached) return cached;
   const n = name.toLowerCase();
-  const color = elementColor(n);
-  const style: FxStyle = { color, glow: glowOf(color), motion: motionOf(n) };
+  const element = elementOf(n);
+  const style: FxStyle = {
+    color: element.color,
+    glow: glowOf(element.color),
+    motion: motionOf(n),
+    family: element.family,
+  };
   CACHE.set(name, style);
   return style;
 }
