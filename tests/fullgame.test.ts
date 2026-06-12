@@ -8,7 +8,7 @@ import { HEROES } from '../src/data/heroes';
 const map = new GameMap();
 
 describe('full game (M4 gate)', () => {
-  it('5v5 bot match reaches a decisive end within 60 sim-minutes', () => {
+  it('5v5 bot match reaches a decisive end within 60 sim-minutes', async () => {
     const w = createWorld(map, { seed: 2026, creeps: true, startTime: -10 });
     for (const team of [Team.Dawn, Team.Night]) {
       for (let i = 0; i < 5; i++) {
@@ -23,6 +23,7 @@ describe('full game (M4 gate)', () => {
     while (w.gameOver === null && ticks < LIMIT) {
       w.step();
       ticks++;
+      if (ticks % 3000 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
     }
     expect(w.gameOver).not.toBeNull();
     const minutes = w.time / 60;

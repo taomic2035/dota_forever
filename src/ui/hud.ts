@@ -32,7 +32,7 @@ export class Hud {
     this.bottom = document.createElement('div');
     this.bottom.style.cssText = [
       'position:absolute;bottom:0;left:50%;transform:translateX(-50%);pointer-events:auto;',
-      'width:min(1180px,calc(100vw - 18px));height:172px;box-sizing:border-box;',
+      'width:min(920px,calc(100vw - 260px));height:172px;box-sizing:border-box;',
       'background:linear-gradient(#182015f6,#070a06fb);border:1px solid #5a4a25;border-bottom:none;',
       'box-shadow:0 -8px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,230,150,.08);',
       'border-radius:8px 8px 0 0;padding:8px 10px;font-size:12px;',
