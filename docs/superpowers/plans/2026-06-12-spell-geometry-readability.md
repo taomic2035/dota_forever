@@ -19,25 +19,25 @@
 
 ## Task 1: Geometry Metadata Coverage
 
-- [ ] Add `FxLayer` tests for beam and field pattern propagation.
-- [ ] Run `npm test -- tests/fxlayer.test.ts`.
-- [ ] Confirm beam, ring, field, and point particles all carry pattern metadata.
+- [x] Add `FxLayer` tests for beam and field pattern propagation.
+- [x] Run `npm test -- tests/fxlayer.test.ts`.
+- [x] Confirm beam, ring, field, and point particles all carry pattern metadata.
 
 ## Task 2: Pattern-Aware Beam/Ring/Field Rendering
 
-- [ ] Replace beam raw color check with `p.pattern === 'jagged'`.
-- [ ] Add ring rim accents for shards, jagged, cloud, cracks, halo, runes, embers, splatter, and spark.
-- [ ] Add low-alpha field accents for the same pattern set.
-- [ ] Add beam accents along the path while preserving the main beam direction.
-- [ ] Run `npm run typecheck` and focused FX tests.
-- [ ] Commit as `feat(ux): extend spell patterns across geometry`.
+- [x] Replace beam raw color check with `p.pattern === 'jagged'`.
+- [x] Add ring rim accents for shards, jagged, cloud, cracks, halo, runes, embers, splatter, and spark.
+- [x] Add low-alpha field accents for the same pattern set.
+- [x] Add beam accents along the path while preserving the main beam direction.
+- [x] Run `npm run typecheck` and focused FX tests.
+- [x] Commit as `feat(ux): extend spell patterns across geometry`.
 
 ## Task 3: Screenshots, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-spell-geometry-readability.png`.
-- [ ] Write `docs/ux/2026-06-12-spell-geometry-readability-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete spell geometry readability pass`.
+- [x] Capture `docs/screenshots/ux-spell-geometry-readability.png`.
+- [x] Write `docs/ux/2026-06-12-spell-geometry-readability-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete spell geometry readability pass`.
 
 ## Self-Review
 
