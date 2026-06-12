@@ -39,6 +39,8 @@ export class Renderer {
   fx = new FxLayer();
   /** 单位美术描述符缓存(静态属性,按 id 缓存) */
   private artCache = new Map<number, UnitArt>();
+  /** 每帧可见单位 scratch(复用以免重复分配) */
+  private visibleScratch: Unit[] = [];
   /** 观察者阵营;null = 全图视野(观战) */
   viewerTeam: Team | null = null;
   /** 渲染插值系数(0-1),由主循环每帧设置 */
@@ -199,10 +201,12 @@ export class Renderer {
     if (ux) this.drawUxPulses(world, ux);
     if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
 
-    // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)
-    const units = [...world.units.values()].filter(
-      (u) => u.alive && (this.viewerTeam === null || isVisibleTo(world, this.viewerTeam, u)),
-    );
+    // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)。复用 scratch 数组,避免每帧 spread 分配(D4)。
+    const units = this.visibleScratch;
+    units.length = 0;
+    for (const u of world.units.values()) {
+      if (u.alive && (this.viewerTeam === null || isVisibleTo(world, this.viewerTeam, u))) units.push(u);
+    }
     units.sort((a, b) => a.pos.y - b.pos.y);
     for (const u of units) this.drawUnit(world, u, u.id === selectedId);
 

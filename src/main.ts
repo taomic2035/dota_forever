@@ -162,7 +162,6 @@ function startGame(mode: 'play' | 'spectate'): void {
     onChange: setControlSettings,
   });
 
-  let pendingItemSlot = -1;
   type RejectReason =
     | 'dead'
     | 'not-learned'
@@ -352,13 +351,9 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.addWorldPulse({ kind: 'move', pos, time: world.time });
       }
     },
-    onLeftClick(p) {
+    onLeftClick() {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
-      if (pendingItemSlot >= 0) {
-        useItem(world, hero, pendingItemSlot, map.nearestWalkable(p));
-        pendingItemSlot = -1;
-      }
     },
     onAttackMove(p) {
       if (!hero?.alive) return;

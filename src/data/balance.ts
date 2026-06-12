@@ -123,9 +123,10 @@ export const TOWER_STATS = {
 };
 export const TOWER_VISION = 1900;
 export const TOWER_TRUE_SIGHT = 900;
+// 注:摧毁兵营不直接给金(经典设计:奖励是该路超级兵),故无 teamGold 字段(D10)。
 export const RAX_STATS = {
-  melee:  { hp: 1500, armor: 12, teamGold: 150 },
-  ranged: { hp: 1200, armor: 9,  teamGold: 100 },
+  melee:  { hp: 1500, armor: 12 },
+  ranged: { hp: 1200, armor: 9 },
 };
 export const ANCIENT_STATS = { hp: 4250, armor: 13, regen: 3 };
 export const FOUNTAIN_STATS = { dmg: [230, 290] as [number, number], range: 1100, bat: 0.35, hpRegenPct: 0.04, mpRegenPct: 0.06 };

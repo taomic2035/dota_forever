@@ -9,7 +9,7 @@ import { isVisibleTo } from '../sim/vision';
 import { TEAM_COLOR } from './renderer';
 import { WORLD } from '../data/mapLayout';
 import type { UxFeedback } from '../ui/uxFeedback';
-import { landmarkVisuals } from './mapReadability';
+import { landmarkVisuals, type LandmarkVisual } from './mapReadability';
 
 const SIZE = 232;
 
@@ -18,6 +18,8 @@ export class MiniMap {
   private ctx: CanvasRenderingContext2D;
   private terrainThumb: HTMLCanvasElement;
   private pings: Array<{ x: number; y: number; at: number }> = [];
+  /** 静态地标缓存(地图不变,只算一次,避免每帧重建+克隆 Vec2)(D5) */
+  private landmarks: LandmarkVisual[] | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -80,8 +82,9 @@ export class MiniMap {
       ctx.globalAlpha = 1;
     }
 
-    // 固定地标(始终可见的地图知识):商店 / 野区 / 符文 / 深渊领主巢穴
-    for (const landmark of landmarkVisuals(world.map)) {
+    // 固定地标(始终可见的地图知识):商店 / 野区 / 符文 / 深渊领主巢穴。静态,缓存一次。
+    if (!this.landmarks) this.landmarks = landmarkVisuals(world.map);
+    for (const landmark of this.landmarks) {
       const x = landmark.pos.x * k;
       const y = landmark.pos.y * k;
       if (landmark.kind === 'secretShop') {

@@ -67,9 +67,12 @@
 - [x] **W4.2** daynight 先于 vision 安装,消除 isNight 1-tick 滞后(D2)。测试:`daynightVision.test.ts`
   (夜晚起点对齐重算 tick,验证视野当 tick 收缩;旧顺序下回归用例失败已验证)。
 - [x] **W4.3** boss_killed 特效用真实巢穴坐标 `PIT_POS`(D3)。
-- [ ] **W4.4** 渲染热路径:可见单位列表/静态地标缓存,避免每帧重建(D4, D5)。
+- [x] **W4.4** 渲染热路径:可见单位列表改用复用 scratch 数组(免每帧 spread,D4);小地图静态地标缓存一次(免每帧重建+克隆 Vec2,D5)。行为不变,纯分配优化。
 - [x] **W4.5** 英雄 color/glyph 去重(D8):沃斯/崔恩/泰德 三对撞色已分离;`heroArtUnique.test.ts` 守护全局唯一。
-- [ ] **W4.6** 数据清理:孤儿组件、死 balance 常量、`purchaseKeyFor` no-op、死 `pendingItemSlot` 分支、rax 金币确认(D7, D9, D10)。
+- [x] **W4.6(部分)** D7 移除 `main.ts` 死 `pendingItemSlot` 变量与分支(点目标物品走 `onItemKey`,从不赋有效值);
+  D10 移除死字段 `RAX_STATS.*.teamGold`(经典设计:兵营摧毁不给金,奖励是超级兵)。
+  `purchaseKeyFor` 经核实**非** no-op(正确映射合成件→卷轴 key),保留。
+  **D9 余下(孤儿组件、未具名死常量)推迟**:属内容/数据手术,破坏配方不变量与计数断言风险高、收益低,留待独立清理任务(审计已留档)。
 - [x] **W4.7** 野怪 leash 重置健壮化(D11):新增 `unit.leashing` 显式回营态;到家(order 已自然结束亦然)满血重置。
   测试:`neutralLeash.test.ts`(含"到家且 order=null 仍重置"的确定性用例,旧逻辑下失败已验证)。
 
