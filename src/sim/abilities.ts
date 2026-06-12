@@ -10,6 +10,7 @@ import type { World } from './world';
 import { Unit, type Order, type EntityId } from './unit';
 import { castHooks, attackHitHooks, stateOf, applyDamage, isEnemy } from './combat';
 import { applyModifier, removeModifier, type ModifierDef } from './modifiers';
+import { targetMatchesFilter } from './targeting';
 
 export interface AbilityInstance {
   key: string;
@@ -31,6 +32,25 @@ export function abilityReady(w: World, u: Unit, index: number): boolean {
   if (u.mp < mana) return false;
   if (stateOf(u).silenced) return false;
   return true;
+}
+
+export type AbilityCastReason = 'dead' | 'not-learned' | 'passive' | 'cooldown' | 'no-mana' | 'silenced';
+
+/**
+ * 技能为何不能施放的细分原因(null = 可施放)。UX 层(预拒绝文案)与 sim 共用此判断,
+ * 避免 main.ts 自行复刻校验导致漂移。仅含「能否发起」的原因;目标合法性见 sim/targeting。
+ */
+export function abilityCastReason(w: World, u: Unit, index: number): AbilityCastReason | null {
+  if (!u.alive) return 'dead';
+  const def = abilityDefAt(u, index);
+  const inst = u.abilities[index];
+  if (!def || !inst || inst.level <= 0) return 'not-learned';
+  if (def.targetMode === 'passive' || (def.passiveModifier && !def.onCast && !def.channel)) return 'passive';
+  if (w.time < inst.cooldownUntil) return 'cooldown';
+  const mana = def.manaCost?.[Math.max(0, inst.level - 1)] ?? 0;
+  if (u.mp < mana) return 'no-mana';
+  if (stateOf(u).silenced) return 'silenced';
+  return null;
 }
 
 // ---------- 升级 ----------
@@ -89,6 +109,8 @@ function startCast(w: World, u: Unit, o: Order): void {
   if (def.targetMode === 'unit') {
     target = w.getUnit(o.targetId!);
     if (!target || !target.alive) { u.order = null; return; }
+    // 权威目标校验:队伍/种类不合法则拒绝(人类/AI/未来网络命令一视同仁)
+    if (!targetMatchesFilter(u, target, def.targetTeam, def.targetKind)) { u.order = null; return; }
     aim = target.pos;
   }
 

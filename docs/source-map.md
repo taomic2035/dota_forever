@@ -8,7 +8,8 @@ This map is for quick handoff when continuing UI/control work.
 - `src/engine/input.ts`: keyboard/mouse interpretation, pending command state, cast mode timing, camera pan updates.
 - `src/engine/controlSettings.ts`: persistent control settings, cast mode parsing, slot overrides, camera preferences.
 - `src/engine/commandMode.ts`: pure pending-command state machine for cast, item, and attack-move.
-- `src/engine/targetFilters.ts`: team and unit-kind targeting rules.
+- `src/sim/targeting.ts`: **canonical** team and unit-kind target-legality rules (single source of truth; sim enforces, engine/ui reuse).
+- `src/engine/targetFilters.ts`: compatibility re-export of `src/sim/targeting.ts`.
 - `src/engine/selfCast.ts`: self-cast policy.
 
 ## UI Layer

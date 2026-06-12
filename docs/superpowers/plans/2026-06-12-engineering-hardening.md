@@ -40,19 +40,25 @@
 提交: `test(sim): determinism + purity guards; chore(sim): drop wall-clock; feat: surface seed`
 结果: 625 测试全绿,typecheck 通过。
 
-## Wave 3 — 命令架构(完善架构的核心)
+## Wave 3 — 命令架构(完善架构的核心)🔵 进行中
 
-- [ ] **W3.1 目标校验下沉 sim**(B2):`abilities`/`items` 施法执行复检 `targetTeam`/`targetKind`,
-  非法目标拒绝;UI 校验保留为「预拒绝」体验层,但 sim 成为单一真相源。红测覆盖。
-- [ ] **W3.2 main.ts 控制器抽取**(god-object):把 reject 映射、targeting、preview、cast/item 四条
-  重复路径抽到 `engine/playerController.ts`(或 `castController`),用统一「可施放物」抽象消重。
-  `main.ts` 回归纯装配。
-- [ ] **W3.3 预览圈用真实半径**(D6):预览 AoE 用技能/物品定义的实际半径,去掉 220/180 魔数;
-  点目标技能用对应提示而非伪 area 环;清理 renderer 死 `line` 模式或接通。
-- [ ] **W3.4 (可选/评估)人类输入命令队列**(B1):人类 `Order` 入每 tick 队列,在 `step()` 内
-  与 AI 同点排空。体量 medium,若 W3.1/W3.2 已让校验与时序足够清晰,可拆为后续里程碑。
+- [x] **W3.1 目标校验下沉 sim**(B2):目标合法性规则移到 `sim/targeting.ts`(单一真相源);
+  `engine/targetFilters.ts` 转为兼容薄出口;`data` 直接指向 sim(去掉 data→engine)。
+  `abilities.startCast` 与 `items.useItem` 对单位目标做权威 `targetMatchesFilter` 校验——
+  人类/AI/未来网络命令一视同仁。测试:`abilities.test.ts` 「rejects an enemy-only ability cast on an ally」。
+  结果:627 测试全绿,证明 112 英雄声明的 `targetTeam/targetKind` 与实际施法一致。
+- [x] **W3.2(切片)拒绝原因下沉 sim**(#23 去重):新增 `abilities.abilityCastReason` 与
+  `items.itemUseReason`(细分原因枚举);`main.ts` 的 `castRejectReason`/`itemRejectReason` 改为委托,
+  不再自行复刻 sim 校验 → 杜绝 UX↔sim 漂移。测试:`abilities.test.ts` 「abilityCastReason …」。
+- [ ] **W3.2(余下)main.ts 控制器全量抽取**:把 targeting/preview/cast/item 四条重复回调路径抽到
+  `engine/castController.ts`,用统一「可施放物」抽象消重,`main.ts` 回归纯装配。
+  **推迟**:体量大且改动 ChatGPT 新建的 UX 装配,需浏览器端验证;当前无症状,列为后续里程碑。
+- [ ] **W3.3 预览圈用真实半径**(D6):**推迟/降级**——`AbilityDef`/物品 active 目前无声明 AoE 半径
+  字段,精确预览需给 112 英雄逐个补 `aoeRadius`,ROI 低;建议作为独立任务先加可选字段+少量样例。
+- [ ] **W3.4 人类输入命令队列**(B1):**推迟为独立里程碑**——人类 `Order` 入每 tick 队列、在 `step()`
+  内与 AI 同点排空并记录,以打通 replay/lockstep。体量 medium,当前单机无症状,风险集中在输入边界。
 
-提交: `refactor(engine): sim-side target validation + player command controller`
+提交: `refactor(sim): target validation + reject reasons as single source of truth`
 
 ## Wave 4 — 局部正确性 / 性能 / 清理(打磨)
 

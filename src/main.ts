@@ -17,9 +17,8 @@ import { ShopPanel } from './ui/shop';
 import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
-import { useItem } from './sim/items';
-import { learnAbility, learnStatBonus } from './sim/abilities';
-import { stateOf } from './sim/combat';
+import { useItem, itemUseReason } from './sim/items';
+import { learnAbility, learnStatBonus, abilityCastReason } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
@@ -199,18 +198,9 @@ function startGame(mode: 'play' | 'spectate'): void {
     ux.addWorldPulse({ kind: 'reject', pos, time: world.time });
   };
 
-  const castRejectReason = (i: number): RejectReason | null => {
-    if (!hero?.alive) return 'dead';
-    const def = hero.heroDef?.abilities[i];
-    const inst = hero.abilities[i];
-    if (!def || !inst || inst.level <= 0) return 'not-learned';
-    if (def.targetMode === 'passive' || (def.passiveModifier && !def.onCast && !def.channel)) return 'passive';
-    if (world.time < inst.cooldownUntil) return 'cooldown';
-    const mana = def.manaCost?.[Math.max(0, inst.level - 1)] ?? 0;
-    if (hero.mp < mana) return 'no-mana';
-    if (stateOf(hero).silenced) return 'silenced';
-    return null;
-  };
+  // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
+  const castRejectReason = (i: number): RejectReason | null =>
+    hero ? abilityCastReason(world, hero, i) : 'dead';
 
   const castInfo = (i: number) => {
     if (castRejectReason(i)) return null;
@@ -309,15 +299,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   };
 
   function itemRejectReason(slot: number): RejectReason | null {
-    if (!hero?.alive) return 'dead';
-    const inst = hero.inventory[slot];
-    if (!inst) return 'empty-slot';
-    const def = itemDef(inst.itemKey);
-    if (!def.active) return 'no-active';
-    if (world.time < inst.cooldownUntil) return 'cooldown';
-    if (def.active.manaCost && hero.mp < def.active.manaCost) return 'no-mana';
-    if (def.charges !== undefined && inst.charges <= 0) return 'no-charges';
-    return null;
+    return hero ? itemUseReason(world, hero, slot) : 'dead';
   }
 
   const itemUseFailureReason = (slot: number): RejectReason => {

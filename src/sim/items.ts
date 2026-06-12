@@ -9,6 +9,7 @@ import { Team } from './map';
 import type { World } from './world';
 import type { Unit } from './unit';
 import { recalcExtensions, attackHitHooks } from './combat';
+import { targetMatchesFilter } from './targeting';
 
 export interface ItemInstance {
   itemKey: string;
@@ -105,6 +106,24 @@ export function takeFromStash(w: World, hero: Unit, stashSlot: number): boolean 
   return true;
 }
 
+export type ItemUseReason = 'dead' | 'empty-slot' | 'no-active' | 'cooldown' | 'no-mana' | 'no-charges';
+
+/**
+ * 物品槽为何不能使用的细分原因(null = 可用)。UX 层(预拒绝文案)与 sim 共用此判断,
+ * 避免 main.ts 自行复刻校验导致漂移。
+ */
+export function itemUseReason(w: World, hero: Unit, slot: number): ItemUseReason | null {
+  if (!hero.alive) return 'dead';
+  const inst = hero.inventory[slot];
+  if (!inst) return 'empty-slot';
+  const def = itemDef(inst.itemKey);
+  if (!def.active) return 'no-active';
+  if (w.time < inst.cooldownUntil) return 'cooldown';
+  if (def.active.manaCost && hero.mp < def.active.manaCost) return 'no-mana';
+  if (def.charges !== undefined && inst.charges <= 0) return 'no-charges';
+  return null;
+}
+
 /** 使用物品。 */
 export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y: number }, target?: Unit): boolean {
   const inst = hero.inventory[slot];
@@ -117,6 +136,9 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   if (def.charges !== undefined && !def.rechargeable && inst.charges <= 0) return false;
   if (def.active.targetMode === 'point' && !pos) return false;
   if (def.active.targetMode === 'unit' && !target) return false;
+  // 权威目标校验:单位目标须满足声明的队伍/种类过滤
+  if (def.active.targetMode === 'unit' && target &&
+      !targetMatchesFilter(hero, target, def.active.targetTeam, def.active.targetKind)) return false;
   if (def.active.castRange && pos && def.active.castRange < 90000) {
     if (V.dist(hero.pos, pos) > def.active.castRange) {
       pos = V.add(hero.pos, V.scale(V.norm(V.sub(pos, hero.pos)), def.active.castRange));

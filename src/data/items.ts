@@ -3,7 +3,7 @@
  * 价格与数值为经典量级的原创配置,集中可调。
  */
 import { V, type Vec2 } from '../core/vec2';
-import type { TargetKindFilter, TargetTeamFilter } from '../engine/targetFilters';
+import type { TargetKindFilter, TargetTeamFilter } from '../sim/targeting';
 import type { StatMods } from '../sim/modifiers';
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';

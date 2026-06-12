@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
-import { learnAbility, canLearn, learnStatBonus } from '../src/sim/abilities';
+import { learnAbility, canLearn, learnStatBonus, abilityCastReason } from '../src/sim/abilities';
 import { applyModifier } from '../src/sim/modifiers';
 import { spellDamage } from '../src/sim/abilities';
 import type { HeroDef, AbilityDef } from '../src/data/heroes/types';
@@ -146,5 +146,53 @@ describe('ability framework', () => {
     w.step();
     // 黄点 ×10 → +20 全属性 → 智力主属性 +20 攻击
     expect(h.heroMeta!.statBonusLearned).toBe(10);
+  });
+});
+
+describe('cast target validation (sim authority)', () => {
+  const zapLog: number[] = [];
+  const ZAP: AbilityDef = {
+    key: 'test_zap', name: '电击', maxLevel: 1, targetMode: 'unit', targetTeam: 'enemy',
+    castRange: [800], manaCost: [0], cooldown: [0], castPoint: 0.1, tags: ['nuke'], description: '',
+    onCast(_w, _caster, _lvl, _pos, target) { zapLog.push(target?.id ?? 0); },
+  };
+  const ZAPPER: HeroDef = {
+    key: 'zapper', name: '电法', title: '', primary: 'int',
+    baseStr: 18, gainStr: 2, baseAgi: 14, gainAgi: 1.5, baseInt: 24, gainInt: 3,
+    baseDamage: [20, 26], baseArmor: 0, baseMs: 300, attackRange: 600, projectileSpeed: 900,
+    bat: 1.7, attackPoint: 0.4, color: '#fff', glyph: '电', abilities: [ZAP], aiRole: 'ganker',
+  };
+
+  it('rejects an enemy-only ability cast on an ally, allows it on an enemy', () => {
+    const w = createWorld(map, { seed: 9, noBuildings: true, startTime: 0 });
+    const caster = spawnHero(w, ZAPPER, Team.Dawn, { x: 7000, y: 8000 });
+    const ally = spawnHero(w, ZAPPER, Team.Dawn, { x: 7200, y: 8000 });
+    const enemy = spawnHero(w, ZAPPER, Team.Night, { x: 7300, y: 8000 });
+    learnAbility(w, caster, 0);
+
+    zapLog.length = 0;
+    caster.issueOrder({ type: 'cast', abilityIndex: 0, targetId: ally.id });
+    for (let i = 0; i < 20; i++) w.step();
+    expect(zapLog).toEqual([]); // 敌方技能打友军 → sim 拒绝,onCast 从未触发
+
+    zapLog.length = 0;
+    caster.issueOrder({ type: 'cast', abilityIndex: 0, targetId: enemy.id });
+    for (let i = 0; i < 20; i++) w.step();
+    expect(zapLog).toEqual([enemy.id]); // 打敌方 → 放行
+  });
+
+  it('abilityCastReason reports not-learned, ready, then cooldown', () => {
+    const w = createWorld(map, { seed: 9, noBuildings: true, startTime: 0 });
+    const caster = spawnHero(w, ZAPPER, Team.Dawn, { x: 7000, y: 8000 });
+    const enemy = spawnHero(w, ZAPPER, Team.Night, { x: 7300, y: 8000 });
+    // ZAP cooldown=0,改造一个有冷却的实例不便;此处直接验证 not-learned → ready → cooldown(借冷却字段)
+    expect(abilityCastReason(w, caster, 0)).toBe('not-learned');
+    learnAbility(w, caster, 0);
+    expect(abilityCastReason(w, caster, 0)).toBeNull();
+    caster.abilities[0].cooldownUntil = w.time + 5;
+    expect(abilityCastReason(w, caster, 0)).toBe('cooldown');
+    caster.abilities[0].cooldownUntil = -Infinity;
+    expect(abilityCastReason(w, caster, 0)).toBeNull();
+    void enemy;
   });
 });
