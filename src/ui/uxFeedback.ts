@@ -17,6 +17,8 @@ export interface TargetingState {
   mode: TargetingMode;
   origin: Vec2;
   range: number;
+  cursor?: Vec2;
+  valid?: boolean;
   radius?: number;
   width?: number;
 }

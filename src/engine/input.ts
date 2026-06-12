@@ -5,12 +5,15 @@
  */
 import type { Vec2 } from '../core/vec2';
 import { Camera } from '../render/camera';
+import { CommandMode } from './commandMode';
 
 export interface InputCallbacks {
   onRightClick(world: Vec2): void;
   onLeftClick(world: Vec2): void;
   onAttackMove(world: Vec2): void;
-  onCastKey(index: number, world: Vec2): void; // QWER → 0-3
+  onPrepareCast(index: number, world: Vec2): boolean;
+  onPreviewCast(index: number, world: Vec2): void;
+  onCastKey(index: number, world: Vec2): boolean | void; // QWER -> 0-3
   onItemKey(slot: number, world: Vec2): void; // 1-6 → 0-5
   onStop(): void;
   onHold(): void;
@@ -27,7 +30,10 @@ export class InputManager {
   /** null = 鼠标尚未进入画面(headless/刚加载),此时不做边缘平移 */
   mouse: Vec2 | null = null;
   /** 待目标确认的技能编号(按 QWER 后等待点击),-1 = 无;-2 = A 移动待确认 */
-  pendingCast = -1;
+  private commandMode = new CommandMode();
+  get pendingCast(): number {
+    return this.commandMode.pendingCast;
+  }
   edgePan = true;
   private keys = new Set<string>();
 
@@ -38,7 +44,10 @@ export class InputManager {
   ) {
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
-      this.cb.onPointerMove(this.mouse, this.camera.screenToWorld(this.mouse));
+      const world = this.camera.screenToWorld(this.mouse);
+      this.cb.onPointerMove(this.mouse, world);
+      const pending = this.commandMode.previewCast();
+      if (pending !== null) this.cb.onPreviewCast(pending, world);
       if (this.dragging) {
         this.camera.pan(-(e.movementX), -(e.movementY));
       }
@@ -46,18 +55,20 @@ export class InputManager {
     canvas.addEventListener('mousedown', (e) => {
       const world = this.camera.screenToWorld({ x: e.offsetX, y: e.offsetY });
       if (e.button === 2) {
-        this.pendingCast = -1;
+        this.commandMode.cancel();
         this.cb.onPendingCast(null);
         this.cb.onPendingAttackMove(false);
         this.cb.onRightClick(world);
       } else if (e.button === 0) {
-        if (this.pendingCast >= 0) {
-          this.cb.onCastKey(this.pendingCast, world);
-          this.pendingCast = -1;
-          this.cb.onPendingCast(null);
-        } else if (this.pendingCast === -2) {
+        const pending = this.commandMode.pendingCast;
+        if (pending >= 0) {
+          const consumed = this.cb.onCastKey(pending, world) !== false;
+          this.commandMode.consumePrimary({ keepPending: !consumed });
+          if (consumed) this.cb.onPendingCast(null);
+          else this.cb.onPreviewCast(pending, world);
+        } else if (pending === -2) {
+          this.commandMode.consumePrimary();
           this.cb.onAttackMove(world);
-          this.pendingCast = -1;
           this.cb.onPendingAttackMove(false);
         } else {
           this.cb.onLeftClick(world);
@@ -89,12 +100,12 @@ export class InputManager {
           this.cb.onItemKey(Number(e.key) - 1, world);
           break;
         case 'a':
-          this.pendingCast = -2;
+          this.commandMode.beginAttackMove();
           this.cb.onPendingAttackMove(true);
           this.cb.onPendingCast(null);
           break;
         case 's':
-          this.pendingCast = -1;
+          this.commandMode.cancel();
           this.cb.onPendingCast(null);
           this.cb.onPendingAttackMove(false);
           this.cb.onStop();
@@ -105,7 +116,7 @@ export class InputManager {
         case 'p': this.cb.onTogglePause(); break;
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
         case 'escape':
-          this.pendingCast = -1;
+          this.commandMode.cancel();
           this.cb.onPendingCast(null);
           this.cb.onPendingAttackMove(false);
           break;
@@ -121,8 +132,15 @@ export class InputManager {
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
   private quickCast(i: number, world: Vec2) {
-    this.cb.onPendingCast(i);
-    this.cb.onCastKey(i, world);
+    const waitsForTarget = this.cb.onPrepareCast(i, world);
+    this.commandMode.beginCast(i, waitsForTarget);
+    if (waitsForTarget) {
+      this.cb.onPendingAttackMove(false);
+      this.cb.onPendingCast(i);
+      this.cb.onPreviewCast(i, world);
+    } else {
+      this.cb.onPendingCast(null);
+    }
   }
 
   /** 每帧:镜头边缘平移 + 方向键。 */

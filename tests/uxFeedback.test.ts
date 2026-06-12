@@ -37,6 +37,22 @@ describe('UxFeedback', () => {
     expect(ux.targeting).toEqual({ abilityIndex: 2, mode: 'unit', origin: { x: 50, y: 60 }, range: 700 });
   });
 
+  it('stores cursor target and validity for targeting previews', () => {
+    const ux = new UxFeedback();
+    ux.setTargeting({
+      abilityIndex: 0,
+      mode: 'area',
+      origin: { x: 10, y: 20 },
+      cursor: { x: 100, y: 120 },
+      range: 600,
+      radius: 220,
+      valid: false,
+    });
+
+    expect(ux.targeting?.cursor).toEqual({ x: 100, y: 120 });
+    expect(ux.targeting?.valid).toBe(false);
+  });
+
   it('tracks cursor position and expires transient cast intent', () => {
     const ux = new UxFeedback();
     ux.setCursorPosition({ x: 320, y: 240 });

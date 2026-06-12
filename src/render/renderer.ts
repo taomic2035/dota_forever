@@ -261,9 +261,14 @@ export class Renderer {
   private drawTargetingOverlay(t: TargetingState): void {
     const ctx = this.ctx;
     const origin = this.camera.worldToScreen(t.origin);
+    const target = this.camera.worldToScreen(t.cursor ?? t.origin);
     const range = this.s(t.range);
+    const valid = t.valid !== false;
+    const lineColor = valid ? 'rgba(80,170,255,0.55)' : 'rgba(255,70,86,0.65)';
+    const fillColor = valid ? 'rgba(80,170,255,0.08)' : 'rgba(255,70,86,0.10)';
+    const hotColor = valid ? 'rgba(80,170,255,0.82)' : 'rgba(255,70,86,0.88)';
     ctx.save();
-    ctx.strokeStyle = 'rgba(80,170,255,0.55)';
+    ctx.strokeStyle = lineColor;
     ctx.lineWidth = 2;
     ctx.setLineDash([8, 8]);
     ctx.beginPath();
@@ -272,28 +277,55 @@ export class Renderer {
     ctx.setLineDash([]);
 
     if (t.mode === 'line') {
-      ctx.strokeStyle = 'rgba(80,190,255,0.85)';
+      ctx.strokeStyle = hotColor;
       ctx.lineWidth = Math.max(2, this.s(t.width ?? 80));
       ctx.globalAlpha = 0.22;
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
-      ctx.lineTo(origin.x + range, origin.y);
+      ctx.lineTo(target.x, target.y);
       ctx.stroke();
       ctx.globalAlpha = 1;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(origin.x, origin.y);
-      ctx.lineTo(origin.x + range, origin.y);
+      ctx.lineTo(target.x, target.y);
       ctx.stroke();
     }
 
     if (t.radius) {
-      ctx.strokeStyle = 'rgba(80,170,255,0.75)';
-      ctx.fillStyle = 'rgba(80,170,255,0.08)';
+      ctx.strokeStyle = hotColor;
+      ctx.fillStyle = fillColor;
       ctx.beginPath();
-      ctx.arc(origin.x, origin.y, this.s(t.radius), 0, Math.PI * 2);
+      ctx.arc(target.x, target.y, this.s(t.radius), 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+    }
+    if (t.mode === 'unit') {
+      ctx.strokeStyle = hotColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, this.s(52), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(target.x - this.s(64), target.y);
+      ctx.lineTo(target.x - this.s(34), target.y);
+      ctx.moveTo(target.x + this.s(34), target.y);
+      ctx.lineTo(target.x + this.s(64), target.y);
+      ctx.moveTo(target.x, target.y - this.s(64));
+      ctx.lineTo(target.x, target.y - this.s(34));
+      ctx.moveTo(target.x, target.y + this.s(34));
+      ctx.lineTo(target.x, target.y + this.s(64));
+      ctx.stroke();
+    }
+    if (t.cursor) {
+      ctx.strokeStyle = hotColor;
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
   }

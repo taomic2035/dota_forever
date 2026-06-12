@@ -18,7 +18,7 @@ import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { useItem } from './sim/items';
-import { learnAbility, learnStatBonus } from './sim/abilities';
+import { abilityReady, learnAbility, learnStatBonus } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
@@ -78,9 +78,39 @@ function startGame(mode: 'play' | 'spectate'): void {
 
   let pendingItemSlot = -1;
 
+  const castInfo = (i: number) => {
+    if (!hero?.alive) return null;
+    const def = hero.heroDef?.abilities[i];
+    const inst = hero.abilities[i];
+    if (!def || !inst || inst.level <= 0 || def.targetMode === 'passive' || !abilityReady(world, hero, i)) return null;
+    const range = def.castRange?.[Math.max(0, inst.level - 1)] ?? 700;
+    return { def, inst, range };
+  };
+
+  const targetAt = (p: { x: number; y: number }) =>
+    world.queryRadius(p, 90, (u) => u.alive && u.id !== hero!.id)[0];
+
+  const previewCast = (i: number, p: { x: number; y: number }) => {
+    const info = castInfo(i);
+    if (!hero || !info) return false;
+    const mode = info.def.targetMode === 'unit' ? 'unit' : 'area';
+    const target = mode === 'unit' ? targetAt(p) : null;
+    const valid = mode === 'unit' ? !!target : true;
+    ux.setTargeting({
+      abilityIndex: i,
+      mode,
+      origin: hero.pos,
+      cursor: p,
+      range: info.range,
+      radius: mode === 'area' ? 220 : undefined,
+      valid,
+    });
+    return valid;
+  };
+
   window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'b' && hero && !hero.alive) tryBuyback(world, hero);
-    if (e.key === 'Escape') pauseMenu.toggle();
+    if (e.key === 'Escape' && !ux.targeting) pauseMenu.toggle();
   });
 
   const input = new InputManager(renderer.canvas, camera, {
@@ -117,38 +147,60 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.addWorldPulse({ kind: 'attackmove', pos, time: world.time });
       }
     },
-    onCastKey(i, p) {
-      if (!hero?.alive) return;
-      const def = hero.heroDef?.abilities[i];
-      const inst = hero.abilities[i];
-      if (!def || !inst || inst.level <= 0 || def.targetMode === 'passive') {
-        ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
-        ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
-        return;
+    onPrepareCast(i, p) {
+      const info = castInfo(i);
+      if (!hero || !info) {
+        if (hero) {
+          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
+          ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        }
+        return false;
       }
-      const range = def.castRange?.[Math.max(0, inst.level - 1)] ?? 700;
-      if (def.targetMode === 'none') {
+      if (info.def.targetMode === 'none') {
         hero.issueOrder({ type: 'cast', abilityIndex: i });
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
         ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
-      } else if (def.targetMode === 'point') {
-        ux.setTargeting({ abilityIndex: i, mode: 'area', origin: hero.pos, range, radius: 220 });
+        ux.clearTargeting();
+        return false;
+      }
+      previewCast(i, p);
+      return true;
+    },
+    onPreviewCast(i, p) {
+      previewCast(i, p);
+    },
+    onCastKey(i, p) {
+      const info = castInfo(i);
+      if (!hero || !info) {
+        if (hero) {
+          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
+          ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        }
+        return false;
+      }
+      if (info.def.targetMode === 'point') {
         const pos = map.nearestWalkable(p);
         hero.issueOrder({ type: 'cast', abilityIndex: i, pos });
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
         ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
-      } else {
-        ux.setTargeting({ abilityIndex: i, mode: 'unit', origin: hero.pos, range });
-        const target = world.queryRadius(p, 90, (u) => u.alive && u.id !== hero!.id)[0];
+        ux.clearTargeting();
+        return true;
+      }
+      if (info.def.targetMode === 'unit') {
+        const target = targetAt(p);
         if (target) {
           hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
           ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
-        } else {
-          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
-          ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+          ux.clearTargeting();
+          return true;
         }
+        previewCast(i, p);
+        ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
+        ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+        return false;
       }
+      return true;
     },
     onItemKey(slot, p) {
       if (!hero?.alive) return;
@@ -195,7 +247,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearCursorIntent();
       } else {
         const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
-        ux.setCursorIntent({ kind: 'cast', label: `CAST ${hotkey}`, time: world.time, ttl: 0.45, color: '#5aa2ff' });
+        ux.setCursorIntent({ kind: 'cast', label: `CAST ${hotkey}`, time: world.time, color: '#5aa2ff' });
       }
     },
   });
