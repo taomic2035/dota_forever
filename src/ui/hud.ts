@@ -55,10 +55,21 @@ export class Hud {
     const mm = Math.floor(Math.abs(t) / 60);
     const ss = Math.floor(Math.abs(t) % 60).toString().padStart(2, '0');
     const gold = hero?.heroMeta?.gold ?? 0;
+    // 团队击杀比分(对战态势)
+    let dawnK = 0, nightK = 0;
+    for (const u of world.units.values()) {
+      if (!u.isHero() || !u.heroMeta) continue;
+      if (u.team === 0) dawnK += u.heroMeta.kills;
+      else if (u.team === 1) nightK += u.heroMeta.kills;
+    }
     this.topbar.innerHTML =
+      `<span style="color:#8fd17a;font-weight:700">${dawnK}</span>` +
+      `<span style="color:#8a9">晨曦</span>` +
       `<span>${world.isNight ? '🌙' : '☀️'}</span>` +
       `<span style="color:#cfd8a0">⏱ ${sign}${mm}:${ss}</span>` +
-      `<span style="color:#ffd54f">⛁ ${gold}</span>`;
+      `<span style="color:#ffd54f">⛁ ${gold}</span>` +
+      `<span style="color:#a89">永夜</span>` +
+      `<span style="color:#ef9a9a;font-weight:700">${nightK}</span>`;
 
     if (!hero) { this.bottom.innerHTML = ''; return; }
     const a = heroAttributes(hero);
