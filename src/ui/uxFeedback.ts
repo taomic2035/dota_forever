@@ -3,6 +3,7 @@ import type { Vec2 } from '../core/vec2';
 export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'reject' | 'stop' | 'hold' | 'ping';
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
+export type CursorIntentKind = 'attackmove' | 'cast' | 'item';
 
 export interface WorldPulse {
   kind: WorldPulseKind;
@@ -26,13 +27,23 @@ interface HudFlash {
   time: number;
 }
 
+export interface CursorIntent {
+  kind: CursorIntentKind;
+  label: string;
+  time: number;
+  ttl?: number;
+  color?: string;
+}
+
 const WORLD_PULSE_LIFE = 0.55;
 const HUD_FLASH_LIFE = 0.45;
 
 export class UxFeedback {
   private pulses: WorldPulse[] = [];
   private hudFlashes: HudFlash[] = [];
+  private cursorIntent: CursorIntent | null = null;
   targeting: TargetingState | null = null;
+  cursorPosition: Vec2 | null = null;
 
   addWorldPulse(pulse: WorldPulse): void {
     this.pulses.push(pulse);
@@ -50,6 +61,27 @@ export class UxFeedback {
 
   clearTargeting(): void {
     this.targeting = null;
+  }
+
+  setCursorPosition(pos: Vec2): void {
+    this.cursorPosition = { x: pos.x, y: pos.y };
+  }
+
+  setCursorIntent(intent: CursorIntent): void {
+    this.cursorIntent = { ...intent };
+  }
+
+  clearCursorIntent(): void {
+    this.cursorIntent = null;
+  }
+
+  cursorIntentAt(now: number): CursorIntent | null {
+    if (!this.cursorIntent) return null;
+    if (this.cursorIntent.ttl !== undefined && now - this.cursorIntent.time > this.cursorIntent.ttl) {
+      this.cursorIntent = null;
+      return null;
+    }
+    return this.cursorIntent;
   }
 
   flashHudSlot(key: string, kind: HudFlashKind, time: number): void {
