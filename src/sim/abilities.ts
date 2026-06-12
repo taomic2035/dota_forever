@@ -22,13 +22,29 @@ export function abilityDefAt(u: Unit, index: number): AbilityDef | undefined {
   return u.heroDef?.abilities[index];
 }
 
+// ---------- 阿哈利姆神杖(M8) ----------
+/** 英雄是否持有魔晶神杖(阿哈利姆),据此启用技能的神杖升级。 */
+export function hasScepter(u: Unit): boolean {
+  return u.isHero() && u.inventory.some((i) => i?.itemKey === 'scepter');
+}
+/** 神杖感知的法力消耗(持杖且该技能声明 scepter.manaCost 时用升级值)。 */
+export function abilityManaCost(u: Unit, def: AbilityDef, lvl: number): number {
+  const arr = hasScepter(u) && def.scepter?.manaCost ? def.scepter.manaCost : def.manaCost;
+  return arr?.[lvl - 1] ?? 0;
+}
+/** 神杖感知的冷却(持杖且该技能声明 scepter.cooldown 时用升级值)。 */
+export function abilityCooldown(u: Unit, def: AbilityDef, lvl: number): number {
+  const arr = hasScepter(u) && def.scepter?.cooldown ? def.scepter.cooldown : def.cooldown;
+  return arr?.[lvl - 1] ?? 0;
+}
+
 export function abilityReady(w: World, u: Unit, index: number): boolean {
   const inst = u.abilities[index];
   const def = abilityDefAt(u, index);
   if (!inst || !def || inst.level <= 0) return false;
   if (def.passiveModifier && !def.onCast && !def.channel) return false; // 纯被动
   if (w.time < inst.cooldownUntil) return false;
-  const mana = def.manaCost?.[inst.level - 1] ?? 0;
+  const mana = abilityManaCost(u, def, inst.level);
   if (u.mp < mana) return false;
   if (stateOf(u).silenced) return false;
   return true;
@@ -47,7 +63,7 @@ export function abilityCastReason(w: World, u: Unit, index: number): AbilityCast
   if (!def || !inst || inst.level <= 0) return 'not-learned';
   if (def.targetMode === 'passive' || (def.passiveModifier && !def.onCast && !def.channel)) return 'passive';
   if (w.time < inst.cooldownUntil) return 'cooldown';
-  const mana = def.manaCost?.[Math.max(0, inst.level - 1)] ?? 0;
+  const mana = abilityManaCost(u, def, Math.max(1, inst.level));
   if (u.mp < mana) return 'no-mana';
   if (stateOf(u).silenced) return 'silenced';
   return null;
@@ -100,7 +116,7 @@ function startCast(w: World, u: Unit, o: Order): void {
   if (!inst || !def || inst.level <= 0) { u.order = null; return; }
   if (stateOf(u).silenced || w.time < inst.cooldownUntil) { u.order = null; return; }
   const lvl = inst.level;
-  const mana = def.manaCost?.[lvl - 1] ?? 0;
+  const mana = abilityManaCost(u, def, lvl);
   if (u.mp < mana) { u.order = null; return; }
 
   // 目标解析
@@ -175,9 +191,9 @@ function executeCast(w: World, u: Unit, index: number, pos?: Vec2, targetId?: En
   const inst = u.abilities[index];
   const lvl = inst.level;
   u.lastActionAt = w.time;
-  // 支付
-  u.mp -= def.manaCost?.[lvl - 1] ?? 0;
-  inst.cooldownUntil = w.time + (def.cooldown?.[lvl - 1] ?? 0);
+  // 支付(神杖感知:升级技能用 scepter 覆盖的 mana/cd)
+  u.mp -= abilityManaCost(u, def, lvl);
+  inst.cooldownUntil = w.time + abilityCooldown(u, def, lvl);
   const target = targetId ? w.getUnit(targetId) : undefined;
   w.emit({ kind: 'cast_done', unitId: u.id, abilityKey: def.key, pos, targetId });
   // M4 林肯法球:单体敌对指向技被格挡 → 已付蓝/CD,效果作废

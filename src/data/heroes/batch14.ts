@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, spellDamage, blinkTo, summonUnit,
+  damageArea, modifierArea, enemiesIn, spellDamage, blinkTo, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -157,12 +157,14 @@ const SCYTHE_PER_MISSING = [0.5, 0.65, 0.8];
 const NEC_R: AbilityDef = {
   key: 'nec_scythe', name: '死神镰刀', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [200, 350, 500], cooldown: [100, 85, 70],
+  scepter: { cooldown: [60, 50, 40], desc: '神杖:冷却大幅降低,且按已损生命的处决伤害提高 40%。' },
   castPoint: 0.3, tags: ['nuke', 'stun', 'ultimate'],
   description: '挥下死神镰刀:目标生命越低伤害越高,并将其眩晕(可处决)。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     const missing = Math.max(0, target.calc.maxHp - target.hp);
-    spellDamage(w, caster, target, 100 + missing * SCYTHE_PER_MISSING[lvl - 1]);
+    const scepterAmp = hasScepter(caster) ? 1.4 : 1; // 神杖:处决伤害 +40%
+    spellDamage(w, caster, target, (100 + missing * SCYTHE_PER_MISSING[lvl - 1]) * scepterAmp);
     applyModifier(w, target, { key: 'nec_scythe_stun', duration: 1.5, states: { stunned: true } }, caster.id);
     w.emit({ kind: 'fx', fx: 'reaperscythe', pos: V.clone(target.pos) });
   },

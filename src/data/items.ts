@@ -690,7 +690,7 @@ ITEMS.push(
   { key: 'scepter', name: '魔晶神杖', cost: 4200, category: 'combined',
     stats: { bonusStr: 10, bonusAgi: 10, bonusInt: 10, bonusHp: 175, bonusMp: 175 },
     recipe: { components: ['point_booster', 'staff_wizardry', 'ogre_axe', 'blade_alacrity'], recipeCost: 0 },
-    description: '+10 全属性 +175 生命/法力:强化英雄综合能力的标志性神杖。' },
+    description: '+10 全属性 +175 生命/法力:强化英雄综合能力的标志性神杖,并升级部分英雄的终极技能。' },
 );
 
 // ---------- 进阶物品批次 3(团战控制/法核/生存) ----------

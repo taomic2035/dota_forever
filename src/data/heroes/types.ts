@@ -28,6 +28,18 @@ export interface AbilityDef {
   castRange?: number[];
   manaCost?: number[];
   cooldown?: number[];
+  /**
+   * 阿哈利姆神杖(scepter)升级。持有 scepter 时:
+   * - 数值轴:cooldown/manaCost/castRange 若提供则覆盖基础值(系统层经 abilityCooldown/abilityManaCost 读取);
+   * - 行为轴:伤害/范围/额外效果在 onCast 内用 `hasScepter(caster)` 分支增强。
+   * desc 供 UI 展示升级说明。
+   */
+  scepter?: {
+    cooldown?: number[];
+    manaCost?: number[];
+    castRange?: number[];
+    desc?: string;
+  };
   /** 施法前摇(秒) */
   castPoint?: number;
   tags: AbilityTag[];
