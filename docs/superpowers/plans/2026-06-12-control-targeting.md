@@ -23,33 +23,33 @@
 
 ## Task 1: Pure Command State
 
-- [ ] Add failing tests for pending cast, attack-move, replacing pending cast, primary-click consumption, invalid-confirm retention, and cancel.
-- [ ] Run `npm test -- tests/commandMode.test.ts` and confirm the missing module failure.
-- [ ] Implement `CommandMode`.
-- [ ] Run `npm test -- tests/commandMode.test.ts`.
+- [x] Add failing tests for pending cast, attack-move, replacing pending cast, primary-click consumption, invalid-confirm retention, and cancel.
+- [x] Run `npm test -- tests/commandMode.test.ts` and confirm the missing module failure.
+- [x] Implement `CommandMode`.
+- [x] Run `npm test -- tests/commandMode.test.ts`.
 
 ## Task 2: Input Integration
 
-- [ ] Change QWER from immediate cast to prepare/preview/confirm.
-- [ ] Keep no-target abilities instant through `onPrepareCast`.
-- [ ] Keep invalid confirms pending by honoring a `false` return from `onCastKey`.
-- [ ] Keep right-click, Escape, and Stop cancel behavior.
-- [ ] Run typecheck and focused input/UX tests.
-- [ ] Commit as `feat(ux): add pending cast command mode`.
+- [x] Change QWER from immediate cast to prepare/preview/confirm.
+- [x] Keep no-target abilities instant through `onPrepareCast`.
+- [x] Keep invalid confirms pending by honoring a `false` return from `onCastKey`.
+- [x] Keep right-click, Escape, and Stop cancel behavior.
+- [x] Run typecheck and focused input/UX tests.
+- [x] Commit as `feat(ux): add pending cast command mode`.
 
 ## Task 3: Target Overlay Preview
 
-- [ ] Add cursor world position and valid state to targeting metadata.
-- [ ] Draw range from hero origin and target circle/reticle at cursor.
-- [ ] Use red overlay for invalid targets.
-- [ ] Run focused tests and typecheck.
+- [x] Add cursor world position and valid state to targeting metadata.
+- [x] Draw range from hero origin and target circle/reticle at cursor.
+- [x] Use red overlay for invalid targets.
+- [x] Run focused tests and typecheck.
 
 ## Task 4: Screenshots, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-control-targeting.png`.
-- [ ] Write `docs/ux/2026-06-12-control-targeting-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete control targeting pass`.
+- [x] Capture `docs/screenshots/ux-control-targeting.png`.
+- [x] Write `docs/ux/2026-06-12-control-targeting-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete control targeting pass`.
 
 ## Self-Review
 
