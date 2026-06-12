@@ -127,6 +127,9 @@ function startCast(w: World, u: Unit, o: Order): void {
     if (!target || !target.alive) { u.order = null; return; }
     // 权威目标校验:队伍/种类不合法则拒绝(人类/AI/未来网络命令一视同仁)
     if (!targetMatchesFilter(u, target, def.targetTeam, def.targetKind)) { u.order = null; return; }
+    // A3:无敌敌方单体不可被指向施法(不扣蓝/CD,与物品侧 M11 一致)。
+    // 魔免不在此拦——技能是否穿魔免/是否纯粹伤害因技而异,由 onCast 与 M1 下游裁决。
+    if (isEnemy(u, target) && target.invulnerable) { u.order = null; return; }
     aim = target.pos;
   }
 

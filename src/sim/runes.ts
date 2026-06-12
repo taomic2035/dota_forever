@@ -9,6 +9,9 @@ import type { Unit } from './unit';
 import { applyModifier, removeModifier } from './modifiers';
 import { createIllusion } from './abilities';
 
+/** 攻击/施法即破的隐身来源(符文 + 影锋/银刃/烟雾/微光);守卫隐身不在此列。 */
+const INVIS_BREAK_ON_ACTION = ['rune_invis', 'item_shadowblade', 'item_silveredge', 'item_smoke', 'item_glimmer'];
+
 export interface RuneSpawn {
   type: RuneType;
   pos: Vec2;
@@ -73,6 +76,18 @@ export function installRunes(w: World): void {
       });
     }
 
+    // 隐身(符文 + 影锋/银刃/烟雾/微光等物品):攻击/施法即破(V3)。
+    // 必须在下面的拾取节流早退之前,否则无符文时(world.runes 空)解除永不执行。
+    for (const e of world.events) {
+      if (e.kind === 'attack_launched' || e.kind === 'cast_done') {
+        const u = world.getUnit(e.unitId);
+        if (!u) continue;
+        for (const key of INVIS_BREAK_ON_ACTION) {
+          if (u.modifiers.some((m) => m.key === key)) removeModifier(world, u, key);
+        }
+      }
+    }
+
     // 拾取(每 5 tick 查一次)。多枚符文并存:各自独立拾取。
     if (world.tick % 5 !== 0 || world.runes.length === 0) return;
     for (const hero of world.units.values()) {
@@ -100,16 +115,6 @@ export function installRunes(w: World): void {
           applyRune(world, hero, inst.runeKey as RuneType);
           inst.runeKey = undefined;
           inst.runeExpiresAt = undefined;
-        }
-      }
-    }
-
-    // 隐身符:攻击/施法即破
-    for (const e of world.events) {
-      if (e.kind === 'attack_launched' || e.kind === 'cast_done') {
-        const u = world.getUnit(e.unitId);
-        if (u && u.modifiers.some((m) => m.key === 'rune_invis')) {
-          removeModifier(world, u, 'rune_invis');
         }
       }
     }

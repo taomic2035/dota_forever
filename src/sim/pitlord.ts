@@ -37,7 +37,7 @@ function spawnBoss(w: World, growths: number): Unit {
       dmgMax: PITLORD_BASE.dmg[1] + growths * PITLORD_GROWTH.dmg,
       attackType: 'normal', armorType: 'hero',
       armor: PITLORD_BASE.armor + growths * PITLORD_GROWTH.armor,
-      magicResist: 0.5,
+      magicResist: 0.55, // 经典 Roshan 魔抗 55%
       attackRange: PITLORD_BASE.range, attackPoint: 0.4, bat: PITLORD_BASE.bat,
       projectileSpeed: 0,
       moveSpeed: PITLORD_BASE.ms, collisionRadius: 44,
