@@ -18,6 +18,7 @@ import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { useItem } from './sim/items';
+import { learnAbility, learnStatBonus } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 
@@ -59,6 +60,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const renderer = new Renderer(app, world, camera);
   renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
   const hud = new Hud(app);
+  hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
+  hud.onLearnStat = () => { if (hero?.alive) learnStatBonus(hero); };
   const killfeed = new KillFeed(app);
   const shop = new ShopPanel(app);
   const endScreen = new EndScreen(app);
