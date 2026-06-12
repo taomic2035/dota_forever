@@ -124,6 +124,8 @@ export class Unit {
   /** 野怪营地归属与驻留点 */
   campId?: number;
   homePos?: Vec2;
+  /** 野怪正在回营驻留(显式标记,不靠 order 类型推断——order 在到点时会被清空) */
+  leashing = false;
   /** 不灭之盾:原地复活点(消费后清除) */
   aegisRevivePos?: Vec2;
   /** 召唤物:到期时刻与召唤者 */

@@ -167,10 +167,12 @@ export function syncHolderModifiers(w: World, hero: Unit): void {
     const def = itemDef(inst.itemKey);
     if (def.holderModifier) held.add(def.holderModifier.key);
   }
-  // 移除失去的
+  // 移除失去的:凡本函数创建的持有型 modifier(标记 __holder),物品已不在背包即移除。
+  // 用标记而非 def.aura 判定——否则无光环的持有型 modifier(如林肯法球的格挡标记)会永久泄漏(D1);
+  // 同时用标记区别于带 item_ 前缀的限时主动 buff(item_bkb 等),避免误删。
   for (let i = hero.modifiers.length - 1; i >= 0; i--) {
     const m = hero.modifiers[i];
-    if (m.key.startsWith('item_') && m.def.aura && !held.has(m.key) && m.sourceId === hero.id) {
+    if (m.data?.__holder === 1 && !held.has(m.key) && m.sourceId === hero.id) {
       hero.modifiers.splice(i, 1);
     }
   }
@@ -185,7 +187,7 @@ export function syncHolderModifiers(w: World, hero: Unit): void {
         sourceId: hero.id,
         expiresAt: Infinity,
         def: def.holderModifier,
-        data: {},
+        data: { __holder: 1 },
       });
     }
   }

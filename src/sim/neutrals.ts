@@ -49,14 +49,17 @@ function leashNeutrals(w: World): void {
   for (const u of w.units.values()) {
     if (!u.alive || u.kind !== 'neutral' || !u.homePos) continue;
     const distHome = V.dist(u.pos, u.homePos);
-    const returning = u.order?.type === 'move';
-    if (!returning && distHome > NEUTRAL_LEASH) {
+    if (distHome > NEUTRAL_LEASH) {
+      // 超出驻留范围:放弃追击、回营。用显式 leashing 标记(order 到点会被清空,不能作判据)。
       u.attackTargetId = 0;
       u.windupTargetId = 0;
+      u.leashing = true;
       u.issueOrder({ type: 'move', pos: V.clone(u.homePos) });
-    } else if (returning && distHome < 120) {
+    } else if (u.leashing && distHome < 150) {
+      // 回到营地:满血重置并解除回营态(无论回程 move 指令是否已自然结束)。
       u.order = null;
-      u.hp = u.calc.maxHp; // 回营满血重置
+      u.leashing = false;
+      u.hp = u.calc.maxHp;
     }
   }
 }

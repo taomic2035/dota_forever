@@ -39,10 +39,10 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   if (opts.creeps) installCreeps(w);
   installEconomy(w);
   installHeroRespawn(w);
+  installDayNight(w); // 必须先于 vision:vision 每 tick 读 isNight,否则滞后一 tick(D2)
   installVision(w);
   installItems(w);
   installRunes(w);
-  installDayNight(w);
   if (opts.creeps) {
     installNeutrals(w); // 与兵线一起代表“真实对局”
     installPitlord(w);
