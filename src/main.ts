@@ -111,7 +111,9 @@ function saveControlSettings(settings: ControlSettings): void {
 }
 
 function startGame(mode: 'play' | 'spectate'): void {
+  // 默认种子取一次熵源后即固定;外显出来,以便复现一局(?seed=<值>)。
   const seed = Number(params.get('seed') ?? Math.floor(Math.random() * 1e9));
+  console.info(`[dota-forever] seed=${seed} (replay with ?seed=${seed})`);
   const speed = Number(params.get('speed') ?? 1);
   const heroKey = params.get('hero') ?? 'rein';
 
@@ -606,11 +608,11 @@ function startGame(mode: 'play' | 'spectate'): void {
   loop.speed = speed;
   loop.start();
 
-  window.__game = { world, hero, camera, loop, renderer, ux };
+  window.__game = { world, hero, camera, loop, renderer, ux, seed };
 }
 
 declare global {
   interface Window {
-    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop; renderer: Renderer; ux: UxFeedback };
+    __game: { world: World; hero: Unit | undefined; camera: Camera; loop: GameLoop; renderer: Renderer; ux: UxFeedback; seed: number };
   }
 }

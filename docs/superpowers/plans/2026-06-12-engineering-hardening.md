@@ -24,14 +24,21 @@
 提交: `fix(sim): correct neutral xp share, ai retreat, magic resist fold, stash retrieval`
 结果: 621 测试全绿(+5),typecheck 通过,零回归。
 
-## Wave 2 — 确定性与测试护栏(核心不变量)
+## Wave 2 — 确定性与测试护栏(核心不变量)✅ 完成
 
-- [ ] **W2.1 端到端确定性测试**(C1):同种子跑 N tick,对两个独立 World 的状态做哈希,逐 tick 相等。
-- [ ] **W2.2 sim 纯净性测试**(C2):跑一局后断言 sim 模块未 import DOM;渲染一帧后 world 状态哈希不变(渲染不改 sim)。
-- [ ] **W2.3 pathfinding 墙钟移除**(B4):`PATH_STATS.ms` 计时移出 sim(默认关闭或注入式计时器)。
-- [ ] **W2.4 默认种子外显**(B3):`__game.seed` + 控制台日志;不再隐藏 `Math.random` 种子。
+- [x] **W2.1 端到端确定性测试**(C1):`determinism.test.ts` 顺序跑两遍 5v5 整局(1000 tick),
+  逐字段快照在多个检查点完全一致;另测「不同种子→不同轨迹」。
+  注:因 `NEXT_ID` 模块级全局,两 world 必须顺序跑(不可交错),测试内已注释此约束。
+- [x] **W2.2 sim 纯净性测试**(C2):静态——`import.meta.glob` 扫 sim/core/data,断言无
+  `document/window./localStorage/requestAnimationFrame/performance.now/Math.random/Date.now/new Date`;
+  动态——发育 200 tick 后,各类只读查询(queryRadius/getUnit/acquireTarget/isVisibleTo/cellVisible)
+  不改写世界快照。
+- [x] **W2.3 pathfinding 墙钟移除**(B4):`findPath` 去掉 `performance.now` 计时,`PATH_STATS` 去掉 `ms`
+  字段(只写不读)。sim/core/data 现已彻底无禁用 token。
+- [x] **W2.4 默认种子外显**(B3):`startGame` 打印 `seed=…(replay with ?seed=…)`,并入 `__game.seed`。
 
-提交: `test(sim): add determinism + sim-purity guards; chore: remove wallclock from sim`
+提交: `test(sim): determinism + purity guards; chore(sim): drop wall-clock; feat: surface seed`
+结果: 625 测试全绿,typecheck 通过。
 
 ## Wave 3 — 命令架构(完善架构的核心)
 

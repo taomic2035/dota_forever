@@ -56,8 +56,8 @@ export function lineWalkable(map: GameMap, a: Vec2, b: Vec2): boolean {
   return true;
 }
 
-/** 性能统计(诊断用)。 */
-export const PATH_STATS = { calls: 0, expansions: 0, failed: 0, ms: 0 };
+/** 性能统计(诊断用,均为确定性整数计数;耗时计时移出 sim 以守住「无墙钟」不变量)。 */
+export const PATH_STATS = { calls: 0, expansions: 0, failed: 0 };
 
 /** 复用的寻路缓冲(generation 戳记免清零)。模拟单线程,安全。 */
 let SCR: {
@@ -70,12 +70,7 @@ let SCR: {
 } | null = null;
 
 export function findPath(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
-  const __t0 = performance.now();
-  try {
-    return findPathInner(map, from, to);
-  } finally {
-    PATH_STATS.ms += performance.now() - __t0;
-  }
+  return findPathInner(map, from, to);
 }
 
 function findPathInner(map: GameMap, from: Vec2, to: Vec2): Vec2[] {
