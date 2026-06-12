@@ -50,12 +50,12 @@ export const TURN_RATE = Math.PI * 4; // 弧度/秒,简化统一
 
 // ---------- 等级与经验 ----------
 export const MAX_LEVEL = 25;
-/** XP_TABLE[n] = 升到 n+2 级所需累计 XP(index 0 → 2 级)。经典曲线近似:200·n·(n+1)/2 微调。 */
+/** XP_TABLE[n] = 升到 n+2 级所需累计 XP(index 0 → 2 级)。校准至经典 DotA 1(M10):每级增量 ≈ 200+100·(n-1)。 */
 export const XP_TABLE: number[] = (() => {
   const t: number[] = [];
   let acc = 0;
   for (let lvl = 2; lvl <= 25; lvl++) {
-    acc += 100 + (lvl - 2) * 110; // 100, 210, 320, ...
+    acc += 200 + (lvl - 2) * 100; // 200, 500, 900, ... 经典升级曲线
     t.push(acc);
   }
   return t;
@@ -66,21 +66,21 @@ export const STAT_BONUS_MAX = 10; // 黄点
 export const STAT_BONUS_PER_LEVEL = 2; // 每点黄点 +2 全属性
 
 export function xpForKillLevel(victimLevel: number): number {
-  return 100 + victimLevel * 20; // 英雄击杀经验近似
+  return 100 + victimLevel * 36; // 英雄击杀经验,校准至经典(M10)
 }
-export const XP_SHARE_RADIUS = 1300;
+export const XP_SHARE_RADIUS = 1000; // 经典经验共享圈(M10:1300→1000)
 export const DENY_XP_FACTOR = 0.5;
 
 // ---------- 经济 ----------
 export const STARTING_GOLD = 603;
 export const PERIODIC_GOLD = 1;
-export const PERIODIC_GOLD_INTERVAL = 0.8; // 秒
+export const PERIODIC_GOLD_INTERVAL = 0.6; // 秒(M10:0.8→0.6,经典约 100 金/分)
 export function heroKillBounty(victimLevel: number, streak: number): number {
-  let g = 200 + 9 * victimLevel;
-  if (streak >= 3) g += Math.min((streak - 2) * 50, 300); // 终结连杀额外赏金
+  let g = 100 + 11 * victimLevel; // 校准至经典(M10):前期赏金更低、后期更高
+  if (streak >= 3) g += Math.min((streak - 2) * 50, 500); // 终结连杀额外赏金(上限 500)
   return g;
 }
-export const ASSIST_RADIUS = 1300;
+export const ASSIST_RADIUS = 1000; // 经典助攻圈(M10:1300→1000)
 export function deathGoldLoss(level: number): number {
   return 30 * level;
 }

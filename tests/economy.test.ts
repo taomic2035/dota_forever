@@ -30,8 +30,8 @@ describe('economy', () => {
     const w = createWorld(map, { seed: 3, noBuildings: true, startTime: 0 });
     const h = mk(w, 'hero', Team.Dawn, 7000, 8000);
     expect(h.heroMeta!.gold).toBe(STARTING_GOLD);
-    for (let i = 0; i < 250; i++) w.step(); // 8.33 秒 → 10 次工资(容浮点边界)
-    expect(h.heroMeta!.gold).toBe(STARTING_GOLD + 10);
+    for (let i = 0; i < 250; i++) w.step(); // 8.33 秒 @0.6s/次 → 13 次工资
+    expect(h.heroMeta!.gold).toBe(STARTING_GOLD + 13);
   });
 
   it('last hit grants bounty and counts', () => {
@@ -101,7 +101,7 @@ describe('economy', () => {
   });
 
   it('hero kill: bounty, death gold loss, streak bookkeeping', () => {
-    const w = createWorld(map, { seed: 3, noBuildings: true, startTime: 0 });
+    const w = createWorld(map, { seed: 3, noBuildings: true, startTime: -10 }); // 准备期内无工资,赏金/掉金断言更纯
     const killer = mk(w, 'hero', Team.Dawn, 7000, 8000, { dmgMin: 500, dmgMax: 500 });
     const victim = mk(w, 'hero', Team.Night, 7100, 8000, { dmgMin: 0, dmgMax: 0, maxHp: 400 });
     victim.level = 5;
@@ -113,8 +113,8 @@ describe('economy', () => {
     expect(killer.heroMeta!.kills).toBe(1);
     expect(killer.heroMeta!.streak).toBe(1);
     expect(victim.heroMeta!.deaths).toBe(1);
-    expect(killer.heroMeta!.gold - kGold).toBeGreaterThanOrEqual(245 - 5); // 200+9×5=245
-    expect(vGold - victim.heroMeta!.gold).toBeGreaterThanOrEqual(150 - 5); // 30×5
+    expect(killer.heroMeta!.gold - kGold).toBeGreaterThanOrEqual(155 - 5); // 100+11×5=155
+    expect(vGold - victim.heroMeta!.gold).toBeGreaterThanOrEqual(150 - 5); // 30×5(仅扣不可靠金)
     expect(victim.heroMeta!.respawnAt).toBeGreaterThan(w.time);
   });
 

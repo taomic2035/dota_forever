@@ -57,8 +57,8 @@ describe('xp table', () => {
 
 describe('economy formulas', () => {
   it('kill bounty scales with level and streak', () => {
-    expect(heroKillBounty(1, 0)).toBe(209);
-    expect(heroKillBounty(10, 0)).toBe(290);
+    expect(heroKillBounty(1, 0)).toBe(111); // 100 + 11×1(M10 校准)
+    expect(heroKillBounty(10, 0)).toBe(210); // 100 + 11×10
     expect(heroKillBounty(10, 5)).toBeGreaterThan(heroKillBounty(10, 0));
   });
   it('respawn capped', () => {
