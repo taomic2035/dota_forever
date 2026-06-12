@@ -344,7 +344,7 @@ ITEMS.push(
     active: {
       name: '魔法免疫', cooldown: 75, targetMode: 'none',
       onUse(w, user) {
-        purge(w, user, false); // 解除负面
+        purge(w, user, false, true); // 强驱散:解除含硬控的减益
         applyModifier(w, user, {
           key: 'item_bkb', duration: 6, isBuff: true,
           states: { magicImmune: true },
@@ -807,7 +807,7 @@ ITEMS.push(
         if (t.team !== user.team) {
           applyModifier(w, t, { key: 'item_eul_cyclone', duration: 2.5, states: { rooted: true, silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.95 } }, user.id);
         } else {
-          purge(w, t, false);
+          purge(w, t, false, true); // 强驱散:旋风自救可解除硬控
           applyModifier(w, t, { key: 'item_eul_self', duration: 1.2, isBuff: true, stats: { bonusMoveSpeedPct: 0.2 } }, user.id);
         }
         return true;
@@ -1001,7 +1001,7 @@ ITEMS.push(
     active: {
       name: '幻象分身', manaCost: 100, cooldown: 30, targetMode: 'none',
       onUse(w, user) {
-        purge(w, user, false); // 驱散自身减益(可解除部分控制)
+        purge(w, user, false, true); // 强驱散:幻影斧可解除含硬控的减益
         createIllusion(w, user, 2, 0.33, 3, 20);
         return true;
       },
