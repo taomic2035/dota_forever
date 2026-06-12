@@ -41,14 +41,14 @@
 - [x] Flash ability and item slots on reject and confirm.
 - [x] Keep invalid target confirmation pending while showing `INVALID TARGET`.
 - [x] Run `npm run typecheck` and focused tests.
-- [ ] Commit as `feat(ux): add command reject feedback`.
+- [x] Commit as `feat(ux): add command reject feedback`.
 
 ## Task 4: Screenshot, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-command-reject-feedback.png`.
-- [ ] Write `docs/ux/2026-06-12-command-reject-feedback-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete command reject feedback pass`.
+- [x] Capture `docs/screenshots/ux-command-reject-feedback.png`.
+- [x] Write `docs/ux/2026-06-12-command-reject-feedback-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete command reject feedback pass`.
 
 ## Self-Review
 
