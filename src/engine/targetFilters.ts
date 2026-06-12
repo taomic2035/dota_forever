@@ -11,6 +11,7 @@ export type TargetKindFilter =
   | 'building'
   | 'ward'
   | 'boss';
+export type TargetFilterRejectReason = 'dead' | 'team' | 'kind';
 
 export interface TargetableUnit {
   id: number;
@@ -38,6 +39,18 @@ export function targetMatchesFilter(
   if (!target.alive) return false;
   if (!targetMatchesTeam(caster, target, filter)) return false;
   return targetMatchesKind(target, kindFilter);
+}
+
+export function targetFilterRejectReason(
+  caster: TargetableUnit,
+  target: TargetableUnit,
+  filter: TargetTeamFilter = 'any',
+  kindFilter: TargetKindFilter = 'any',
+): TargetFilterRejectReason | null {
+  if (!target.alive) return 'dead';
+  if (!targetMatchesTeam(caster, target, filter)) return 'team';
+  if (!targetMatchesKind(target, kindFilter)) return 'kind';
+  return null;
 }
 
 export function targetMatchesTeam(

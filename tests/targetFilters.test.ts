@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { findFilteredTarget, targetMatchesFilter, type TargetableUnit } from '../src/engine/targetFilters';
+import {
+  findFilteredTarget,
+  targetFilterRejectReason,
+  targetMatchesFilter,
+  type TargetableUnit,
+} from '../src/engine/targetFilters';
 
 const caster: TargetableUnit = { id: 1, team: 0, alive: true, pos: { x: 0, y: 0 } };
 const ally: TargetableUnit = { id: 2, team: 0, alive: true, pos: { x: 20, y: 0 } };
@@ -60,5 +65,12 @@ describe('target filters', () => {
 
     expect(findFilteredTarget(query, caster, { x: 0, y: 0 }, 90, 'enemy', 'nonHeroNonBuilding')?.id).toBe(enemyCreep.id);
     expect(findFilteredTarget(query, caster, { x: 0, y: 0 }, 90, 'ally', 'creep')?.id).toBe(allyCreep.id);
+  });
+
+  it('reports why a visible unit failed target filters', () => {
+    expect(targetFilterRejectReason(caster, deadEnemy, 'enemy')).toBe('dead');
+    expect(targetFilterRejectReason(caster, allyCreep, 'enemy', 'creep')).toBe('team');
+    expect(targetFilterRejectReason(caster, enemyHero, 'enemy', 'nonHeroNonBuilding')).toBe('kind');
+    expect(targetFilterRejectReason(caster, enemyCreep, 'enemy', 'nonHeroNonBuilding')).toBeNull();
   });
 });

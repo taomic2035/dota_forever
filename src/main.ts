@@ -24,7 +24,12 @@ import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
 import { CommandCursor } from './ui/commandCursor';
-import { findFilteredTarget, type TargetKindFilter, type TargetTeamFilter } from './engine/targetFilters';
+import {
+  findFilteredTarget,
+  targetFilterRejectReason,
+  type TargetKindFilter,
+  type TargetTeamFilter,
+} from './engine/targetFilters';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
 
 const params = new URLSearchParams(location.search);
@@ -91,6 +96,8 @@ function startGame(mode: 'play' | 'spectate'): void {
     | 'no-active'
     | 'no-charges'
     | 'invalid-target'
+    | 'wrong-team'
+    | 'wrong-target-type'
     | 'blocked';
   const rejectLabel: Record<RejectReason, string> = {
     dead: 'DEAD',
@@ -103,6 +110,8 @@ function startGame(mode: 'play' | 'spectate'): void {
     'no-active': 'NO ACTIVE',
     'no-charges': 'NO CHARGES',
     'invalid-target': 'INVALID TARGET',
+    'wrong-team': 'WRONG TEAM',
+    'wrong-target-type': 'WRONG TARGET TYPE',
     blocked: "CAN'T USE",
   };
   const showReject = (reason: RejectReason, pos: { x: number; y: number }, hudKey?: string) => {
@@ -148,6 +157,32 @@ function startGame(mode: 'play' | 'spectate'): void {
       filter,
       kindFilter,
     );
+  };
+
+  const hoverUnitAt = (p: { x: number; y: number }) => {
+    const targets = world.queryRadius(p, 90, (unit) => unit.alive);
+    targets.sort((a, b) => {
+      const adx = a.pos.x - p.x;
+      const ady = a.pos.y - p.y;
+      const bdx = b.pos.x - p.x;
+      const bdy = b.pos.y - p.y;
+      return adx * adx + ady * ady - (bdx * bdx + bdy * bdy);
+    });
+    return targets[0];
+  };
+
+  const targetFilterReject = (
+    p: { x: number; y: number },
+    filter?: TargetTeamFilter,
+    kindFilter?: TargetKindFilter,
+  ): RejectReason => {
+    if (!hero) return 'invalid-target';
+    const candidate = hoverUnitAt(p);
+    if (!candidate) return 'invalid-target';
+    const reason = targetFilterRejectReason(hero, candidate, filter, kindFilter);
+    if (reason === 'team') return 'wrong-team';
+    if (reason === 'kind') return 'wrong-target-type';
+    return 'invalid-target';
   };
 
   const previewCast = (i: number, p: { x: number; y: number }) => {
@@ -307,7 +342,7 @@ function startGame(mode: 'play' | 'spectate'): void {
           return true;
         }
         previewCast(i, p);
-        showReject('invalid-target', p, `ability-${i}`);
+        showReject(targetFilterReject(p, info.def.targetTeam, info.def.targetKind), p, `ability-${i}`);
         return false;
       }
       return true;
@@ -373,7 +408,7 @@ function startGame(mode: 'play' | 'spectate'): void {
           return ok;
         }
         previewItem(slot, p);
-        showReject('invalid-target', p, `item-${slot}`);
+        showReject(targetFilterReject(p, info.active.targetTeam, info.active.targetKind), p, `item-${slot}`);
         return false;
       }
       return true;
