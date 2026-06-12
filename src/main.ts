@@ -175,7 +175,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.alpha = alpha;
       input.update(16.7);
       renderer.render(world, hero?.id ?? -1, ux);
-      hud.update(world, hero);
+      hud.update(world, hero, ux);
       shop.update(world, hero);
       minimap.render(world, renderer.viewerTeam);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);
