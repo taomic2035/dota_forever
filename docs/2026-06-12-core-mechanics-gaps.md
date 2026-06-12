@@ -42,11 +42,11 @@
 
 ## P1 — 中优先级(规则保真偏差)
 
-### M6. 缺失的技能基元:Break / 强驱散 / 法术吸血 / 睡眠受伤唤醒
-- **Break(禁用被动)**:全无 `broken` 状态位;被动是永久 modifier 且 purge 跳过永久项 → 无法禁被动(银月之痕类失效)。体量 medium。
-- **强驱散(strong dispel)**:`purge` 只有 buff/debuff 一个布尔,无「强/弱」层级 → 无法表达「只有强驱散能解眩晕/禁锢」。体量 medium。
-- **法术吸血(spell lifesteal)**:`lifesteal` 只在普攻路径触发,法术伤害无吸血回路(撒旦/法术吸血类失效)。体量 small。
-- **睡眠受伤唤醒**:噩梦类用 stun+disarm+silence 模拟,但**无受伤唤醒**逻辑。体量 small–medium。
+### M6. 缺失的技能基元:Break / 强驱散 / 法术吸血 / 睡眠受伤唤醒(部分完成)
+- ✅ **睡眠受伤唤醒**:噩梦(班恩 E)已加 onTick 受伤唤醒(沉睡后再受伤即结束),修复其声明却未实现的行为。
+- ⬜ **Break(禁用被动)**:全无 `broken` 状态位;被动是永久 modifier 且 purge 跳过永久项 → 无法禁被动。框架性,**当前无 break 物品/技能使用方**,待有需求再补。体量 medium。
+- ⬜ **强驱散(strong dispel)**:`purge` 仅 buff/debuff 一个布尔,无「强/弱」层级 → 基础驱散(如净化类)会误清眩晕。体量 medium,需逐 modifier 标记强控位。
+- ⬜ **法术吸血(spell lifesteal)**:`lifesteal` 只挂普攻;法术伤害无吸血回路。框架性,当前无使用方。体量 small。
 
 ### M7. ✅ 已完成 — 承伤减免多来源独立乘算
 - 已改 `1-∏(1-r_i)`(modifier 与物品两处 fold 一致);bash(MKB/基础/深渊)标记穿魔免(物理重击)。

@@ -493,7 +493,16 @@ const BAN_E: AbilityDef = {
   description: '使目标陷入噩梦沉睡:无法行动(受到伤害会被唤醒)。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    applyModifier(w, target, { key: 'ban_nightmare_sleep', duration: NIGHT_DUR[lvl - 1], states: { stunned: true, disarmed: true, silenced: true } }, caster.id);
+    const dur = NIGHT_DUR[lvl - 1];
+    applyModifier(w, target, {
+      key: 'ban_nightmare_sleep', duration: dur, states: { stunned: true, disarmed: true, silenced: true },
+      tickInterval: 0.1,
+      onTick(_world, u, m) {
+        // 受伤唤醒:沉睡施加后再受到伤害则立即结束
+        m.data!.start ??= m.expiresAt - dur;
+        if (u.lastDamagedAt > (m.data!.start as number) + 0.05) m.expiresAt = -Infinity;
+      },
+    }, caster.id);
     w.emit({ kind: 'fx', fx: 'nightmare', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
