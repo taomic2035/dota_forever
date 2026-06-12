@@ -7,7 +7,7 @@ import { Team } from '../sim/map';
 import type { Camera } from './camera';
 import { isVisibleTo } from '../sim/vision';
 import { TEAM_COLOR } from './renderer';
-import { WORLD } from '../data/mapLayout';
+import { WORLD, PIT_POS } from '../data/mapLayout';
 
 const SIZE = 232;
 
@@ -77,6 +77,18 @@ export class MiniMap {
       }
       ctx.globalAlpha = 1;
     }
+
+    // 固定地标(始终可见的地图知识):秘密商店 / 深渊领主巢穴
+    ctx.font = '9px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const s of world.map.shops) {
+      if (!s.secret) continue;
+      ctx.fillStyle = 'rgba(150,210,255,0.9)';
+      ctx.fillText('◈', s.pos.x * k, s.pos.y * k);
+    }
+    ctx.fillStyle = 'rgba(206,147,216,0.95)';
+    ctx.fillText('☠', PIT_POS.x * k, PIT_POS.y * k);
 
     // 单位
     for (const u of world.units.values()) {

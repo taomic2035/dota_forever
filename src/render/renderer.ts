@@ -11,7 +11,7 @@ import { FxLayer } from './fx';
 import { unitArt, darken, type UnitArt, type ArtInput } from './unitArt';
 import { isVisibleTo } from '../sim/vision';
 import { stateOf } from '../sim/combat';
-import { WORLD, CELL, RUNE_SPOTS } from '../data/mapLayout';
+import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
 
 export const TEAM_COLOR: Record<number, string> = {
@@ -174,6 +174,9 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.strokeRect(o.x, o.y, e.x - o.x, e.y - o.y);
 
+    // 地图标记(商店范围 / Boss 巢穴)——地形之上、单位之下
+    this.drawMapMarkers(world);
+
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)
     const units = [...world.units.values()].filter(
       (u) => u.alive && (this.viewerTeam === null || isVisibleTo(world, this.viewerTeam, u)),
@@ -198,6 +201,49 @@ export class Renderer {
       this.fog.update(world, this.viewerTeam);
       this.fog.draw(ctx, this.camera, world.map.CELL);
     }
+  }
+
+  /** 地图标记:本方商店范围(基地金环/秘密商店青环 + ◈)与深渊领主巢穴。 */
+  private drawMapMarkers(world: World): void {
+    const ctx = this.ctx;
+    ctx.save();
+    for (const s of world.map.shops) {
+      if (this.viewerTeam !== null && s.team !== this.viewerTeam) continue;
+      const c = this.camera.worldToScreen(s.pos);
+      const rr = this.s(s.range);
+      ctx.setLineDash([8, 8]);
+      ctx.strokeStyle = s.secret ? 'rgba(120,200,255,0.30)' : 'rgba(255,210,90,0.22)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      if (s.secret) {
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(150,210,255,0.85)';
+        ctx.font = `700 ${Math.max(11, this.s(48))}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('◈', c.x, c.y);
+        ctx.font = `${Math.max(8, this.s(20))}px system-ui`;
+        ctx.fillStyle = 'rgba(150,210,255,0.7)';
+        ctx.fillText('秘密商店', c.x, c.y + this.s(70));
+      }
+    }
+    ctx.setLineDash([]);
+    // 深渊领主巢穴
+    const pit = this.camera.worldToScreen(PIT_POS);
+    const pr = this.s(420);
+    ctx.strokeStyle = 'rgba(180,80,200,0.32)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(pit.x, pit.y, pr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(200,120,220,0.55)';
+    ctx.font = `${Math.max(10, this.s(46))}px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('☠', pit.x, pit.y);
+    ctx.restore();
   }
 
   private drawProjectiles(world: World): void {
