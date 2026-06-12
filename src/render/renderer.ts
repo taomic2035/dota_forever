@@ -546,6 +546,7 @@ export class Renderer {
         ctx.fillStyle = '#fdfaf0';
         ctx.fillText(art.glyph, p.x, p.y + bob);
       }
+      if (!isIllusion) this.drawRoleMark(art, p.x, p.y + bob, r, t);
     }
     ctx.globalAlpha = 1;
 
@@ -585,6 +586,68 @@ export class Renderer {
   }
 
   /** 本地坐标系(已平移到单位中心、已按 facing 旋转,forward=+x)绘制矢量造型 + 武器。 */
+  private drawRoleMark(art: UnitArt, cx: number, cy: number, r: number, t: number): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = 0.82;
+    ctx.strokeStyle = art.accent;
+    ctx.fillStyle = art.accent;
+    ctx.lineWidth = Math.max(1, r * 0.1);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const y = cy - r * 1.55;
+    const pulse = 1 + Math.sin(t * 4) * 0.05;
+    switch (art.role) {
+      case 'tank':
+        ctx.beginPath();
+        ctx.moveTo(cx, y - r * 0.28 * pulse);
+        ctx.lineTo(cx + r * 0.28, y - r * 0.04);
+        ctx.lineTo(cx + r * 0.16, y + r * 0.28);
+        ctx.lineTo(cx, y + r * 0.4);
+        ctx.lineTo(cx - r * 0.16, y + r * 0.28);
+        ctx.lineTo(cx - r * 0.28, y - r * 0.04);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'support':
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.28, y);
+        ctx.lineTo(cx + r * 0.28, y);
+        ctx.moveTo(cx, y - r * 0.28);
+        ctx.lineTo(cx, y + r * 0.28);
+        ctx.stroke();
+        break;
+      case 'mage':
+        ctx.beginPath();
+        ctx.arc(cx, y, r * 0.28 * pulse, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      case 'rangedCarry':
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.32, y + r * 0.2);
+        ctx.lineTo(cx, y - r * 0.2);
+        ctx.lineTo(cx + r * 0.32, y + r * 0.2);
+        ctx.stroke();
+        break;
+      case 'assassin':
+        ctx.beginPath();
+        ctx.moveTo(cx, y - r * 0.32);
+        ctx.lineTo(cx + r * 0.22, y);
+        ctx.lineTo(cx, y + r * 0.32);
+        ctx.lineTo(cx - r * 0.22, y);
+        ctx.closePath();
+        ctx.stroke();
+        break;
+      case 'meleeCarry':
+        ctx.beginPath();
+        ctx.moveTo(cx - r * 0.28, y + r * 0.25);
+        ctx.lineTo(cx + r * 0.28, y - r * 0.25);
+        ctx.stroke();
+        break;
+    }
+    ctx.restore();
+  }
+
   private drawSilhouette(art: UnitArt, r: number, raise: number, casting: boolean, hurt: boolean): void {
     const ctx = this.ctx;
     const body = hurt ? '#ffffff' : art.primary;

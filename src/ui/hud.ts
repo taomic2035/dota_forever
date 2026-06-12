@@ -5,6 +5,7 @@ import { heroAttributes } from '../sim/hero';
 import { canLearn, canLearnStatBonus, abilityReady } from '../sim/abilities';
 import { itemDef } from '../data/items';
 import type { UxFeedback } from './uxFeedback';
+import { fxStyle } from '../render/fxStyle';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -137,6 +138,7 @@ export class Hud {
     const passive = def.targetMode === 'passive';
     const learnable = canLearn(hero, i);
     const ready = abilityReady(world, hero, i);
+    const family = fxStyle(def.key || def.name);
     const border = learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
     const bg = lvl > 0 ? (ready || passive ? '#2a3a18' : '#1d2412') : '#0d100a';
     const flash = ux?.hudFlashFor(`ability-${i}`, world.time);
@@ -146,6 +148,7 @@ export class Hud {
     return `<div title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}: ${def.description}"
       style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
+      <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
       <span style="position:absolute;top:2px;left:4px;font-size:10px;color:#cfd8a0;font-weight:700">${HOTKEYS[i]}</span>
       ${passive ? '<span style="position:absolute;top:2px;right:4px;font-size:8px;color:#9ab">P</span>' : ''}
       <span style="font-size:10px;color:${lvl > 0 ? '#e8e2c8' : '#888'};text-align:center;line-height:1.05;padding:0 4px">${def.name.slice(0, 5)}</span>
