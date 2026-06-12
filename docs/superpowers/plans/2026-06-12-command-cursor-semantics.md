@@ -56,10 +56,10 @@
 
 ## Task 3: Screenshot, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-command-cursor-semantics.png`.
-- [ ] Write `docs/ux/2026-06-12-command-cursor-semantics-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete semantic cursor pass`.
+- [x] Capture `docs/screenshots/ux-command-cursor-semantics.png`.
+- [x] Write `docs/ux/2026-06-12-command-cursor-semantics-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete semantic cursor pass`.
 
 ## Self-Review
 
