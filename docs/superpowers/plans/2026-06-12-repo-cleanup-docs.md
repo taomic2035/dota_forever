@@ -46,12 +46,12 @@
 - [x] Run `npm test`.
 - [x] Run `npm run build`.
 - [x] Run `git status -sb` and inspect staged scope.
-- [ ] Commit as `chore: organize docs and clean workspace`.
-- [ ] Push `codex/ux-core-readability` to `origin`.
+- [x] Commit as `chore: organize docs and clean workspace`.
+- [x] Push `codex/ux-core-readability` to `origin`.
 
 ## Self-Review
 
 - [x] Source code paths remain stable.
 - [x] Documentation indexes point to existing files.
 - [x] Cleanup targets are local/generated artifacts only.
-- [ ] Final worktree is clean after commit and push.
+- [x] Final worktree is clean after commit and push.
