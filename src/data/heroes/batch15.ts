@@ -550,7 +550,7 @@ export const TRN: HeroDef = {
   key: 'trn', name: '崔恩', title: '森林守护', primary: 'str',
   baseStr: 24, gainStr: 3.0, baseAgi: 13, gainAgi: 1.4, baseInt: 18, gainInt: 1.9,
   baseDamage: [28, 34], baseArmor: 3, baseMs: 290, attackRange: 128,
-  projectileSpeed: 0, bat: 1.7, attackPoint: 0.5, color: '#66bb6a', glyph: '树',
+  projectileSpeed: 0, bat: 1.7, attackPoint: 0.5, color: '#43a047', glyph: '林',
   abilities: [TRN_Q, TRN_W, TRN_E, TRN_R], aiRole: 'tank',
 };
 

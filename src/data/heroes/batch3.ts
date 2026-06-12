@@ -467,7 +467,7 @@ export const VOS: HeroDef = {
   key: 'vos', name: '沃斯', title: '亡灵法师', primary: 'int',
   baseStr: 19, gainStr: 2.1, baseAgi: 13, gainAgi: 1.3, baseInt: 23, gainInt: 2.8,
   baseDamage: [23, 29], baseArmor: 2, baseMs: 295, attackRange: 600,
-  projectileSpeed: 900, bat: 1.7, attackPoint: 0.4, color: '#9575cd', glyph: '殁',
+  projectileSpeed: 900, bat: 1.7, attackPoint: 0.4, color: '#7e57c2', glyph: '亡',
   abilities: [VOS_Q, VOS_W, VOS_E, VOS_R], aiRole: 'ganker',
 };
 

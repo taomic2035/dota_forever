@@ -8,6 +8,7 @@
 import { V, type Vec2 } from '../core/vec2';
 import type { World, GameEvent } from '../sim/world';
 import { Team } from '../sim/map';
+import { PIT_POS } from '../data/mapLayout';
 import { cellVisible } from '../sim/vision';
 import type { Camera } from './camera';
 import { fxStyle, type FxMotion, type FxPattern } from './fxStyle';
@@ -153,8 +154,8 @@ export class FxLayer {
         return;
       }
       case 'boss_killed': {
-        // Boss 已移除无 pos:在已知深渊领主巢穴位置放大型金光(地图中央偏河)
-        this.add({ kind: 'impact', pos: { x: 6300, y: 8400 }, r0: 30, r1: 300, color: '#ffd86b', glow: 'rgba(255,216,107,0.55)', motion: 'burst', t: 0, life: 1.2, seed: this.seed() });
+        // Boss 已移除无 pos:在真实巢穴坐标放大型金光
+        this.add({ kind: 'impact', pos: V.clone(PIT_POS), r0: 30, r1: 300, color: '#ffd86b', glow: 'rgba(255,216,107,0.55)', motion: 'burst', t: 0, life: 1.2, seed: this.seed() });
         return;
       }
     }

@@ -60,15 +60,18 @@
 
 提交: `refactor(sim): target validation + reject reasons as single source of truth`
 
-## Wave 4 — 局部正确性 / 性能 / 清理(打磨)
+## Wave 4 — 局部正确性 / 性能 / 清理(打磨)🔵 进行中
 
-- [ ] **W4.1** Linken 类 holderModifier 失去物品即移除(D1)。
-- [ ] **W4.2** daynight 先于 vision 安装,消除 isNight 1-tick 滞后(D2)。
-- [ ] **W4.3** boss_killed 特效用真实巢穴坐标(D3)。
+- [x] **W4.1** 无光环 holderModifier 失去物品即移除(D1)。用 `__holder` 标记判定(非 `def.aura`),
+  既修林肯法球标记永久泄漏,又不误删 `item_bkb` 等限时主动 buff。测试:`holderModifier.test.ts`。
+- [x] **W4.2** daynight 先于 vision 安装,消除 isNight 1-tick 滞后(D2)。测试:`daynightVision.test.ts`
+  (夜晚起点对齐重算 tick,验证视野当 tick 收缩;旧顺序下回归用例失败已验证)。
+- [x] **W4.3** boss_killed 特效用真实巢穴坐标 `PIT_POS`(D3)。
 - [ ] **W4.4** 渲染热路径:可见单位列表/静态地标缓存,避免每帧重建(D4, D5)。
-- [ ] **W4.5** 英雄 color/glyph 去重(D8)。
+- [x] **W4.5** 英雄 color/glyph 去重(D8):沃斯/崔恩/泰德 三对撞色已分离;`heroArtUnique.test.ts` 守护全局唯一。
 - [ ] **W4.6** 数据清理:孤儿组件、死 balance 常量、`purchaseKeyFor` no-op、死 `pendingItemSlot` 分支、rax 金币确认(D7, D9, D10)。
-- [ ] **W4.7** 野怪 leash 重置健壮化(D11)。
+- [x] **W4.7** 野怪 leash 重置健壮化(D11):新增 `unit.leashing` 显式回营态;到家(order 已自然结束亦然)满血重置。
+  测试:`neutralLeash.test.ts`(含"到家且 order=null 仍重置"的确定性用例,旧逻辑下失败已验证)。
 
 提交: 按主题分多个小提交。
 

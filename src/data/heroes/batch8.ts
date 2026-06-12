@@ -297,7 +297,7 @@ export const TED: HeroDef = {
   key: 'ted', name: '泰德', title: '深海督军', primary: 'str',
   baseStr: 25, gainStr: 3.0, baseAgi: 14, gainAgi: 1.5, baseInt: 16, gainInt: 1.6,
   baseDamage: [27, 33], baseArmor: 3, baseMs: 300, attackRange: 128,
-  projectileSpeed: 0, bat: 1.7, attackPoint: 0.5, color: '#4db6ac', glyph: '潮',
+  projectileSpeed: 0, bat: 1.7, attackPoint: 0.5, color: '#26a69a', glyph: '海',
   abilities: [TED_Q, TED_W, TED_E, TED_R], aiRole: 'tank',
 };
 
