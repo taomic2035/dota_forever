@@ -35,14 +35,14 @@
 - [x] Replace `targetAt` in `main.ts` with filtered ability/item target lookup.
 - [x] Preserve default any-unit behavior for unannotated unit-target definitions.
 - [x] Run `npm run typecheck` and focused tests.
-- [ ] Commit as `feat(ux): add target filter previews`.
+- [x] Commit as `feat(ux): add target filter previews`.
 
 ## Task 3: Screenshot, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-target-filter-preview.png`.
-- [ ] Write `docs/ux/2026-06-12-target-filter-preview-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete target filter preview pass`.
+- [x] Capture `docs/screenshots/ux-target-filter-preview.png`.
+- [x] Write `docs/ux/2026-06-12-target-filter-preview-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete target filter preview pass`.
 
 ## Self-Review
 
