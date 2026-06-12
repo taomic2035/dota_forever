@@ -21,32 +21,32 @@
 
 ## Task 1: Pattern Metadata
 
-- [ ] Add failing `fxStyle` tests for fire, frost, lightning, poison, earth, holy, arcane, blood/shadow, and neutral patterns.
-- [ ] Run `npm test -- tests/fxstyle.test.ts` and confirm failure on missing `pattern`.
-- [ ] Add `FxPattern`, `patternOf`, and `pattern` to `FxStyle`.
-- [ ] Run `npm test -- tests/fxstyle.test.ts`.
-- [ ] Commit as `feat(ux): add spell impact pattern metadata`.
+- [x] Add failing `fxStyle` tests for fire, frost, lightning, poison, earth, holy, arcane, blood/shadow, and neutral patterns.
+- [x] Run `npm test -- tests/fxstyle.test.ts` and confirm failure on missing `pattern`.
+- [x] Add `FxPattern`, `patternOf`, and `pattern` to `FxStyle`.
+- [x] Run `npm test -- tests/fxstyle.test.ts`.
+- [x] Include pattern metadata in `feat(ux): add spell impact visual patterns`.
 
 ## Task 2: Particle Propagation
 
-- [ ] Add failing `FxLayer` tests that emitted spell particles carry pattern metadata.
-- [ ] Run `npm test -- tests/fxlayer.test.ts` and confirm failure.
-- [ ] Add `pattern` to `FxParticle` and set it for all emitted particles.
-- [ ] Run `npm test -- tests/fxlayer.test.ts`.
+- [x] Add failing `FxLayer` tests that emitted spell particles carry pattern metadata.
+- [x] Run `npm test -- tests/fxlayer.test.ts` and confirm failure.
+- [x] Add `pattern` to `FxParticle` and set it for all emitted particles.
+- [x] Run `npm test -- tests/fxlayer.test.ts`.
 
 ## Task 3: Pattern Rendering
 
-- [ ] Update `drawPoint` to render embers, shards, jagged arcs, cloud blobs, cracks, halo, runes, splatter, and spark.
-- [ ] Keep fixed particle lifetimes and caps unchanged.
-- [ ] Run `npm run typecheck` and focused FX tests.
-- [ ] Commit as `feat(ux): add spell impact visual patterns`.
+- [x] Update `drawPoint` to render embers, shards, jagged arcs, cloud blobs, cracks, halo, runes, splatter, and spark.
+- [x] Keep fixed particle lifetimes and caps unchanged.
+- [x] Run `npm run typecheck` and focused FX tests.
+- [x] Commit as `feat(ux): add spell impact visual patterns`.
 
 ## Task 4: Screenshots, Summary, Verification
 
-- [ ] Capture `docs/screenshots/ux-spell-impact-readability.png`.
-- [ ] Write `docs/ux/2026-06-12-spell-impact-readability-summary.md`.
-- [ ] Run `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] Commit as `feat(ux): complete spell impact readability pass`.
+- [x] Capture `docs/screenshots/ux-spell-impact-readability.png`.
+- [x] Write `docs/ux/2026-06-12-spell-impact-readability-summary.md`.
+- [x] Run `npm run typecheck`, `npm test`, and `npm run build`.
+- [x] Commit as `feat(ux): complete spell impact readability pass`.
 
 ## Self-Review
 
