@@ -68,7 +68,9 @@ function startGame(mode: 'play' | 'spectate'): void {
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
-  const minimap = new MiniMap(app, renderer.terrain, camera);
+  const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
+    ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
+  });
   const audio = new AudioDirector();
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; });
 
@@ -192,7 +194,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.render(world, hero?.id ?? -1, ux);
       hud.update(world, hero, ux);
       shop.update(world, hero);
-      minimap.render(world, renderer.viewerTeam);
+      minimap.render(world, renderer.viewerTeam, ux);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);
     },
   });

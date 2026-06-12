@@ -8,6 +8,7 @@ import type { Camera } from './camera';
 import { isVisibleTo } from '../sim/vision';
 import { TEAM_COLOR } from './renderer';
 import { WORLD, PIT_POS } from '../data/mapLayout';
+import type { UxFeedback } from '../ui/uxFeedback';
 
 const SIZE = 232;
 
@@ -54,7 +55,7 @@ export class MiniMap {
     this.pings.push({ x: wx, y: wy, at: performance.now() });
   }
 
-  render(world: World, viewerTeam: Team | null): void {
+  render(world: World, viewerTeam: Team | null, ux?: UxFeedback): void {
     const { ctx } = this;
     ctx.drawImage(this.terrainThumb, 0, 0);
     const k = SIZE / WORLD;
@@ -139,6 +140,18 @@ export class MiniMap {
     }
 
     // 镜头视野框
+    if (ux) {
+      for (const pulse of ux.worldPulsesAt(world.time).filter((p) => p.kind === 'ping')) {
+        const age = world.time - pulse.time;
+        const u = Math.max(0, Math.min(1, age / 0.55));
+        ctx.strokeStyle = `rgba(72,216,255,${1 - u})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pulse.pos.x * k, pulse.pos.y * k, 6 + 12 * u, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
     const tl = this.camera.screenToWorld({ x: 0, y: 0 });
     const br = this.camera.screenToWorld({ x: this.camera.viewW, y: this.camera.viewH });
     ctx.strokeStyle = 'rgba(232,226,200,0.7)';
