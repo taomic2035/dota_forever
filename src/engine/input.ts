@@ -14,7 +14,9 @@ export interface InputCallbacks {
   onPrepareCast(index: number, world: Vec2): boolean;
   onPreviewCast(index: number, world: Vec2): void;
   onCastKey(index: number, world: Vec2): boolean | void; // QWER -> 0-3
-  onItemKey(slot: number, world: Vec2): void; // 1-6 → 0-5
+  onPrepareItem(slot: number, world: Vec2): boolean;
+  onPreviewItem(slot: number, world: Vec2): void;
+  onItemKey(slot: number, world: Vec2): boolean | void; // 1-6 -> 0-5
   onStop(): void;
   onHold(): void;
   onCenterHero(): void;
@@ -24,6 +26,7 @@ export interface InputCallbacks {
   onPointerMove(screen: Vec2, world: Vec2): void;
   onPendingAttackMove(active: boolean): void;
   onPendingCast(index: number | null): void;
+  onPendingItem(slot: number | null): void;
 }
 
 export class InputManager {
@@ -48,6 +51,8 @@ export class InputManager {
       this.cb.onPointerMove(this.mouse, world);
       const pending = this.commandMode.previewCast();
       if (pending !== null) this.cb.onPreviewCast(pending, world);
+      const pendingItem = this.commandMode.previewItem();
+      if (pendingItem !== null) this.cb.onPreviewItem(pendingItem, world);
       if (this.dragging) {
         this.camera.pan(-(e.movementX), -(e.movementY));
       }
@@ -57,15 +62,22 @@ export class InputManager {
       if (e.button === 2) {
         this.commandMode.cancel();
         this.cb.onPendingCast(null);
+        this.cb.onPendingItem(null);
         this.cb.onPendingAttackMove(false);
         this.cb.onRightClick(world);
       } else if (e.button === 0) {
         const pending = this.commandMode.pendingCast;
+        const pendingItem = this.commandMode.pendingItem;
         if (pending >= 0) {
           const consumed = this.cb.onCastKey(pending, world) !== false;
           this.commandMode.consumePrimary({ keepPending: !consumed });
           if (consumed) this.cb.onPendingCast(null);
           else this.cb.onPreviewCast(pending, world);
+        } else if (pendingItem >= 0) {
+          const consumed = this.cb.onItemKey(pendingItem, world) !== false;
+          this.commandMode.consumePrimary({ keepPending: !consumed });
+          if (consumed) this.cb.onPendingItem(null);
+          else this.cb.onPreviewItem(pendingItem, world);
         } else if (pending === -2) {
           this.commandMode.consumePrimary();
           this.cb.onAttackMove(world);
@@ -97,16 +109,18 @@ export class InputManager {
         case 'e': this.quickCast(2, world); break;
         case 'r': this.quickCast(3, world); break;
         case '1': case '2': case '3': case '4': case '5': case '6':
-          this.cb.onItemKey(Number(e.key) - 1, world);
+          this.quickItem(Number(e.key) - 1, world);
           break;
         case 'a':
           this.commandMode.beginAttackMove();
           this.cb.onPendingAttackMove(true);
           this.cb.onPendingCast(null);
+          this.cb.onPendingItem(null);
           break;
         case 's':
           this.commandMode.cancel();
           this.cb.onPendingCast(null);
+          this.cb.onPendingItem(null);
           this.cb.onPendingAttackMove(false);
           this.cb.onStop();
           break;
@@ -118,6 +132,7 @@ export class InputManager {
         case 'escape':
           this.commandMode.cancel();
           this.cb.onPendingCast(null);
+          this.cb.onPendingItem(null);
           this.cb.onPendingAttackMove(false);
           break;
       }
@@ -136,10 +151,24 @@ export class InputManager {
     this.commandMode.beginCast(i, waitsForTarget);
     if (waitsForTarget) {
       this.cb.onPendingAttackMove(false);
+      this.cb.onPendingItem(null);
       this.cb.onPendingCast(i);
       this.cb.onPreviewCast(i, world);
     } else {
       this.cb.onPendingCast(null);
+    }
+  }
+
+  private quickItem(slot: number, world: Vec2) {
+    const waitsForTarget = this.cb.onPrepareItem(slot, world);
+    this.commandMode.beginItem(slot, waitsForTarget);
+    if (waitsForTarget) {
+      this.cb.onPendingAttackMove(false);
+      this.cb.onPendingCast(null);
+      this.cb.onPendingItem(slot);
+      this.cb.onPreviewItem(slot, world);
+    } else {
+      this.cb.onPendingItem(null);
     }
   }
 

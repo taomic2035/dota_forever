@@ -108,6 +108,38 @@ function startGame(mode: 'play' | 'spectate'): void {
     return valid;
   };
 
+  const itemInfo = (slot: number) => {
+    if (!hero?.alive) return null;
+    const inst = hero.inventory[slot];
+    if (!inst) return null;
+    const def = itemDef(inst.itemKey);
+    if (!def.active) return null;
+    if (world.time < inst.cooldownUntil) return null;
+    if (def.active.manaCost && hero.mp < def.active.manaCost) return null;
+    if (def.charges !== undefined && !def.rechargeable && inst.charges <= 0) return null;
+    return { inst, def, active: def.active, range: def.active.castRange ?? 700 };
+  };
+
+  const previewItem = (slot: number, p: { x: number; y: number }) => {
+    const info = itemInfo(slot);
+    if (!hero || !info) return false;
+    const mode = info.active.targetMode === 'unit' ? 'unit' : 'area';
+    const target = mode === 'unit' ? targetAt(p) : null;
+    const valid = mode === 'unit' ? !!target : true;
+    ux.setTargeting({
+      abilityIndex: -1,
+      source: 'item',
+      itemSlot: slot,
+      mode,
+      origin: hero.pos,
+      cursor: p,
+      range: info.range,
+      radius: mode === 'area' ? 180 : undefined,
+      valid,
+    });
+    return valid;
+  };
+
   window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 'b' && hero && !hero.alive) tryBuyback(world, hero);
     if (e.key === 'Escape' && !ux.targeting) pauseMenu.toggle();
@@ -202,21 +234,52 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       return true;
     },
-    onItemKey(slot, p) {
-      if (!hero?.alive) return;
-      const inst = hero.inventory[slot];
-      if (!inst) return;
-      const def = itemDef(inst.itemKey);
-      if (!def.active) return;
-      ux.setCursorIntent({ kind: 'item', label: `ITEM ${slot + 1}`, time: world.time, ttl: 0.45, color: '#d9b44a' });
-      if (def.active.targetMode === 'none') {
-        useItem(world, hero, slot);
-      } else if (def.active.targetMode === 'point') {
-        useItem(world, hero, slot, map.nearestWalkable(p));
-      } else {
-        const target = world.queryRadius(p, 80, (u) => u.alive)[0];
-        if (target) useItem(world, hero, slot, undefined, target);
+    onPrepareItem(slot, p) {
+      const info = itemInfo(slot);
+      if (!hero || !info) {
+        if (hero) ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        return false;
       }
+      if (info.active.targetMode === 'none') {
+        const ok = useItem(world, hero, slot);
+        ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos: hero.pos, time: world.time });
+        ux.clearTargeting();
+        return false;
+      }
+      previewItem(slot, p);
+      return true;
+    },
+    onPreviewItem(slot, p) {
+      previewItem(slot, p);
+    },
+    onItemKey(slot, p) {
+      const info = itemInfo(slot);
+      if (!hero || !info) {
+        if (hero) ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
+        return false;
+      }
+      if (info.active.targetMode === 'point') {
+        const pos = map.nearestWalkable(p);
+        const ok = useItem(world, hero, slot, pos);
+        ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos, time: world.time });
+        if (ok) ux.clearTargeting();
+        else previewItem(slot, p);
+        return ok;
+      }
+      if (info.active.targetMode === 'unit') {
+        const target = targetAt(p);
+        if (target) {
+          const ok = useItem(world, hero, slot, undefined, target);
+          ux.addWorldPulse({ kind: ok ? 'ping' : 'reject', pos: target.pos, targetId: target.id, time: world.time });
+          if (ok) ux.clearTargeting();
+          else previewItem(slot, p);
+          return ok;
+        }
+        previewItem(slot, p);
+        ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+        return false;
+      }
+      return true;
     },
     onStop() {
       if (hero) ux.addWorldPulse({ kind: 'stop', pos: hero.pos, time: world.time });
@@ -248,6 +311,14 @@ function startGame(mode: 'play' | 'spectate'): void {
       } else {
         const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
         ux.setCursorIntent({ kind: 'cast', label: `CAST ${hotkey}`, time: world.time, color: '#5aa2ff' });
+      }
+    },
+    onPendingItem(slot) {
+      if (slot === null || !hero) {
+        ux.clearTargeting();
+        ux.clearCursorIntent();
+      } else {
+        ux.setCursorIntent({ kind: 'item', label: `ITEM ${slot + 1}`, time: world.time, color: '#d9b44a' });
       }
     },
   });

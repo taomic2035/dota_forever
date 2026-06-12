@@ -58,4 +58,52 @@ describe('CommandMode', () => {
     expect(mode.previewCast()).toBeNull();
     expect(mode.consumePrimary()).toEqual({ kind: 'none' });
   });
+
+  it('keeps targeted items pending until primary click confirms', () => {
+    const mode = new CommandMode();
+
+    expect(mode.beginItem(4, true)).toEqual({ kind: 'pending-item', itemSlot: 4 });
+    expect(mode.pendingItem).toBe(4);
+    expect(mode.previewItem()).toBe(4);
+
+    expect(mode.consumePrimary()).toEqual({ kind: 'item', itemSlot: 4 });
+    expect(mode.pendingItem).toBe(-1);
+  });
+
+  it('does not enter pending mode for instant items', () => {
+    const mode = new CommandMode();
+
+    expect(mode.beginItem(2, false)).toEqual({ kind: 'instant-item', itemSlot: 2 });
+    expect(mode.pendingItem).toBe(-1);
+    expect(mode.consumePrimary()).toEqual({ kind: 'none' });
+  });
+
+  it('keeps a pending item active after invalid confirm', () => {
+    const mode = new CommandMode();
+    mode.beginItem(5, true);
+
+    expect(mode.consumePrimary({ keepPending: true })).toEqual({ kind: 'item', itemSlot: 5 });
+    expect(mode.pendingItem).toBe(5);
+  });
+
+  it('replaces pending item when another item slot is pressed', () => {
+    const mode = new CommandMode();
+
+    mode.beginItem(1, true);
+    mode.beginItem(3, true);
+
+    expect(mode.pendingItem).toBe(3);
+    expect(mode.consumePrimary()).toEqual({ kind: 'item', itemSlot: 3 });
+  });
+
+  it('replaces pending item when an ability targeting mode starts', () => {
+    const mode = new CommandMode();
+
+    mode.beginItem(1, true);
+    mode.beginCast(0, true);
+
+    expect(mode.pendingItem).toBe(-1);
+    expect(mode.pendingCast).toBe(0);
+    expect(mode.consumePrimary()).toEqual({ kind: 'cast', abilityIndex: 0 });
+  });
 });

@@ -14,6 +14,8 @@ export interface WorldPulse {
 
 export interface TargetingState {
   abilityIndex: number;
+  source?: 'ability' | 'item';
+  itemSlot?: number;
   mode: TargetingMode;
   origin: Vec2;
   range: number;
