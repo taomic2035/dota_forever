@@ -4,7 +4,7 @@
 import { V, type Vec2 } from '../core/vec2';
 import {
   FIRST_WAVE_TIME, WAVE_INTERVAL, MELEE_PER_WAVE, RANGED_PER_WAVE,
-  SIEGE_EVERY_N_WAVES, CREEP_UPGRADE_INTERVAL,
+  SIEGE_EVERY_N_WAVES, CREEP_UPGRADE_INTERVAL, CREEP_AGGRO_RANGE,
 } from '../data/balance';
 import { creepStats, CREEP_NAME, SUPER_PREFIX, type CreepRole, type SuperTier } from '../data/creeps';
 import type { Lane } from '../data/mapLayout';
@@ -33,6 +33,8 @@ export function installCreeps(w: World): void {
   };
   // 在 ordersSystem 之前插入(setup 已保证 recalc 在最前)
   w.systems.splice(1, 0, system);
+  // aggro 必须在 ordersSystem 之后运行,才能读到本帧 emit 的 attack_launched
+  w.systems.push(creepAggro);
 }
 
 function laneWaypointsFor(w: World, team: Team, lane: Lane): Vec2[] {
@@ -89,6 +91,27 @@ function sendAlongLane(w: World, u: Unit, wps: Vec2[], fromIndex: number): void 
   u.order = { type: 'attackmove', pos: V.clone(wps[Math.min(fromIndex, wps.length - 1)]) };
   u.orderQueue = wps.slice(fromIndex + 1).map((p) => ({ type: 'attackmove' as const, pos: V.clone(p) }));
   if (enemyAncient) u.orderQueue.push({ type: 'attackmove', pos: V.clone(enemyAncient.pos) });
+}
+
+/**
+ * 小兵仇恨(creep aggro):敌方英雄攻击小兵时,以被攻击小兵为中心 CREEP_AGGRO_RANGE
+ * 内的同队小兵立即切火到该英雄(经典兵线机制)。combat 的 attackmove 逻辑会让它们
+ * 追打至英雄脱离 acquireRange×1.7 后自然恢复兵线推进。读上一帧的 attack_launched 事件。
+ */
+function creepAggro(w: World): void {
+  const r2 = CREEP_AGGRO_RANGE * CREEP_AGGRO_RANGE;
+  for (const e of w.events) {
+    if (e.kind !== 'attack_launched') continue;
+    const attacker = w.getUnit(e.unitId);
+    if (!attacker || !attacker.isHero()) continue;
+    const victim = w.getUnit(e.targetId);
+    if (!victim || victim.kind !== 'creep' || victim.team === attacker.team) continue;
+    for (const c of w.units.values()) {
+      if (c.kind !== 'creep' || !c.alive || c.team !== victim.team) continue;
+      if (V.distSq(c.pos, victim.pos) > r2) continue;
+      c.attackTargetId = attacker.id;
+    }
+  }
 }
 
 /** 离自己兵线走廊过远的兵,放弃当前目标重新归队。 */
