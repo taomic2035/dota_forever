@@ -74,7 +74,10 @@ export interface UnitInit {
 }
 
 export interface HeroMeta {
+  /** 当前可花费金币总额(= 可靠 + 不可靠) */
   gold: number;
+  /** 其中可靠金(工资/击杀/拆塔/Boss):死亡不扣除 */
+  reliableGold: number;
   xp: number;
   skillPoints: number;
   statBonusLearned: number;
@@ -91,7 +94,7 @@ export interface HeroMeta {
 
 export function makeHeroMeta(startingGold: number): HeroMeta {
   return {
-    gold: startingGold, xp: 0, skillPoints: 1, statBonusLearned: 0,
+    gold: startingGold, reliableGold: 0, xp: 0, skillPoints: 1, statBonusLearned: 0,
     lastHits: 0, denies: 0, kills: 0, deaths: 0, assists: 0, streak: 0,
     respawnAt: -Infinity, buybackCooldownUntil: -Infinity,
   };

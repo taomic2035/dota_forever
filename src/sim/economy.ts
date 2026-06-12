@@ -12,9 +12,32 @@ import { Team } from './map';
 import type { World, WorldSystem } from './world';
 import type { Unit } from './unit';
 
-export function addGold(u: Unit, amount: number): void {
+/**
+ * 加金。reliable=true 计入可靠金(工资/击杀/拆塔/Boss)——死亡不扣除。
+ * 正补/野怪等为不可靠金(默认),死亡按死亡惩罚扣除。
+ */
+export function addGold(u: Unit, amount: number, reliable = false): void {
   if (!u.heroMeta) return;
-  u.heroMeta.gold = Math.max(0, Math.round(u.heroMeta.gold + amount));
+  const m = u.heroMeta;
+  m.gold = Math.max(0, Math.round(m.gold + amount));
+  if (reliable && amount > 0) m.reliableGold += Math.round(amount);
+  if (m.reliableGold > m.gold) m.reliableGold = m.gold; // 不超过总额
+}
+
+/** 消费金币(购物/买活):优先消耗不可靠金,可靠金随总额回钳。 */
+export function spendGold(u: Unit, amount: number): void {
+  if (!u.heroMeta) return;
+  const m = u.heroMeta;
+  m.gold = Math.max(0, m.gold - amount);
+  if (m.reliableGold > m.gold) m.reliableGold = m.gold;
+}
+
+/** 死亡掉金:仅扣除不可靠金部分(可靠金不掉)。 */
+export function loseGoldOnDeath(u: Unit, amount: number): void {
+  if (!u.heroMeta) return;
+  const m = u.heroMeta;
+  const unreliable = m.gold - m.reliableGold;
+  m.gold = Math.max(0, m.gold - Math.min(amount, unreliable));
 }
 
 /** 加经验并处理升级(死亡英雄不吃经验)。 */
@@ -49,7 +72,7 @@ export function installEconomy(w: World): void {
     if (world.time >= nextPayday) {
       nextPayday += PERIODIC_GOLD_INTERVAL;
       for (const u of world.units.values()) {
-        if (u.isHero()) addGold(u, PERIODIC_GOLD);
+        if (u.isHero()) addGold(u, PERIODIC_GOLD, true); // 工资为可靠金
       }
     }
 
@@ -73,7 +96,7 @@ export function installEconomy(w: World): void {
         // 金币
         if (!denied && killer?.isHero() && killer.team !== victim.team) {
           const g = world.rng.int(victim.base.bountyMin, victim.base.bountyMax);
-          addGold(killer, g);
+          addGold(killer, g, victim.kind === 'boss'); // Boss 赏金为可靠金;正补/野怪为不可靠
           killer.heroMeta!.lastHits++;
           world.emit({ kind: 'last_hit', unitId: killer.id, gold: g, pos: V.clone(victim.pos) });
         }
@@ -85,12 +108,12 @@ export function installEconomy(w: World): void {
         const vm = victim.heroMeta!;
         vm.deaths++;
         vm.respawnAt = world.time + respawnTime(victim.level);
-        addGold(victim, -deathGoldLoss(victim.level));
+        loseGoldOnDeath(victim, deathGoldLoss(victim.level)); // 仅扣不可靠金
         const xpShare = enemyHeroesNear(world, victim.pos, victim.team, XP_SHARE_RADIUS);
         for (const h of xpShare) addXp(world, h, xpForKillLevel(victim.level) / Math.max(1, xpShare.length));
         if (killer && killer.isHero() && killer.team !== victim.team) {
           const bounty = heroKillBounty(victim.level, vm.streak);
-          addGold(killer, bounty);
+          addGold(killer, bounty, true); // 击杀赏金为可靠金
           killer.heroMeta!.kills++;
           killer.heroMeta!.streak++;
           for (const a of enemyHeroesNear(world, victim.pos, victim.team, ASSIST_RADIUS)) {
@@ -108,11 +131,11 @@ export function installEconomy(w: World): void {
         const tier = victim.buildingKind === 'tower1' ? 't1' : victim.buildingKind === 'tower2' ? 't2' : victim.buildingKind === 'tower3' ? 't3' : 't4';
         const ts = TOWER_STATS[tier];
         if (killer?.isHero() && killer.team !== victim.team) {
-          addGold(killer, ts.bounty);
+          addGold(killer, ts.bounty, true); // 拆塔赏金为可靠金
           world.emit({ kind: 'last_hit', unitId: killer.id, gold: ts.bounty, pos: V.clone(victim.pos) });
         }
         for (const h of world.units.values()) {
-          if (h.isHero() && h.team !== victim.team) addGold(h, ts.teamGold);
+          if (h.isHero() && h.team !== victim.team) addGold(h, ts.teamGold, true); // 团队拆塔金为可靠金
         }
       }
     }

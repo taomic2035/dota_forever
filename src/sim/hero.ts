@@ -15,6 +15,7 @@ import { Team } from './map';
 import type { World, WorldSystem } from './world';
 import { Unit, type UnitStats } from './unit';
 import { recalcExtensions, recalcUnit } from './combat';
+import { spendGold } from './economy';
 
 /** 当前属性值(基础+成长+黄点;装备/光环加成由 modifier 在 calc 上追加)。 */
 export function heroAttributes(u: Unit): { str: number; agi: number; int: number } {
@@ -102,7 +103,7 @@ export function canBuyback(w: World, u: Unit): boolean {
 
 export function tryBuyback(w: World, u: Unit): boolean {
   if (!canBuyback(w, u)) return false;
-  u.heroMeta!.gold -= buybackCost(u.level);
+  spendGold(u, buybackCost(u.level));
   u.heroMeta!.buybackCooldownUntil = w.time + BUYBACK_COOLDOWN; // 置冷却:防止反复买活
   reviveHero(w, u);
   return true;

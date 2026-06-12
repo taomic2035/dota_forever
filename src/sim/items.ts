@@ -10,6 +10,7 @@ import type { World } from './world';
 import type { Unit } from './unit';
 import { recalcExtensions, attackHitHooks } from './combat';
 import { tryLinkenBlock } from './modifiers';
+import { spendGold } from './economy';
 import { targetMatchesFilter } from './targeting';
 
 export interface ItemInstance {
@@ -61,14 +62,14 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
     const existing = (intoInventory ? hero.inventory : hero.stash).find((s) => s?.itemKey === key);
     if (existing) {
       existing.charges += def.charges ?? 1;
-      m.gold -= def.cost;
+      spendGold(hero, def.cost);
       return intoInventory ? 'ok' : 'ok_stash';
     }
   }
   let slot = intoInventory ? freeSlot(hero.inventory) : -1;
   if (slot >= 0) {
     hero.inventory[slot] = makeItem(key);
-    m.gold -= def.cost;
+    spendGold(hero, def.cost);
     afterInventoryChange(w, hero);
     return 'ok';
   }
@@ -77,7 +78,7 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
   const stashSlot = freeSlot(hero.stash);
   if (stashSlot < 0) return 'full';
   hero.stash[stashSlot] = makeItem(key);
-  m.gold -= def.cost;
+  spendGold(hero, def.cost);
   return 'ok_stash';
 }
 
