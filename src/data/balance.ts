@@ -86,6 +86,8 @@ export function deathGoldLoss(level: number): number {
 export function buybackCost(level: number): number {
   return Math.floor(100 + level * level * 1.5);
 }
+/** 买活冷却(秒):防止同一英雄短时间反复买活,后期博弈核心。 */
+export const BUYBACK_COOLDOWN = 300;
 export const SELL_REFUND = 0.5;
 
 // ---------- 复活 ----------

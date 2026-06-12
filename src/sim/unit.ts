@@ -85,13 +85,15 @@ export interface HeroMeta {
   assists: number;
   streak: number;
   respawnAt: number;
+  /** 买活冷却到期时刻(world.time);此前不可再买活 */
+  buybackCooldownUntil: number;
 }
 
 export function makeHeroMeta(startingGold: number): HeroMeta {
   return {
     gold: startingGold, xp: 0, skillPoints: 1, statBonusLearned: 0,
     lastHits: 0, denies: 0, kills: 0, deaths: 0, assists: 0, streak: 0,
-    respawnAt: -Infinity,
+    respawnAt: -Infinity, buybackCooldownUntil: -Infinity,
   };
 }
 

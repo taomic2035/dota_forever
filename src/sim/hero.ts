@@ -8,7 +8,7 @@ import {
   ARMOR_PER_AGI, IAS_PER_AGI, BASE_HP, BASE_MP, BASE_HP_REGEN, BASE_MP_REGEN,
   HERO_BASE_MAGIC_RESIST, STAT_BONUS_PER_LEVEL, UNIT_RADIUS,
   HERO_VISION_DAY, HERO_VISION_NIGHT, ACQUIRE_RANGE_MELEE, ACQUIRE_RANGE_RANGED,
-  buybackCost,
+  buybackCost, BUYBACK_COOLDOWN,
 } from '../data/balance';
 import type { HeroDef } from '../data/heroes/types';
 import { Team } from './map';
@@ -93,11 +93,17 @@ export function installHeroRespawn(w: World): void {
 }
 
 /** 买活:支付金币立即在泉水复活。 */
-export function tryBuyback(w: World, u: Unit): boolean {
+/** 可否买活:阵亡 + 金币足够 + 不在买活冷却中。 */
+export function canBuyback(w: World, u: Unit): boolean {
   if (u.alive || !u.heroMeta) return false;
-  const cost = buybackCost(u.level);
-  if (u.heroMeta.gold < cost) return false;
-  u.heroMeta.gold -= cost;
+  if (w.time < u.heroMeta.buybackCooldownUntil) return false;
+  return u.heroMeta.gold >= buybackCost(u.level);
+}
+
+export function tryBuyback(w: World, u: Unit): boolean {
+  if (!canBuyback(w, u)) return false;
+  u.heroMeta!.gold -= buybackCost(u.level);
+  u.heroMeta!.buybackCooldownUntil = w.time + BUYBACK_COOLDOWN; // 置冷却:防止反复买活
   reviveHero(w, u);
   return true;
 }
