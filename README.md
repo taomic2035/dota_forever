@@ -187,3 +187,11 @@ npm run typecheck   # 严格 TS
 npm test            # vitest
 node scripts/shot.mjs <url> <out.png> [waitMs] [evalExpr]   # 自动化截图/冒烟
 ```
+
+## Documentation And UX Handoff
+
+- [Documentation index](docs/README.md)
+- [UX design and summary index](docs/ux/README.md)
+- [Screenshot evidence index](docs/screenshots/README.md)
+- [Source map](docs/source-map.md)
+- [Implementation plans](docs/superpowers/plans/)
