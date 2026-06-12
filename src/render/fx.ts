@@ -122,7 +122,7 @@ export class FxLayer {
         if (e.deny) {
           this.texts.push({ text: '拒绝', pos: { x: e.pos.x, y: e.pos.y - 20 }, color: '#9fd0ff', size: 13, t: 0, life: 0.9, vy: -55 });
         } else if (e.gold > 0) {
-          this.texts.push({ text: `+${e.gold}`, pos: { x: e.pos.x, y: e.pos.y - 20 }, color: '#ffd24a', size: 14, t: 0, life: 1.0, vy: -55 });
+          this.texts.push({ text: `+${e.gold}`, pos: { x: e.pos.x, y: e.pos.y - 20 }, color: '#ffd24a', size: 16, t: 0, life: 1.05, vy: -58 });
         }
         this.trimTexts();
         return;
@@ -202,9 +202,9 @@ export class FxLayer {
       const u = t.t / t.life;
       ctx.globalAlpha = u < 0.15 ? u / 0.15 : 1 - (u - 0.15) / 0.85;
       const fs = Math.max(11, t.size * (0.85 + 0.15 * camera.zoom * 2));
-      ctx.font = `700 ${fs}px "Segoe UI", system-ui, sans-serif`;
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.font = `800 ${fs}px "Segoe UI", Arial, sans-serif`;
+      ctx.lineWidth = Math.max(3, fs * 0.18);
+      ctx.strokeStyle = 'rgba(0,0,0,0.92)';
       ctx.strokeText(t.text, sp.x, sp.y);
       ctx.fillStyle = t.color;
       ctx.fillText(t.text, sp.x, sp.y);

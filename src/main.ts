@@ -120,13 +120,28 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.addWorldPulse({ kind: 'reject', pos: hero.pos, time: world.time });
         return;
       }
+      const range = def.castRange?.[Math.max(0, inst.level - 1)] ?? 700;
       if (def.targetMode === 'none') {
         hero.issueOrder({ type: 'cast', abilityIndex: i });
+        ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
+        ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
       } else if (def.targetMode === 'point') {
-        hero.issueOrder({ type: 'cast', abilityIndex: i, pos: map.nearestWalkable(p) });
+        ux.setTargeting({ abilityIndex: i, mode: 'area', origin: hero.pos, range, radius: 220 });
+        const pos = map.nearestWalkable(p);
+        hero.issueOrder({ type: 'cast', abilityIndex: i, pos });
+        ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
+        ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
       } else {
+        ux.setTargeting({ abilityIndex: i, mode: 'unit', origin: hero.pos, range });
         const target = world.queryRadius(p, 90, (u) => u.alive && u.id !== hero!.id)[0];
-        if (target) hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
+        if (target) {
+          hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
+          ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
+          ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
+        } else {
+          ux.flashHudSlot(`ability-${i}`, 'reject', world.time);
+          ux.addWorldPulse({ kind: 'reject', pos: p, time: world.time });
+        }
       }
     },
     onItemKey(slot, p) {

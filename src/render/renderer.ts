@@ -13,7 +13,7 @@ import { isVisibleTo } from '../sim/vision';
 import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
-import type { UxFeedback } from '../ui/uxFeedback';
+import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -178,6 +178,7 @@ export class Renderer {
     // 地图标记(商店范围 / Boss 巢穴)——地形之上、单位之下
     this.drawMapMarkers(world);
     if (ux) this.drawUxPulses(world, ux);
+    if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
 
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)
     const units = [...world.units.values()].filter(
@@ -236,6 +237,46 @@ export class Renderer {
       }
       ctx.restore();
     }
+  }
+
+  private drawTargetingOverlay(t: TargetingState): void {
+    const ctx = this.ctx;
+    const origin = this.camera.worldToScreen(t.origin);
+    const range = this.s(t.range);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(80,170,255,0.55)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.arc(origin.x, origin.y, range, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (t.mode === 'line') {
+      ctx.strokeStyle = 'rgba(80,190,255,0.85)';
+      ctx.lineWidth = Math.max(2, this.s(t.width ?? 80));
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(origin.x + range, origin.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(origin.x + range, origin.y);
+      ctx.stroke();
+    }
+
+    if (t.radius) {
+      ctx.strokeStyle = 'rgba(80,170,255,0.75)';
+      ctx.fillStyle = 'rgba(80,170,255,0.08)';
+      ctx.beginPath();
+      ctx.arc(origin.x, origin.y, this.s(t.radius), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   private drawMapMarkers(world: World): void {
@@ -392,8 +433,8 @@ export class Renderer {
     ctx.fill();
 
     // 阵营地环(一眼辨敌我)
-    ctx.strokeStyle = u.team === Team.Dawn ? 'rgba(110,220,120,0.6)' : u.team === Team.Night ? 'rgba(235,90,80,0.6)' : 'rgba(180,180,180,0.5)';
-    ctx.lineWidth = Math.max(1, this.s(2.5));
+    ctx.strokeStyle = u.team === Team.Dawn ? 'rgba(80,235,100,0.85)' : u.team === Team.Night ? 'rgba(255,76,66,0.85)' : 'rgba(190,190,190,0.65)';
+    ctx.lineWidth = Math.max(1.5, this.s(3));
     ctx.beginPath();
     ctx.ellipse(p.x, p.y + r * 0.55, r * 0.9, r * 0.4, 0, 0, Math.PI * 2);
     ctx.stroke();
@@ -449,8 +490,8 @@ export class Renderer {
     }
 
     if (selected) {
-      ctx.strokeStyle = '#8fe07a';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#9cff74';
+      ctx.lineWidth = Math.max(2, this.s(4));
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + r * 0.55, r * 1.15, r * 0.55, 0, 0, Math.PI * 2);
       ctx.stroke();
