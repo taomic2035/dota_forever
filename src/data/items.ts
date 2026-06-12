@@ -771,7 +771,7 @@ ITEMS.push(
     recipe: { components: ['reaver', 'claymore'], recipeCost: 1000 },
     onAttack(w, attacker, target) {
       if (target.isBuilding() || !w.rng.chance(0.2)) return;
-      applyModifier(w, target, { key: 'item_abyssal_bash', duration: 0.6, states: { stunned: true } }, attacker.id);
+      applyModifier(w, target, { key: 'item_abyssal_bash', duration: 0.6, states: { stunned: true }, data: { piercesSpellImmunity: 1 } }, attacker.id);
     },
     active: {
       name: '深渊禁锢', cooldown: 30, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
@@ -1010,12 +1010,12 @@ ITEMS.push(
 
   // 金箍棒:必中 + 重击
   { key: 'mkb', name: '金箍棒', cost: 5100, category: 'combined',
-    stats: { bonusDamage: 40, bonusAttackSpeed: 0.45 },
+    stats: { bonusDamage: 40, bonusAttackSpeed: 0.45, trueStrike: true },
     recipe: { components: ['demon_edge', 'hyperstone'], recipeCost: 600 },
     onAttack(w, attacker, target) {
       if (target.isBuilding() || !w.rng.chance(0.35)) return;
       _spellDamage(w, attacker, target, 100);
-      applyModifier(w, target, { key: 'item_mkb_bash', duration: 0.4, states: { stunned: true } }, attacker.id);
+      applyModifier(w, target, { key: 'item_mkb_bash', duration: 0.4, states: { stunned: true }, data: { piercesSpellImmunity: 1 } }, attacker.id);
     },
     description: '+40 攻击 +45% 攻速;攻击 35% 触发重击(额外魔法伤害+短眩)。' },
 
@@ -1025,7 +1025,7 @@ ITEMS.push(
     recipe: { components: ['mithril_hammer', 'belt'], recipeCost: 450 },
     onAttack(w, attacker, target) {
       if (target.isBuilding() || !w.rng.chance(0.2)) return;
-      applyModifier(w, target, { key: 'item_basher_bash', duration: 0.8, states: { stunned: true } }, attacker.id);
+      applyModifier(w, target, { key: 'item_basher_bash', duration: 0.8, states: { stunned: true }, data: { piercesSpellImmunity: 1 } }, attacker.id);
     },
     description: '+24 攻击 +10 力量;攻击有 20% 概率短暂眩晕目标。' },
 

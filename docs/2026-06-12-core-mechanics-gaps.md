@@ -10,7 +10,7 @@
 
 ## P0 — 高优先级(影响对局正确性的真实缺口)
 
-### M1. 魔免 / 无敌 不阻挡「负面 modifier 的施加」
+### M1. ✅ 已完成 — 魔免 / 无敌 拦截「敌方负面 modifier 的施加」
 - 现状:`combat.applyDamage` 正确在魔免下挡魔法伤害、无敌下挡一切伤害(已测)。但**控制/减益的施加路径不设防**——
   - 单位目标技能的 `onCast` 直接 `applyModifier`,不查 `magicImmune`/`invulnerable`;
   - AoE 的 `modifierArea` 查了 enemy 的 `magicImmune`(✓)但**没查 `invulnerable`**;
@@ -18,7 +18,7 @@
 - 差距:BKB/无敌单位**仍会被单体眩晕/减速命中**;无敌单位仍能被 AoE 写入 debuff。这是当前最严重的机制错误。
 - 方案:在 `applyModifier`(或统一的 `canReceiveDebuff(target, mod)`)处,对**敌方来源的非 buff modifier**统一判定 `magicImmune`(可加 `piercesSpellImmunity` 例外位)与 `invulnerable`,一处收口,人类/AI/物品/技能一视同仁。体量 medium。
 
-### M2. 必中(true strike)缺失 + 多来源闪避叠加错误
+### M2. ✅ 已完成 — 必中(true strike) + 多来源闪避独立叠加
 - 现状:`StatMods` 无 `trueStrike`;MKB 只做了重击眩晕,**不无视闪避**(MKB 的立身之本);多件闪避用 `Math.max` 聚合,而非独立概率乘算。
 - 差距:闪避装互相不叠(35%+20% 实算成 35% 而非 48%);MKB 无法克制蝴蝶。
 - 方案:加 `trueStrike` 位 + 闪避改独立乘算折叠;命中判定先查 trueStrike。体量 small。
@@ -48,8 +48,8 @@
 - **法术吸血(spell lifesteal)**:`lifesteal` 只在普攻路径触发,法术伤害无吸血回路(撒旦/法术吸血类失效)。体量 small。
 - **睡眠受伤唤醒**:噩梦类用 stun+disarm+silence 模拟,但**无受伤唤醒**逻辑。体量 small–medium。
 
-### M7. 承伤减免多来源用 max() 而非独立乘算
-- 叠加减伤装毫无边际收益(应 `1-∏(1-r_i)`)。体量 small。
+### M7. ✅ 已完成 — 承伤减免多来源独立乘算
+- 已改 `1-∏(1-r_i)`(modifier 与物品两处 fold 一致);bash(MKB/基础/深渊)标记穿魔免(物理重击)。
 
 ### M8. 阿哈利姆神杖升级框架缺失
 - `scepter` 只给属性,`AbilityDef` 无 `aghs` 变体钩子 → 无法升级大招。属框架层缺口(逐英雄变体是后续内容量)。体量 medium(框架)。

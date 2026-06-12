@@ -386,7 +386,7 @@ const SDM_Q: AbilityDef = {
   description: '将目标禁锢于虚空(无敌但无法行动);若为敌方,挣脱后被减速。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    target.invulnerable = true;
+    // 先挂禁锢 modifier 再置无敌,否则 M1 会用刚置的无敌拦掉本技能自己的 banish。
     applyModifier(w, target, {
       key: 'sdm_disrupt_banish', duration: DISRUPT_DUR[lvl - 1], states: { stunned: true, invisible: true },
       onExpire(world, u) {
@@ -394,6 +394,7 @@ const SDM_Q: AbilityDef = {
         if (u.team !== caster.team) applyModifier(world, u, { key: 'sdm_disrupt_slow', duration: 3, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
       },
     }, caster.id);
+    target.invulnerable = true; // 置于最后:禁锢期间外部敌方 debuff 由 M1 正确拦截
     w.emit({ kind: 'fx', fx: 'disruption', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {

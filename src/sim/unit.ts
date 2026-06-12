@@ -55,13 +55,14 @@ export interface UnitStats {
 /** 经 modifier 与装备聚合后的实际面板(combat.recalcUnit 每 tick 由 base 重算)。 */
 export interface CalcStats extends UnitStats {
   ias: number; // 总攻速加成
-  evasion: number;
+  evasion: number; // 多来源独立概率叠加后的总闪避 0-1
+  trueStrike: boolean; // 必中:无视目标闪避(MKB)
   critChance: number;
   critMultiplier: number;
   lifesteal: number;
   trueSight: number; // 真视半径,0=无
   spellAmp: number;  // 法术增强 0.2 = +20%
-  incomingDamageReduction: number; // 承伤减免 0.2 = -20%
+  incomingDamageReduction: number; // 承伤减免 0.2 = -20%(多来源独立乘算)
 }
 
 export interface UnitInit {
@@ -180,7 +181,7 @@ export class Unit {
     this.pos = V.clone(init.pos);
     this.prevPos = V.clone(init.pos);
     this.base = { ...init.stats };
-    this.calc = { ...init.stats, ias: 0, evasion: 0, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0, spellAmp: 0, incomingDamageReduction: 0 };
+    this.calc = { ...init.stats, ias: 0, evasion: 0, trueStrike: false, critChance: 0, critMultiplier: 1.5, lifesteal: 0, trueSight: 0, spellAmp: 0, incomingDamageReduction: 0 };
     this.hp = this.base.maxHp;
     this.mp = this.base.maxMp;
   }

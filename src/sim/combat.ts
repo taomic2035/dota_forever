@@ -48,7 +48,7 @@ export function recalcUnit(u: Unit): void {
   c.moveSpeed = b.moveSpeed; c.collisionRadius = b.collisionRadius;
   c.visionDay = b.visionDay; c.visionNight = b.visionNight;
   c.acquireRange = b.acquireRange;
-  c.ias = 0; c.evasion = 0; c.critChance = 0; c.critMultiplier = 1.5;
+  c.ias = 0; c.evasion = 0; c.trueStrike = false; c.critChance = 0; c.critMultiplier = 1.5;
   c.lifesteal = 0; c.trueSight = 0; c.spellAmp = 0; c.incomingDamageReduction = 0;
   // 聚合顺序固定:modifier 数值(含属性加成写入 bonusAttr)→ 英雄属性折算
   modifierFold(u);
@@ -90,9 +90,9 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     amount *= 1 - target.calc.magicResist;
   } else {
     if (stateOf(target).physImmune) return 0;
-    // 闪避 + 低打高 miss
+    // 闪避 + 低打高 miss。必中(MKB)无视闪避,但不免疫地形(低打高)落空。
     const source = w.getUnit(evt.source);
-    let missChance = target.calc.evasion;
+    let missChance = source?.calc.trueStrike ? 0 : target.calc.evasion;
     if (source && w.map.heightAt(source.pos) < w.map.heightAt(target.pos)) {
       missChance = 1 - (1 - missChance) * (1 - UPHILL_MISS_CHANCE);
     }

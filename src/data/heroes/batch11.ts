@@ -33,7 +33,7 @@ const MOR_W: AbilityDef = {
   description: '将目标放逐到星界:暂时移出战场无法行动,并窃取其智力。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    target.invulnerable = true;
+    // 先挂本技能自身的 debuff,再置无敌(放逐本质)。否则 M1 会用刚置的无敌拦掉本技能自己的 modifier。
     applyModifier(w, target, {
       key: 'mor_astral_banish', duration: BANISH_DUR[lvl - 1], states: { stunned: true, invisible: true },
       onExpire(_world, u) { u.invulnerable = false; },
@@ -42,6 +42,7 @@ const MOR_W: AbilityDef = {
       applyModifier(w, caster, { key: 'mor_astral_int', duration: 30, isBuff: true, stats: { bonusInt: INT_STEAL[lvl - 1] } }, caster.id);
       applyModifier(w, target, { key: 'mor_astral_intloss', duration: 30, stats: { bonusInt: -INT_STEAL[lvl - 1] } }, caster.id);
     }
+    target.invulnerable = true; // 置于最后:放逐期间外部敌方 debuff 由 M1 正确拦截
     w.emit({ kind: 'fx', fx: 'astral', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {

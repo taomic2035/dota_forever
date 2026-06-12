@@ -225,7 +225,8 @@ function itemFold(u: Unit): void {
     c.hpRegen += s.bonusHpRegen ?? 0;
     c.mpRegen += s.bonusMpRegen ?? 0;
     c.magicResist += s.bonusMagicResist ?? 0; // 累加,统一 clamp 见 combat.recalcUnit
-    c.evasion = Math.max(c.evasion, s.evasion ?? 0);
+    if (s.evasion) c.evasion = 1 - (1 - c.evasion) * (1 - s.evasion); // 独立概率叠加
+    if (s.trueStrike) c.trueStrike = true;
     if ((s.critChance ?? 0) > c.critChance) {
       c.critChance = s.critChance!;
       c.critMultiplier = s.critMultiplier ?? 1.5;
@@ -234,7 +235,7 @@ function itemFold(u: Unit): void {
     c.attackRange += s.bonusAttackRange ?? 0;
     c.trueSight = Math.max(c.trueSight, s.trueSightRadius ?? 0);
     c.spellAmp += s.spellAmp ?? 0;
-    c.incomingDamageReduction = Math.max(c.incomingDamageReduction, s.incomingDamageReduction ?? 0);
+    if (s.incomingDamageReduction) c.incomingDamageReduction = 1 - (1 - c.incomingDamageReduction) * (1 - s.incomingDamageReduction); // 独立乘算
   }
   if (dmgPct !== 0) { c.dmgMin *= 1 + dmgPct; c.dmgMax *= 1 + dmgPct; }
   if (msFlat !== 0 || msPct !== 0) {

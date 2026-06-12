@@ -20,7 +20,7 @@ const RUB_Q: AbilityDef = {
   description: '将目标托举到空中(无法行动),随后重摔在地,震晕落点周围的敌人。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    target.invulnerable = true;
+    // 先挂托举 modifier 再置无敌,否则 M1 会用刚置的无敌拦掉本技能自己的 lift。
     applyModifier(w, target, {
       key: 'rub_telekinesis_lift', duration: TELE_DUR[lvl - 1], states: { stunned: true },
       onExpire(world, u) {
@@ -30,6 +30,7 @@ const RUB_Q: AbilityDef = {
         world.emit({ kind: 'fx', fx: 'telekinesis_land', pos: V.clone(u.pos), radius: 300 });
       },
     }, caster.id);
+    target.invulnerable = true; // 置于最后:托举期间外部敌方 debuff 由 M1 正确拦截
     w.emit({ kind: 'fx', fx: 'telekinesis', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {

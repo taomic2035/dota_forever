@@ -24,14 +24,17 @@ export interface StatMods {
   bonusHpRegen: number;
   bonusMpRegen: number;
   bonusMagicResist: number;
+  /** 闪避 0-1,多来源独立概率叠加(非取最大) */
   evasion: number;
+  /** 必中:无视目标闪避 */
+  trueStrike: boolean;
   critChance: number;
   critMultiplier: number;
   lifesteal: number;
   bonusAttackRange: number;
   trueSightRadius: number;
   spellAmp: number;
-  /** 承伤减免 0.2 = 受到的伤害减少 20%(多来源取最大,非叠乘) */
+  /** 承伤减免 0.2 = 受到的伤害减少 20%(多来源独立乘算) */
   incomingDamageReduction: number;
 }
 
@@ -81,7 +84,29 @@ export interface ModifierDef {
   data?: Record<string, number>;
 }
 
+/** 已被免疫拦截、未真正挂载的占位 modifier(保持返回类型契约;调用方对其改 data 无副作用)。 */
+function blockedModifier(def: ModifierDef, sourceId: EntityId): Modifier {
+  return { key: def.key, sourceId, expiresAt: -Infinity, def, data: {} };
+}
+
+/**
+ * M1:魔免 / 无敌单位免疫**敌方来源的负面 modifier 施加**(伤害早在 combat 处拦截;此处补齐"效果施加")。
+ * 收口于此一处 → 单体技能 onCast / AoE modifierArea / 光环 grant / 物品主动,人类/AI 一视同仁。
+ * - 无敌:无条件拦截一切敌方效果。
+ * - 魔免:拦截敌方负面效果,除非该 def 标记 data.piercesSpellImmunity(穿魔免)。
+ * buff(isBuff===true)与友方/自身来源不受影响。
+ */
+function immuneToDebuff(w: World, target: Unit, def: ModifierDef, sourceId: EntityId): boolean {
+  if (def.isBuff === true) return false;
+  const src = w.getUnit(sourceId);
+  if (!src || src.team === target.team) return false; // 仅拦敌方来源
+  if (target.invulnerable) return true;
+  if (def.data?.piercesSpellImmunity) return false;
+  return modifierStates(target).magicImmune === true;
+}
+
 export function applyModifier(w: World, target: Unit, def: ModifierDef, sourceId: EntityId): Modifier {
+  if (immuneToDebuff(w, target, def, sourceId)) return blockedModifier(def, sourceId);
   if (!def.stackable) {
     const existing = target.modifiers.find((m) => m.key === def.key && m.sourceId === sourceId);
     if (existing) {
@@ -174,7 +199,8 @@ export function foldModifiers(u: Unit): void {
     c.hpRegen += s.bonusHpRegen ?? 0;
     c.mpRegen += s.bonusMpRegen ?? 0;
     c.magicResist += s.bonusMagicResist ?? 0; // 累加,统一 clamp 见 combat.recalcUnit
-    c.evasion = Math.max(c.evasion, s.evasion ?? 0);
+    if (s.evasion) c.evasion = 1 - (1 - c.evasion) * (1 - s.evasion); // 独立概率叠加
+    if (s.trueStrike) c.trueStrike = true;
     if ((s.critChance ?? 0) > c.critChance) {
       c.critChance = s.critChance!;
       c.critMultiplier = s.critMultiplier ?? 1.5;
@@ -183,7 +209,7 @@ export function foldModifiers(u: Unit): void {
     c.attackRange += s.bonusAttackRange ?? 0;
     c.trueSight = Math.max(c.trueSight, s.trueSightRadius ?? 0);
     c.spellAmp += s.spellAmp ?? 0;
-    c.incomingDamageReduction = Math.max(c.incomingDamageReduction, s.incomingDamageReduction ?? 0);
+    if (s.incomingDamageReduction) c.incomingDamageReduction = 1 - (1 - c.incomingDamageReduction) * (1 - s.incomingDamageReduction); // 独立乘算
   }
   if (dmgPct !== 0) {
     c.dmgMin *= 1 + dmgPct;
