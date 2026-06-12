@@ -115,7 +115,7 @@
 对战斗管线 / 控制驱散 / 死亡经济三维做独立审计,揪出并修复了首轮遗漏的真实偏差:
 
 **已修复 ✅**
-- **A1 魔抗多源乘算**:此前 fold 纯加算(基础 25%+30% 抗装误得 45% 受伤),改为经典乘算 1-∏(1-r_i)(正确 47.5%)。核心抗性,需 batchsim 复验平衡。
+- **A1 魔抗多源乘算**:此前 fold 纯加算(基础 25%+30% 抗装误得 45% 受伤),改为经典乘算 1-∏(1-r_i)(正确 47.5%)。核心抗性。batchsim 已复验:seed 11/777/90210 仍决胜(48–50min,击杀升至 57–58,法伤更致命=方向正确)。
 - **A4 实例格挡分类**:折光(Refraction)经典只挡物理,此前误挡法术/纯粹 → 加 `blockPhysicalOnly` 标记;尖刺甲壳(Spiked Carapace)保持全类型(经典即反弹任意伤害)。
 - **B1 被控禁用物品**:`useItem` 此前不查施法者状态,被眩晕/妖术单位仍能 BKB/TP 自救 → 新增 `muted` 态,门控 `stunned||muted`(沉默不禁物品,BKB 正用于反沉默);妖术(item_hex)设 muted。
 - **B2 AoE 尊重穿魔免**:`modifierArea` 对魔免目标就地 `continue`,绕过 `piercesSpellImmunity` → 改为委托 `applyModifier`/`immuneToDebuff` 统一判定(穿透/无敌/buff/友方来源)。
