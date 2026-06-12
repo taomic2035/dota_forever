@@ -1,5 +1,6 @@
 /** 主菜单与英雄选择(通过 URL 参数启动对局,无内部状态)。 */
 import { HEROES } from '../data/heroes';
+import { castInputModeLabel, cycleCastInputMode, type ControlSettings } from '../engine/controlSettings';
 
 const ROLE_NAME: Record<string, string> = {
   carry: '核心', support: '辅助', ganker: '游走', tank: '先手',
@@ -75,13 +76,26 @@ background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:2p
 }
 
 /** 游戏内 ESC 暂停菜单。 */
-export function createPauseMenu(parent: HTMLElement, onResume: () => void): { toggle: () => void } {
+export interface PauseMenuControlOptions {
+  getSettings(): ControlSettings;
+  onChange(settings: ControlSettings): void;
+}
+
+export function createPauseMenu(
+  parent: HTMLElement,
+  onResume: () => void,
+  controls?: PauseMenuControlOptions,
+): { toggle: () => void } {
   const root = document.createElement('div');
   root.style.cssText =
     'position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;' +
     'background:rgba(5,7,4,0.7);z-index:120;color:#e8e2c8;gap:14px;';
   root.innerHTML = `
     <div style="font-size:30px;font-weight:700;color:#cfd8a0">游戏暂停</div>
+    ${controls ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
+      <button id="pm-ability-cast" style="${compactBtnCss('#1d2330', '#7ec8e3')}"></button>
+      <button id="pm-item-cast" style="${compactBtnCss('#2c2a18', '#d9b44a')}"></button>
+    </div>` : ''}
     <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
     <button id="pm-restart" style="${btnCss('#3a3422', '#ffd54f')}">重新开始</button>
     <button id="pm-menu" style="${btnCss('#222', '#999')}">回主菜单</button>`;
@@ -92,8 +106,34 @@ export function createPauseMenu(parent: HTMLElement, onResume: () => void): { to
     root.style.display = shown ? 'flex' : 'none';
     onResume();
   };
+  const syncControls = () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    const ability = root.querySelector('#pm-ability-cast') as HTMLButtonElement | null;
+    const item = root.querySelector('#pm-item-cast') as HTMLButtonElement | null;
+    if (ability) ability.textContent = `Ability ${castInputModeLabel(settings.abilityCast)}`;
+    if (item) item.textContent = `Item ${castInputModeLabel(settings.itemCast)}`;
+  };
+  root.querySelector('#pm-ability-cast')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, abilityCast: cycleCastInputMode(settings.abilityCast) });
+    syncControls();
+  });
+  root.querySelector('#pm-item-cast')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, itemCast: cycleCastInputMode(settings.itemCast) });
+    syncControls();
+  });
+  syncControls();
   root.querySelector('#pm-resume')!.addEventListener('click', toggle);
   root.querySelector('#pm-restart')!.addEventListener('click', () => location.reload());
   root.querySelector('#pm-menu')!.addEventListener('click', () => { location.search = ''; });
   return { toggle };
+}
+
+function compactBtnCss(bg: string, color: string): string {
+  return `height:44px;font-size:13px;border-radius:6px;border:1px solid ${color}55;\
+background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:0;`;
 }

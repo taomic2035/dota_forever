@@ -25,6 +25,12 @@ import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
 import { CommandCursor } from './ui/commandCursor';
 import {
+  DEFAULT_CONTROL_SETTINGS,
+  normalizeControlSettings,
+  parseCastInputMode,
+  type ControlSettings,
+} from './engine/controlSettings';
+import {
   findFilteredTarget,
   targetFilterRejectReason,
   type TargetKindFilter,
@@ -35,12 +41,37 @@ import { cursorTargetHintFor } from './ui/cursorTargetHint';
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
 app.addEventListener('contextmenu', (e) => e.preventDefault());
+const CONTROL_SETTINGS_KEY = 'dotaForever.controlSettings.v1';
 
 const modeParam = params.get('mode');
 if (!modeParam) {
   showMenu(app);
 } else {
   startGame(modeParam as 'play' | 'spectate');
+}
+
+function loadControlSettings(params: URLSearchParams): ControlSettings {
+  let stored: unknown = DEFAULT_CONTROL_SETTINGS;
+  try {
+    const raw = localStorage.getItem(CONTROL_SETTINGS_KEY);
+    if (raw) stored = JSON.parse(raw);
+  } catch {
+    stored = DEFAULT_CONTROL_SETTINGS;
+  }
+  const base = normalizeControlSettings(stored);
+  return normalizeControlSettings({
+    ...base,
+    abilityCast: parseCastInputMode(params.get('abilityCast')) ?? base.abilityCast,
+    itemCast: parseCastInputMode(params.get('itemCast')) ?? base.itemCast,
+  });
+}
+
+function saveControlSettings(settings: ControlSettings): void {
+  try {
+    localStorage.setItem(CONTROL_SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Storage can be unavailable in embedded or privacy-restricted contexts.
+  }
 }
 
 function startGame(mode: 'play' | 'spectate'): void {
@@ -82,7 +113,17 @@ function startGame(mode: 'play' | 'spectate'): void {
     ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
   });
   const audio = new AudioDirector();
-  const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; });
+  let controlSettings = loadControlSettings(params);
+  let input: InputManager | null = null;
+  const setControlSettings = (settings: ControlSettings) => {
+    controlSettings = normalizeControlSettings(settings);
+    saveControlSettings(controlSettings);
+    input?.setControlSettings(controlSettings);
+  };
+  const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; }, {
+    getSettings: () => controlSettings,
+    onChange: setControlSettings,
+  });
 
   let pendingItemSlot = -1;
   type RejectReason =
@@ -262,7 +303,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     if (e.key === 'Escape' && !ux.targeting) pauseMenu.toggle();
   });
 
-  const input = new InputManager(renderer.canvas, camera, {
+  input = new InputManager(renderer.canvas, camera, {
     onRightClick(p) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
@@ -467,7 +508,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         });
       }
     },
-  });
+  }, controlSettings);
 
   const loop = new GameLoop({
     step() {
@@ -478,7 +519,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     render(alpha) {
       renderer.alpha = alpha;
-      input.update(16.7);
+      input!.update(16.7);
       renderer.render(world, hero?.id ?? -1, ux);
       hud.update(world, hero, ux);
       commandCursor.update(world.time, ux);

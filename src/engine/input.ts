@@ -6,6 +6,7 @@
 import type { Vec2 } from '../core/vec2';
 import { Camera } from '../render/camera';
 import { CommandMode } from './commandMode';
+import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from './controlSettings';
 
 export interface InputCallbacks {
   onRightClick(world: Vec2): void;
@@ -34,6 +35,8 @@ export class InputManager {
   mouse: Vec2 | null = null;
   /** 待目标确认的技能编号(按 QWER 后等待点击),-1 = 无;-2 = A 移动待确认 */
   private commandMode = new CommandMode();
+  private controlSettings: ControlSettings;
+  private smartHold: { kind: 'cast'; index: number; key: string } | { kind: 'item'; index: number; key: string } | null = null;
   get pendingCast(): number {
     return this.commandMode.pendingCast;
   }
@@ -44,7 +47,9 @@ export class InputManager {
     private canvas: HTMLCanvasElement,
     private camera: Camera,
     private cb: InputCallbacks,
+    controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS,
   ) {
+    this.controlSettings = { ...controlSettings };
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
       const world = this.camera.screenToWorld(this.mouse);
@@ -61,6 +66,7 @@ export class InputManager {
       const world = this.camera.screenToWorld({ x: e.offsetX, y: e.offsetY });
       if (e.button === 2) {
         this.commandMode.cancel();
+        this.smartHold = null;
         this.cb.onPendingCast(null);
         this.cb.onPendingItem(null);
         this.cb.onPendingAttackMove(false);
@@ -71,15 +77,18 @@ export class InputManager {
         if (pending >= 0) {
           const consumed = this.cb.onCastKey(pending, world) !== false;
           this.commandMode.consumePrimary({ keepPending: !consumed });
+          this.smartHold = null;
           if (consumed) this.cb.onPendingCast(null);
           else this.cb.onPreviewCast(pending, world);
         } else if (pendingItem >= 0) {
           const consumed = this.cb.onItemKey(pendingItem, world) !== false;
           this.commandMode.consumePrimary({ keepPending: !consumed });
+          this.smartHold = null;
           if (consumed) this.cb.onPendingItem(null);
           else this.cb.onPreviewItem(pendingItem, world);
         } else if (pending === -2) {
           this.commandMode.consumePrimary();
+          this.smartHold = null;
           this.cb.onAttackMove(world);
           this.cb.onPendingAttackMove(false);
         } else {
@@ -104,21 +113,23 @@ export class InputManager {
       this.keys.add(e.key.toLowerCase());
       const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
       switch (e.key.toLowerCase()) {
-        case 'q': this.quickCast(0, world); break;
-        case 'w': this.quickCast(1, world); break;
-        case 'e': this.quickCast(2, world); break;
-        case 'r': this.quickCast(3, world); break;
+        case 'q': this.handleCastHotkey(0, 'q', world); break;
+        case 'w': this.handleCastHotkey(1, 'w', world); break;
+        case 'e': this.handleCastHotkey(2, 'e', world); break;
+        case 'r': this.handleCastHotkey(3, 'r', world); break;
         case '1': case '2': case '3': case '4': case '5': case '6':
-          this.quickItem(Number(e.key) - 1, world);
+          this.handleItemHotkey(Number(e.key) - 1, e.key, world);
           break;
         case 'a':
           this.commandMode.beginAttackMove();
+          this.smartHold = null;
           this.cb.onPendingAttackMove(true);
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
           break;
         case 's':
           this.commandMode.cancel();
+          this.smartHold = null;
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
           this.cb.onPendingAttackMove(false);
@@ -131,6 +142,7 @@ export class InputManager {
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
         case 'escape':
           this.commandMode.cancel();
+          this.smartHold = null;
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
           this.cb.onPendingAttackMove(false);
@@ -138,37 +150,97 @@ export class InputManager {
       }
     });
     window.addEventListener('keyup', (e) => {
-      this.keys.delete(e.key.toLowerCase());
-      if (e.key.toLowerCase() === 'tab') this.cb.onToggleScoreboard(false);
+      const key = e.key.toLowerCase();
+      this.keys.delete(key);
+      if (key === 'tab') this.cb.onToggleScoreboard(false);
+      const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
+      this.finishSmartHold(key, world);
     });
   }
 
   private dragging = false;
 
+  setControlSettings(settings: ControlSettings): void {
+    this.controlSettings = { ...settings };
+  }
+
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
-  private quickCast(i: number, world: Vec2) {
+  private handleCastHotkey(i: number, key: string, world: Vec2) {
     const waitsForTarget = this.cb.onPrepareCast(i, world);
     this.commandMode.beginCast(i, waitsForTarget);
     if (waitsForTarget) {
-      this.cb.onPendingAttackMove(false);
-      this.cb.onPendingItem(null);
-      this.cb.onPendingCast(i);
-      this.cb.onPreviewCast(i, world);
+      this.activatePendingCast(i, world);
+      if (this.controlSettings.abilityCast === 'quick') {
+        this.smartHold = null;
+        this.finishPendingCast(i, world);
+      } else if (this.controlSettings.abilityCast === 'smart') {
+        this.smartHold = { kind: 'cast', index: i, key };
+      } else {
+        this.smartHold = null;
+      }
     } else {
+      this.smartHold = null;
       this.cb.onPendingCast(null);
     }
   }
 
-  private quickItem(slot: number, world: Vec2) {
+  private handleItemHotkey(slot: number, key: string, world: Vec2) {
     const waitsForTarget = this.cb.onPrepareItem(slot, world);
     this.commandMode.beginItem(slot, waitsForTarget);
     if (waitsForTarget) {
-      this.cb.onPendingAttackMove(false);
-      this.cb.onPendingCast(null);
-      this.cb.onPendingItem(slot);
-      this.cb.onPreviewItem(slot, world);
+      this.activatePendingItem(slot, world);
+      if (this.controlSettings.itemCast === 'quick') {
+        this.smartHold = null;
+        this.finishPendingItem(slot, world);
+      } else if (this.controlSettings.itemCast === 'smart') {
+        this.smartHold = { kind: 'item', index: slot, key };
+      } else {
+        this.smartHold = null;
+      }
     } else {
+      this.smartHold = null;
       this.cb.onPendingItem(null);
+    }
+  }
+
+  private activatePendingCast(i: number, world: Vec2): void {
+    this.cb.onPendingAttackMove(false);
+    this.cb.onPendingItem(null);
+    this.cb.onPendingCast(i);
+    this.cb.onPreviewCast(i, world);
+  }
+
+  private activatePendingItem(slot: number, world: Vec2): void {
+    this.cb.onPendingAttackMove(false);
+    this.cb.onPendingCast(null);
+    this.cb.onPendingItem(slot);
+    this.cb.onPreviewItem(slot, world);
+  }
+
+  private finishPendingCast(i: number, world: Vec2): boolean {
+    const consumed = this.cb.onCastKey(i, world) !== false;
+    this.commandMode.consumePrimary({ keepPending: !consumed });
+    if (consumed) this.cb.onPendingCast(null);
+    else this.cb.onPreviewCast(i, world);
+    return consumed;
+  }
+
+  private finishPendingItem(slot: number, world: Vec2): boolean {
+    const consumed = this.cb.onItemKey(slot, world) !== false;
+    this.commandMode.consumePrimary({ keepPending: !consumed });
+    if (consumed) this.cb.onPendingItem(null);
+    else this.cb.onPreviewItem(slot, world);
+    return consumed;
+  }
+
+  private finishSmartHold(key: string, world: Vec2): void {
+    const hold = this.smartHold;
+    if (!hold || hold.key !== key) return;
+    this.smartHold = null;
+    if (hold.kind === 'cast' && this.commandMode.pendingCast === hold.index) {
+      this.finishPendingCast(hold.index, world);
+    } else if (hold.kind === 'item' && this.commandMode.pendingItem === hold.index) {
+      this.finishPendingItem(hold.index, world);
     }
   }
 
