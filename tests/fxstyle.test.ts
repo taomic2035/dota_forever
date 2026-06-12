@@ -92,3 +92,21 @@ describe('fxStyle family metadata', () => {
     expect(fxStyle('unknown_effect_without_family').family).toBe('neutral');
   });
 });
+
+describe('fxStyle impact pattern metadata', () => {
+  it('maps common spell families to stable impact silhouettes', () => {
+    expect(fxStyle('fireblast').pattern).toBe('embers');
+    expect(fxStyle('frostnova').pattern).toBe('shards');
+    expect(fxStyle('lightning').pattern).toBe('jagged');
+    expect(fxStyle('venomnova').pattern).toBe('cloud');
+    expect(fxStyle('fissure').pattern).toBe('cracks');
+    expect(fxStyle('purification').pattern).toBe('halo');
+    expect(fxStyle('arcanebolt').pattern).toBe('runes');
+    expect(fxStyle('rupture').pattern).toBe('splatter');
+    expect(fxStyle('blackhole').pattern).toBe('splatter');
+  });
+
+  it('uses spark as the unknown fallback pattern', () => {
+    expect(fxStyle('unknown_effect_without_pattern').pattern).toBe('spark');
+  });
+});

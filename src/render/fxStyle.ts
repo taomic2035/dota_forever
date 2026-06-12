@@ -18,6 +18,7 @@ export type FxFamily =
   | 'earth'
   | 'arcane'
   | 'neutral';
+export type FxPattern = 'embers' | 'shards' | 'jagged' | 'cloud' | 'cracks' | 'halo' | 'runes' | 'splatter' | 'spark';
 
 export interface FxStyle {
   /** 主色(描边/填充) */
@@ -28,6 +29,8 @@ export interface FxStyle {
   motion: FxMotion;
   /** 元素家族,供 HUD/弹道/图标统一取色 */
   family: FxFamily;
+  /** Impact silhouette grammar for battlefield spell readability. */
+  pattern: FxPattern;
 }
 
 export interface Rgb {
@@ -97,6 +100,32 @@ function motionOf(name: string): FxMotion {
   return 'burst';
 }
 
+function patternOf(family: FxFamily): FxPattern {
+  switch (family) {
+    case 'fire':
+      return 'embers';
+    case 'frost':
+      return 'shards';
+    case 'lightning':
+      return 'jagged';
+    case 'poison':
+    case 'nature':
+      return 'cloud';
+    case 'earth':
+      return 'cracks';
+    case 'holy':
+      return 'halo';
+    case 'arcane':
+      return 'runes';
+    case 'blood':
+    case 'shadow':
+      return 'splatter';
+    case 'neutral':
+    default:
+      return 'spark';
+  }
+}
+
 function glowOf(color: string, alpha = 0.45): string {
   const { r, g, b } = parseRgb(color);
   return `rgba(${r},${g},${b},${alpha})`;
@@ -114,6 +143,7 @@ export function fxStyle(name: string): FxStyle {
     glow: glowOf(element.color),
     motion: motionOf(n),
     family: element.family,
+    pattern: patternOf(element.family),
   };
   CACHE.set(name, style);
   return style;

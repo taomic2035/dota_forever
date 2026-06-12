@@ -33,6 +33,20 @@ describe('FxLayer.consume 几何判定', () => {
     const pt = fx.particles.find((p) => p.kind === 'point');
     expect(pt).toBeTruthy();
   });
+  it('spell particles carry impact pattern metadata', () => {
+    const fx = new FxLayer();
+    fx.consume(fakeWorld([{ kind: 'fx', fx: 'frostnova', pos: { x: 0, y: 0 } }]), null);
+    const pt = fx.particles.find((p) => p.kind === 'point');
+    expect(pt).toBeTruthy();
+    expect(pt!.pattern).toBe('shards');
+  });
+  it('spell rings carry impact pattern metadata', () => {
+    const fx = new FxLayer();
+    fx.consume(fakeWorld([{ kind: 'fx', fx: 'lightning', pos: { x: 0, y: 0 }, radius: 280 }]), null);
+    const ring = fx.particles.find((p) => p.kind === 'ring');
+    expect(ring).toBeTruthy();
+    expect(ring!.pattern).toBe('jagged');
+  });
 });
 
 describe('FxLayer.consume 其他事件', () => {

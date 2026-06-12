@@ -10,7 +10,7 @@ import type { World, GameEvent } from '../sim/world';
 import { Team } from '../sim/map';
 import { cellVisible } from '../sim/vision';
 import type { Camera } from './camera';
-import { fxStyle, type FxMotion } from './fxStyle';
+import { fxStyle, type FxMotion, type FxPattern } from './fxStyle';
 
 type FxKind = 'ring' | 'beam' | 'field' | 'point' | 'impact' | 'levelup' | 'death';
 
@@ -23,6 +23,7 @@ interface FxParticle {
   color: string;
   glow: string;
   motion: FxMotion;
+  pattern: FxPattern;
   t: number; // 已存活秒
   life: number; // 总寿命秒
   seed: number; // 程序化抖动用
@@ -63,14 +64,14 @@ export class FxLayer {
         if (!gate(e.pos)) return;
         const st = fxStyle(e.fx);
         if (e.pos2) {
-          this.add({ kind: 'beam', pos: e.pos, pos2: e.pos2, r0: 0, r1: 0, color: st.color, glow: st.glow, motion: st.motion, t: 0, life: e.duration && e.duration > 0.5 ? Math.min(e.duration, 3) : 0.35, seed: this.seed() });
+          this.add({ kind: 'beam', pos: e.pos, pos2: e.pos2, r0: 0, r1: 0, color: st.color, glow: st.glow, motion: st.motion, pattern: st.pattern, t: 0, life: e.duration && e.duration > 0.5 ? Math.min(e.duration, 3) : 0.35, seed: this.seed() });
         } else if (e.radius && e.duration) {
-          this.add({ kind: 'field', pos: e.pos, r0: e.radius, r1: e.radius, color: st.color, glow: st.glow, motion: st.motion, t: 0, life: Math.min(e.duration, 10), seed: this.seed() });
+          this.add({ kind: 'field', pos: e.pos, r0: e.radius, r1: e.radius, color: st.color, glow: st.glow, motion: st.motion, pattern: st.pattern, t: 0, life: Math.min(e.duration, 10), seed: this.seed() });
         } else if (e.radius) {
-          this.add({ kind: 'ring', pos: e.pos, r0: Math.min(40, e.radius * 0.25), r1: e.radius, color: st.color, glow: st.glow, motion: st.motion, t: 0, life: 0.5, seed: this.seed() });
+          this.add({ kind: 'ring', pos: e.pos, r0: Math.min(40, e.radius * 0.25), r1: e.radius, color: st.color, glow: st.glow, motion: st.motion, pattern: st.pattern, t: 0, life: 0.5, seed: this.seed() });
         } else {
           const size = st.motion === 'crack' ? 250 : st.motion === 'flash' ? 150 : 120;
-          this.add({ kind: 'point', pos: e.pos, r0: 0, r1: size, color: st.color, glow: st.glow, motion: st.motion, t: 0, life: st.motion === 'flash' ? 0.3 : 0.55, seed: this.seed() });
+          this.add({ kind: 'point', pos: e.pos, r0: 0, r1: size, color: st.color, glow: st.glow, motion: st.motion, pattern: st.pattern, t: 0, life: st.motion === 'flash' ? 0.3 : 0.55, seed: this.seed() });
         }
         return;
       }
@@ -159,8 +160,8 @@ export class FxLayer {
     }
   }
 
-  private add(p: FxParticle): void {
-    this.particles.push(p);
+  private add(p: Omit<FxParticle, 'pattern'> & { pattern?: FxPattern }): void {
+    this.particles.push({ pattern: 'spark', ...p });
     if (this.particles.length > MAX_PARTS) this.particles.splice(0, this.particles.length - MAX_PARTS);
   }
   private trimTexts(): void {
@@ -342,7 +343,11 @@ export class FxLayer {
     ctx.strokeStyle = p.color;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.glow;
-    switch (p.motion) {
+    if (p.motion !== 'flash' && p.motion !== 'rise' && p.motion !== 'fall') {
+      this.drawImpactPattern(ctx, sp, z, p, u);
+      return;
+    }
+    switch (p.motion as FxMotion) {
       case 'flash': {
         ctx.globalAlpha = (1 - u) * 0.95;
         ctx.shadowBlur = 22 * z;
@@ -403,6 +408,195 @@ export class FxLayer {
           ctx.stroke();
         }
         ctx.globalAlpha = (1 - u) * 0.7;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.25 + 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  private drawImpactPattern(ctx: CanvasRenderingContext2D, sp: Vec2, z: number, p: FxParticle, u: number): void {
+    const rad = p.r1 * z;
+    const r = rad * easeOut(u);
+    const fade = Math.max(0, 1 - u);
+    const pattern = p.motion === 'crack' ? 'cracks' : p.pattern;
+
+    ctx.strokeStyle = p.color;
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = 14 * z;
+    ctx.lineWidth = Math.max(1.5, 3 * z) * (1 - u * 0.35);
+
+    switch (pattern) {
+      case 'embers': {
+        ctx.globalAlpha = fade * 0.92;
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2 + p.seed * 0.01;
+          const bend = (frac(p.seed * 0.001 + i * 0.37) - 0.5) * 0.45;
+          const inner = r * 0.18;
+          const outer = r * (0.65 + 0.28 * frac(i * 1.7 + p.seed));
+          ctx.beginPath();
+          ctx.moveTo(sp.x + Math.cos(a) * inner, sp.y + Math.sin(a) * inner);
+          ctx.quadraticCurveTo(
+            sp.x + Math.cos(a + bend) * r * 0.55,
+            sp.y + Math.sin(a + bend) * r * 0.55,
+            sp.x + Math.cos(a) * outer,
+            sp.y + Math.sin(a) * outer,
+          );
+          ctx.stroke();
+        }
+        ctx.globalAlpha = fade * 0.72;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.26 + 3 * z, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'shards': {
+        ctx.globalAlpha = fade * 0.86;
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2 + p.seed * 0.011;
+          const len = r * (0.46 + 0.4 * frac(p.seed * 0.002 + i * 0.61));
+          const base = r * 0.18;
+          const width = Math.max(3, 8 * z) * (1 - u * 0.25);
+          const tx = -Math.sin(a) * width;
+          const ty = Math.cos(a) * width;
+          const bx = sp.x + Math.cos(a) * base;
+          const by = sp.y + Math.sin(a) * base;
+          const tipx = sp.x + Math.cos(a) * len;
+          const tipy = sp.y + Math.sin(a) * len;
+          ctx.beginPath();
+          ctx.moveTo(bx + tx * 0.35, by + ty * 0.35);
+          ctx.lineTo(tipx, tipy);
+          ctx.lineTo(bx - tx * 0.35, by - ty * 0.35);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'jagged': {
+        ctx.globalAlpha = fade * 0.95;
+        ctx.lineWidth = Math.max(1.5, 4 * z) * (1 - u * 0.45);
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + p.seed * 0.017;
+          ctx.beginPath();
+          ctx.moveTo(sp.x, sp.y);
+          for (let j = 1; j <= 4; j++) {
+            const t = j / 4;
+            const side = (j % 2 === 0 ? 1 : -1) * (8 + ((p.seed >> (i + j)) & 7)) * z;
+            const dist = r * t;
+            const x = sp.x + Math.cos(a) * dist + Math.cos(a + Math.PI / 2) * side;
+            const y = sp.y + Math.sin(a) * dist + Math.sin(a + Math.PI / 2) * side;
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.globalAlpha = fade * 0.35;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.42, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+      case 'cloud': {
+        ctx.globalAlpha = fade * 0.3;
+        for (let i = 0; i < 11; i++) {
+          const a = (i / 11) * Math.PI * 2 + p.seed * 0.013 + u * 0.8;
+          const dist = r * (0.18 + 0.62 * frac(p.seed * 0.003 + i * 0.47 + u));
+          const blob = Math.max(5, rad * (0.05 + 0.04 * frac(i * 0.33 + p.seed)));
+          ctx.beginPath();
+          ctx.arc(sp.x + Math.cos(a) * dist, sp.y + Math.sin(a) * dist * 0.72, blob, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = fade * 0.36;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.52, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+      }
+      case 'cracks': {
+        ctx.globalAlpha = fade * 0.9;
+        ctx.lineWidth = Math.max(1.5, 4 * z) * (1 - u * 0.5);
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + p.seed * 0.01;
+          const mx = sp.x + Math.cos(a) * r * 0.55 + (((p.seed >> i) & 3) - 1.5) * 6 * z;
+          const my = sp.y + Math.sin(a) * r * 0.55 + (((p.seed >> (i + 2)) & 3) - 1.5) * 6 * z;
+          ctx.beginPath();
+          ctx.moveTo(sp.x, sp.y);
+          ctx.lineTo(mx, my);
+          ctx.lineTo(sp.x + Math.cos(a) * r, sp.y + Math.sin(a) * r);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'halo': {
+        ctx.globalAlpha = fade * 0.8;
+        ctx.lineWidth = Math.max(1, 2.5 * z);
+        for (let i = 0; i < 3; i++) {
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, r * (0.22 + i * 0.2), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = fade * 0.7;
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2 + p.seed * 0.01;
+          ctx.beginPath();
+          ctx.moveTo(sp.x + Math.cos(a) * r * 0.15, sp.y + Math.sin(a) * r * 0.15);
+          ctx.lineTo(sp.x + Math.cos(a) * r * 0.74, sp.y + Math.sin(a) * r * 0.74);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'runes': {
+        ctx.globalAlpha = fade * 0.82;
+        ctx.lineWidth = Math.max(1, 2.5 * z);
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.5, 0, Math.PI * 2);
+        ctx.stroke();
+        for (let i = 0; i < 7; i++) {
+          const a = (i / 7) * Math.PI * 2 + p.seed * 0.012 + u * 1.8;
+          const x = sp.x + Math.cos(a) * r * 0.58;
+          const y = sp.y + Math.sin(a) * r * 0.58;
+          const s = Math.max(3, 7 * z) * (1 - u * 0.25);
+          ctx.strokeRect(x - s * 0.5, y - s * 0.5, s, s);
+        }
+        ctx.globalAlpha = fade * 0.55;
+        ctx.beginPath();
+        ctx.arc(sp.x, sp.y, r * 0.18 + 2, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'splatter': {
+        ctx.globalAlpha = fade * 0.82;
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 + p.seed * 0.02;
+          const dist = r * (0.26 + 0.64 * frac(p.seed * 0.004 + i * 0.53));
+          const size = Math.max(2, 5 * z) * (1 + frac(i * 0.73 + p.seed));
+          ctx.beginPath();
+          ctx.arc(sp.x + Math.cos(a) * dist, sp.y + Math.sin(a) * dist, size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.lineWidth = Math.max(1.5, 4 * z);
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2 + p.seed * 0.015;
+          ctx.beginPath();
+          ctx.moveTo(sp.x + Math.cos(a) * r * 0.18, sp.y + Math.sin(a) * r * 0.18);
+          ctx.lineTo(sp.x + Math.cos(a) * r * 0.74, sp.y + Math.sin(a) * r * 0.74);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'spark':
+      default: {
+        ctx.globalAlpha = fade * 0.9;
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2 + p.seed;
+          ctx.beginPath();
+          ctx.moveTo(sp.x + Math.cos(a) * r * 0.35, sp.y + Math.sin(a) * r * 0.35);
+          ctx.lineTo(sp.x + Math.cos(a) * r, sp.y + Math.sin(a) * r);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = fade * 0.7;
         ctx.beginPath();
         ctx.arc(sp.x, sp.y, r * 0.25 + 2, 0, Math.PI * 2);
         ctx.fill();
