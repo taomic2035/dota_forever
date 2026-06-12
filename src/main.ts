@@ -25,6 +25,7 @@ import { AudioDirector } from './audio/director';
 import { UxFeedback } from './ui/uxFeedback';
 import { CommandCursor } from './ui/commandCursor';
 import { findFilteredTarget, type TargetTeamFilter } from './engine/targetFilters';
+import { cursorTargetHintFor } from './ui/cursorTargetHint';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -389,7 +390,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     onPendingAttackMove(active) {
       if (active) {
-        ux.setCursorIntent({ kind: 'attackmove', label: 'A-MOVE', time: world.time, color: '#ffd45a' });
+        ux.setCursorIntent({ kind: 'attackmove', label: 'A-MOVE', time: world.time, color: '#ffd45a', targetHint: 'attack' });
       } else {
         ux.clearTargeting();
         ux.clearCursorIntent();
@@ -401,7 +402,14 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearCursorIntent();
       } else {
         const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
-        ux.setCursorIntent({ kind: 'cast', label: `CAST ${hotkey}`, time: world.time, color: '#5aa2ff' });
+        const def = hero.heroDef?.abilities[i];
+        ux.setCursorIntent({
+          kind: 'cast',
+          label: `CAST ${hotkey}`,
+          time: world.time,
+          color: '#5aa2ff',
+          targetHint: cursorTargetHintFor(def?.targetMode, def?.targetTeam),
+        });
       }
     },
     onPendingItem(slot) {
@@ -409,7 +417,14 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearTargeting();
         ux.clearCursorIntent();
       } else {
-        ux.setCursorIntent({ kind: 'item', label: `ITEM ${slot + 1}`, time: world.time, color: '#d9b44a' });
+        const info = itemInfo(slot);
+        ux.setCursorIntent({
+          kind: 'item',
+          label: `ITEM ${slot + 1}`,
+          time: world.time,
+          color: '#d9b44a',
+          targetHint: cursorTargetHintFor(info?.active.targetMode, info?.active.targetTeam),
+        });
       }
     },
   });

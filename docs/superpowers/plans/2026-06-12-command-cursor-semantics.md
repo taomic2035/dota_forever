@@ -14,6 +14,8 @@
 
 - Create `src/ui/commandCursorTheme.ts`: cursor target hint types, safe label escaping, visual spec mapping, and badge HTML helpers.
 - Create `tests/commandCursorTheme.test.ts`: red/green tests for visual mapping and escaping.
+- Create `src/ui/cursorTargetHint.ts`: pure helper that maps target mode and target team metadata to cursor target hints.
+- Create `tests/cursorTargetHint.test.ts`: red/green tests for target hint derivation.
 - Modify `src/ui/uxFeedback.ts`: add optional `targetHint` to `CursorIntent`.
 - Modify `src/ui/commandCursor.ts`: render from `commandCursorTheme` instead of local icon/color branches.
 - Modify `src/main.ts`: derive target hints for pending attack-move, ability, and item intents.
@@ -37,19 +39,20 @@
 
 ## Task 2: Cursor Intent Integration
 
-- [ ] Add `targetHint` to `CursorIntent`.
-- [ ] Replace hardcoded icon/color rendering in `src/ui/commandCursor.ts` with the theme helper.
-- [ ] Add `cursorTargetHint` derivation in `src/main.ts`:
+- [x] Add `targetHint` to `CursorIntent`.
+- [x] Add red/green tests and implementation for `src/ui/cursorTargetHint.ts`.
+- [x] Replace hardcoded icon/color rendering in `src/ui/commandCursor.ts` with the theme helper.
+- [x] Add `cursorTargetHint` derivation in `src/main.ts`:
   - `point`, `area`, and `line` modes become `ground`.
   - `targetTeam: "enemy"` becomes `enemy`.
   - `targetTeam: "ally"` becomes `ally`.
   - `targetTeam: "allyOrSelf"` becomes `allyOrSelf`.
   - `targetTeam: "self"` becomes `self`.
   - unannotated unit targeting becomes `any`.
-- [ ] Set attack-move intent to `targetHint: "attack"`.
-- [ ] Set pending cast and item intents with derived target hints.
-- [ ] Run `npm run typecheck` and focused tests.
-- [ ] Commit as `feat(ux): wire semantic command cursor`.
+- [x] Set attack-move intent to `targetHint: "attack"`.
+- [x] Set pending cast and item intents with derived target hints.
+- [x] Run `npm run typecheck` and focused tests.
+- [x] Commit as `feat(ux): wire semantic command cursor`.
 
 ## Task 3: Screenshot, Summary, Verification
 
