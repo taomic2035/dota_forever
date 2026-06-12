@@ -138,7 +138,7 @@ describe('瓦克', () => {
     run(30);
     expect(hasModifier(ally, 'wak_vampiric_buff')).toBe(true);
   });
-  it('重生:致死时满血复活', () => {
+  it('重生:致死触发 3s 重组后满血复活', () => {
     const h = spawnHero(w, WAK, Team.Dawn, { x: 7000, y: 8000 });
     h.level = 6; h.heroMeta!.skillPoints = 1; h.mp = 300;
     learnAbility(w, h, 3);
@@ -146,8 +146,13 @@ describe('瓦克', () => {
     run(4);
     expect(hasModifier(h, 'wak_reincarnation_buff')).toBe(true);
     applyDamage(w, h, { source: 0, attackType: 'hero', amount: 999999, flags: { pure: true } });
+    // 进入重组:存活、无敌、眩晕(不算被击杀),尚未满血
     expect(h.alive).toBe(true);
-    expect(h.hp).toBe(h.calc.maxHp); // 满血复活
+    expect(h.invulnerable).toBe(true);
+    expect(hasModifier(h, 'reincarnating')).toBe(true);
+    run(95); // 3 秒重组窗口结束(>3s)
+    expect(h.invulnerable).toBe(false);
+    expect(h.hp).toBe(h.calc.maxHp); // 原地满血复活
   });
 });
 

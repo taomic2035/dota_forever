@@ -12,6 +12,9 @@ import {
 import type { World } from './world';
 import { Unit, type EntityId } from './unit';
 
+/** 经典 DotA:重生「重组」窗口(秒)。期间无敌、眩晕;到期后原地满血复活。 */
+const REINCARNATION_DELAY = 3;
+
 export interface DamageEvent {
   source: EntityId;
   attackType: AttackType;
@@ -155,14 +158,35 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     }
   }
   if (target.hp <= 0) {
-    // 免死:preventDeath 保留 1 血;reviveFull 则回满血并一次性消耗(重生)
+    // 免死:preventDeath 保留 1 血;reviveFull 则触发延迟重组(重生)
     const grave = target.modifiers.find((m) => (m.def.data?.preventDeath ?? 0) > 0);
     if (grave) {
       if ((grave.def.data?.reviveFull ?? 0) > 0) {
-        target.hp = target.calc.maxHp;
-        target.mp = target.calc.maxMp;
-        grave.expiresAt = -Infinity; // 重生后消耗
-        w.emit({ kind: 'fx', fx: 'reincarnate', pos: V.clone(target.pos) });
+        // 延迟重组:消耗 grave buff;3 秒无敌+眩晕窗口;到期后满血复活
+        grave.expiresAt = -Infinity; // 消耗重生 buff
+        target.hp = 1; // 存活(不调用 kill(),敌方无击杀奖励)
+        target.invulnerable = true;
+        target.order = null;
+        target.windupTargetId = 0;
+        target.attackTargetId = 0;
+        target.modifiers.push({
+          key: 'reincarnating',
+          sourceId: target.id,
+          expiresAt: w.time + REINCARNATION_DELAY,
+          def: {
+            key: 'reincarnating',
+            duration: REINCARNATION_DELAY,
+            isBuff: true,
+            states: { stunned: true },
+            onExpire(world, u) {
+              u.invulnerable = false;
+              u.hp = u.calc.maxHp;
+              u.mp = u.calc.maxMp;
+              world.emit({ kind: 'fx', fx: 'reincarnate', pos: { x: u.pos.x, y: u.pos.y } });
+            },
+          },
+          data: {},
+        });
       } else {
         target.hp = 1;
       }

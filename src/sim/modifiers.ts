@@ -158,15 +158,24 @@ export function tryLinkenBlock(w: World, target: Unit, sourceId: EntityId): bool
   return true;
 }
 
-/** 驱散:移除可驱散的 buff(对敌)或 debuff(对友)。 */
-export function purge(w: World, u: Unit, removeBuffs: boolean): void {
+/**
+ * 驱散:移除可驱散的 buff(对敌)或 debuff(对友)。
+ * @param removeBuffs true=移除增益(对敌); false=移除减益(对友/自身)
+ * @param strong false(默认)=基础驱散:不能解除硬控(眩晕/缠绕);
+ *               true=强驱散:解除一切含硬控的减益
+ */
+export function purge(w: World, u: Unit, removeBuffs: boolean, strong = false): void {
   for (let i = u.modifiers.length - 1; i >= 0; i--) {
     const m = u.modifiers[i];
     if (m.expiresAt === Infinity) continue; // 永久(被动/光环)不可驱散
-    if ((m.def.isBuff ?? false) === removeBuffs) {
-      u.modifiers.splice(i, 1);
-      m.def.onExpire?.(w, u, m);
+    if ((m.def.isBuff ?? false) !== removeBuffs) continue;
+    // 移除减益(removeBuffs=false)时:基础驱散跳过硬控(眩晕/缠绕)
+    if (!removeBuffs && !strong) {
+      const st = m.def.states;
+      if (st && (st.stunned || st.rooted)) continue;
     }
+    u.modifiers.splice(i, 1);
+    m.def.onExpire?.(w, u, m);
   }
 }
 
