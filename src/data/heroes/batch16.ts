@@ -123,7 +123,7 @@ const VIP_Q: AbilityDef = {
 const NETHER_DMG = [120, 200, 280, 360];
 
 const VIP_W: AbilityDef = {
-  key: 'vip_nether', name: '致命剧毒', maxLevel: 4, targetMode: 'unit',
+  key: 'vip_nether', name: '致命剧毒', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '注入剧毒:目标生命越低伤害越高,并大幅降低其攻速。',
@@ -161,7 +161,7 @@ const VIP_E: AbilityDef = {
 const STRIKE_DPS = [60, 90, 120];
 
 const VIP_R: AbilityDef = {
-  key: 'vip_strike', name: '毒裔', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'vip_strike', name: '毒裔', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 175, 225], cooldown: [40, 30, 20],
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '剧毒终结:重创目标并施加致命剧毒——大幅减速并持续掉血 5 秒。',
@@ -193,7 +193,7 @@ export const VIP: HeroDef = {
 const COLDFEET_DMG = [60, 100, 140, 180];
 
 const AA_Q: AbilityDef = {
-  key: 'aa_coldfeet', name: '寒霜冻足', maxLevel: 4, targetMode: 'unit',
+  key: 'aa_coldfeet', name: '寒霜冻足', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '冻结目标双足:若 2.5 秒内未远离施法位置,则被冻住眩晕并受伤。',
@@ -311,7 +311,7 @@ const MPH_Q: AbilityDef = {
 const ADAPT_DMG = [100, 160, 220, 280];
 
 const MPH_W: AbilityDef = {
-  key: 'mph_adaptive', name: '适应打击', maxLevel: 4, targetMode: 'unit',
+  key: 'mph_adaptive', name: '适应打击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [8, 7, 6, 5],
   castPoint: 0.2, tags: ['nuke', 'stun'],
   description: '凝聚水之力打击目标,造成伤害并短暂击晕。',
@@ -380,7 +380,7 @@ export const MPH: HeroDef = {
 const DISRUPT_DUR = [2.0, 2.5, 3.0, 3.5];
 
 const SDM_Q: AbilityDef = {
-  key: 'sdm_disrupt', name: '崩裂禁锢', maxLevel: 4, targetMode: 'unit',
+  key: 'sdm_disrupt', name: '崩裂禁锢', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [90, 100, 110, 120], cooldown: [15, 14, 13, 12],
   castPoint: 0.3, tags: ['stun'],
   description: '将目标禁锢于虚空(无敌但无法行动);若为敌方,挣脱后被减速。',
@@ -405,7 +405,7 @@ const SDM_Q: AbilityDef = {
 const SPOISON_DPS = [20, 32, 44, 56];
 
 const SDM_W: AbilityDef = {
-  key: 'sdm_poison', name: '暗影毒素', maxLevel: 4, targetMode: 'unit',
+  key: 'sdm_poison', name: '暗影毒素', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [3, 3, 3, 3],
   castPoint: 0.2, tags: ['nuke', 'slow'],
   description: '施加可叠加的暗影毒素,持续伤害并减速(层数越多越痛)。',
@@ -426,7 +426,7 @@ const SDM_W: AbilityDef = {
 const CATCH_AMP = [0.2, 0.3, 0.4, 0.5];
 
 const SDM_E: AbilityDef = {
-  key: 'sdm_catch', name: '灵魂逮捕', maxLevel: 4, targetMode: 'unit',
+  key: 'sdm_catch', name: '灵魂逮捕', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [50, 55, 60, 65], cooldown: [12, 11, 10, 9],
   castPoint: 0.2, tags: ['nuke'],
   description: '标记目标灵魂,使其在数秒内受到的伤害被放大。',
@@ -444,7 +444,7 @@ const SDM_E: AbilityDef = {
 const PURGE_DMG = [150, 225, 300];
 
 const SDM_R: AbilityDef = {
-  key: 'sdm_purge', name: '恶魔清算', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'sdm_purge', name: '恶魔清算', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 150, 175], cooldown: [70, 60, 50],
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '恶魔清算:驱散目标增益、造成伤害并使其极度减速、缓慢流失生命。',

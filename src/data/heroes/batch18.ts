@@ -119,7 +119,7 @@ const LIF_W: AbilityDef = {
 const WOUNDS_DUR = [4, 5, 6, 7];
 
 const LIF_E: AbilityDef = {
-  key: 'lif_wounds', name: '撕裂伤口', maxLevel: 4, targetMode: 'unit',
+  key: 'lif_wounds', name: '撕裂伤口', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500, 500], manaCost: [50, 55, 60, 65], cooldown: [14, 13, 12, 11],
   castPoint: 0.2, tags: ['slow'],
   description: '撕开目标伤口:大幅减速,且攻击它的友军获得吸血。',
@@ -137,7 +137,7 @@ const LIF_E: AbilityDef = {
 const INFEST_DMG = [200, 325, 450];
 
 const LIF_R: AbilityDef = {
-  key: 'lif_infest', name: '猛扑寄生', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'lif_infest', name: '猛扑寄生', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 125, 150], cooldown: [60, 50, 40],
   castPoint: 0.2, tags: ['nuke', 'stun', 'ultimate'],
   description: '猛扑撕咬目标:瞬移贴身造成巨额伤害并将其击晕。',
@@ -220,7 +220,7 @@ const ARC_W: AbilityDef = {
 const FLUX_DPS = [50, 75, 100, 125];
 
 const ARC_E: AbilityDef = {
-  key: 'arc_flux', name: '通量', maxLevel: 4, targetMode: 'unit',
+  key: 'arc_flux', name: '通量', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [70, 80, 90, 100], cooldown: [10, 9, 8, 7],
   castPoint: 0.2, tags: ['nuke', 'slow'],
   description: '使目标承受持续电流伤害并减速 6 秒。',
@@ -424,7 +424,7 @@ const HSK_E: AbilityDef = {
 const BREAK_PCT = [0.3, 0.4, 0.5];
 
 const HSK_R: AbilityDef = {
-  key: 'hsk_lifebreak', name: '生命燃烧', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'hsk_lifebreak', name: '生命燃烧', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 575, 600], manaCost: [75, 75, 75], cooldown: [50, 40, 30],
   castPoint: 0.1, tags: ['nuke', 'ultimate'],
   description: '燃烧生命扑向目标:按目标当前生命百分比造成巨额伤害并减速。',
@@ -455,7 +455,7 @@ export const HSK: HeroDef = {
 const TETHER_HEAL = [20, 30, 40, 50];
 
 const IO_Q: AbilityDef = {
-  key: 'io_tether', name: '系连', maxLevel: 4, targetMode: 'unit',
+  key: 'io_tether', name: '系连', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [700, 700, 700, 700], manaCost: [40, 40, 40, 40], cooldown: [6, 5, 4, 3],
   castPoint: 0.1, tags: ['buff', 'heal'],
   description: '与友军建立能量链接:持续为其回血并提升双方移速。',

@@ -29,7 +29,7 @@ function ogreMulticast(w: World, caster: Unit, effect: () => void): void {
 }
 
 const OGRE_Q: AbilityDef = {
-  key: 'ogre_fireblast', name: '火焰冲击', maxLevel: 4, targetMode: 'unit',
+  key: 'ogre_fireblast', name: '火焰冲击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [575, 575, 575, 575], manaCost: [95, 110, 125, 140], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '猛击目标造成伤害并眩晕,可被多重施法连发。',
@@ -48,7 +48,7 @@ const OGRE_Q: AbilityDef = {
 };
 
 const OGRE_W: AbilityDef = {
-  key: 'ogre_bloodlust', name: '嗜血渴望', maxLevel: 4, targetMode: 'unit',
+  key: 'ogre_bloodlust', name: '嗜血渴望', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [50, 60, 70, 80], cooldown: [15, 14, 13, 12],
   castPoint: 0.2, tags: ['buff'],
   description: '激发友军斗志,提升其攻击速度与移动速度 30 秒。',
@@ -158,7 +158,7 @@ const SS_INIT = [60, 100, 140, 180];
 const SS_DPS = [30, 45, 60, 75];
 
 const QUEN_E: AbilityDef = {
-  key: 'quen_strike', name: '暗影突袭', maxLevel: 4, targetMode: 'unit',
+  key: 'quen_strike', name: '暗影突袭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [650, 650, 650, 650], manaCost: [80, 90, 100, 110], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '掷出毒匕,造成伤害并施加持续伤害与减速。',
@@ -220,7 +220,7 @@ const GUSH_DMG = [90, 160, 230, 300];
 const GUSH_ARMOR = [3, 4, 5, 6];
 
 const TED_Q: AbilityDef = {
-  key: 'ted_gush', name: '涌泉', maxLevel: 4, targetMode: 'unit',
+  key: 'ted_gush', name: '涌泉', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '掀起涌泉重击目标,造成伤害、减速并削减护甲。',
@@ -369,7 +369,7 @@ const EMP_DMG = [20, 30, 40, 50];
 const EMP_CLEAVE = [0.2, 0.3, 0.4, 0.5];
 
 const MAG_E: AbilityDef = {
-  key: 'mag_empower', name: '强化', maxLevel: 4, targetMode: 'unit',
+  key: 'mag_empower', name: '强化', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [10, 8, 6, 4],
   castPoint: 0.1, tags: ['buff'],
   description: '强化友军武器:提升攻击力并使其攻击产生劈砍溅射 30 秒。',
@@ -429,7 +429,7 @@ const FB_DMG = [110, 180, 250, 320];
 const FB_SPLASH = [60, 100, 140, 180];
 
 const LYK_Q: AbilityDef = {
-  key: 'lyk_blast', name: '霜爆', maxLevel: 4, targetMode: 'unit',
+  key: 'lyk_blast', name: '霜爆', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 105, 120, 135], cooldown: [7, 6, 5, 4],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '在目标处引爆寒霜,重创目标并波及周围敌人,全部减速。',
@@ -453,7 +453,7 @@ const LYK_Q: AbilityDef = {
 const FA_ARMOR = [3, 5, 7, 9];
 
 const LYK_W: AbilityDef = {
-  key: 'lyk_armor', name: '寒霜护甲', maxLevel: 4, targetMode: 'unit',
+  key: 'lyk_armor', name: '寒霜护甲', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [700, 700, 700, 700], manaCost: [50, 55, 60, 65], cooldown: [12, 11, 10, 9],
   castPoint: 0.2, tags: ['buff'],
   description: '为友军披上寒霜护甲:提升护甲,攻击者会被冻缓。',
@@ -477,7 +477,7 @@ const LYK_W: AbilityDef = {
 const RITUAL_PCT = [0.3, 0.4, 0.5, 0.6];
 
 const LYK_E: AbilityDef = {
-  key: 'lyk_ritual', name: '黑暗献祭', maxLevel: 4, targetMode: 'unit',
+  key: 'lyk_ritual', name: '黑暗献祭', maxLevel: 4, targetMode: 'unit', targetTeam: 'ally',
   castRange: [600, 600, 600, 600], manaCost: [0, 0, 0, 0], cooldown: [40, 32, 24, 16],
   castPoint: 0.2, tags: ['buff'],
   description: '献祭一名己方小兵,按其生命上限百分比回复自身法力。',
@@ -500,7 +500,7 @@ const CF_BOUNCES = [6, 8, 10];
 const CF_STEP = [15, 20, 25];
 
 const LYK_R: AbilityDef = {
-  key: 'lyk_chain', name: '寒霜连锁', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'lyk_chain', name: '寒霜连锁', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [200, 275, 350], cooldown: [120, 105, 90],
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '召唤一颗寒霜弹在敌人间反复弹跳,伤害逐跳递增并减速。',
@@ -540,7 +540,7 @@ const DEVOUR_DMG = [300, 500, 700, 900];
 const DEVOUR_GOLD = [40, 80, 120, 160];
 
 const DUM_Q: AbilityDef = {
-  key: 'dum_devour', name: '吞噬', maxLevel: 4, targetMode: 'unit',
+  key: 'dum_devour', name: '吞噬', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200, 200], manaCost: [40, 40, 40, 40], cooldown: [40, 34, 28, 22],
   castPoint: 0.3, tags: ['nuke'],
   description: '吞食一个非英雄单位造成巨额伤害,得手则获得金钱与永久攻击成长。',
@@ -609,7 +609,7 @@ const DOOM_DUR = [8, 9, 10];
 const DOOM_DPS = [40, 60, 80];
 
 const DUM_R: AbilityDef = {
-  key: 'dum_doom', name: '末日', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'dum_doom', name: '末日', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [150, 200, 250], cooldown: [110, 100, 90],
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '降下末日审判:目标被沉默、缴械并持续受到灼烧,无法反抗。',

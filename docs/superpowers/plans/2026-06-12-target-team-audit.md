@@ -20,19 +20,19 @@
 
 ## Task 1: Coverage Test
 
-- [ ] Add failing coverage test over all `HEROES` and `ITEMS`.
-- [ ] Run `npm test -- tests/targetTeamCoverage.test.ts` and confirm it fails with missing ability/item keys.
-- [ ] Commit the red test only if useful; otherwise continue directly to metadata fill in the same task.
+- [x] Add failing coverage test over all `HEROES` and `ITEMS`.
+- [x] Run `npm test -- tests/targetTeamCoverage.test.ts` and confirm it fails with missing ability/item keys.
+- [x] Commit the red test only if useful; otherwise continue directly to metadata fill in the same task.
 
 ## Task 2: Metadata Fill
 
-- [ ] Add `targetTeam` to the two remaining unit active items: `midas` and `urn`.
-- [ ] Add `targetTeam: "enemy"` to hostile unit-target abilities.
-- [ ] Add `targetTeam: "ally"` to explicit non-self ally-target abilities.
-- [ ] Add `targetTeam: "allyOrSelf"` to support abilities that fall back to self.
-- [ ] Add `targetTeam: "any"` to dual-use or intentionally any-team abilities.
-- [ ] Run `npm test -- tests/targetTeamCoverage.test.ts tests/cursorTargetHint.test.ts tests/targetFilters.test.ts`.
-- [ ] Commit as `feat(ux): audit target team metadata`.
+- [x] Add `targetTeam` to the two remaining unit active items: `midas` and `urn`.
+- [x] Add `targetTeam: "enemy"` to hostile unit-target abilities.
+- [x] Add `targetTeam: "ally"` to explicit non-self ally-target abilities.
+- [x] Add `targetTeam: "allyOrSelf"` to support abilities that fall back to self.
+- [x] Add `targetTeam: "any"` to dual-use or intentionally any-team abilities.
+- [x] Run `npm test -- tests/targetTeamCoverage.test.ts tests/cursorTargetHint.test.ts tests/targetFilters.test.ts`.
+- [x] Commit as `feat(ux): audit target team metadata`.
 
 ## Task 3: Screenshot, Summary, Verification
 

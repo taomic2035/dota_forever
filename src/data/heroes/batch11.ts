@@ -27,7 +27,7 @@ const BANISH_DUR = [2.0, 2.5, 3.0, 3.5];
 const INT_STEAL = [4, 6, 8, 10];
 
 const MOR_W: AbilityDef = {
-  key: 'mor_astral', name: '星体禁锢', maxLevel: 4, targetMode: 'unit',
+  key: 'mor_astral', name: '星体禁锢', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [14, 13, 12, 11],
   castPoint: 0.3, tags: ['stun'],
   description: '将目标放逐到星界:暂时移出战场无法行动,并窃取其智力。',
@@ -91,7 +91,7 @@ export const MOR: HeroDef = {
 const THUNDER_DMG = [30, 45, 60, 75];
 
 const DIS_Q: AbilityDef = {
-  key: 'dis_thunder', name: '雷击', maxLevel: 4, targetMode: 'unit',
+  key: 'dis_thunder', name: '雷击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '雷云笼罩目标,每秒劈下闪电,伤害其与周围敌人。',
@@ -112,7 +112,7 @@ const DIS_Q: AbilityDef = {
 const GLIMPSE_PULL = [600, 800, 1000, 1200];
 
 const DIS_W: AbilityDef = {
-  key: 'dis_glimpse', name: '闪回', maxLevel: 4, targetMode: 'unit',
+  key: 'dis_glimpse', name: '闪回', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [1500, 1500, 1500, 1500], manaCost: [70, 70, 70, 70], cooldown: [22, 18, 14, 10],
   castPoint: 0.2, tags: ['slow'],
   description: '将目标强行拉回一段距离并减速(打断逃跑或追击)。',
@@ -194,7 +194,7 @@ export const DIS: HeroDef = {
 const LASER_DMG = [80, 160, 240, 320];
 
 const TIK_Q: AbilityDef = {
-  key: 'tik_laser', name: '激光', maxLevel: 4, targetMode: 'unit',
+  key: 'tik_laser', name: '激光', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [650, 650, 650, 650], manaCost: [95, 110, 125, 140], cooldown: [11, 10, 9, 8],
   castPoint: 0.2, tags: ['nuke'],
   description: '发射高能激光灼烧目标,并致盲使其短暂无法普攻。',
@@ -284,7 +284,7 @@ export const TIK: HeroDef = {
 const SOUL_DMG = [110, 180, 250, 320];
 
 const VIS_Q: AbilityDef = {
-  key: 'vis_soul', name: '灵魂强袭', maxLevel: 4, targetMode: 'unit',
+  key: 'vis_soul', name: '灵魂强袭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [100, 115, 130, 145], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke'],
   description: '汲取游荡的亡魂凝聚成弹,重创目标。',
@@ -302,7 +302,7 @@ const VIS_Q: AbilityDef = {
 const CHILL_AS = [0.3, 0.45, 0.6, 0.75];
 
 const VIS_W: AbilityDef = {
-  key: 'vis_chill', name: '冢中冷', maxLevel: 4, targetMode: 'unit',
+  key: 'vis_chill', name: '冢中冷', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [80, 85, 90, 95], cooldown: [12, 11, 10, 9],
   castPoint: 0.2, tags: ['slow'],
   description: '剥夺目标的速度据为己有:降低其攻速移速、强化自身。',
@@ -449,7 +449,7 @@ export const BRO: HeroDef = {
 // ============ 班恩·噩梦祭司(智力单体控制) ============
 
 const BAN_Q: AbilityDef = {
-  key: 'ban_enfeeble', name: '弱化', maxLevel: 4, targetMode: 'unit',
+  key: 'ban_enfeeble', name: '弱化', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [60, 70, 80, 90], cooldown: [10, 9, 8, 7],
   castPoint: 0.2, tags: ['slow'],
   description: '弱化目标,大幅削减其攻击力与攻速。',
@@ -467,7 +467,7 @@ const BAN_Q: AbilityDef = {
 const SAP_DMG = [90, 150, 210, 270];
 
 const BAN_W: AbilityDef = {
-  key: 'ban_sap', name: '吸脑', maxLevel: 4, targetMode: 'unit',
+  key: 'ban_sap', name: '吸脑', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [95, 110, 125, 140], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'heal'],
   description: '汲取目标的精神,造成伤害并治疗自身等量生命。',
@@ -486,7 +486,7 @@ const BAN_W: AbilityDef = {
 const NIGHT_DUR = [4, 4.75, 5.5, 6.25];
 
 const BAN_E: AbilityDef = {
-  key: 'ban_nightmare', name: '噩梦', maxLevel: 4, targetMode: 'unit',
+  key: 'ban_nightmare', name: '噩梦', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [21, 20, 19, 18],
   castPoint: 0.3, tags: ['stun'],
   description: '使目标陷入噩梦沉睡:无法行动(受到伤害会被唤醒)。',
@@ -504,7 +504,7 @@ const BAN_E: AbilityDef = {
 const GRIP_TICK = [70, 100, 130];
 
 const BAN_R: AbilityDef = {
-  key: 'ban_grip', name: '末日缠绕', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'ban_grip', name: '末日缠绕', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 525, 550], manaCost: [150, 200, 250], cooldown: [110, 100, 90],
   castPoint: 0.3, tags: ['stun', 'channel', 'ultimate'],
   description: '引导噩梦缠绕:持续束缚目标使其无法行动并不断造成伤害。',

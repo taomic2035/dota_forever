@@ -941,7 +941,7 @@ ITEMS.push(
     stats: { bonusAttackSpeed: 0.3 },
     recipe: { components: ['gloves_haste'], recipeCost: 1550 },
     active: {
-      name: '点金', cooldown: 100, targetMode: 'unit', castRange: 600,
+      name: '点金', cooldown: 100, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.isHero() || target.isBuilding()) return false;
         if (user.heroMeta) user.heroMeta.gold += 160;
@@ -957,7 +957,7 @@ ITEMS.push(
     stats: { bonusStr: 6, bonusMpRegen: 2 }, charges: 3, rechargeable: true,
     recipe: { components: ['gauntlet', 'gauntlet', 'sobi_mask'], recipeCost: 250 },
     active: {
-      name: '萃取', cooldown: 8, targetMode: 'unit', castRange: 600,
+      name: '萃取', cooldown: 8, targetMode: 'unit', targetTeam: 'any', castRange: 600,
       onUse(w, user, _pos, target) {
         const inst = user.inventory.find((i) => i?.itemKey === 'urn');
         if (!inst || inst.charges <= 0) return false;

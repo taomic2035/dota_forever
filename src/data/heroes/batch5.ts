@@ -147,7 +147,7 @@ const AURORA_W: AbilityDef = {
 const EMBRACE_HEAL = [150, 250, 350, 450];
 
 const AURORA_E: AbilityDef = {
-  key: 'aurora_embrace', name: '寒冰庇护', maxLevel: 4, targetMode: 'unit',
+  key: 'aurora_embrace', name: '寒冰庇护', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [20, 18, 16, 14],
   castPoint: 0.2, tags: ['heal', 'buff'],
   description: '将友军冰封 2 秒:期间无敌、无法行动,结束后治疗。',
@@ -223,7 +223,7 @@ const BAL_Q: AbilityDef = {
 const ARMOR_HOT = [10, 16, 22, 28];
 
 const BAL_W: AbilityDef = {
-  key: 'bal_armor', name: '炽焰护甲', maxLevel: 4, targetMode: 'unit',
+  key: 'bal_armor', name: '炽焰护甲', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [70, 80, 90, 100], cooldown: [14, 13, 12, 11],
   castPoint: 0.2, tags: ['heal', 'buff'],
   description: '为友军附上炽焰护甲:持续回复生命并提升护甲 12 秒。',
@@ -362,7 +362,7 @@ const KELON_E: AbilityDef = {
 const SNIPE_DMG = [300, 450, 600];
 
 const KELON_R: AbilityDef = {
-  key: 'kelon_assassinate', name: '狙杀', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'kelon_assassinate', name: '狙杀', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [1500, 1800, 2100], manaCost: [175, 200, 225], cooldown: [20, 15, 10],
   castPoint: 1.0, tags: ['nuke', 'ultimate'],
   description: '远距离蓄力狙击,造成巨额伤害并短暂眩晕。',
@@ -508,7 +508,7 @@ export const TAI: HeroDef = {
 const CRIPPLE_DMG = [80, 130, 180, 230];
 
 const NOX_Q: AbilityDef = {
-  key: 'nox_cripple', name: '致残射击', maxLevel: 4, targetMode: 'unit',
+  key: 'nox_cripple', name: '致残射击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '射伤目标,造成伤害并大幅降低其攻速与移速。',

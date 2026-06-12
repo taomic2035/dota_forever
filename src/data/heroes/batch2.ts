@@ -208,7 +208,7 @@ const GROSH_E: AbilityDef = {
 const DISMEMBER_DPS = [85, 120, 155];
 
 const GROSH_R: AbilityDef = {
-  key: 'grosh_dismember', name: '碎骨肢解', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'grosh_dismember', name: '碎骨肢解', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200], manaCost: [120, 150, 180], cooldown: [30, 25, 20],
   castPoint: 0.2, tags: ['stun', 'nuke', 'channel', 'ultimate'],
   description: '钳制目标 3 秒,持续撕咬造成重创。',
@@ -274,7 +274,7 @@ const KAI_Q: AbilityDef = {
 const STRIKE_DMG = [80, 140, 200, 260];
 
 const KAI_W: AbilityDef = {
-  key: 'kai_strike', name: '疾影突袭', maxLevel: 4, targetMode: 'unit',
+  key: 'kai_strike', name: '疾影突袭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [14, 12, 10, 8],
   castPoint: 0.1, tags: ['nuke', 'escape'],
   description: '闪现至目标背后突袭。',
@@ -396,7 +396,7 @@ const OMNI_STRIKES = [4, 6, 8];
 const OMNI_DMG = [170, 200, 230];
 
 const CHEN_R: AbilityDef = {
-  key: 'chen_omni', name: '无双连斩', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'chen_omni', name: '无双连斩', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [450, 500, 550], manaCost: [200, 275, 350], cooldown: [120, 110, 100],
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '化影连斩周围敌人,每一斩都是致命剑光。',
@@ -460,7 +460,7 @@ const OLAN_Q: AbilityDef = {
 const FLAME_DPS = [20, 30, 40, 50];
 
 const OLAN_W: AbilityDef = {
-  key: 'olan_flame', name: '净化之焰', maxLevel: 4, targetMode: 'unit',
+  key: 'olan_flame', name: '净化之焰', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [14, 13, 12, 11],
   castPoint: 0.25, tags: ['nuke'],
   description: '对敌:驱散增益并灼烧 5 秒;对友:驱散负面效果。',
@@ -543,7 +543,7 @@ export const OLAN: HeroDef = {
 const SHADOW_DMG = [110, 190, 270, 350];
 
 const MORPHIS_Q: AbilityDef = {
-  key: 'morphis_bolt', name: '暗影之箭', maxLevel: 4, targetMode: 'unit',
+  key: 'morphis_bolt', name: '暗影之箭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [650, 650, 650, 650], manaCost: [95, 115, 135, 155], cooldown: [10, 9, 8, 7],
   castPoint: 0.4, tags: ['nuke', 'slow'],
   description: '暗影侵蚀目标,造成伤害并放缓脚步。',
@@ -564,7 +564,7 @@ const MORPHIS_Q: AbilityDef = {
 const SIPHON_DPS = [25, 40, 55, 70];
 
 const MORPHIS_W: AbilityDef = {
-  key: 'morphis_siphon', name: '生命虹吸', maxLevel: 4, targetMode: 'unit',
+  key: 'morphis_siphon', name: '生命虹吸', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [16, 15, 14, 13],
   castPoint: 0.3, tags: ['nuke', 'heal'],
   description: '与目标建立虹吸链接 5 秒,窃取其生命。',

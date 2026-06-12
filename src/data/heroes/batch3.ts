@@ -194,7 +194,7 @@ export const SELAS: HeroDef = {
 const TOSS_DMG = [100, 150, 200, 250];
 
 const GOLON_Q: AbilityDef = {
-  key: 'golon_toss', name: '巨岩投掷', maxLevel: 4, targetMode: 'unit',
+  key: 'golon_toss', name: '巨岩投掷', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [110, 120, 130, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.2, tags: ['nuke', 'stun'],
   description: '抓起身边最近单位砸向目标,落点伤害并眩晕。',
@@ -279,7 +279,7 @@ export const GOLON: HeroDef = {
 const SPROUT_DUR = [2.0, 2.75, 3.5, 4.25];
 
 const NAYA_Q: AbilityDef = {
-  key: 'naya_sprout', name: '荆棘缠绕', maxLevel: 4, targetMode: 'unit',
+  key: 'naya_sprout', name: '荆棘缠绕', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [625, 700, 775, 850], manaCost: [70, 80, 90, 100], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['stun'],
   description: '召出荆棘困住目标,使其无法移动。',
@@ -385,7 +385,7 @@ export const NAYA: HeroDef = {
 const DECAY_DMG = [90, 150, 210, 270];
 
 const VOS_Q: AbilityDef = {
-  key: 'vos_decay', name: '腐朽', maxLevel: 4, targetMode: 'unit',
+  key: 'vos_decay', name: '腐朽', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 105, 120, 135], cooldown: [8, 7, 6, 5],
   castPoint: 0.35, tags: ['nuke'],
   description: '腐蚀目标生命,造成魔法伤害并窃取其力量。',
@@ -476,7 +476,7 @@ export const VOS: HeroDef = {
 const DRAIN_DPS = [60, 90, 120, 150];
 
 const VIRA_Q: AbilityDef = {
-  key: 'vira_drain', name: '噬魂', maxLevel: 4, targetMode: 'unit',
+  key: 'vira_drain', name: '噬魂', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [70, 80, 90, 100], cooldown: [16, 14, 12, 10],
   castPoint: 0.2, tags: ['nuke', 'heal', 'channel'],
   description: '引导吸取目标生命,转化为自身生命,持续 4 秒。',

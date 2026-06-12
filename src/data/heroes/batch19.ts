@@ -112,7 +112,7 @@ export const SNK: HeroDef = {
 const NAPALM_DMG = [20, 35, 50, 65];
 
 const BAT_Q: AbilityDef = {
-  key: 'bat_napalm', name: '黏性烈焰', maxLevel: 4, targetMode: 'unit',
+  key: 'bat_napalm', name: '黏性烈焰', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [20, 25, 30, 35], cooldown: [3, 3, 3, 3],
   castPoint: 0.2, tags: ['nuke', 'slow'],
   description: '涂抹黏性烈焰(可叠加):减速目标并放大其受到的后续火焰伤害。',
@@ -173,7 +173,7 @@ const BAT_E: AbilityDef = {
 const LASSO_DPS = [60, 90, 120];
 
 const BAT_R: AbilityDef = {
-  key: 'bat_lasso', name: '烈焰套索', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'bat_lasso', name: '烈焰套索', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500], manaCost: [125, 150, 175], cooldown: [70, 55, 40],
   castPoint: 0.3, tags: ['stun', 'nuke', 'ultimate'],
   description: '套住目标将其拖在身后:持续灼烧并使其无法行动。',
@@ -206,7 +206,7 @@ export const BAT: HeroDef = {
 const ETHER_DMG = [120, 200, 280, 360];
 
 const SHM_Q: AbilityDef = {
-  key: 'shm_ether', name: '以太冲击', maxLevel: 4, targetMode: 'unit',
+  key: 'shm_ether', name: '以太冲击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke'],
   description: '释放以太冲击劈向目标并弹向附近敌人。',
@@ -229,7 +229,7 @@ const SHM_Q: AbilityDef = {
 };
 
 const SHM_W: AbilityDef = {
-  key: 'shm_hex', name: '妖术', maxLevel: 4, targetMode: 'unit',
+  key: 'shm_hex', name: '妖术', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [22, 19, 16, 13],
   castPoint: 0.3, tags: ['stun'],
   description: '将目标变为无害形态(沉默+缴械+重度减速)。',
@@ -247,7 +247,7 @@ const SHM_W: AbilityDef = {
 const SHACKLE_DPS = [80, 120, 160, 200];
 
 const SHM_E: AbilityDef = {
-  key: 'shm_shackles', name: '枷锁', maxLevel: 4, targetMode: 'unit',
+  key: 'shm_shackles', name: '枷锁', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500, 500], manaCost: [110, 120, 130, 140], cooldown: [16, 15, 14, 13],
   castPoint: 0.2, tags: ['stun', 'channel', 'nuke'],
   description: '引导枷锁束缚目标:持续定身并造成伤害。',
@@ -328,7 +328,7 @@ const GRM_Q: AbilityDef = {
 const PHANTOM_DPS = [40, 60, 80, 100];
 
 const GRM_W: AbilityDef = {
-  key: 'grm_phantom', name: '鬼影缠身', maxLevel: 4, targetMode: 'unit',
+  key: 'grm_phantom', name: '鬼影缠身', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [14, 13, 12, 11],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '附上鬼影:持续撕咬目标并沉默之。',
@@ -349,7 +349,7 @@ const GRM_W: AbilityDef = {
 const SWELL_DUR = [3, 3.5, 4, 4.5];
 
 const GRM_E: AbilityDef = {
-  key: 'grm_swell', name: '墨涌', maxLevel: 4, targetMode: 'unit',
+  key: 'grm_swell', name: '墨涌', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [16, 15, 14, 13],
   castPoint: 0.2, tags: ['buff', 'stun'],
   description: '在友军身上积聚墨力:提供护盾,数秒后炸开震晕周围敌人。',
@@ -407,7 +407,7 @@ export const GRM: HeroDef = {
 // ============ 林莺·魅惑使者(智力远程辅助) ============
 
 const ENCH_W: AbilityDef = {
-  key: 'ench_enchant', name: '魅惑', maxLevel: 4, targetMode: 'unit',
+  key: 'ench_enchant', name: '魅惑', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [50, 55, 60, 65], cooldown: [11, 10, 9, 8],
   castPoint: 0.2, tags: ['slow'],
   description: '魅惑目标:大幅削减其攻速与移速(对中立生物则收为己用)。',
@@ -479,7 +479,7 @@ export const ENCH: HeroDef = {
 const FORTUNE_DMG = [80, 130, 180, 230];
 
 const ORA_Q: AbilityDef = {
-  key: 'ora_fortune', name: '命运止境', maxLevel: 4, targetMode: 'unit',
+  key: 'ora_fortune', name: '命运止境', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '凝聚命运能量轰击目标:造成伤害并定身。',
@@ -498,7 +498,7 @@ const ORA_Q: AbilityDef = {
 const EDICT_AMP = [0.2, 0.3, 0.4, 0.5];
 
 const ORA_W: AbilityDef = {
-  key: 'ora_edict', name: '命运敕令', maxLevel: 4, targetMode: 'unit',
+  key: 'ora_edict', name: '命运敕令', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [70, 75, 80, 85], cooldown: [13, 12, 11, 10],
   castPoint: 0.2, tags: ['slow'],
   description: '宣告敕令:缴械目标,并放大其所受的魔法伤害。',
@@ -516,7 +516,7 @@ const ORA_W: AbilityDef = {
 const FLAMES_HEAL = [180, 280, 380, 480];
 
 const ORA_E: AbilityDef = {
-  key: 'ora_flames', name: '净化之焰', maxLevel: 4, targetMode: 'unit',
+  key: 'ora_flames', name: '净化之焰', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [6, 5, 4, 3],
   castPoint: 0.2, tags: ['heal', 'nuke'],
   description: '净化之焰:对友军是强力治疗,对敌人是灼烧伤害(先有少量即时伤害)。',
@@ -539,7 +539,7 @@ const ORA_E: AbilityDef = {
 const PROMISE_DUR = [6, 7, 8];
 
 const ORA_R: AbilityDef = {
-  key: 'ora_promise', name: '虚妄之诺', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'ora_promise', name: '虚妄之诺', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [700, 700, 700], manaCost: [100, 100, 100], cooldown: [90, 80, 70],
   castPoint: 0.2, tags: ['buff', 'heal', 'ultimate'],
   description: '为友军许下虚妄之诺:数秒内大幅减伤并持续回复(救人神技)。',

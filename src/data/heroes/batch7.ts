@@ -156,7 +156,7 @@ const SELENE_Q: AbilityDef = {
 const SBEAM_DMG = [90, 150, 210, 270];
 
 const SELENE_W: AbilityDef = {
-  key: 'selene_beam', name: '静谧之光', maxLevel: 4, targetMode: 'unit',
+  key: 'selene_beam', name: '静谧之光', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [650, 650, 650, 650], manaCost: [95, 110, 125, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '一束圣光灼伤目标并沉默其周围敌人。',
@@ -221,7 +221,7 @@ export const SELENE: HeroDef = {
 const TAIL_DMG = [100, 160, 220, 280];
 
 const DRAK_Q: AbilityDef = {
-  key: 'drak_tail', name: '龙尾摆击', maxLevel: 4, targetMode: 'unit',
+  key: 'drak_tail', name: '龙尾摆击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200, 200], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '甩动龙尾击晕目标并造成伤害。',
@@ -322,7 +322,7 @@ export const DRAK: HeroDef = {
 const DART_DMG = [70, 110, 150, 190];
 
 const VENONA_Q: AbilityDef = {
-  key: 'venona_dart', name: '毒镖', maxLevel: 4, targetMode: 'unit',
+  key: 'venona_dart', name: '毒镖', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '掷出毒镖,造成伤害并施加剧毒(减速+持续伤害)。',

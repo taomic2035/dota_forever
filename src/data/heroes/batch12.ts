@@ -32,7 +32,7 @@ const RIK_Q: AbilityDef = {
 const BLINKSTRIKE_DMG = [60, 110, 160, 210];
 
 const RIK_W: AbilityDef = {
-  key: 'rik_blinkstrike', name: '闪袭', maxLevel: 4, targetMode: 'unit',
+  key: 'rik_blinkstrike', name: '闪袭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 750, 800, 850], manaCost: [40, 45, 50, 55], cooldown: [6, 5, 4, 3],
   castPoint: 0.0, tags: ['nuke'],
   description: '瞬移到目标背后并发动突袭,造成额外伤害。',
@@ -143,7 +143,7 @@ const JUG_E: AbilityDef = {
 const OMNI_HITS = [6, 9, 12];
 
 const JUG_R: AbilityDef = {
-  key: 'jug_omni', name: '无敌斩', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'jug_omni', name: '无敌斩', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [400, 400, 400], manaCost: [150, 175, 200], cooldown: [130, 120, 110],
   castPoint: 0.2, tags: ['nuke', 'ultimate'],
   description: '化作剑影在敌群间穿梭,连续斩击附近的敌人多次。',
@@ -220,7 +220,7 @@ const DPR_W: AbilityDef = {
 const SIPHON_DPS = [40, 60, 80, 100];
 
 const DPR_E: AbilityDef = {
-  key: 'dpr_siphon', name: '灵魂虹吸', maxLevel: 4, targetMode: 'unit',
+  key: 'dpr_siphon', name: '灵魂虹吸', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [10, 9, 8, 7],
   castPoint: 0.2, tags: ['nuke', 'slow'],
   description: '连接目标持续吸取生命,减速目标并治疗自身。',
@@ -296,7 +296,7 @@ const DSR_Q: AbilityDef = {
 const ION_DMG = [16, 26, 36, 46];
 
 const DSR_W: AbilityDef = {
-  key: 'dsr_ion', name: '离子外壳', maxLevel: 4, targetMode: 'unit',
+  key: 'dsr_ion', name: '离子外壳', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [600, 600, 600, 600], manaCost: [70, 80, 90, 100], cooldown: [10, 9, 8, 7],
   castPoint: 0.2, tags: ['nuke', 'aoe'],
   description: '在目标身上附着离子外壳,持续灼烧其周围的敌人。',
@@ -315,7 +315,7 @@ const DSR_W: AbilityDef = {
 };
 
 const DSR_E: AbilityDef = {
-  key: 'dsr_surge', name: '激增', maxLevel: 4, targetMode: 'unit',
+  key: 'dsr_surge', name: '激增', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [16, 13, 10, 7],
   castPoint: 0.0, tags: ['buff', 'escape'],
   description: '使友军移动速度激增到极限,瞬间拉开或贴近距离。',
@@ -413,7 +413,7 @@ const ROAR_DMG = [150, 250, 350];
 const ROAR_STUN = [2.5, 3.0, 3.5];
 
 const BEA_R: AbilityDef = {
-  key: 'bea_roar', name: '原始咆哮', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'bea_roar', name: '原始咆哮', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550], manaCost: [100, 150, 200], cooldown: [80, 70, 60],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '发出震天咆哮:重创并长时间击晕目标,余波震退周围敌人。',
@@ -474,7 +474,7 @@ const NYX_Q: AbilityDef = {
 const MANABURN_DMG = [0.6, 0.9, 1.2, 1.5];
 
 const NYX_W: AbilityDef = {
-  key: 'nyx_manaburn', name: '法力燃烧', maxLevel: 4, targetMode: 'unit',
+  key: 'nyx_manaburn', name: '法力燃烧', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500, 500], manaCost: [80, 90, 100, 110], cooldown: [20, 16, 12, 8],
   castPoint: 0.2, tags: ['nuke'],
   description: '焚烧目标法力,并按烧掉的法力造成等量伤害。',

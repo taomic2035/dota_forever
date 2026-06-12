@@ -81,7 +81,7 @@ const WIRA_E: AbilityDef = {
 const FOCUS_AS = [2.0, 3.0, 4.0];
 
 const WIRA_R: AbilityDef = {
-  key: 'wira_focus', name: '集中火力', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'wira_focus', name: '集中火力', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 100, 100], cooldown: [40, 32, 24],
   castPoint: 0.2, tags: ['buff', 'ultimate'],
   description: '锁定目标倾泻箭雨:极大幅提升攻击速度并立即开火。',
@@ -156,7 +156,7 @@ const SLAR_E: AbilityDef = {
 const AMP_ARMOR = [8, 12, 16];
 
 const SLAR_R: AbilityDef = {
-  key: 'slar_amplify', name: '裂目', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'slar_amplify', name: '裂目', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [50, 50, 50], cooldown: [12, 11, 10],
   castPoint: 0.2, tags: ['nuke', 'ultimate'],
   description: '撕裂目标护甲并使其减速,令其无所遁形。',
@@ -224,7 +224,7 @@ const KUN_W: AbilityDef = {
 const XMARK_DELAY = [2.0, 2.5, 3.0, 3.5];
 
 const KUN_E: AbilityDef = {
-  key: 'kun_xmark', name: '潮位标记', maxLevel: 4, targetMode: 'unit',
+  key: 'kun_xmark', name: '潮位标记', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [600, 650, 700, 750], manaCost: [70, 70, 70, 70], cooldown: [16, 14, 12, 10],
   castPoint: 0.2, tags: ['slow'],
   description: '标记一个单位,数秒后将其拉回标记位置(可控敌可救友)。',
@@ -289,7 +289,7 @@ export const KUN: HeroDef = {
 const POISON_DPS = [14, 22, 30, 38];
 
 const DAZ_Q: AbilityDef = {
-  key: 'daz_poison', name: '剧毒之触', maxLevel: 4, targetMode: 'unit',
+  key: 'daz_poison', name: '剧毒之触', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [95, 105, 115, 125], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '剧毒侵蚀目标:持续造成伤害并减速。',
@@ -310,7 +310,7 @@ const DAZ_Q: AbilityDef = {
 const GRAVE_DUR = [4, 4.5, 5, 5.5];
 
 const DAZ_W: AbilityDef = {
-  key: 'daz_grave', name: '薄葬', maxLevel: 4, targetMode: 'unit',
+  key: 'daz_grave', name: '薄葬', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [550, 600, 650, 700], manaCost: [80, 90, 100, 110], cooldown: [24, 21, 18, 15],
   castPoint: 0.1, tags: ['buff'],
   description: '为友军施加薄葬:数秒内生命不会降到 1 以下(无法被击杀)。',

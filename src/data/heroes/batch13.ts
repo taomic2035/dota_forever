@@ -101,7 +101,7 @@ export const EAR: HeroDef = {
 const BOLT_DMG = [90, 150, 210, 270];
 
 const SKY_Q: AbilityDef = {
-  key: 'sky_bolt', name: '奥术飞弹', maxLevel: 4, targetMode: 'unit',
+  key: 'sky_bolt', name: '奥术飞弹', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [5, 5, 5, 5],
   castPoint: 0.3, tags: ['nuke'],
   description: '射出奥术飞弹,造成魔法伤害并短暂减速。',
@@ -141,7 +141,7 @@ const SKY_W: AbilityDef = {
 const SEAL_AMP = [0.2, 0.3, 0.4, 0.5];
 
 const SKY_E: AbilityDef = {
-  key: 'sky_seal', name: '远古封印', maxLevel: 4, targetMode: 'unit',
+  key: 'sky_seal', name: '远古封印', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [80, 90, 100, 110], cooldown: [16, 15, 14, 13],
   castPoint: 0.3, tags: ['aoe'],
   description: '封印目标:沉默并大幅提升其所受的魔法伤害。',
@@ -298,7 +298,7 @@ const WBLAST_DMG = [90, 150, 210, 270];
 const WBLAST_STUN = [1.2, 1.5, 1.8, 2.1];
 
 const WAK_Q: AbilityDef = {
-  key: 'wak_blast', name: '亡灵冲击', maxLevel: 4, targetMode: 'unit',
+  key: 'wak_blast', name: '亡灵冲击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [100, 110, 120, 130], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '掷出亡灵之火,眩晕目标并造成持续伤害。',
@@ -364,7 +364,7 @@ export const WAK: HeroDef = {
 const FROSTBITE_DPS = [30, 45, 60, 75];
 
 const CRY_Q: AbilityDef = {
-  key: 'cry_frostbite', name: '冰封禁制', maxLevel: 4, targetMode: 'unit',
+  key: 'cry_frostbite', name: '冰封禁制', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [110, 120, 130, 140], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '将目标冰封原地,使其无法行动并持续受冻伤。',

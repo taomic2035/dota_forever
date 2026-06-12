@@ -71,7 +71,7 @@ const LAIN_E: AbilityDef = {
 const BOLT_DMG = [400, 600, 800];
 
 const LAIN_R: AbilityDef = {
-  key: 'lain_deathbolt', name: '死亡之雷', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'lain_deathbolt', name: '死亡之雷', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 750, 800], manaCost: [200, 350, 500], cooldown: [50, 40, 30],
   castPoint: 0.4, tags: ['nuke', 'ultimate'],
   description: '凝聚毁灭之雷劈向目标,造成巨额魔法伤害。',
@@ -131,7 +131,7 @@ const MORFIN_Q: AbilityDef = {
 const ADAPT_BASE = [80, 140, 200, 260];
 
 const MORFIN_W: AbilityDef = {
-  key: 'morfin_adapt', name: '自适打击', maxLevel: 4, targetMode: 'unit',
+  key: 'morfin_adapt', name: '自适打击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.2, tags: ['nuke', 'stun'],
   description: '依据力量与敏捷的高低自适应:力量高则强眩晕,敏捷高则高伤害。',
@@ -233,7 +233,7 @@ const GOO_SLOW = [-0.15, -0.22, -0.29, -0.36];
 const GOO_ARMOR = [-2, -3, -4, -5];
 
 const BROG_E: AbilityDef = {
-  key: 'brog_goo', name: '黏液', maxLevel: 4, targetMode: 'unit',
+  key: 'brog_goo', name: '黏液', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [40, 45, 50, 55], cooldown: [6, 6, 6, 6],
   castPoint: 0.2, tags: ['slow'],
   description: '泼洒黏液,降低目标护甲与移速(可叠加)。',
@@ -374,7 +374,7 @@ export const WIF: HeroDef = {
 const HEX_DUR = [2, 2.75, 3.5, 4.25];
 
 const ZUKA_Q: AbilityDef = {
-  key: 'zuka_hex', name: '妖术', maxLevel: 4, targetMode: 'unit',
+  key: 'zuka_hex', name: '妖术', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 600, 650, 700], manaCost: [110, 120, 130, 140], cooldown: [16, 14, 12, 10],
   castPoint: 0.3, tags: ['stun'],
   description: '将目标变为无害之物:无法攻击、施法并大幅减速。',
@@ -397,7 +397,7 @@ const ZUKA_Q: AbilityDef = {
 const SHACKLE_DPS = [80, 120, 160, 200];
 
 const ZUKA_W: AbilityDef = {
-  key: 'zuka_shackle', name: '锁缚', maxLevel: 4, targetMode: 'unit',
+  key: 'zuka_shackle', name: '锁缚', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500, 500], manaCost: [100, 110, 120, 130], cooldown: [14, 13, 12, 11],
   castPoint: 0.2, tags: ['stun', 'channel', 'nuke'],
   description: '引导锁缚目标,使其无法行动并持续受到伤害。',
@@ -490,7 +490,7 @@ export const ZUKA: HeroDef = {
 const SEED_VAL = [14, 20, 26, 32];
 
 const CEDRIC_Q: AbilityDef = {
-  key: 'cedric_seed', name: '寄生之种', maxLevel: 4, targetMode: 'unit',
+  key: 'cedric_seed', name: '寄生之种', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [80, 90, 100, 110], cooldown: [12, 11, 10, 9],
   castPoint: 0.2, tags: ['nuke', 'heal', 'slow'],
   description: '种下寄生种子:对敌持续伤害+减速,对友持续治疗。',
@@ -518,7 +518,7 @@ const CEDRIC_Q: AbilityDef = {
 const ARMOR_VAL = [60, 110, 160, 210];
 
 const CEDRIC_W: AbilityDef = {
-  key: 'cedric_armor', name: '生命护甲', maxLevel: 4, targetMode: 'unit',
+  key: 'cedric_armor', name: '生命护甲', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [99999, 99999, 99999, 99999], manaCost: [50, 60, 70, 80], cooldown: [18, 16, 14, 12],
   castPoint: 0.0, tags: ['heal', 'buff'],
   description: '为任意友军(全图)套上生命护甲:吸收伤害并提供护甲。',

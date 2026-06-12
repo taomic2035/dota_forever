@@ -57,7 +57,7 @@ const VYN_E: AbilityDef = {
 const VOID_K = [0.8, 1.0, 1.2];
 
 const VYN_R: AbilityDef = {
-  key: 'vyn_void', name: '法力虚空', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'vyn_void', name: '法力虚空', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [125, 200, 275], cooldown: [80, 70, 60],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'stun', 'ultimate'],
   description: '依据目标已损失的法力造成爆发伤害,并波及其周围敌人、短暂眩晕。',
@@ -116,7 +116,7 @@ const LEON_Q: AbilityDef = {
 const PTA_HEAL = [90, 140, 190, 240];
 
 const LEON_W: AbilityDef = {
-  key: 'leon_pta', name: '鼓舞冲锋', maxLevel: 4, targetMode: 'unit',
+  key: 'leon_pta', name: '鼓舞冲锋', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [60, 65, 70, 75], cooldown: [16, 14, 12, 10],
   castPoint: 0.1, tags: ['buff', 'heal'],
   description: '驱散友军身上的减益,治疗并大幅提升其攻击速度。',
@@ -160,7 +160,7 @@ function duelEnd(world: World, u: Unit, m: Modifier): void {
 }
 
 const LEON_R: AbilityDef = {
-  key: 'leon_duel', name: '决斗', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'leon_duel', name: '决斗', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [150, 150, 150], manaCost: [75, 75, 75], cooldown: [50, 40, 30],
   castPoint: 0.3, tags: ['stun', 'ultimate'],
   description: '与目标展开决斗:双方被缚原地强制互殴,胜者永久获得攻击力。',
@@ -198,7 +198,7 @@ const CB_STUN = [[1, 2.4], [1.2, 2.8], [1.4, 3.2], [1.6, 3.6]];
 const CB_DMG = [[90, 160], [120, 200], [150, 240], [180, 280]];
 
 const KAOS_Q: AbilityDef = {
-  key: 'kaos_bolt', name: '混沌之箭', maxLevel: 4, targetMode: 'unit',
+  key: 'kaos_bolt', name: '混沌之箭', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [110, 120, 130, 140], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '掷出混沌之箭,造成随机伤害与随机时长的眩晕。',
@@ -219,7 +219,7 @@ const KAOS_Q: AbilityDef = {
 const RIFT_ARMOR = [4, 6, 8, 10];
 
 const KAOS_W: AbilityDef = {
-  key: 'kaos_rift', name: '实相裂隙', maxLevel: 4, targetMode: 'unit',
+  key: 'kaos_rift', name: '实相裂隙', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 600, 650, 700], manaCost: [70, 75, 80, 85], cooldown: [16, 14, 12, 10],
   castPoint: 0.2, tags: ['nuke'],
   description: '撕裂空间将自己与目标拉到中点,削减目标护甲并发起追击。',
@@ -280,7 +280,7 @@ const HOOK_DMG = [100, 150, 200, 250];
 const HOOK_STUN = [1.0, 1.3, 1.6, 1.9];
 
 const KOG_Q: AbilityDef = {
-  key: 'kog_hook', name: '齿轮钩索', maxLevel: 4, targetMode: 'unit',
+  key: 'kog_hook', name: '齿轮钩索', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [1000, 1100, 1200, 1300], manaCost: [100, 110, 120, 130], cooldown: [14, 12, 10, 8],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '射出钩索拉近自己冲向目标,造成伤害并击晕。',
@@ -375,7 +375,7 @@ export const KOG: HeroDef = {
 const MAL_DMG = [50, 80, 110, 140];
 
 const ENI_Q: AbilityDef = {
-  key: 'eni_malefice', name: '噩咒', maxLevel: 4, targetMode: 'unit',
+  key: 'eni_malefice', name: '噩咒', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [95, 105, 115, 125], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '诅咒目标:在 4 秒内反复造成伤害与短暂眩晕。',
@@ -487,7 +487,7 @@ const PURI_HEAL = [120, 200, 280, 360];
 const PURI_DMG = [80, 130, 180, 230];
 
 const THEO_Q: AbilityDef = {
-  key: 'theo_purify', name: '净化', maxLevel: 4, targetMode: 'unit',
+  key: 'theo_purify', name: '净化', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [550, 550, 550, 550], manaCost: [90, 105, 120, 135], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['heal', 'nuke', 'aoe'],
   description: '一道圣光治疗友军,同时灼伤其周围的敌人。',
@@ -508,7 +508,7 @@ const THEO_Q: AbilityDef = {
 const REPEL_DUR = [4, 5, 6, 7];
 
 const THEO_W: AbilityDef = {
-  key: 'theo_repel', name: '守护结界', maxLevel: 4, targetMode: 'unit',
+  key: 'theo_repel', name: '守护结界', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [50, 55, 60, 65], cooldown: [16, 15, 14, 13],
   castPoint: 0.2, tags: ['buff'],
   description: '为友军赋予魔法免疫,免疫大多数法术效果。',

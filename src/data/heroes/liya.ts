@@ -32,7 +32,7 @@ const BIND_DUR = [1.5, 2.0, 2.5, 3.0];
 const BIND_DPS = [25, 30, 35, 40];
 
 export const LIYA_W: AbilityDef = {
-  key: 'liya_bind', name: '冰封禁制', maxLevel: 4, targetMode: 'unit',
+  key: 'liya_bind', name: '冰封禁制', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [115, 125, 135, 150], cooldown: [10, 9.5, 9, 8.5],
   castPoint: 0.4, tags: ['stun', 'nuke'],
   description: '冰封目标,使其无法移动并持续受到伤害。',

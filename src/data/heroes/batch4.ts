@@ -56,7 +56,7 @@ const DUNCAN_W: AbilityDef = {
 const BASH_DMG = [80, 130, 180, 230];
 
 const DUNCAN_E: AbilityDef = {
-  key: 'duncan_bash', name: '盾击', maxLevel: 4, targetMode: 'unit',
+  key: 'duncan_bash', name: '盾击', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200, 200], manaCost: [75, 80, 85, 90], cooldown: [9, 8, 7, 6],
   castPoint: 0.2, tags: ['stun', 'nuke'],
   description: '盾牌猛击目标,造成伤害并眩晕,自身获得护盾。',
@@ -109,7 +109,7 @@ export const DUNCAN: HeroDef = {
 const LASER_DMG = [100, 175, 250, 325];
 
 const ZENO_Q: AbilityDef = {
-  key: 'zeno_laser', name: '奥术激光', maxLevel: 4, targetMode: 'unit',
+  key: 'zeno_laser', name: '奥术激光', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [650, 650, 650, 650], manaCost: [95, 110, 125, 140], cooldown: [8, 7, 6, 5],
   castPoint: 0.2, tags: ['nuke'],
   description: '纯能激光灼烧目标,造成纯粹伤害并使其攻击落空。',
@@ -306,7 +306,7 @@ const SELIA_Q: AbilityDef = {
 const MISSILE2_DMG = [100, 175, 250, 325];
 
 const SELIA_W: AbilityDef = {
-  key: 'selia_missile', name: '魔法飞弹', maxLevel: 4, targetMode: 'unit',
+  key: 'selia_missile', name: '魔法飞弹', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [100, 115, 130, 145], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'stun'],
   description: '飞弹击中目标,造成伤害并眩晕。',
@@ -342,7 +342,7 @@ const SELIA_E: AbilityDef = {
 };
 
 const SELIA_R: AbilityDef = {
-  key: 'selia_swap', name: '灵魂换位', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'selia_swap', name: '灵魂换位', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'any',
   castRange: [700, 850, 1000], manaCost: [120, 120, 120], cooldown: [60, 45, 30],
   castPoint: 0.0, tags: ['escape', 'ultimate'],
   description: '与目标单位瞬间交换位置(可救友、可拽敌)。',
@@ -405,7 +405,7 @@ const MIRA_Q: AbilityDef = {
 const BEAM_DMG = [120, 200, 280, 360];
 
 const MIRA_W: AbilityDef = {
-  key: 'mira_beam', name: '月光', maxLevel: 4, targetMode: 'unit',
+  key: 'mira_beam', name: '月光', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 105, 120, 135], cooldown: [10, 9, 8, 7],
   castPoint: 0.4, tags: ['nuke'],
   description: '一束月光射向目标,造成魔法伤害。',
@@ -474,7 +474,7 @@ const SCYTHE_BASE = [60, 90, 120, 150];
 const SCYTHE_MISSING = [0.10, 0.14, 0.18, 0.22];
 
 const GRIM_Q: AbilityDef = {
-  key: 'grim_scythe', name: '收割之镰', maxLevel: 4, targetMode: 'unit',
+  key: 'grim_scythe', name: '收割之镰', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [95, 110, 125, 140], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['nuke'],
   description: '收割目标,生命越低伤害越高。',
@@ -539,7 +539,7 @@ const GRIM_E: AbilityDef = {
 const HARVEST_THRESH = [0.12, 0.16, 0.20];
 
 const GRIM_R: AbilityDef = {
-  key: 'grim_harvest', name: '死神收割', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'grim_harvest', name: '死神收割', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 600, 650], manaCost: [150, 175, 200], cooldown: [55, 45, 35],
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '处决目标:生命低于阈值则直接斩杀,否则造成等量于阈值的伤害。',

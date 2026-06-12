@@ -155,7 +155,7 @@ const NEC_E: AbilityDef = {
 const SCYTHE_PER_MISSING = [0.5, 0.65, 0.8];
 
 const NEC_R: AbilityDef = {
-  key: 'nec_scythe', name: '死神镰刀', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'nec_scythe', name: '死神镰刀', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [200, 350, 500], cooldown: [100, 85, 70],
   castPoint: 0.3, tags: ['nuke', 'stun', 'ultimate'],
   description: '挥下死神镰刀:目标生命越低伤害越高,并将其眩晕(可处决)。',
@@ -187,7 +187,7 @@ export const NEC: HeroDef = {
 const CHARGE_DMG = [100, 150, 200, 250];
 
 const SBR_Q: AbilityDef = {
-  key: 'sbr_charge', name: '星体冲撞', maxLevel: 4, targetMode: 'unit',
+  key: 'sbr_charge', name: '星体冲撞', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [3000, 3500, 4000, 4500], manaCost: [80, 80, 80, 80], cooldown: [16, 14, 12, 10],
   castPoint: 0.0, tags: ['stun', 'nuke'],
   description: '锁定目标向其飞速冲撞,抵达时造成伤害并击晕。',
@@ -236,7 +236,7 @@ const SBR_E: AbilityDef = {
 const NETHER_DMG = [200, 300, 400];
 
 const SBR_R: AbilityDef = {
-  key: 'sbr_netherstrike', name: '星空裂击', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'sbr_netherstrike', name: '星空裂击', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 150, 175], cooldown: [80, 60, 40],
   castPoint: 0.3, tags: ['nuke', 'stun', 'ultimate'],
   description: '瞬移到目标身后给予致命一击:重创并击晕目标。',
@@ -465,7 +465,7 @@ const GEM_Q: AbilityDef = {
 const GRIP_DMG = [60, 110, 160, 210];
 
 const GEM_W: AbilityDef = {
-  key: 'gem_grip', name: '磁化吸引', maxLevel: 4, targetMode: 'unit',
+  key: 'gem_grip', name: '磁化吸引', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [900, 900, 900, 900], manaCost: [70, 80, 90, 100], cooldown: [14, 12, 10, 8],
   castPoint: 0.2, tags: ['nuke', 'slow'],
   description: '磁力牵引将目标拽到身边,造成伤害并减速。',

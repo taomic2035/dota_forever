@@ -14,7 +14,7 @@ const TELE_DMG = [80, 130, 180, 230];
 const TELE_DUR = [1.4, 1.6, 1.8, 2.0];
 
 const RUB_Q: AbilityDef = {
-  key: 'rub_telekinesis', name: '心灵之握', maxLevel: 4, targetMode: 'unit',
+  key: 'rub_telekinesis', name: '心灵之握', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [100, 110, 120, 130], cooldown: [16, 15, 14, 13],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '将目标托举到空中(无法行动),随后重摔在地,震晕落点周围的敌人。',
@@ -41,7 +41,7 @@ const RUB_Q: AbilityDef = {
 const FADE_DMG = [100, 170, 240, 310];
 
 const RUB_W: AbilityDef = {
-  key: 'rub_fade', name: '虚法弹', maxLevel: 4, targetMode: 'unit',
+  key: 'rub_fade', name: '虚法弹', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke'],
   description: '弹出一道虚法,造成魔法伤害并削弱目标的攻击力。',
@@ -70,7 +70,7 @@ const RUB_E: AbilityDef = {
 const DRAIN_TICK = [70, 110, 150];
 
 const RUB_R: AbilityDef = {
-  key: 'rub_drain', name: '奥术汲取', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'rub_drain', name: '奥术汲取', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 150, 200], cooldown: [90, 80, 70],
   castPoint: 0.3, tags: ['nuke', 'channel', 'ultimate'],
   description: '引导汲取目标:持续造成伤害并将其生命转化为自身生命。',
@@ -331,7 +331,7 @@ const TUS_Q: AbilityDef = {
 const SNOWBALL_DMG = [100, 160, 220, 280];
 
 const TUS_W: AbilityDef = {
-  key: 'tus_snowball', name: '雪球', maxLevel: 4, targetMode: 'unit',
+  key: 'tus_snowball', name: '雪球', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [900, 1000, 1100, 1200], manaCost: [90, 100, 110, 120], cooldown: [15, 14, 13, 12],
   castPoint: 0.0, tags: ['stun', 'nuke'],
   description: '滚起雪球冲向目标,撞击造成伤害并击晕。',
@@ -361,7 +361,7 @@ const TUS_E: AbilityDef = {
 const PUNCH_DMG = [200, 325, 450];
 
 const TUS_R: AbilityDef = {
-  key: 'tus_punch', name: '海象神拳', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'tus_punch', name: '海象神拳', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200], manaCost: [100, 100, 100], cooldown: [40, 32, 24],
   castPoint: 0.3, tags: ['stun', 'nuke', 'ultimate'],
   description: '一记重拳将目标击飞:造成巨额伤害并长时间击晕。',
@@ -416,7 +416,7 @@ const KPR_Q: AbilityDef = {
 const CHAKRA_MP = [75, 125, 175, 225];
 
 const KPR_W: AbilityDef = {
-  key: 'kpr_chakra', name: '查克拉魔法', maxLevel: 4, targetMode: 'unit',
+  key: 'kpr_chakra', name: '查克拉魔法', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [13, 12, 11, 10],
   castPoint: 0.1, tags: ['buff'],
   description: '为友军恢复法力。',
@@ -452,7 +452,7 @@ const KPR_E: AbilityDef = {
 };
 
 const KPR_R: AbilityDef = {
-  key: 'kpr_recall', name: '跃迁', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'kpr_recall', name: '跃迁', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'ally',
   castRange: [99999, 99999, 99999], manaCost: [75, 75, 75], cooldown: [60, 50, 40],
   castPoint: 0.5, tags: ['buff', 'ultimate'],
   description: '引导后将一名远方友军传送到自己身边,并提升其移速。',
@@ -478,7 +478,7 @@ export const KPR: HeroDef = {
 const SEED_DPS = [30, 45, 60, 75];
 
 const TRN_Q: AbilityDef = {
-  key: 'trn_seed', name: '缠绕之种', maxLevel: 4, targetMode: 'unit',
+  key: 'trn_seed', name: '缠绕之种', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['stun', 'nuke'],
   description: '种下缠绕之种,定身目标并持续吸取其生命。',
@@ -499,7 +499,7 @@ const TRN_Q: AbilityDef = {
 const ARMOR_HEAL = [20, 32, 44, 56];
 
 const TRN_W: AbilityDef = {
-  key: 'trn_armor', name: '活体护甲', maxLevel: 4, targetMode: 'unit',
+  key: 'trn_armor', name: '活体护甲', maxLevel: 4, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [700, 700, 700, 700], manaCost: [50, 55, 60, 65], cooldown: [14, 13, 12, 11],
   castPoint: 0.2, tags: ['heal', 'buff'],
   description: '为友军披上活体护甲:持续回血并提升护甲。',

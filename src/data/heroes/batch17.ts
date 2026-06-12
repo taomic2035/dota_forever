@@ -103,7 +103,7 @@ const PUG_Q: AbilityDef = {
 };
 
 const PUG_W: AbilityDef = {
-  key: 'pug_decrepify', name: '衰老', maxLevel: 4, targetMode: 'unit',
+  key: 'pug_decrepify', name: '衰老', maxLevel: 4, targetMode: 'unit', targetTeam: 'any',
   castRange: [600, 600, 600, 600], manaCost: [40, 45, 50, 55], cooldown: [7, 6, 5, 4],
   castPoint: 0.2, tags: ['slow'],
   description: '使目标虚无化:免疫物理但移动大幅减速(可虚化友军保命或控制敌人)。',
@@ -145,7 +145,7 @@ const PUG_E: AbilityDef = {
 const DRAIN_TICK = [80, 120, 160];
 
 const PUG_R: AbilityDef = {
-  key: 'pug_drain', name: '生命汲取', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'pug_drain', name: '生命汲取', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 150, 200], cooldown: [16, 12, 8],
   castPoint: 0.1, tags: ['nuke', 'channel', 'ultimate'],
   description: '引导汲取目标生命,并转化为自身生命。',
@@ -228,7 +228,7 @@ const LES_W: AbilityDef = {
 const STORM_DMG = [70, 110, 150, 190];
 
 const LES_E: AbilityDef = {
-  key: 'les_storm', name: '闪电风暴', maxLevel: 4, targetMode: 'unit',
+  key: 'les_storm', name: '闪电风暴', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [80, 90, 100, 110], cooldown: [6, 5, 4, 3],
   castPoint: 0.3, tags: ['nuke', 'slow'],
   description: '召唤闪电劈向目标并弹向附近敌人,命中者减速。',
@@ -321,7 +321,7 @@ const DWL_W: AbilityDef = {
 const CROWN_DMG = [120, 200, 280, 360];
 
 const DWL_E: AbilityDef = {
-  key: 'dwl_crown', name: '诅咒之冠', maxLevel: 4, targetMode: 'unit',
+  key: 'dwl_crown', name: '诅咒之冠', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [18, 16, 14, 12],
   castPoint: 0.3, tags: ['stun', 'aoe'],
   description: '给目标戴上诅咒之冠:数秒后引爆,眩晕并重创其周围敌人。',
@@ -437,7 +437,7 @@ const DWN_E: AbilityDef = {
 const SOLAR_HEAL = [200, 300, 400];
 
 const DWN_R: AbilityDef = {
-  key: 'dwn_solar', name: '旭日守护', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'dwn_solar', name: '旭日守护', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [99999, 99999, 99999], manaCost: [100, 100, 100], cooldown: [100, 90, 80],
   castPoint: 0.3, tags: ['heal', 'aoe', 'ultimate'],
   description: '降临到一名友军身边,治疗并伤害落点周围的敌我双方阵营。',
@@ -534,7 +534,7 @@ const PBST_E: AbilityDef = {
 const PULV_TICK = [80, 120, 160];
 
 const PBST_R: AbilityDef = {
-  key: 'pbst_pulverize', name: '痛击', maxLevel: 3, ultimate: true, targetMode: 'unit',
+  key: 'pbst_pulverize', name: '痛击', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [300, 300, 300], manaCost: [125, 150, 175], cooldown: [90, 80, 70],
   castPoint: 0.3, tags: ['stun', 'channel', 'ultimate'],
   description: '抓住目标连续猛砸:引导期间反复造成伤害并击晕。',
