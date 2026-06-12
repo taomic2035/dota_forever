@@ -9,16 +9,17 @@ export const TICK_RATE = 30;
 export const DT = 1 / TICK_RATE;
 
 // ---------- 攻击类型 × 护甲类型 ----------
-export type AttackType = 'hero' | 'normal' | 'pierce' | 'siege' | 'spell';
+export type AttackType = 'hero' | 'normal' | 'pierce' | 'siege' | 'spell' | 'chaos';
 export type ArmorType = 'hero' | 'unarmored' | 'light' | 'medium' | 'heavy' | 'fortified';
 
-/** 克制矩阵:行=攻击类型,列=护甲类型。建筑(fortified)免疫法术。 */
+/** 克制矩阵:行=攻击类型,列=护甲类型。建筑(fortified)免疫法术;chaos 对所有护甲 100%。 */
 export const DAMAGE_MATRIX: Record<AttackType, Record<ArmorType, number>> = {
   hero:   { hero: 1.0, unarmored: 1.0,  light: 1.0,  medium: 1.0, heavy: 1.0,  fortified: 0.5 },
   normal: { hero: 0.75, unarmored: 1.0, light: 1.0,  medium: 1.5, heavy: 1.0,  fortified: 0.7 },
   pierce: { hero: 0.5, unarmored: 1.5,  light: 1.5,  medium: 0.75, heavy: 1.0, fortified: 0.35 },
   siege:  { hero: 0.5, unarmored: 1.0,  light: 1.0,  medium: 0.5, heavy: 1.0,  fortified: 1.5 },
   spell:  { hero: 1.0, unarmored: 1.0,  light: 1.0,  medium: 1.0, heavy: 1.0,  fortified: 0.0 },
+  chaos:  { hero: 1.0, unarmored: 1.0,  light: 1.0,  medium: 1.0, heavy: 1.0,  fortified: 1.0 },
 };
 
 /** WC3 护甲减伤公式;负甲为增伤(返回负数表示额外承伤)。 */

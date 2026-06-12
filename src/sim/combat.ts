@@ -88,6 +88,8 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     if (DAMAGE_MATRIX.spell[target.calc.armorType] === 0) return 0;
     amount *= DAMAGE_MATRIX.spell[target.calc.armorType];
     amount *= 1 - target.calc.magicResist;
+    // 幽灵/以太状态:免疫物理,但额外承受 40% 魔法伤害(M12)
+    if (stateOf(target).physImmune) amount *= 1.4;
   } else {
     if (stateOf(target).physImmune) return 0;
     // 闪避 + 低打高 miss。必中(MKB)无视闪避,但不免疫地形(低打高)落空。
