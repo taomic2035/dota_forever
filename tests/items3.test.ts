@@ -765,6 +765,19 @@ describe('advanced items batch 9', () => {
     const outCombatGain = h.hp - b0;
     expect(outCombatGain).toBeGreaterThan(inCombatGain + 30); // 脱战 %回复明显更快
   });
+
+  it('动力之靴:切换属性改变加成 + 主动循环 str→agi→int', () => {
+    const slot = give(h, 'power_treads');
+    const inst = h.inventory[slot]!;
+    inst.treadsMode = 'agi'; run(2); const hpAgi = h.calc.maxHp;
+    inst.treadsMode = 'str'; run(2); const hpStr = h.calc.maxHp;
+    expect(hpStr).toBe(hpAgi + 8 * 19); // +8 力量 = +152 生命
+    // 主动切换循环:str → agi → int → str
+    inst.treadsMode = 'str';
+    useItem(w, h, slot); expect(inst.treadsMode).toBe('agi');
+    useItem(w, h, slot); expect(inst.treadsMode).toBe('int');
+    useItem(w, h, slot); expect(inst.treadsMode).toBe('str');
+  });
 });
 
 function REIN_STATS() {

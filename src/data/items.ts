@@ -285,9 +285,19 @@ ITEMS.push(
     recipe: { components: ['mantle', 'circlet'], recipeCost: 190 },
     description: '+6 智力 +2 力量 +2 敏捷。' },
   { key: 'power_treads', name: '动力之靴', cost: 1450, category: 'combined',
-    stats: { bonusMoveSpeed: 60, bonusAttackSpeed: 0.20, bonusStr: 6 },
+    stats: { bonusMoveSpeed: 60, bonusAttackSpeed: 0.20 }, // +8 属性来自当前切换档(见 itemFold)
     recipe: { components: ['boots', 'gloves_haste', 'belt'], recipeCost: 0 },
-    description: '+60 移速 +20% 攻速 +6 力量。' },
+    active: {
+      name: '切换属性', cooldown: 0, targetMode: 'none',
+      onUse(w, user) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'power_treads');
+        if (!inst) return false;
+        const order: Array<'str' | 'agi' | 'int'> = ['str', 'agi', 'int'];
+        inst.treadsMode = order[(order.indexOf(inst.treadsMode ?? 'agi') + 1) % 3]; // str→agi→int 循环
+        return true;
+      },
+    },
+    description: '+60 移速 +20% 攻速 +8 当前切换属性(力量/敏捷/智力,主动切换)。' },
   { key: 'buriza', name: '风暴重炮', cost: 4200, category: 'combined',
     stats: { bonusDamage: 56, critChance: 0.2, critMultiplier: 2.2 },
     recipe: { components: ['demon_edge', 'broadsword'], recipeCost: 800 },
