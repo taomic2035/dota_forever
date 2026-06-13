@@ -49,6 +49,8 @@ export interface StateMods {
   magicImmune?: boolean;
   phased?: boolean;
   physImmune?: boolean;
+  /** 升空/不可选取(如飓风旋风):不可被攻击/伤害/指向施法。由 modifier 派生,移除即恢复。 */
+  untargetable?: boolean;
 }
 
 export interface Modifier {
@@ -199,6 +201,7 @@ export function modifierStates(u: Unit): StateMods {
     if (st.magicImmune) s.magicImmune = true;
     if (st.phased) s.phased = true;
     if (st.physImmune) s.physImmune = true;
+    if (st.untargetable) s.untargetable = true;
   }
   return s;
 }

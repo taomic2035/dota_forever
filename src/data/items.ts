@@ -808,7 +808,7 @@ ITEMS.push(
       onUse(w, user, _pos, target) {
         const t = target ?? user;
         if (t.team !== user.team) {
-          applyModifier(w, t, { key: 'item_eul_cyclone', duration: 2.5, states: { rooted: true, silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.95 } }, user.id);
+          applyModifier(w, t, { key: 'item_eul_cyclone', duration: 2.5, states: { rooted: true, silenced: true, disarmed: true, untargetable: true }, stats: { bonusMoveSpeedPct: -0.95 } }, user.id);
         } else {
           purge(w, t, false, true); // 强驱散:旋风自救可解除硬控
           applyModifier(w, t, { key: 'item_eul_self', duration: 1.2, isBuff: true, stats: { bonusMoveSpeedPct: 0.2 } }, user.id);

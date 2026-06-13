@@ -3,8 +3,8 @@ import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { makeItem, afterInventoryChange, useItem } from '../src/sim/items';
-import { recalcUnit } from '../src/sim/combat';
-import { applyModifier, hasModifier } from '../src/sim/modifiers';
+import { recalcUnit, applyDamage } from '../src/sim/combat';
+import { applyModifier, hasModifier, removeModifier } from '../src/sim/modifiers';
 import { REIN, LIYA } from '../src/data/heroes';
 import type { UnitStats } from '../src/sim/unit';
 
@@ -86,5 +86,20 @@ describe('物品数据修复(Wave A)', () => {
     spawnHero(w, LIYA, Team.Night, { x: 7800, y: 8000 });
     for (let i = 0; i < 12; i++) w.step();
     expect(hasModifier(h, 'item_smoke')).toBe(false); // 近敌 → 失效
+  });
+
+  it('飓风之杖旋风:目标升空不可被伤害,驱散后恢复(无泄漏)', () => {
+    const w = createWorld(new GameMap(), { seed: 1, noBuildings: true });
+    const caster = spawnHero(w, REIN, Team.Dawn, { x: 7000, y: 8000 });
+    caster.inventory[0] = makeItem('eul');
+    caster.mp = 500;
+    const enemy = spawnHero(w, LIYA, Team.Night, { x: 7300, y: 8000 });
+    expect(useItem(w, caster, 0, undefined, enemy)).toBe(true);
+    expect(hasModifier(enemy, 'item_eul_cyclone')).toBe(true);
+    const hp0 = enemy.hp;
+    expect(applyDamage(w, enemy, { source: caster.id, attackType: 'hero', amount: 200 })).toBe(0); // 升空免伤
+    expect(enemy.hp).toBe(hp0);
+    removeModifier(w, enemy, 'item_eul_cyclone'); // 驱散
+    expect(applyDamage(w, enemy, { source: caster.id, attackType: 'hero', amount: 200 })).toBeGreaterThan(0); // 恢复承伤(无泄漏)
   });
 });

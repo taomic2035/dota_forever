@@ -129,7 +129,7 @@ function startCast(w: World, u: Unit, o: Order): void {
     if (!targetMatchesFilter(u, target, def.targetTeam, def.targetKind)) { u.order = null; return; }
     // A3:无敌敌方单体不可被指向施法(不扣蓝/CD,与物品侧 M11 一致)。
     // 魔免不在此拦——技能是否穿魔免/是否纯粹伤害因技而异,由 onCast 与 M1 下游裁决。
-    if (isEnemy(u, target) && target.invulnerable) { u.order = null; return; }
+    if (isEnemy(u, target) && (target.invulnerable || stateOf(target).untargetable)) { u.order = null; return; }
     aim = target.pos;
   }
 

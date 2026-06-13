@@ -80,7 +80,7 @@ export function recalcSystem(w: World): void {
 // ---------- 伤害 ----------
 /** 结算一次伤害,返回实际造成量。 */
 export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
-  if (!target.alive || target.invulnerable) return 0;
+  if (!target.alive || target.invulnerable || stateOf(target).untargetable) return 0;
   let amount = evt.amount;
   const flags = evt.flags ?? {};
 
@@ -204,7 +204,7 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
 /** 单位控制状态聚合(由 modifiers.ts 的 setStateResolver 注入,避免循环依赖)。 */
 export let stateOf: (u: Unit) => {
   stunned?: boolean; rooted?: boolean; silenced?: boolean; disarmed?: boolean;
-  muted?: boolean; invisible?: boolean; magicImmune?: boolean; physImmune?: boolean; phased?: boolean;
+  muted?: boolean; invisible?: boolean; magicImmune?: boolean; physImmune?: boolean; phased?: boolean; untargetable?: boolean;
 } = () => EMPTY_STATE;
 const EMPTY_STATE = {};
 export function setStateResolver(fn: typeof stateOf): void {
@@ -430,7 +430,7 @@ export function acquireTarget(w: World, u: Unit): Unit | undefined {
   const r2 = r * r;
   for (const v of w.units.values()) {
     if (!isEnemy(u, v)) continue;
-    if (stateOf(v).invisible || v.invulnerable) continue;
+    if (stateOf(v).invisible || v.invulnerable || stateOf(v).untargetable) continue;
     if (v.kind === 'ward') continue;
     if (!visibilityCheck(w, u.team, v)) continue;
     const d2 = V.distSq(u.pos, v.pos);
