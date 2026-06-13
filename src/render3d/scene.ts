@@ -1,5 +1,9 @@
-/** Three.js 场景:俯视透视相机、定向光阴影、环境光、昼夜光照。无游戏逻辑。 */
+/** Three.js 场景:俯视透视相机、定向光阴影、环境光、昼夜光照 + 后处理(Bloom/色调映射)。无游戏逻辑。 */
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { Camera } from '../render/camera';
 
 export class Scene3D {
@@ -10,11 +14,16 @@ export class Scene3D {
   readonly ambient: THREE.AmbientLight;
   readonly hemi: THREE.HemisphereLight;
   readonly canvas: HTMLCanvasElement;
+  /** 后处理合成器:RenderPass → Bloom(发光件/特效辉光)→ OutputPass(色调映射输出)。 */
+  private composer!: EffectComposer;
+  private bloom!: UnrealBloomPass;
 
   constructor(parent: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // 电影级色调映射,质感更润
+    this.renderer.toneMappingExposure = 1.45;
     this.canvas = this.renderer.domElement;
     this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block;';
     parent.appendChild(this.canvas);
@@ -39,11 +48,20 @@ export class Scene3D {
     // 半球光:天空/地面渐变填充,提升 PBR 素材受光面(避免英雄结构件发黑)
     this.hemi = new THREE.HemisphereLight('#cfe0f2', '#3a3324', 0.85);
     this.scene.add(this.hemi);
+
+    // 后处理:Bloom 仅对高亮(发光/特效)生效(threshold 0.82),适度强度避免过曝
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.cam));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1280, 720), 0.55, 0.5, 0.82);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
   }
 
   resize(w: number, h: number) {
     if (w === 0 || h === 0) return;
     this.renderer.setSize(w, h, false);
+    this.composer.setSize(w, h);
+    this.bloom.setSize(w, h);
     this.cam.aspect = w / h;
     this.cam.updateProjectionMatrix();
   }
@@ -73,6 +91,6 @@ export class Scene3D {
   }
 
   render() {
-    this.renderer.render(this.scene, this.cam);
+    this.composer.render();
   }
 }
