@@ -229,6 +229,7 @@ castHooks.breakChannel = breakChannel;
 // ---------- 法球(攻击命中附加效果) ----------
 attackHitHooks.push((w, attacker, target, dealt) => {
   if (dealt <= 0 || !attacker.heroDef) return;
+  if (target.kind === 'ward') return; // 法球不触发于守卫(A4)
   for (let i = 0; i < attacker.abilities.length; i++) {
     const inst = attacker.abilities[i];
     const def = attacker.heroDef.abilities[i];

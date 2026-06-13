@@ -11,6 +11,8 @@ import { createIllusion } from './abilities';
 
 /** 攻击/施法即破的隐身来源(符文 + 影锋/银刃/烟雾/微光);守卫隐身不在此列。 */
 const INVIS_BREAK_ON_ACTION = ['rune_invis', 'item_shadowblade', 'item_silveredge', 'item_smoke', 'item_glimmer'];
+/** 诡计之雾靠近敌方英雄/防御塔的失效半径。 */
+const SMOKE_BREAK_RADIUS = 1025;
 
 export interface RuneSpawn {
   type: RuneType;
@@ -85,6 +87,17 @@ export function installRunes(w: World): void {
         for (const key of INVIS_BREAK_ON_ACTION) {
           if (u.modifiers.some((m) => m.key === key)) removeModifier(world, u, key);
         }
+      }
+    }
+
+    // 诡计之雾:靠近敌方英雄/防御塔即失效(V4)。每 6 tick 查一次。
+    if (world.tick % 6 === 0) {
+      for (const u of world.units.values()) {
+        if (!u.alive || !u.modifiers.some((m) => m.key === 'item_smoke')) continue;
+        const broken = [...world.units.values()].some((e) =>
+          e.alive && e.team !== u.team && (e.isHero() || e.kind === 'tower') &&
+          V.dist(u.pos, e.pos) <= SMOKE_BREAK_RADIUS);
+        if (broken) removeModifier(world, u, 'item_smoke');
       }
     }
 

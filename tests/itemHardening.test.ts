@@ -4,6 +4,7 @@ import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { makeItem, afterInventoryChange, useItem } from '../src/sim/items';
 import { recalcUnit } from '../src/sim/combat';
+import { applyModifier, hasModifier } from '../src/sim/modifiers';
 import { REIN, LIYA } from '../src/data/heroes';
 import type { UnitStats } from '../src/sim/unit';
 
@@ -73,5 +74,17 @@ describe('物品数据修复(Wave A)', () => {
     expect(useItem(w, h, 0, undefined, creep)).toBe(true);
     expect(creep.alive).toBe(false);
     expect(h.heroMeta!.xp - xp0).toBeCloseTo(88, 1); // 吸收该单位经验
+  });
+
+  it('诡计之雾靠近敌方英雄即失效(V4)', () => {
+    const w = createWorld(new GameMap(), { seed: 1, noBuildings: true });
+    const h = spawnHero(w, REIN, Team.Dawn, { x: 7000, y: 8000 });
+    applyModifier(w, h, { key: 'item_smoke', duration: 35, isBuff: true, states: { invisible: true } }, h.id);
+    for (let i = 0; i < 12; i++) w.step();
+    expect(hasModifier(h, 'item_smoke')).toBe(true); // 无敌人时保持隐身
+    // 敌方英雄进入 1025 内(但在双方索敌距离外,隔离出"近敌失效"而非攻击解除)
+    spawnHero(w, LIYA, Team.Night, { x: 7800, y: 8000 });
+    for (let i = 0; i < 12; i++) w.step();
+    expect(hasModifier(h, 'item_smoke')).toBe(false); // 近敌 → 失效
   });
 });
