@@ -17,10 +17,13 @@ export interface AnimInput {
   progress: number; // 动作进度 0..1(攻击/死亡)
 }
 
+/** 可被 renderer 染色的材质(Lambert 程序化 / Standard 英雄素材皆有 emissive/opacity)。 */
+export type TintMaterial = THREE.MeshLambertMaterial | THREE.MeshStandardMaterial;
+
 export interface UnitModel {
   root: THREE.Group;
   /** 受击闪白/眩晕泛光/隐身染色用(renderer 统一遍历)。 */
-  materials: THREE.MeshLambertMaterial[];
+  materials: TintMaterial[];
   /** 内部关节动画——不含世界位移/朝向/下沉。 */
   applyPose(a: AnimInput): void;
 }

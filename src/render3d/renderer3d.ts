@@ -10,6 +10,7 @@ import type { Camera } from '../render/camera';
 import { stateOf } from '../sim/combat';
 import { unitArt, type ArtInput } from '../render/unitArt';
 import { buildUnitModel, type UnitModel } from './unitModel';
+import { hasHero3DAsset, buildHero3DUnitModel } from './hero3dModel';
 import type { AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
@@ -78,7 +79,11 @@ export class Renderer3D {
   private ensureModel(u: Unit): ModelEntry {
     let e = this.models.get(u.id);
     if (!e) {
-      const model = buildUnitModel(unitArt(this.artInput(u)));
+      // 英雄命中精细素材(10 个经典英雄)用 hero3d 模型,否则程序化兜底
+      const heroKey = u.heroDef?.key;
+      const model = heroKey && hasHero3DAsset(heroKey)
+        ? buildHero3DUnitModel(heroKey)
+        : buildUnitModel(unitArt(this.artInput(u)));
       // 贴地队色选取环(守卫等极小碰撞半径给个可见下限)
       const rr = Math.max(14, u.base.collisionRadius);
       const ringColor = this.TEAM[u.team] ?? '#bdbdbd';
