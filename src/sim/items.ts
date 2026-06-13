@@ -28,6 +28,25 @@ export function makeItem(key: string): ItemInstance {
   return { itemKey: key, charges: def.charges ?? 0, cooldownUntil: -Infinity };
 }
 
+/** 专属回城卷轴槽的逻辑索引(0–5 为物品栏,6 为 TP 槽)。 */
+export const TP_SLOT = 6;
+/** 仅 TP 卷轴可进专属槽(沿用 DotA:回城卷轴独占一格)。 */
+export function isTpItem(key: string): boolean {
+  return key === 'tp';
+}
+
+/** 读取任意槽位的物品实例(含专属 TP 槽);越界返回 null。HUD/输入/sim 共用,避免索引漂移。 */
+export function itemInSlot(hero: Unit, slot: number): ItemInstance | null {
+  if (slot === TP_SLOT) return hero.tpSlot;
+  return hero.inventory[slot] ?? null;
+}
+
+/** 写入任意槽位(含专属 TP 槽)。仅 items.ts 内部消耗/转移时使用。 */
+function setItemSlot(hero: Unit, slot: number, inst: ItemInstance | null): void {
+  if (slot === TP_SLOT) hero.tpSlot = inst;
+  else hero.inventory[slot] = inst;
+}
+
 /** 单位当前所处商店:'home' 基地 | 'secret' 秘密 | null。 */
 export function shopAt(w: World, u: Unit): 'home' | 'secret' | null {
   for (const s of w.map.shops) {
@@ -58,6 +77,15 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
   if (m.gold < def.cost) return 'no_gold';
 
   const intoInventory = hero.alive && at !== null;
+  // 专属 TP 槽:回城卷轴优先进第 7 格(不占 6 个物品格);已持 TP 则充能合并。
+  // 死亡/不在商店时(intoInventory=false)按普通物品落储藏,取出时再归位(见 takeFromStash)。
+  if (isTpItem(key) && intoInventory) {
+    if (hero.tpSlot) hero.tpSlot.charges += def.charges ?? 1;
+    else hero.tpSlot = makeItem(key);
+    spendGold(hero, def.cost);
+    afterInventoryChange(w, hero);
+    return 'ok';
+  }
   // 充能合并
   if (def.stackCharges) {
     const existing = (intoInventory ? hero.inventory : hero.stash).find((s) => s?.itemKey === key);
@@ -85,13 +113,13 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
 
 /** 出售:商店范围内,50% 返还。 */
 export function sellItem(w: World, hero: Unit, slot: number, fromStash = false): boolean {
-  const arr = fromStash ? hero.stash : hero.inventory;
-  const inst = arr[slot];
+  const inst = fromStash ? hero.stash[slot] : itemInSlot(hero, slot);
   if (!inst || !hero.heroMeta) return false;
   if (!fromStash && shopAt(w, hero) === null) return false;
   const def = itemDef(inst.itemKey);
   hero.heroMeta.gold += Math.floor(def.cost * SELL_REFUND);
-  arr[slot] = null;
+  if (fromStash) hero.stash[slot] = null;
+  else setItemSlot(hero, slot, null);
   afterInventoryChange(w, hero);
   return true;
 }
@@ -101,6 +129,11 @@ export function takeFromStash(w: World, hero: Unit, stashSlot: number): boolean 
   const inst = hero.stash[stashSlot];
   if (!inst) return false;
   if (shopAt(w, hero) !== 'home') return false;
+  // TP 卷轴优先归位专属槽(空时);已持 TP 则充能合并,腾出储藏格。
+  if (isTpItem(inst.itemKey)) {
+    if (!hero.tpSlot) { hero.tpSlot = inst; hero.stash[stashSlot] = null; afterInventoryChange(w, hero); return true; }
+    hero.tpSlot.charges += inst.charges; hero.stash[stashSlot] = null; afterInventoryChange(w, hero); return true;
+  }
   const slot = freeSlot(hero.inventory);
   if (slot < 0) return false;
   hero.inventory[slot] = inst;
@@ -117,7 +150,7 @@ export type ItemUseReason = 'dead' | 'empty-slot' | 'no-active' | 'cooldown' | '
  */
 export function itemUseReason(w: World, hero: Unit, slot: number): ItemUseReason | null {
   if (!hero.alive) return 'dead';
-  const inst = hero.inventory[slot];
+  const inst = itemInSlot(hero, slot);
   if (!inst) return 'empty-slot';
   const def = itemDef(inst.itemKey);
   if (!def.active) return 'no-active';
@@ -129,7 +162,7 @@ export function itemUseReason(w: World, hero: Unit, slot: number): ItemUseReason
 
 /** 使用物品。 */
 export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y: number }, target?: Unit): boolean {
-  const inst = hero.inventory[slot];
+  const inst = itemInSlot(hero, slot);
   if (!inst || !hero.alive) return false;
   // B1:被眩晕 / 妖术(muted)的单位不能使用物品。沉默只禁施法、不禁物品(BKB 正用于反沉默)。
   if (stateOf(hero).stunned || stateOf(hero).muted) return false;
@@ -169,7 +202,7 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   if (def.charges !== undefined && !def.rechargeable) {
     inst.charges--;
     if (inst.charges <= 0) {
-      hero.inventory[slot] = null;
+      setItemSlot(hero, slot, null);
       afterInventoryChange(w, hero);
     }
   }

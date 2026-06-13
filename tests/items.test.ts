@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
-import { buyItem, sellItem, useItem, takeFromStash, shopAt } from '../src/sim/items';
+import { buyItem, sellItem, useItem, takeFromStash, shopAt, TP_SLOT } from '../src/sim/items';
 import { applyDamage } from '../src/sim/combat';
 import { isVisibleTo } from '../src/sim/vision';
 import { REIN, LIYA } from '../src/data/heroes';
@@ -59,11 +59,13 @@ describe('items: buy/sell/stash', () => {
     expect(h.heroMeta!.gold).toBe(g + 700);
   });
 
-  it('tp scrolls stack charges', () => {
+  it('tp scrolls stack charges in dedicated slot', () => {
     buyItem(w, h, 'tp');
     buyItem(w, h, 'tp');
-    const tp = h.inventory.find((i) => i?.itemKey === 'tp');
-    expect(tp?.charges).toBe(2);
+    expect(h.tpSlot?.itemKey).toBe('tp');
+    expect(h.tpSlot?.charges).toBe(2);
+    // 专属槽不占用 6 个物品格
+    expect(h.inventory.every((i) => i === null)).toBe(true);
   });
 });
 
@@ -86,13 +88,13 @@ describe('items: consumables & actives', () => {
     h.pos = w.map.nearestWalkable({ x: 5790, y: 9530 }); // 中路
     h.mp = 200;
     const target = { x: 9240, y: 13890 }; // 下路一塔附近
-    expect(useItem(w, h, h.inventory.findIndex((i) => i?.itemKey === 'tp'), target)).toBe(true);
+    expect(useItem(w, h, TP_SLOT, target)).toBe(true);
     const before = V.clone(h.pos);
     for (let i = 0; i < 60; i++) w.step(); // 2 秒:仍在引导
     expect(V.dist(h.pos, before)).toBeLessThan(1);
     for (let i = 0; i < 45; i++) w.step(); // 共 3.5 秒
     expect(V.dist(h.pos, target)).toBeLessThan(700);
-    expect(h.inventory.find((i) => i?.itemKey === 'tp')).toBeUndefined(); // 消耗
+    expect(h.tpSlot).toBeNull(); // 单张 TP 用完后专属槽清空
   });
 
   it('observer ward grants vision; invisible to enemy until sentry', () => {

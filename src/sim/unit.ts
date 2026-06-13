@@ -160,6 +160,8 @@ export class Unit {
   inventory: (ItemInstance | null)[] = [null, null, null, null, null, null];
   /** 储藏处(基地) */
   stash: (ItemInstance | null)[] = [null, null, null, null, null, null];
+  /** 专属回城卷轴槽(第 7 格,仅 TP)——不占 6 个物品格,不计入属性折算。 */
+  tpSlot: ItemInstance | null = null;
 
   // 施法状态(abilities.ts 驱动)
   casting: { abilityIndex: number; pointUntil: number; pos?: Vec2; targetId?: EntityId } | null = null;

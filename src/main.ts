@@ -21,7 +21,7 @@ import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { showHero3DPreview } from './ui/hero3dPreview';
 import { showResource3DPreview } from './ui/resource3dPreview';
-import { useItem, itemUseReason } from './sim/items';
+import { useItem, itemUseReason, itemInSlot } from './sim/items';
 import { learnAbility, learnStatBonus, abilityCastReason } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
@@ -318,7 +318,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const itemInfo = (slot: number) => {
     if (itemRejectReason(slot)) return null;
     if (!hero) return null;
-    const inst = hero.inventory[slot];
+    const inst = itemInSlot(hero, slot);
     if (!inst) return null;
     const def = itemDef(inst.itemKey);
     const active = def.active;
@@ -333,7 +333,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const itemUseFailureReason = (slot: number): RejectReason => {
     const reason = itemRejectReason(slot);
     if (reason) return reason;
-    const inst = hero?.inventory[slot];
+    const inst = hero ? itemInSlot(hero, slot) : null;
     if (inst) {
       const def = itemDef(inst.itemKey);
       if (def.rechargeable && inst.charges <= 0) return 'no-charges';

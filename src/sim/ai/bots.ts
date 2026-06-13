@@ -11,7 +11,7 @@ import type { Unit, EntityId } from '../unit';
 import { isVisibleTo } from '../vision';
 import { abilityReady, learnAbility, learnStatBonus, canLearn, canLearnStatBonus } from '../abilities';
 import { inAttackRange } from '../combat';
-import { buyItem, shopAt, useItem, takeFromStash } from '../items';
+import { buyItem, shopAt, useItem, takeFromStash, TP_SLOT } from '../items';
 import { purchaseKeyFor } from '../recipes';
 import { itemDef } from '../../data/items';
 
@@ -155,9 +155,9 @@ function think(w: World, u: Unit, st: BotState): void {
     const defenders = countTeamHeroesNear(w, u.team, threatened.pos, 1600);
     if (defenders < 2 || V.dist(u.pos, threatened.pos) < 1600) {
       if (V.dist(u.pos, threatened.pos) > 2200) {
-        const tpSlot = u.inventory.findIndex((i) => i?.itemKey === 'tp');
-        if (tpSlot >= 0 && u.mp >= 75 && !u.modifiers.some((m) => m.key === 'item_tp')) {
-          if (useItem(w, u, tpSlot, threatened.pos)) return;
+        const hasTp = u.tpSlot?.itemKey === 'tp';
+        if (hasTp && u.mp >= 75 && !u.modifiers.some((m) => m.key === 'item_tp')) {
+          if (useItem(w, u, TP_SLOT, threatened.pos)) return;
         }
         orderMove(w, u, threatened.pos);
         return;

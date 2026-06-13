@@ -147,6 +147,12 @@ export class InputManager {
             queued: e.shiftKey,
           });
           break;
+        case 't': // 专属回城卷轴槽(第 7 格,slot 6)
+          this.handleItemHotkey(6, 't', world, {
+            selfCast: e.altKey && this.cb.canSelfItem?.(6) === true,
+            queued: e.shiftKey,
+          });
+          break;
         case 'a':
           this.commandMode.beginAttackMove({ queued: e.shiftKey });
           this.smartHold = null;
