@@ -48,6 +48,12 @@ export interface AbilityDef {
   onCast?(w: World, caster: Unit, lvl: number, pos?: Vec2, target?: Unit): void;
   /** 被动:返回常驻 modifier */
   passiveModifier?(lvl: number): ModifierDef;
+  /**
+   * 阿哈利姆神杖被动增强:持有 scepter 时额外挂载的被动 modifier(独立于 passiveModifier)。
+   * 仅对纯被动大招有意义;有杖时两个 modifier 同时生效,无杖时此 modifier 被移除。
+   * 由 abilities.syncScepterPassives 在背包变化时维护,learnAbility 时也会同步。
+   */
+  scepterPassive?(lvl: number): ModifierDef;
   /** 法球:普攻命中附加效果 */
   orbOnHit?(w: World, attacker: Unit, target: Unit, lvl: number): void;
   /** 引导型 */

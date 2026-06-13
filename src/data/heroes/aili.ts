@@ -57,14 +57,20 @@ export const AILI_E: AbilityDef = {
 };
 
 const MARKSMAN_AGI = [12, 24, 36];
+const MARKSMAN_SC_RANGE = [100, 125, 150];
 
 export const AILI_R: AbilityDef = {
   key: 'aili_marksman', name: '百步穿杨', maxLevel: 3, ultimate: true, targetMode: 'passive',
+  scepter: { desc: '神杖:射术更臻极致,额外增加 100/125/150 攻击射程,令天下皆在箭矢射程之内。' },
   tags: ['buff', 'ultimate'],
   description: '射术臻于化境,大幅提升敏捷。',
   passiveModifier: (lvl) => ({
     key: 'aili_marksman_passive', isBuff: true,
     stats: { bonusAgi: MARKSMAN_AGI[lvl - 1] },
+  }),
+  scepterPassive: (lvl) => ({
+    key: 'aili_marksman_sc_range', isBuff: true,
+    stats: { bonusAttackRange: MARKSMAN_SC_RANGE[lvl - 1] },
   }),
 };
 

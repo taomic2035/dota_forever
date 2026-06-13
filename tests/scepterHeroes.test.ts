@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
-import { learnAbility, abilityDefAt, abilityCooldown } from '../src/sim/abilities';
-import { stateOf } from '../src/sim/combat';
+import { learnAbility, abilityDefAt, abilityCooldown, syncScepterPassives } from '../src/sim/abilities';
+import { stateOf, recalcUnit } from '../src/sim/combat';
 import { makeItem } from '../src/sim/items';
-import { REIN, LIYA, ZOLA } from '../src/data/heroes';
-import { GORM, GROSH, CHEN_BLADE, OLAN, MORPHIS } from '../src/data/heroes/batch2';
+import { REIN, LIYA, ZOLA, AILI } from '../src/data/heroes';
+import { GORM, GROSH, CHEN_BLADE, OLAN, MORPHIS, KAI } from '../src/data/heroes/batch2';
 import type { HeroDef } from '../src/data/heroes/types';
 import type { UnitStats } from '../src/sim/unit';
 
@@ -256,5 +256,67 @@ describe('英雄神杖升级 batch2(gorm/grosh/chenblade/olan/morphis)', () => {
     for (let i = 0; i < 42; i++) w1.step(); // 首波刚触发后
     expect(t1.hp).toBeLessThan(5000); // 神杖范围 600 命中
     expect(stateOf(t1).stunned).toBe(true); // 每波眩晕(首波触发后 0.1s 内)
+  });
+});
+
+// ---- 纯被动大招神杖升级(kai/aili) ----
+describe('纯被动大招神杖升级(kai/aili scepterPassive)', () => {
+  // KAI 暗影帷幕:神杖额外赋予 15% 闪避
+  it('kai 暗影帷幕:无杖 calc.evasion=0,有杖=0.15(神杖被动闪避)', () => {
+    // 无杖
+    const w0 = newWorld();
+    const h0 = ultHero(w0, KAI, { x: 7000, y: 8000 }, false);
+    recalcUnit(h0); // 确保 calc 最新
+    expect(h0.calc.evasion).toBe(0); // KAI_E critChance 不影响 evasion
+
+    // 有杖:ultHero 直接赋值 inventory,需手动同步神杖被动
+    const w1 = newWorld();
+    const h1 = ultHero(w1, KAI, { x: 7000, y: 8000 }, true);
+    syncScepterPassives(w1, h1); // 背包直赋时 afterInventoryChange 未触发,手动同步
+    recalcUnit(h1);
+    expect(h1.calc.evasion).toBeCloseTo(0.15, 5); // 神杖被动:15% 闪避
+  });
+
+  it('kai 暗影帷幕:出售神杖后闪避消失', () => {
+    const w = newWorld();
+    const h = ultHero(w, KAI, { x: 7000, y: 8000 }, true);
+    syncScepterPassives(w, h);
+    recalcUnit(h);
+    expect(h.calc.evasion).toBeCloseTo(0.15, 5);
+
+    // 移除神杖
+    h.inventory[0] = null;
+    syncScepterPassives(w, h); // 同步:无杖→移除 scepter_passive 修改器
+    recalcUnit(h);
+    expect(h.calc.evasion).toBe(0); // 神杖被动已移除
+  });
+
+  // AILI 百步穿杨:神杖额外攻击射程 +100
+  it('aili 百步穿杨:无杖 attackRange=625,有杖=725(神杖被动延伸射程)', () => {
+    // 无杖
+    const w0 = newWorld();
+    const h0 = ultHero(w0, AILI, { x: 7000, y: 8000 }, false);
+    recalcUnit(h0);
+    expect(h0.calc.attackRange).toBe(625); // base 射程
+
+    // 有杖
+    const w1 = newWorld();
+    const h1 = ultHero(w1, AILI, { x: 7000, y: 8000 }, true);
+    syncScepterPassives(w1, h1);
+    recalcUnit(h1);
+    expect(h1.calc.attackRange).toBe(725); // 625 + 100 神杖延伸
+  });
+
+  it('aili 百步穿杨:出售神杖后射程恢复基础值', () => {
+    const w = newWorld();
+    const h = ultHero(w, AILI, { x: 7000, y: 8000 }, true);
+    syncScepterPassives(w, h);
+    recalcUnit(h);
+    expect(h.calc.attackRange).toBe(725);
+
+    h.inventory[0] = null;
+    syncScepterPassives(w, h);
+    recalcUnit(h);
+    expect(h.calc.attackRange).toBe(625);
   });
 });

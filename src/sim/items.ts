@@ -10,6 +10,7 @@ import type { World } from './world';
 import type { Unit } from './unit';
 import { recalcExtensions, attackHitHooks, isEnemy, stateOf } from './combat';
 import { tryLinkenBlock } from './modifiers';
+import { syncScepterPassives } from './abilities';
 import { spendGold } from './economy';
 import { targetMatchesFilter } from './targeting';
 
@@ -212,6 +213,8 @@ export function syncHolderModifiers(w: World, hero: Unit): void {
 /** 背包变化后的钩子(合成检查由 recipes 注册)。 */
 export const inventoryHooks: Array<(w: World, hero: Unit) => void> = [];
 inventoryHooks.push(syncHolderModifiers);
+// 神杖被动同步:背包变化(装备/出售 scepter)时维护 scepter_passive_<key> modifier
+inventoryHooks.push(syncScepterPassives);
 export function afterInventoryChange(w: World, hero: Unit): void {
   for (const h of inventoryHooks) h(w, hero);
 }

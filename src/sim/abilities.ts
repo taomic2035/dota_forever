@@ -93,7 +93,38 @@ export function learnAbility(w: World, u: Unit, index: number): boolean {
     const mod = def.passiveModifier(inst.level);
     applyModifier(w, u, { ...mod, key: `passive_${def.key}`, duration: undefined }, u.id);
   }
+  // 神杖被动:升级时同步(如此时已持杖则立即应用)
+  if (def.scepterPassive) {
+    syncScepterPassives(w, u);
+  }
   return true;
+}
+
+/**
+ * 同步所有技能的神杖被动 modifier:
+ * 持杖 → 对每个已学且有 scepterPassive 的技能,确保 scepter_passive_<key> modifier 存在;
+ * 无杖 → 移除全部 scepter_passive_<key> modifier。
+ * 在背包变化(afterInventoryChange)和 learnAbility 时调用,保证幂等。
+ */
+export function syncScepterPassives(w: World, u: Unit): void {
+  if (!u.heroDef) return;
+  const sc = hasScepter(u);
+  for (let i = 0; i < u.heroDef.abilities.length; i++) {
+    const def = u.heroDef.abilities[i];
+    if (!def.scepterPassive) continue;
+    const inst = u.abilities[i];
+    const modKey = `scepter_passive_${def.key}`;
+    if (sc && inst.level > 0) {
+      // 持杖且已学:确保 modifier 存在(若已存在 applyModifier 会刷新)
+      if (!u.modifiers.some((m) => m.key === modKey)) {
+        const mod = def.scepterPassive(inst.level);
+        applyModifier(w, u, { ...mod, key: modKey, duration: undefined }, u.id);
+      }
+    } else {
+      // 无杖或未学:移除
+      removeModifier(w, u, modKey, u.id);
+    }
+  }
 }
 
 export function canLearnStatBonus(u: Unit): boolean {

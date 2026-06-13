@@ -328,8 +328,11 @@ const KAI_E: AbilityDef = {
 
 const VEIL_DELAY = [3.5, 2.75, 2.0];
 
+const VEIL_EVASION = [0.15, 0.2, 0.25];
+
 const KAI_R: AbilityDef = {
   key: 'kai_veil', name: '暗影帷幕', maxLevel: 3, ultimate: true, targetMode: 'passive',
+  scepter: { desc: '神杖:持续被动额外赋予 15/20/25% 闪避,融入黑暗更难被命中。' },
   tags: ['escape', 'ultimate'],
   description: '脱离战斗片刻后融入阴影(攻击或施法现身)。',
   passiveModifier: (lvl) => ({
@@ -341,6 +344,10 @@ const KAI_R: AbilityDef = {
         applyModifier(w, u, { key: 'kai_veil_invis', duration: 0.6, isBuff: true, states: { invisible: true } }, u.id);
       }
     },
+  }),
+  scepterPassive: (lvl) => ({
+    key: 'kai_veil_sc_evasion', isBuff: true,
+    stats: { evasion: VEIL_EVASION[lvl - 1] },
   }),
 };
 
