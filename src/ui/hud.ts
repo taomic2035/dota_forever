@@ -2,7 +2,8 @@ import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
 import type { AbilityDef } from '../data/heroes/types';
 import type { ItemInstance } from '../sim/items';
-import { heroAttributes } from '../sim/hero';
+import { heroAttributes, canBuyback } from '../sim/hero';
+import { buybackCost } from '../data/balance';
 import { canLearn, canLearnStatBonus, abilityReady, hasScepter } from '../sim/abilities';
 import { itemDef } from '../data/items';
 import type { UxFeedback } from './uxFeedback';
@@ -16,6 +17,7 @@ export class Hud {
   private bottom: HTMLElement;
   onLearn?: (index: number) => void;
   onLearnStat?: () => void;
+  onBuyback?: () => void;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -42,9 +44,10 @@ export class Hud {
     this.root.appendChild(this.bottom);
 
     this.bottom.addEventListener('click', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat]') as HTMLElement | null;
+      const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback]') as HTMLElement | null;
       if (!el) return;
-      if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
+      if (el.hasAttribute('data-buyback')) this.onBuyback?.();
+      else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
       else this.onLearn?.(Number(el.getAttribute('data-learn')));
     });
   }
@@ -76,7 +79,7 @@ export class Hud {
               <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${hero.name}</b>
               <span style="color:#d9b44a;white-space:nowrap">${meta.kills}/${meta.deaths}/${meta.assists}</span>
             </div>
-            ${dead ? `<div style="color:#ef5350;font-size:15px;padding:10px 0">DEAD - ${respawnIn}s</div>` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
+            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 4px">阵亡 - ${respawnIn}s</div>${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 8px;margin-top:5px;color:#cfc7a5;font-size:11px;">
               <span>STR ${attrs.str.toFixed(0)} AGI ${attrs.agi.toFixed(0)} INT ${attrs.int.toFixed(0)}</span>
               <span>DMG ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
@@ -117,6 +120,17 @@ export class Hud {
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">Night</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
+  }
+
+  /** 死亡时买活行:可买活则显示按钮(费用),冷却中显示倒计时,金不足显示所需。 */
+  private buybackRow(world: World, hero: Unit): string {
+    const cost = buybackCost(hero.level);
+    const cd = Math.ceil((hero.heroMeta?.buybackCooldownUntil ?? 0) - world.time);
+    if (cd > 0) return `<div style="font-size:11px;color:#9a9277">买活冷却 ${cd}s</div>`;
+    if (canBuyback(world, hero)) {
+      return `<div data-buyback="1" title="立即复活(B)" style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid #6fcf5a;border-radius:3px;background:#6fcf5a22;color:#9fe87a;font-size:12px;font-weight:700;cursor:pointer">买活 (B) · ${cost}金</div>`;
+    }
+    return `<div style="font-size:11px;color:#a8895a">买活需 ${cost}金(余 ${hero.heroMeta?.gold ?? 0})</div>`;
   }
 
   /** buff/debuff 状态栏:活跃定时 modifier 按状态分类着色 + 剩余秒数(战斗可读性)。 */
