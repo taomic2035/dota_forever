@@ -27,20 +27,27 @@ export function showMenu(parent: HTMLElement): void {
     <div style="font-size:54px;font-weight:800;letter-spacing:6px;color:#d9b44a;text-shadow:0 2px 18px #000">DOTA FOREVER</div>
     <div style="color:#9a8;margin:8px 0 36px;font-size:15px">经典玩法致敬之作 · 5v5 三路推塔 · 全原创内容</div>`;
 
+  let render3d = false;
   const home = () => {
     root.innerHTML = `${title}
       <div style="display:flex;gap:18px">
         <button id="btn-play" style="${btnCss('#2c3a22', '#8fd17a')}">开始对战</button>
         <button id="btn-spectate" style="${btnCss('#1d2330', '#7ec8e3')}">观战 AI 对局</button>
       </div>
-      <div style="color:#665;margin-top:46px;font-size:12px;max-width:560px;text-align:center;line-height:1.7">
-        操作:右键移动/攻击 · A 强制攻击(可反补) · QWER 技能 · 1-6 物品 · F 商店<br>
+      <label id="btn-3d" style="margin-top:20px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
+        padding:7px 16px;border-radius:8px;border:1px solid ${render3d ? '#d56bff' : '#3a4428'};
+        background:${render3d ? '#d56bff22' : '#0c0f08'};color:${render3d ? '#d8a8ff' : '#9a8'};font-size:13px;font-weight:700;user-select:none">
+        <span style="font-size:15px">${render3d ? '◉' : '○'}</span> 真 3D 渲染(实验:模型/光影/辉光)
+      </label>
+      <div style="color:#665;margin-top:34px;font-size:12px;max-width:600px;text-align:center;line-height:1.7">
+        右键移动/攻击 · A 强制攻击(可反补) · QWER 技能 · 1-6 物品 · F 商店 · Shift 排队指令<br>
         B 买活 · S 停止 · H 保持 · 空格 回到英雄 · Tab 记分板 · P 暂停 · Alt+小地图 信号
       </div>`;
     root.querySelector('#btn-play')!.addEventListener('click', pick);
     root.querySelector('#btn-spectate')!.addEventListener('click', () => {
-      location.search = '?mode=spectate&speed=4';
+      location.search = `?mode=spectate&speed=4${render3d ? '&renderer=3d' : ''}`;
     });
+    root.querySelector('#btn-3d')!.addEventListener('click', () => { render3d = !render3d; home(); });
   };
 
   const pick = () => {
@@ -68,7 +75,7 @@ export function showMenu(parent: HTMLElement): void {
     const detail = root.querySelector('#hero-detail') as HTMLElement;
     root.querySelectorAll('.hero-card').forEach((el) => {
       el.addEventListener('click', () => {
-        location.search = `?mode=play&hero=${(el as HTMLElement).dataset.key}`;
+        location.search = `?mode=play&hero=${(el as HTMLElement).dataset.key}${render3d ? '&renderer=3d' : ''}`;
       });
       el.addEventListener('mouseenter', () => {
         (el as HTMLElement).style.transform = 'scale(1.06)';
@@ -79,7 +86,7 @@ export function showMenu(parent: HTMLElement): void {
     });
     root.querySelector('#btn-random')!.addEventListener('click', () => {
       const h = HEROES[Math.floor(Math.random() * HEROES.length)];
-      location.search = `?mode=play&hero=${h.key}`;
+      location.search = `?mode=play&hero=${h.key}${render3d ? '&renderer=3d' : ''}`;
     });
     root.querySelector('#btn-back')!.addEventListener('click', home);
   };
