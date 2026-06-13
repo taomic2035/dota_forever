@@ -8,6 +8,7 @@ import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
+import { Renderer3D } from './render3d/renderer3d';
 import { MiniMap } from './render/minimap';
 import { GameLoop } from './engine/loop';
 import { InputManager, type CastInputOptions } from './engine/input';
@@ -135,7 +136,10 @@ function startGame(mode: 'play' | 'spectate'): void {
 
   const camera = new Camera();
   camera.centerOn(hero?.pos ?? { x: 7520, y: 7520 });
-  const renderer = new Renderer(app, world, camera);
+  const use3d = params.get('renderer') === '3d';
+  const renderer = use3d
+    ? (new Renderer3D(app, world, camera) as unknown as Renderer)
+    : new Renderer(app, world, camera);
   renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
   const hud = new Hud(app);
   hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
@@ -146,7 +150,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
   const commandCursor = new CommandCursor(app);
-  const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
+  const minimap = use3d ? null : new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
     ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
   });
   const audio = new AudioDirector();
@@ -578,7 +582,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       hud.update(world, hero, ux);
       commandCursor.update(world.time, ux);
       shop.update(world, hero);
-      minimap.render(world, renderer.viewerTeam, ux);
+      minimap?.render(world, renderer.viewerTeam, ux);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);
     },
   });
