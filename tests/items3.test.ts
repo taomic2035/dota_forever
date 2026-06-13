@@ -778,6 +778,21 @@ describe('advanced items batch 9', () => {
     useItem(w, h, slot); expect(inst.treadsMode).toBe('int');
     useItem(w, h, slot); expect(inst.treadsMode).toBe('str');
   });
+
+  it('净魂之刃:主动 8 次充能,用尽后主动不可用但物品保留', () => {
+    const slot = give(h, 'diffusal');
+    const inst = h.inventory[slot]!;
+    expect(inst.charges).toBe(8);
+    const enemy = spawnHero(w, LIYA, Team.Night, w.map.nearestWalkable({ x: h.pos.x + 200, y: h.pos.y }));
+    for (let k = 0; k < 8; k++) {
+      inst.cooldownUntil = -Infinity; // 跳过 CD 便于连用
+      expect(useItem(w, h, slot, undefined, enemy)).toBe(true);
+    }
+    expect(inst.charges).toBe(0);
+    inst.cooldownUntil = -Infinity;
+    expect(useItem(w, h, slot, undefined, enemy)).toBe(false); // 充能用尽
+    expect(h.inventory[slot]?.itemKey).toBe('diffusal');        // 物品仍在(rechargeable 不移除)
+  });
 });
 
 function REIN_STATS() {

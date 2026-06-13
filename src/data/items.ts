@@ -781,6 +781,7 @@ ITEMS.push(
   // 净魂之刃:法力燃烧 + 驱散
   { key: 'diffusal', name: '净魂之刃', cost: 2000, category: 'combined',
     stats: { bonusAgi: 22, bonusInt: 6 },
+    charges: 8, rechargeable: true, // 主动有 8 次充能(经典);用尽后主动不可用但物品/被动保留
     recipe: { components: ['blade_alacrity', 'robe'], recipeCost: 550 },
     onAttack(w, attacker, target) {
       if (target.isBuilding() || target.calc.maxMp <= 0) return;
@@ -792,14 +793,16 @@ ITEMS.push(
     active: {
       name: '净魂', cooldown: 12, targetMode: 'unit', targetTeam: 'any', castRange: 600,
       onUse(w, user, _pos, target) {
+        const inst = user.inventory.find((i) => i?.itemKey === 'diffusal');
+        if (!inst || inst.charges <= 0) return false; // 充能用尽:主动不可用(物品属性/被动仍保留)
         const t = target ?? user;
-        if (t.team === user.team) { purge(w, t, false); return true; }
-        purge(w, t, true);
-        applyModifier(w, t, { key: 'item_diffusal_slow', duration: 4, stats: { bonusMoveSpeedPct: -0.4 } }, user.id);
+        if (t.team === user.team) purge(w, t, false);
+        else { purge(w, t, true); applyModifier(w, t, { key: 'item_diffusal_slow', duration: 4, stats: { bonusMoveSpeedPct: -0.4 } }, user.id); }
+        inst.charges--; // 消耗一次充能(rechargeable,useItem 不自动扣)
         return true;
       },
     },
-    description: '+22 敏捷 +6 智力;攻击燃烧目标法力并造成伤害;主动:驱散目标(敌减速/友净化)。' },
+    description: '+22 敏捷 +6 智力;攻击燃烧目标法力并造成伤害;主动(8 次充能):驱散目标(敌减速/友净化)。' },
 
   // 深渊之刃:强力点控 + 概率晕
   { key: 'abyssal', name: '深渊之刃', cost: 5400, category: 'combined',
