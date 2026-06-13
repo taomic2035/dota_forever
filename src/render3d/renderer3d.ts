@@ -16,7 +16,7 @@ import type { AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
-import { buildTerrain3D } from './terrain3d';
+import { buildTerrain3D, terrainElevation } from './terrain3d';
 
 interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; }
 
@@ -128,7 +128,7 @@ export class Renderer3D {
         if (!b && u.buildingKind) {
           // 优先 resource3d 精细建筑,未映射则程序化兜底
           b = buildResource3DBuilding(u.buildingKind, u.team) ?? buildBuilding(u.buildingKind, u.team);
-          b.group.position.set(u.pos.x, 0, u.pos.y);
+          b.group.position.set(u.pos.x, terrainElevation(world.map, u.pos.x, u.pos.y), u.pos.y);
           this.s3d.scene.add(b.group);
           this.buildings.set(u.id, b);
         }
@@ -161,7 +161,7 @@ export class Renderer3D {
       m.applyPose({ state: st, t, phase: e.phase, progress });
 
       const sink = st === 'death' ? progress : 0;
-      m.root.position.set(ax, -sink * 26, az);
+      m.root.position.set(ax, terrainElevation(world.map, ax, az) - sink * 26, az);
       m.root.rotation.y = -u.facing + Math.PI / 2;
       m.root.visible = u.alive || (now - u.diedAt) < 2;
 
@@ -211,7 +211,7 @@ export class Renderer3D {
       const isBuild = u.kind === 'tower' || u.kind === 'building';
       if (!isHero && !isBuild && u.hp >= u.calc.maxHp) continue; // 满血小兵/野怪不画,减杂乱
       const topY = isBuild ? 320 : 112;
-      this.proj.set(u.pos.x, topY, u.pos.y).project(cam);
+      this.proj.set(u.pos.x, topY + terrainElevation(world.map, u.pos.x, u.pos.y), u.pos.y).project(cam);
       if (this.proj.z > 1) continue; // 相机背后
       const sx = (this.proj.x * 0.5 + 0.5) * W;
       const sy = (-this.proj.y * 0.5 + 0.5) * H;
