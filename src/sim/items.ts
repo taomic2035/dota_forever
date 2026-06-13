@@ -317,6 +317,7 @@ function itemFold(u: Unit): void {
     u.bonusAttr.agi += s.bonusAgi ?? 0;
     u.bonusAttr.int += s.bonusInt ?? 0;
     if (inst.itemKey === 'power_treads') u.bonusAttr[inst.treadsMode ?? 'agi'] += 8; // 动力之靴:+8 当前切换属性
+    if (inst.itemKey === 'bloodstone') { c.mpRegen += inst.charges * 0.3; c.hpRegen += inst.charges * 0.2; } // 血石:每充能 +回复
     c.hpRegen += s.bonusHpRegen ?? 0;
     c.mpRegen += s.bonusMpRegen ?? 0;
     if (s.bonusMagicResist) c.magicResist = 1 - (1 - c.magicResist) * (1 - s.bonusMagicResist); // 多源乘算叠加(A1),统一 clamp 见 combat.recalcUnit

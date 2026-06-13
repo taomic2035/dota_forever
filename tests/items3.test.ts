@@ -6,6 +6,7 @@ import { makeItem, useItem, syncHolderModifiers } from '../src/sim/items';
 import { hasModifier, applyModifier } from '../src/sim/modifiers';
 import { applyDamage } from '../src/sim/combat';
 import { REIN, LIYA } from '../src/data/heroes';
+import { respawnTime } from '../src/data/balance';
 import { V } from '../src/core/vec2';
 import type { World } from '../src/sim/world';
 import type { Unit } from '../src/sim/unit';
@@ -792,6 +793,32 @@ describe('advanced items batch 9', () => {
     inst.cooldownUntil = -Infinity;
     expect(useItem(w, h, slot, undefined, enemy)).toBe(false); // 充能用尽
     expect(h.inventory[slot]?.itemKey).toBe('diffusal');        // 物品仍在(rechargeable 不移除)
+  });
+
+  it('血石:近敌阵亡积充能,每充能提升回复', () => {
+    give(h, 'bloodstone');
+    const bs = h.inventory.find((i) => i?.itemKey === 'bloodstone')!;
+    expect(bs.charges).toBe(0);
+    run(2); const mpRegen0 = h.calc.mpRegen;
+    // 敌方小兵在附近阵亡 → 积充能(用 applyDamage 正常击杀,经 economy 死亡结算)
+    const c = w.spawnUnit({ kind: 'creep', team: Team.Night, pos: w.map.nearestWalkable({ x: h.pos.x + 200, y: h.pos.y }), name: 'c', stats: { ...REIN_STATS(), maxHp: 50 } });
+    applyDamage(w, c, { source: h.id, attackType: 'hero', amount: 9999 });
+    run(3);
+    expect(bs.charges).toBeGreaterThan(0);
+    expect(h.calc.mpRegen).toBeGreaterThan(mpRegen0); // 充能提升法力回复
+  });
+
+  it('血石:持有者死亡按充能缩短重生并失部分充能', () => {
+    give(h, 'bloodstone');
+    const bs = h.inventory.find((i) => i?.itemKey === 'bloodstone')!;
+    bs.charges = 20;
+    h.level = 10;
+    h.alive = false; h.hp = 0;
+    w.emit({ kind: 'unit_died', unitId: h.id, killerId: 0, pos: h.pos });
+    run(2);
+    const remain = h.heroMeta!.respawnAt - w.time;
+    expect(remain).toBeLessThan(respawnTime(10)); // 按充能缩短
+    expect(bs.charges).toBeLessThan(20);           // 死亡失部分充能
   });
 });
 

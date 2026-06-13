@@ -94,6 +94,14 @@ export function installEconomy(w: World): void {
       if (!victim) continue;
       const killer = world.getUnit(e.killerId);
 
+      // 血石:敌方单位在持有者附近阵亡 → 该持有者血石积一层充能(经典,上限 30)
+      for (const u of world.units.values()) {
+        if (!u.isHero() || !u.alive || u.team === victim.team) continue;
+        if (V.dist(u.pos, victim.pos) > 1200) continue;
+        const bs = u.inventory.find((i) => i?.itemKey === 'bloodstone');
+        if (bs && bs.charges < 30) bs.charges++;
+      }
+
       if (victim.kind === 'creep' || victim.kind === 'neutral' || victim.kind === 'boss' || victim.kind === 'courier') {
         const jungle = victim.kind === 'neutral' || victim.kind === 'boss';
         // 中立/Boss 的 team 是 Neutral,没有「对方阵营」语义,不存在反补
@@ -119,6 +127,12 @@ export function installEconomy(w: World): void {
         const vm = victim.heroMeta!;
         vm.deaths++;
         vm.respawnAt = world.time + respawnTime(victim.level);
+        // 血石:按充能缩短重生(每层 -3s,上限 20 层),死亡损失 30% 充能(经典)
+        const bs = victim.inventory.find((i) => i?.itemKey === 'bloodstone');
+        if (bs && bs.charges > 0) {
+          vm.respawnAt = Math.max(world.time + 1, vm.respawnAt - Math.min(bs.charges, 20) * 3);
+          bs.charges = Math.floor(bs.charges * 0.7);
+        }
         loseGoldOnDeath(victim, deathGoldLoss(victim.level)); // 仅扣不可靠金
         const xpShare = enemyHeroesNear(world, victim.pos, victim.team, XP_SHARE_RADIUS);
         for (const h of xpShare) addXp(world, h, xpForKillLevel(victim.level) / Math.max(1, xpShare.length));

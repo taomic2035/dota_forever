@@ -687,8 +687,9 @@ ITEMS.push(
   // 血精石:生存核心
   { key: 'bloodstone', name: '血石', cost: 4400, category: 'combined',
     stats: { bonusHp: 500, bonusMp: 400, bonusHpRegen: 12, bonusMpRegen: 4 },
+    charges: 0, rechargeable: true, // 充能:附近敌方单位阵亡积累(经济见 economy);每充能 +回复、死亡缩短重生
     recipe: { components: ['vitality_booster', 'energy_booster', 'point_booster'], recipeCost: 1100 },
-    description: '+500 生命 +400 法力 +高额双回复:法师与前排的生存核心。' },
+    description: '+500 生命 +400 法力 +高额双回复;充能(附近敌方阵亡积累):每层 +回复,死亡按充能缩短重生并失部分充能。' },
 
   // 银月纷争:沉默 + 法术增强
   { key: 'orchid', name: '纷争面纱', cost: 4800, category: 'combined',
