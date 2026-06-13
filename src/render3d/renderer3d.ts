@@ -30,6 +30,10 @@ export class Renderer3D {
   private buildings = new Map<number, BuildingModel>();
   private ray = new THREE.Raycaster();
   private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  /** 血条/蓝条叠加层(2D canvas 投影绘制)。 */
+  private overlay: HTMLCanvasElement;
+  private octx: CanvasRenderingContext2D;
+  private proj = new THREE.Vector3();
 
   constructor(parent: HTMLElement, _world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
@@ -37,10 +41,22 @@ export class Renderer3D {
     // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
     if (camera.zoom < 1.0) camera.zoom = 1.4;
     this.s3d.scene.add(buildTerrain3D());
-    const fit = () => this.s3d.resize(parent.clientWidth || window.innerWidth, parent.clientHeight || window.innerHeight);
+
+    this.overlay = document.createElement('canvas');
+    this.overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;';
+    parent.appendChild(this.overlay);
+    this.octx = this.overlay.getContext('2d')!;
+
+    const fit = () => {
+      const w = parent.clientWidth || window.innerWidth, h = parent.clientHeight || window.innerHeight;
+      this.s3d.resize(w, h);
+      this.overlay.width = w; this.overlay.height = h;
+    };
     fit();
     window.addEventListener('resize', fit);
   }
+
+  private readonly TEAM = ['#52d869', '#ef5350'];
 
   /** minimap 在 3D 下 V1 不接入;提供占位 world 尺寸。 */
   get terrain() { return { width: 15040, height: 15040 }; }
@@ -62,6 +78,15 @@ export class Renderer3D {
     let e = this.models.get(u.id);
     if (!e) {
       const parts = buildHumanoid(humanoidSpec(unitArt(this.artInput(u))));
+      // 贴地队色选取环
+      const ringColor = this.TEAM[u.team] ?? '#bdbdbd';
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(u.base.collisionRadius * 0.9, u.base.collisionRadius * 1.25, 20),
+        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 1.5;
+      parts.root.add(ring);
       this.s3d.scene.add(parts.root);
       e = { parts, phase: 0, lastX: u.pos.x, lastZ: u.pos.y };
       this.models.set(u.id, e);
@@ -162,6 +187,38 @@ export class Renderer3D {
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
+    this.drawBars(world);
+  }
+
+  /** 血条/蓝条:投影单位顶部到屏幕,2D 叠加层绘制(队色血条,英雄含蓝条)。 */
+  private drawBars(world: World): void {
+    const ctx = this.octx, W = this.overlay.width, H = this.overlay.height;
+    ctx.clearRect(0, 0, W, H);
+    const cam = this.s3d.cam;
+    for (const u of world.units.values()) {
+      if (!u.alive || u.kind === 'ward') continue;
+      const isHero = u.isHero();
+      const isBuild = u.kind === 'tower' || u.kind === 'building';
+      if (!isHero && !isBuild && u.hp >= u.calc.maxHp) continue; // 满血小兵/野怪不画,减杂乱
+      const topY = isBuild ? 320 : 112;
+      this.proj.set(u.pos.x, topY, u.pos.y).project(cam);
+      if (this.proj.z > 1) continue; // 相机背后
+      const sx = (this.proj.x * 0.5 + 0.5) * W;
+      const sy = (-this.proj.y * 0.5 + 0.5) * H;
+      if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
+      const bw = isHero ? 44 : isBuild ? 40 : 28;
+      const bh = 5;
+      const frac = Math.max(0, Math.min(1, u.hp / u.calc.maxHp));
+      ctx.fillStyle = 'rgba(8,8,8,0.82)';
+      ctx.fillRect(sx - bw / 2 - 1, sy - 1, bw + 2, bh + 2);
+      ctx.fillStyle = this.TEAM[u.team] ?? '#bdbdbd';
+      ctx.fillRect(sx - bw / 2, sy, bw * frac, bh);
+      if (isHero && u.calc.maxMp > 0) {
+        const mf = Math.max(0, Math.min(1, u.mp / u.calc.maxMp));
+        ctx.fillStyle = '#1565c0';
+        ctx.fillRect(sx - bw / 2, sy + bh + 1, bw * mf, 3);
+      }
+    }
   }
 
   /** 屏幕坐标 → 世界坐标(raycast 到地面)。供 InputManager(play 模式 3D 在 V2 完整接入)。 */
