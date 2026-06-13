@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier, purge } from '../../sim/modifiers';
 import * as Combat from '../../sim/combat';
@@ -82,14 +82,18 @@ const IGNITE_DPS = [40, 60, 80];
 const OGRE_R: AbilityDef = {
   key: 'ogre_ignite', name: '点燃', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [700, 700, 700], manaCost: [120, 160, 200], cooldown: [14, 12, 10],
+  scepter: { cooldown: [9, 7, 5], desc: '神杖:冷却降低;每次施法时额外爆发伤害提升 50%,烈火更旺。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
   description: '点燃一片区域:灼烧并减速其中敌人,可被多重施法叠加。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const burstDmg = hasScepter(caster)
+      ? Math.round(IGNITE_BURST[lvl - 1] * 1.5)
+      : IGNITE_BURST[lvl - 1];
     ogreMulticast(w, caster, () => {
       for (const e of enemiesIn(w, caster, at, 300)) {
-        spellDamage(w, caster, e, IGNITE_BURST[lvl - 1]);
+        spellDamage(w, caster, e, burstDmg);
         applyModifier(w, e, {
           key: 'ogre_ignite', duration: 5, stackable: true,
           stats: { bonusMoveSpeedPct: -0.3 }, tickInterval: 0.5,
@@ -182,20 +186,26 @@ const SONIC_DMG = [280, 380, 480];
 const QUEN_R: AbilityDef = {
   key: 'quen_sonic', name: '音波冲击', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [900, 900, 900], manaCost: [150, 225, 300], cooldown: [60, 50, 40],
+  scepter: { cooldown: [40, 35, 30], desc: '神杖:冷却降低;音波震荡更剧烈,击退距离从 220 增至 350,并附加 0.6 秒眩晕。' },
   castPoint: 0.35, tags: ['nuke', 'aoe', 'ultimate'],
   description: '释放一道音波,重创并击退直线上的敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const dir = V.norm(V.sub(pos, caster.pos));
+    const sc = hasScepter(caster);
+    const kbDist = sc ? 350 : 220;
     const hit = new Set<number>();
     for (let d = 120; d <= 900; d += 140) {
       for (const e of enemiesIn(w, caster, V.add(caster.pos, V.scale(dir, d)), 200)) {
         if (hit.has(e.id)) continue;
         hit.add(e.id);
         spellDamage(w, caster, e, SONIC_DMG[lvl - 1]);
-        const kb = w.map.nearestWalkable(V.add(e.pos, V.scale(dir, 220)));
+        const kb = w.map.nearestWalkable(V.add(e.pos, V.scale(dir, kbDist)));
         e.pos = kb; e.prevPos = V.clone(kb); e.path = []; e.pathGoal = null;
         applyModifier(w, e, { key: 'quen_sonic_slow', duration: 0.6, stats: { bonusMoveSpeedPct: -0.3 } }, caster.id);
+        if (sc) {
+          applyModifier(w, e, { key: 'quen_sonic_stun', duration: 0.6, states: { stunned: true } }, caster.id);
+        }
       }
     }
     w.emit({ kind: 'fx', fx: 'sonicwave', pos: V.clone(caster.pos), pos2: V.add(caster.pos, V.scale(dir, 900)) });
@@ -278,12 +288,14 @@ const RAVAGE_STUN = [2.0, 2.4, 2.8];
 const TED_R: AbilityDef = {
   key: 'ted_ravage', name: '巨浪', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [140, 120, 100],
+  scepter: { cooldown: [90, 75, 60], desc: '神杖:冷却大幅降低;浪潮力道更猛,眩晕时间延长 0.5 秒。' },
   castPoint: 0.4, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '掀起滔天巨浪,震晕并重创周围大范围内的所有敌人。',
   onCast(w, caster, lvl) {
+    const stunDur = hasScepter(caster) ? RAVAGE_STUN[lvl - 1] + 0.5 : RAVAGE_STUN[lvl - 1];
     damageArea(w, caster, caster.pos, 1000, RAVAGE_DMG[lvl - 1]);
     modifierArea(w, caster, caster.pos, 1000, {
-      key: 'ted_ravage_stun', duration: RAVAGE_STUN[lvl - 1], states: { stunned: true },
+      key: 'ted_ravage_stun', duration: stunDur, states: { stunned: true },
     }, 'enemy');
     w.emit({ kind: 'fx', fx: 'ravage', pos: V.clone(caster.pos), radius: 1000 });
   },
@@ -396,15 +408,18 @@ const RP_DMG = [150, 225, 300];
 const MAG_R: AbilityDef = {
   key: 'mag_polarity', name: '两极反转', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 225, 300], cooldown: [120, 110, 100],
+  scepter: { cooldown: [80, 70, 60], desc: '神杖:冷却降低;磁场崩裂,每个被拉入的敌人额外受到 100 纯粹追加伤害。' },
   castPoint: 0.4, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '扭转磁极,将周围所有敌人拉到身前并长时间击晕。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
     const foes = enemiesIn(w, caster, caster.pos, RP_RADIUS[lvl - 1]);
     foes.forEach((e, i) => {
       const ang = (i / Math.max(1, foes.length)) * Math.PI * 2;
       const p = w.map.nearestWalkable(V.add(caster.pos, { x: Math.cos(ang) * 120, y: Math.sin(ang) * 120 }));
       e.pos = p; e.prevPos = V.clone(p); e.path = []; e.pathGoal = null;
       spellDamage(w, caster, e, RP_DMG[lvl - 1]);
+      if (sc) spellDamage(w, caster, e, 100);
       applyModifier(w, e, { key: 'mag_polarity_stun', duration: RP_STUN[lvl - 1], states: { stunned: true } }, caster.id);
     });
     w.emit({ kind: 'fx', fx: 'reversepolarity', pos: V.clone(caster.pos), radius: RP_RADIUS[lvl - 1] });
@@ -502,13 +517,14 @@ const CF_STEP = [15, 20, 25];
 const LYK_R: AbilityDef = {
   key: 'lyk_chain', name: '寒霜连锁', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [200, 275, 350], cooldown: [120, 105, 90],
+  scepter: { cooldown: [80, 65, 50], desc: '神杖:冷却降低;寒霜弹获得额外 4 次弹跳,无尽跳跃席卷战场。' },
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '召唤一颗寒霜弹在敌人间反复弹跳,伤害逐跳递增并减速。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     let cur: Unit | undefined = target;
     let dmg = CF_DMG[lvl - 1];
-    const bounces = CF_BOUNCES[lvl - 1];
+    const bounces = hasScepter(caster) ? CF_BOUNCES[lvl - 1] + 4 : CF_BOUNCES[lvl - 1];
     for (let b = 0; b < bounces && cur; b++) {
       const from: Unit = cur;
       spellDamage(w, caster, from, dmg);
@@ -611,14 +627,16 @@ const DOOM_DPS = [40, 60, 80];
 const DUM_R: AbilityDef = {
   key: 'dum_doom', name: '末日', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [150, 200, 250], cooldown: [110, 100, 90],
+  scepter: { cooldown: [70, 60, 50], desc: '神杖:冷却降低;末日之火更炽,每秒灼烧伤害提升 50%。' },
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '降下末日审判:目标被沉默、缴械并持续受到灼烧,无法反抗。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const dps = hasScepter(caster) ? Math.round(DOOM_DPS[lvl - 1] * 1.5) : DOOM_DPS[lvl - 1];
     applyModifier(w, target, {
       key: 'dum_doom_debuff', duration: DOOM_DUR[lvl - 1],
       states: { silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.2 },
-      tickInterval: 1, onTick: (world, u) => spellDamage(world, caster, u, DOOM_DPS[lvl - 1]),
+      tickInterval: 1, onTick: (world, u) => spellDamage(world, caster, u, dps),
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'doom', pos: V.clone(target.pos) });
   },

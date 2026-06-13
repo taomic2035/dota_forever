@@ -25,7 +25,7 @@ describe('creep waves', () => {
       sieges = [...w.units.values()].filter((u) => u.name.includes('投石车')).length;
     }
     expect(sieges).toBeGreaterThanOrEqual(6); // 双方三路各一辆
-  });
+  }, 30000); // 重型仿真(~1000 步至第 7 波):全量并行 CPU 争用下放宽超时,避免偶发超时误判
 
   it('creeps march toward enemy base', () => {
     const w = createWorld(map, { seed: 1, creeps: true, startTime: 88 });

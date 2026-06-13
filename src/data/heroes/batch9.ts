@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, createIllusion,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, createIllusion, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier, purge, type Modifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -59,17 +59,20 @@ const VOID_K = [0.8, 1.0, 1.2];
 const VYN_R: AbilityDef = {
   key: 'vyn_void', name: '法力虚空', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [125, 200, 275], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 47, 40], desc: '神杖:冷却降低;主目标眩晕延长至 1.2 秒,周围溅射伤害从 55% 提升至 75%。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'stun', 'ultimate'],
   description: '依据目标已损失的法力造成爆发伤害,并波及其周围敌人、短暂眩晕。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
     const missing = Math.max(0, target.calc.maxMp - target.mp);
     const dmg = missing * VOID_K[lvl - 1];
     spellDamage(w, caster, target, dmg);
-    applyModifier(w, target, { key: 'vyn_void_stun', duration: 0.3, states: { stunned: true } }, caster.id);
+    applyModifier(w, target, { key: 'vyn_void_stun', duration: sc ? 1.2 : 0.3, states: { stunned: true } }, caster.id);
+    const splashPct = sc ? 0.75 : 0.55;
     for (const e of enemiesIn(w, caster, target.pos, 400)) {
       if (e.id === target.id) continue;
-      spellDamage(w, caster, e, dmg * 0.55);
+      spellDamage(w, caster, e, dmg * splashPct);
     }
     w.emit({ kind: 'fx', fx: 'manavoid', pos: V.clone(target.pos), radius: 400 });
   },
@@ -162,17 +165,29 @@ function duelEnd(world: World, u: Unit, m: Modifier): void {
 const LEON_R: AbilityDef = {
   key: 'leon_duel', name: '决斗', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [150, 150, 150], manaCost: [75, 75, 75], cooldown: [50, 40, 30],
+  scepter: { cooldown: [35, 28, 20], desc: '神杖:冷却降低;决斗结束胜者立即获得 50% 攻速 buff 持续 8 秒。' },
   castPoint: 0.3, tags: ['stun', 'ultimate'],
   description: '与目标展开决斗:双方被缚原地强制互殴,胜者永久获得攻击力。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target || target.team === caster.team) return;
+    const sc = hasScepter(caster);
     const dur = DUEL_DUR[lvl - 1];
+    // wrap duelEnd to add scepter attack speed bonus to winner
+    const duelEndSc: typeof duelEnd = (world, u, m) => {
+      duelEnd(world, u, m);
+      if (sc) {
+        const foe = world.getUnit(m.data!.foe as number);
+        if (u.alive && (!foe || !foe.alive)) {
+          applyModifier(world, u, { key: 'leon_duel_sc_as', duration: 8, isBuff: true, stats: { bonusAttackSpeed: 0.5 } }, u.id);
+        }
+      }
+    };
     for (const [a, b] of [[caster, target], [target, caster]] as Array<[Unit, Unit]>) {
       applyModifier(w, a, {
         key: 'leon_duel', duration: dur, states: { rooted: true }, data: { foe: b.id },
         tickInterval: 0.2,
         onTick(world, u, m) { const f = world.getUnit(m.data!.foe as number); if (!f || !f.alive) m.expiresAt = -Infinity; },
-        onExpire: duelEnd,
+        onExpire: duelEndSc,
       }, caster.id);
       a.issueOrder({ type: 'attack', targetId: b.id });
     }
@@ -254,10 +269,14 @@ const PHANTASM_COUNT = [2, 3, 4];
 const KAOS_R: AbilityDef = {
   key: 'kaos_phantasm', name: '混沌幻象', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [125, 150, 175], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 78, 70], desc: '神杖:冷却降低;额外召唤 1 个幻象,所有幻象持续时间延长至 30 秒。' },
   castPoint: 0.2, tags: ['ultimate'],
   description: '召唤数个出伤强力的混沌幻象,持续 24 秒。',
   onCast(w, caster, lvl) {
-    createIllusion(w, caster, PHANTASM_COUNT[lvl - 1], 0.6, 2, 24);
+    const sc = hasScepter(caster);
+    const count = sc ? PHANTASM_COUNT[lvl - 1] + 1 : PHANTASM_COUNT[lvl - 1];
+    const dur = sc ? 30 : 24;
+    createIllusion(w, caster, count, 0.6, 2, dur);
     w.emit({ kind: 'fx', fx: 'phantasm', pos: V.clone(caster.pos), radius: 150 });
   },
   aiScore(w, caster) {
@@ -348,13 +367,17 @@ const CAGE_DMG = [120, 180, 240];
 const KOG_R: AbilityDef = {
   key: 'kog_cage', name: '能量牢笼', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 125, 150], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 35], desc: '神杖:冷却降低;牢笼范围扩大至 550,根限时间延长 1 秒。' },
   castPoint: 0.2, tags: ['stun', 'aoe', 'ultimate'],
   description: '展开能量牢笼:禁锢周围敌人并持续放电,同时强化自身护甲。',
   onCast(w, caster, lvl) {
-    modifierArea(w, caster, caster.pos, 400, { key: 'kog_cage_root', duration: CAGE_DUR[lvl - 1], states: { rooted: true }, stats: { bonusMoveSpeedPct: -0.5 } }, 'enemy');
-    damageArea(w, caster, caster.pos, 400, CAGE_DMG[lvl - 1]);
-    applyModifier(w, caster, { key: 'kog_cage_armor', duration: CAGE_DUR[lvl - 1] + 1, isBuff: true, stats: { bonusArmor: 10 } }, caster.id);
-    w.emit({ kind: 'fx', fx: 'powercogs', pos: V.clone(caster.pos), radius: 400 });
+    const sc = hasScepter(caster);
+    const radius = sc ? 550 : 400;
+    const rootDur = sc ? CAGE_DUR[lvl - 1] + 1 : CAGE_DUR[lvl - 1];
+    modifierArea(w, caster, caster.pos, radius, { key: 'kog_cage_root', duration: rootDur, states: { rooted: true }, stats: { bonusMoveSpeedPct: -0.5 } }, 'enemy');
+    damageArea(w, caster, caster.pos, radius, CAGE_DMG[lvl - 1]);
+    applyModifier(w, caster, { key: 'kog_cage_armor', duration: rootDur + 1, isBuff: true, stats: { bonusArmor: 10 } }, caster.id);
+    w.emit({ kind: 'fx', fx: 'powercogs', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 380).filter((t) => t.isHero());
@@ -448,6 +471,7 @@ const BH_TICK = [80, 110, 140];
 const ENI_R: AbilityDef = {
   key: 'eni_blackhole', name: '黑洞', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [375, 375, 375], manaCost: [200, 300, 400], cooldown: [180, 160, 140],
+  scepter: { cooldown: [130, 115, 100], desc: '神杖:冷却降低;黑洞引力半径扩大至 550,每 tick 伤害提升 50%。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'channel', 'ultimate'],
   description: '引导黑洞:持续将范围内敌人吸向中心并眩晕、造成伤害。',
   onCast(w, caster, _lvl, pos) {
@@ -458,13 +482,16 @@ const ENI_R: AbilityDef = {
     tickInterval: 0.5,
     onChannelTick(w, caster, lvl, pos) {
       if (!pos) return;
-      for (const e of enemiesIn(w, caster, pos, 420)) {
+      const sc = hasScepter(caster);
+      const radius = sc ? 550 : 420;
+      const tickDmg = sc ? BH_TICK[lvl - 1] * 1.5 : BH_TICK[lvl - 1];
+      for (const e of enemiesIn(w, caster, pos, radius)) {
         const np = w.map.nearestWalkable(V.add(e.pos, V.scale(V.norm(V.sub(pos, e.pos)), 70)));
         e.pos = np; e.prevPos = V.clone(np); e.path = []; e.pathGoal = null;
         applyModifier(w, e, { key: 'eni_blackhole_stun', duration: 0.6, states: { stunned: true } }, caster.id);
-        spellDamage(w, caster, e, BH_TICK[lvl - 1]);
+        spellDamage(w, caster, e, tickDmg);
       }
-      w.emit({ kind: 'fx', fx: 'blackhole', pos: V.clone(pos), radius: 420 });
+      w.emit({ kind: 'fx', fx: 'blackhole', pos: V.clone(pos), radius });
     },
   },
   aiScore(w, caster) {
@@ -541,11 +568,17 @@ const GA_DUR = [5, 6, 7];
 const THEO_R: AbilityDef = {
   key: 'theo_guardian', name: '守护天使', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [200, 250, 300], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 78, 70], desc: '神杖:冷却降低;范围扩大至 1200,施放时同时驱散周围友军的所有负面效果。' },
   castPoint: 0.3, tags: ['buff', 'ultimate'],
   description: '召唤守护天使,使附近全体友军免疫物理伤害数秒。',
   onCast(w, caster, lvl) {
-    modifierArea(w, caster, caster.pos, 900, { key: 'theo_guardian_buff', duration: GA_DUR[lvl - 1], isBuff: true, states: { physImmune: true } }, 'ally');
-    w.emit({ kind: 'fx', fx: 'guardian', pos: V.clone(caster.pos), radius: 900 });
+    const sc = hasScepter(caster);
+    const radius = sc ? 1200 : 900;
+    modifierArea(w, caster, caster.pos, radius, { key: 'theo_guardian_buff', duration: GA_DUR[lvl - 1], isBuff: true, states: { physImmune: true } }, 'ally');
+    if (sc) {
+      for (const ally of alliesIn(w, caster, caster.pos, radius)) purge(w, ally, false);
+    }
+    w.emit({ kind: 'fx', fx: 'guardian', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const allies = alliesIn(w, caster, caster.pos, 700).filter((t) => t.isHero());

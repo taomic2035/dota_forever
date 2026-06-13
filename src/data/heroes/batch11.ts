@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, enemiesIn, spellDamage, summonUnit,
+  damageArea, enemiesIn, spellDamage, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier, type ModifierDef } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -66,11 +66,16 @@ const ECLIPSE_DMG = [180, 280, 380];
 const MOR_R: AbilityDef = {
   key: 'mor_eclipse', name: '精神虚妄', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 225, 300], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 75, 65], desc: '神杖:冷却降低;精神冲击同时震晕命中的敌人 0.5 秒。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '释放精神冲击,重创周围所有敌人(智力越高伤害越高)。',
   onCast(w, caster, lvl) {
     const amp = 1 + caster.calc.maxMp / 4000; // 法力(智力)越高伤害越高
-    for (const e of enemiesIn(w, caster, caster.pos, 700)) spellDamage(w, caster, e, ECLIPSE_DMG[lvl - 1] * amp);
+    const sc = hasScepter(caster);
+    for (const e of enemiesIn(w, caster, caster.pos, 700)) {
+      spellDamage(w, caster, e, ECLIPSE_DMG[lvl - 1] * amp);
+      if (sc) applyModifier(w, e, { key: 'mor_eclipse_stun', duration: 0.5, states: { stunned: true } }, caster.id);
+    }
     w.emit({ kind: 'fx', fx: 'eclipse', pos: V.clone(caster.pos), radius: 700 });
   },
   aiScore(w, caster) {
@@ -160,13 +165,16 @@ const STORM_TICK = [60, 90, 120];
 const DIS_R: AbilityDef = {
   key: 'dis_storm', name: '静电风暴', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [600, 600, 600], manaCost: [125, 175, 225], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 42], desc: '神杖:冷却降低;风暴持续时间延长至 6/7/8 秒,覆盖更持久的战场控制。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '掀起静电风暴穹顶:持续伤害并沉默其中的所有敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const dur = sc ? STORM_DUR[lvl - 1] + 2 : STORM_DUR[lvl - 1];
     applyModifier(w, caster, {
-      key: `dis_storm_${w.tick}`, duration: STORM_DUR[lvl - 1], isBuff: true, tickInterval: 0.5,
+      key: `dis_storm_${w.tick}`, duration: dur, isBuff: true, tickInterval: 0.5,
       onTick(world) {
         for (const e of enemiesIn(world, caster, at, 450)) {
           spellDamage(world, caster, e, STORM_TICK[lvl - 1]);
@@ -259,10 +267,15 @@ const TIK_E: AbilityDef = {
 const TIK_R: AbilityDef = {
   key: 'tik_rearm', name: '重新装填', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [120, 175, 230], cooldown: [0, 0, 0],
+  scepter: { desc: '神杖:重新装填时同时对周围 400 范围敌人释放能量脉冲,造成 150/225/300 魔法伤害。' },
   castPoint: 0.6, tags: ['buff', 'ultimate'],
   description: '重新装填:刷新自身其它技能的冷却时间(法力消耗高昂)。',
-  onCast(w, caster) {
+  onCast(w, caster, lvl) {
     caster.abilities.forEach((ab, i) => { if (i !== 3) ab.cooldownUntil = -Infinity; });
+    if (hasScepter(caster)) {
+      const pulseDmg = [150, 225, 300][lvl - 1];
+      for (const e of enemiesIn(w, caster, caster.pos, 400)) spellDamage(w, caster, e, pulseDmg);
+    }
     w.emit({ kind: 'fx', fx: 'rearm', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {
@@ -345,14 +358,18 @@ const FAMILIAR_HP = [400, 550, 700];
 const VIS_R: AbilityDef = {
   key: 'vis_familiars', name: '石像鬼', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 75, 100], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 75, 65], desc: '神杖:冷却降低;召唤数量增加至三只,且每只石像鬼血量提升 50%。' },
   castPoint: 0.3, tags: ['ultimate'],
   description: '召唤两只石像鬼协同作战 50 秒。',
   onCast(w, caster, lvl) {
-    for (let i = 0; i < 2; i++) {
+    const sc = hasScepter(caster);
+    const count = sc ? 3 : 2;
+    const hp = sc ? Math.round(FAMILIAR_HP[lvl - 1] * 1.5) : FAMILIAR_HP[lvl - 1];
+    for (let i = 0; i < count; i++) {
       summonUnit(w, caster, {
-        name: '石像鬼', hp: FAMILIAR_HP[lvl - 1], dmg: [30 + lvl * 6, 38 + lvl * 6],
+        name: '石像鬼', hp, dmg: [30 + lvl * 6, 38 + lvl * 6],
         armor: 2, ms: 360, range: 100, duration: 50, magicResist: 0.4,
-      }, V.add(caster.pos, { x: i === 0 ? -70 : 70, y: 60 }), true);
+      }, V.add(caster.pos, { x: (i - 1) * 80, y: 60 }), true);
     }
     w.emit({ kind: 'fx', fx: 'familiars', pos: V.clone(caster.pos) });
   },
@@ -424,13 +441,16 @@ const SPIDER_COUNT = [3, 4, 5];
 const BRO_R: AbilityDef = {
   key: 'bro_spawn', name: '蛛群', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 130, 160], cooldown: [40, 36, 32],
+  scepter: { cooldown: [28, 25, 22], desc: '神杖:冷却降低;蜘蛛数量额外增加 2 只,虫海战术更加凶猛。' },
   castPoint: 0.3, tags: ['ultimate'],
   description: '产下一窝蜘蛛随从,撕咬撕碎敌人。',
   onCast(w, caster, lvl) {
-    for (let i = 0; i < SPIDER_COUNT[lvl - 1]; i++) {
+    const sc = hasScepter(caster);
+    const count = sc ? SPIDER_COUNT[lvl - 1] + 2 : SPIDER_COUNT[lvl - 1];
+    for (let i = 0; i < count; i++) {
       summonUnit(w, caster, {
         name: '蛛子', hp: 300, dmg: [22, 28], armor: 1, ms: 350, range: 100, duration: 45, magicResist: 0.2,
-      }, V.add(caster.pos, { x: (i - 2) * 50, y: 50 }), true);
+      }, V.add(caster.pos, { x: (i - Math.floor(count / 2)) * 50, y: 50 }), true);
     }
     w.emit({ kind: 'fx', fx: 'spiderlings', pos: V.clone(caster.pos) });
   },
@@ -531,6 +551,7 @@ const GRIP_TICK = [70, 100, 130];
 const BAN_R: AbilityDef = {
   key: 'ban_grip', name: '末日缠绕', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 525, 550], manaCost: [150, 200, 250], cooldown: [110, 100, 90],
+  scepter: { cooldown: [80, 72, 65], desc: '神杖:冷却降低;缠绕期间每次 tick 额外造成 80 点伤害并减速目标 40%。' },
   castPoint: 0.3, tags: ['stun', 'channel', 'ultimate'],
   description: '引导噩梦缠绕:持续束缚目标使其无法行动并不断造成伤害。',
   onCast(w, caster, _lvl, _pos, target) {
@@ -547,6 +568,10 @@ const BAN_R: AbilityDef = {
       }
       spellDamage(w, caster, t, GRIP_TICK[lvl - 1]);
       applyModifier(w, t, { key: 'ban_grip_disable', duration: 0.7, states: { stunned: true, silenced: true } }, caster.id);
+      if (hasScepter(caster)) {
+        spellDamage(w, caster, t, 80);
+        applyModifier(w, t, { key: 'ban_grip_slow', duration: 0.7, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+      }
     },
   },
   aiScore(w, caster) {

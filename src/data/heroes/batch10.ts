@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -83,11 +83,16 @@ const FOCUS_AS = [2.0, 3.0, 4.0];
 const WIRA_R: AbilityDef = {
   key: 'wira_focus', name: '集中火力', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 100, 100], cooldown: [40, 32, 24],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低;集中火力同时为自身施加攻击射程 +200 的光环,箭雨更难躲避。' },
   castPoint: 0.2, tags: ['buff', 'ultimate'],
   description: '锁定目标倾泻箭雨:极大幅提升攻击速度并立即开火。',
   onCast(w, caster, lvl, _pos, target) {
     applyModifier(w, caster, { key: 'wira_focus_buff', duration: 6, isBuff: true, stats: { bonusAttackSpeed: FOCUS_AS[lvl - 1] } }, caster.id);
     if (target && target.team !== caster.team) caster.issueOrder({ type: 'attack', targetId: target.id });
+    // 神杖:额外附加攻击射程增益
+    if (hasScepter(caster)) {
+      applyModifier(w, caster, { key: 'wira_focus_sc_range', duration: 6, isBuff: true, stats: { bonusAttackRange: 200 } }, caster.id);
+    }
     w.emit({ kind: 'fx', fx: 'focusfire', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {
@@ -158,11 +163,20 @@ const AMP_ARMOR = [8, 12, 16];
 const SLAR_R: AbilityDef = {
   key: 'slar_amplify', name: '裂目', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [50, 50, 50], cooldown: [12, 11, 10],
+  scepter: { cooldown: [8, 7, 6], desc: '神杖:冷却大幅降低;裂目同时在目标周围 350 范围内溅射裂甲波,周围敌人也承受 50% 的护甲削减效果。' },
   castPoint: 0.2, tags: ['nuke', 'ultimate'],
   description: '撕裂目标护甲并使其减速,令其无所遁形。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     applyModifier(w, target, { key: 'slar_amplify_debuff', duration: 25, stats: { bonusArmor: -AMP_ARMOR[lvl - 1], bonusMoveSpeedPct: -0.2 } }, caster.id);
+    // 神杖:周围 350 内的其他敌人承受 50% 护甲削减
+    if (hasScepter(caster)) {
+      for (const e of enemiesIn(w, caster, target.pos, 350)) {
+        if (e.id === target.id) continue;
+        applyModifier(w, e, { key: 'slar_amplify_sc_splash', duration: 25, stats: { bonusArmor: -Math.floor(AMP_ARMOR[lvl - 1] * 0.5), bonusMoveSpeedPct: -0.1 } }, caster.id);
+      }
+      w.emit({ kind: 'fx', fx: 'amplify', pos: V.clone(target.pos), radius: 350 });
+    }
     w.emit({ kind: 'fx', fx: 'amplify', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
@@ -253,19 +267,23 @@ const SHIP_DMG = [200, 300, 400];
 const KUN_R: AbilityDef = {
   key: 'kun_ship', name: '幽灵船', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1000, 1000, 1000], manaCost: [125, 150, 175], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 34], desc: '神杖:冷却降低;幽灵船碰撞半径扩大至 320,且眩晕时间延长至 2.0 秒。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '召来幽灵船冲撞:沿途击晕并重创敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     const dir = V.norm(V.sub(pos, caster.pos));
+    const shipRadius = sc ? 320 : 220;
+    const stunDur = sc ? 2.0 : 1.4;
     const hit = new Set<number>();
     for (let d = 150; d <= 1000; d += 150) {
       const at = V.add(caster.pos, V.scale(dir, d));
-      for (const e of enemiesIn(w, caster, at, 220)) {
+      for (const e of enemiesIn(w, caster, at, shipRadius)) {
         if (hit.has(e.id)) continue;
         hit.add(e.id);
         spellDamage(w, caster, e, SHIP_DMG[lvl - 1]);
-        applyModifier(w, e, { key: 'kun_ship_stun', duration: 1.4, states: { stunned: true } }, caster.id);
+        applyModifier(w, e, { key: 'kun_ship_stun', duration: stunDur, states: { stunned: true } }, caster.id);
       }
     }
     w.emit({ kind: 'fx', fx: 'ghostship', pos: V.clone(caster.pos), pos2: V.add(caster.pos, V.scale(dir, 1000)) });
@@ -350,16 +368,19 @@ const WEAVE_DUR = [10, 13, 16];
 const DAZ_R: AbilityDef = {
   key: 'daz_weave', name: '编织', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1000, 1000, 1000], manaCost: [100, 125, 150], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;编织织入时间加速,每次 tick 护甲削减量翻倍(-2),友军护甲加成也翻倍(+2)。' },
   castPoint: 0.3, tags: ['buff', 'aoe', 'ultimate'],
   description: '编织时空之力:持续削减区域内敌人护甲、强化友军护甲。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const armorSwing = sc ? 2 : 1;
     applyModifier(w, caster, {
       key: `daz_weave_${w.tick}`, duration: WEAVE_DUR[lvl - 1], isBuff: true, tickInterval: 0.5,
       onTick(world) {
-        for (const e of enemiesIn(world, caster, at, 600)) applyModifier(world, e, { key: 'daz_weave_enemy', duration: 1.2, stackable: true, stats: { bonusArmor: -1 } }, caster.id);
-        for (const a of alliesIn(world, caster, at, 600)) applyModifier(world, a, { key: 'daz_weave_ally', duration: 1.2, isBuff: true, stackable: true, stats: { bonusArmor: 1 } }, caster.id);
+        for (const e of enemiesIn(world, caster, at, 600)) applyModifier(world, e, { key: 'daz_weave_enemy', duration: 1.2, stackable: true, stats: { bonusArmor: -armorSwing } }, caster.id);
+        for (const a of alliesIn(world, caster, at, 600)) applyModifier(world, a, { key: 'daz_weave_ally', duration: 1.2, isBuff: true, stackable: true, stats: { bonusArmor: armorSwing } }, caster.id);
         world.emit({ kind: 'fx', fx: 'weave', pos: at, radius: 600 });
       },
     }, caster.id);
@@ -444,16 +465,22 @@ const COIL_TICK = [40, 60, 80];
 const PUK_R: AbilityDef = {
   key: 'puk_coil', name: '梦缠', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [800, 800, 800], manaCost: [100, 150, 200], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;梦缠锁链对受缚目标施加沉默,令其无法在梦魇中施法。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '编织梦境锁链:范围内敌人受初始伤害,并被持续灼烧与减速。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     for (const e of enemiesIn(w, caster, pos, 400)) {
       spellDamage(w, caster, e, COIL_DMG[lvl - 1]);
       applyModifier(w, e, {
         key: 'puk_coil_tether', duration: 4 + lvl, stats: { bonusMoveSpeedPct: -0.3 }, tickInterval: 1,
         onTick: (world, u) => spellDamage(world, caster, u, COIL_TICK[lvl - 1]),
       }, caster.id);
+      // 神杖:附加沉默,锁缠目标无法施法
+      if (sc) {
+        applyModifier(w, e, { key: 'puk_coil_sc_silence', duration: 4 + lvl, states: { silenced: true } }, caster.id);
+      }
     }
     w.emit({ kind: 'fx', fx: 'dreamcoil', pos: V.clone(pos), radius: 400 });
   },
@@ -525,10 +552,17 @@ const GODS_DMG = [100, 160, 220];
 const SVE_R: AbilityDef = {
   key: 'sve_gods', name: '神之力量', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 150, 200], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;爆发神力时引发震击,对周围 400 内敌人造成 150/200/250 魔法伤害。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '爆发神力:大幅提升自身攻击力一段时间。',
   onCast(w, caster, lvl) {
     applyModifier(w, caster, { key: 'sve_gods_buff', duration: 25, isBuff: true, stats: { bonusDamage: GODS_DMG[lvl - 1] } }, caster.id);
+    // 神杖:爆发时震击周围敌人
+    if (hasScepter(caster)) {
+      const shockDmg = [150, 200, 250][lvl - 1];
+      damageArea(w, caster, caster.pos, 400, shockDmg);
+      w.emit({ kind: 'fx', fx: 'godsstrength', pos: V.clone(caster.pos), radius: 400 });
+    }
     w.emit({ kind: 'fx', fx: 'godsstrength', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {

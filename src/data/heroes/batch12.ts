@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, createIllusion,
+  modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, createIllusion, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import * as Combat from '../../sim/combat';
@@ -67,10 +67,14 @@ const CLOAK_DUR = [20, 30, 40];
 const RIK_R: AbilityDef = {
   key: 'rik_cloak', name: '潜行大师', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 50, 50], cooldown: [40, 32, 24],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低;潜行持续时间延长至 30/45/60 秒,且额外提升 20% 移速。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '隐入暗影长时间潜行,并大幅提升移动速度伺机突袭。',
   onCast(w, caster, lvl) {
-    applyModifier(w, caster, { key: 'rik_cloak_buff', duration: CLOAK_DUR[lvl - 1], isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.15 + lvl * 0.05 } }, caster.id);
+    const sc = hasScepter(caster);
+    const dur = sc ? [30, 45, 60][lvl - 1] : CLOAK_DUR[lvl - 1];
+    const msPct = sc ? 0.35 + lvl * 0.05 : 0.15 + lvl * 0.05;
+    applyModifier(w, caster, { key: 'rik_cloak_buff', duration: dur, isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeedPct: msPct } }, caster.id);
     w.emit({ kind: 'fx', fx: 'permainvis', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {
@@ -145,10 +149,12 @@ const OMNI_HITS = [6, 9, 12];
 const JUG_R: AbilityDef = {
   key: 'jug_omni', name: '无敌斩', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [400, 400, 400], manaCost: [150, 175, 200], cooldown: [130, 120, 110],
+  scepter: { cooldown: [95, 85, 75], desc: '神杖:冷却降低;斩击次数增加 3 次,每斩额外造成 50 点纯粹伤害。' },
   castPoint: 0.2, tags: ['nuke', 'ultimate'],
   description: '化作剑影在敌群间穿梭,连续斩击附近的敌人多次。',
   onCast(w, caster, lvl) {
-    const n = OMNI_HITS[lvl - 1];
+    const sc = hasScepter(caster);
+    const n = OMNI_HITS[lvl - 1] + (sc ? 3 : 0);
     for (let i = 0; i < n; i++) {
       const foes = enemiesIn(w, caster, caster.pos, 600).filter((t) => t.alive);
       if (!foes.length) break;
@@ -156,6 +162,11 @@ const JUG_R: AbilityDef = {
       blinkTo(w, caster, w.map.nearestWalkable(V.add(tgt.pos, { x: Math.cos(i) * 70, y: Math.sin(i) * 70 })));
       Combat.dealAttackDamage(w, caster, tgt);
       spellDamage(w, caster, tgt, 30 + lvl * 20);
+      // 神杖:额外纯粹伤害
+      if (sc) {
+        tgt.hp = Math.max(0, tgt.hp - 50);
+        if (tgt.hp === 0) tgt.alive = false;
+      }
     }
     w.emit({ kind: 'fx', fx: 'omnislash', pos: V.clone(caster.pos), radius: 600 });
   },
@@ -243,13 +254,17 @@ const EXORCISM_SPIRITS = [4, 6, 8];
 const DPR_R: AbilityDef = {
   key: 'dpr_exorcism', name: '群魔乱舞', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [120, 115, 110],
+  scepter: { cooldown: [85, 80, 75], desc: '神杖:冷却降低;恶灵数量额外增加 3 只,持续时间延长至 40 秒。' },
   castPoint: 0.3, tags: ['ultimate'],
   description: '释放一群恶灵环绕作战,自动扑击附近敌人 25 秒。',
   onCast(w, caster, lvl) {
-    for (let i = 0; i < EXORCISM_SPIRITS[lvl - 1]; i++) {
+    const sc = hasScepter(caster);
+    const count = EXORCISM_SPIRITS[lvl - 1] + (sc ? 3 : 0);
+    const dur = sc ? 40 : 25;
+    for (let i = 0; i < count; i++) {
       summonUnit(w, caster, {
-        name: '恶灵', hp: 120, dmg: [28, 36], armor: 0, ms: 400, range: 150, duration: 25, magicResist: 0.5, attackType: 'pierce',
-      }, V.add(caster.pos, { x: (i - 3) * 40, y: 50 }), true);
+        name: '恶灵', hp: 120, dmg: [28, 36], armor: 0, ms: 400, range: 150, duration: dur, magicResist: 0.5, attackType: 'pierce',
+      }, V.add(caster.pos, { x: (i - Math.floor(count / 2)) * 40, y: 50 }), true);
     }
     w.emit({ kind: 'fx', fx: 'exorcism', pos: V.clone(caster.pos) });
   },
@@ -332,12 +347,16 @@ const WALL_ILLU = [2, 3, 4];
 const DSR_R: AbilityDef = {
   key: 'dsr_wall', name: '复制之墙', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [800, 800, 800], manaCost: [125, 150, 175], cooldown: [100, 90, 80],
+  scepter: { cooldown: [70, 62, 55], desc: '神杖:冷却降低;幻象数量额外增加 2 只,减速加深至 60%。' },
   castPoint: 0.3, tags: ['aoe', 'slow', 'ultimate'],
   description: '竖起复制之墙:大幅减速区域内敌人,并召唤自身幻象助战。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    modifierArea(w, caster, pos, 450, { key: 'dsr_wall_slow', duration: 5, stats: { bonusMoveSpeedPct: -0.45 } }, 'enemy');
-    createIllusion(w, caster, WALL_ILLU[lvl - 1], 0.4, 2, 18);
+    const sc = hasScepter(caster);
+    const slowPct = sc ? -0.6 : -0.45;
+    const illuCount = WALL_ILLU[lvl - 1] + (sc ? 2 : 0);
+    modifierArea(w, caster, pos, 450, { key: 'dsr_wall_slow', duration: 5, stats: { bonusMoveSpeedPct: slowPct } }, 'enemy');
+    createIllusion(w, caster, illuCount, 0.4, 2, 18);
     w.emit({ kind: 'fx', fx: 'wallreplica', pos: V.clone(pos), radius: 450 });
   },
   aiScore(w, caster) {
@@ -415,16 +434,23 @@ const ROAR_STUN = [2.5, 3.0, 3.5];
 const BEA_R: AbilityDef = {
   key: 'bea_roar', name: '原始咆哮', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550], manaCost: [100, 150, 200], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;余波震退升级为完整击晕(持续 1.5 秒),震慑整片区域。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
   description: '发出震天咆哮:重创并长时间击晕目标,余波震退周围敌人。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
     spellDamage(w, caster, target, ROAR_DMG[lvl - 1]);
     applyModifier(w, target, { key: 'bea_roar_stun', duration: ROAR_STUN[lvl - 1], states: { stunned: true } }, caster.id);
     for (const e of enemiesIn(w, caster, target.pos, 400)) {
       if (e.id === target.id) continue;
       spellDamage(w, caster, e, ROAR_DMG[lvl - 1] * 0.4);
-      applyModifier(w, e, { key: 'bea_roar_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+      if (sc) {
+        // 神杖:余波升级为击晕
+        applyModifier(w, e, { key: 'bea_roar_aoe_stun', duration: 1.5, states: { stunned: true } }, caster.id);
+      } else {
+        applyModifier(w, e, { key: 'bea_roar_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+      }
     }
     w.emit({ kind: 'fx', fx: 'primalroar', pos: V.clone(target.pos), radius: 400 });
   },
@@ -515,12 +541,16 @@ const VENDETTA_DUR = [25, 30, 35];
 const NYX_R: AbilityDef = {
   key: 'nyx_vendetta', name: '复仇', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 125, 150], cooldown: [70, 60, 50],
+  scepter: { cooldown: [48, 40, 33], desc: '神杖:冷却降低;复仇爆发伤害提升 50%,潜行持续时间延长至 40/50/60 秒。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '隐入暗影伺机复仇:潜行加速,下次出手附带巨额爆发。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const dur = sc ? [40, 50, 60][lvl - 1] : VENDETTA_DUR[lvl - 1];
+    const dmg = sc ? VENDETTA_DMG[lvl - 1] * 1.5 : VENDETTA_DMG[lvl - 1];
     applyModifier(w, caster, {
-      key: 'nyx_vendetta_buff', duration: VENDETTA_DUR[lvl - 1], isBuff: true,
-      states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.2 }, data: { vendettaDmg: VENDETTA_DMG[lvl - 1] },
+      key: 'nyx_vendetta_buff', duration: dur, isBuff: true,
+      states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.2 }, data: { vendettaDmg: dmg },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'vendetta', pos: V.clone(caster.pos) });
   },

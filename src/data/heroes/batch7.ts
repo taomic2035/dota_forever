@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import * as Combat from '../../sim/combat';
@@ -92,15 +92,21 @@ const GRAF_E: AbilityDef = {
 const GRAF_R: AbilityDef = {
   key: 'graf_detonate', name: '引爆', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 75, 100], cooldown: [16, 13, 10],
+  scepter: { cooldown: [10, 8, 6], desc: '神杖:冷却大幅降低;每枚地雷爆炸范围扩大至 500,并对目标施加 1.5 秒眩晕。' },
   castPoint: 0.2, tags: ['nuke', 'aoe', 'ultimate'],
   description: '同时引爆场上所有遥控地雷,造成范围伤害。',
   onCast(w, caster) {
+    const sc = hasScepter(caster);
+    const radius = sc ? 500 : 350;
     const mines = [...w.units.values()].filter((u) => u.alive && u.kind === 'ward' && u.name === '遥控地雷' && u.summonOwnerId === caster.id);
     for (const mine of mines) {
       const dmg = mine.modifiers.find((m) => m.key === 'graf_mine')?.def.data?.dmg ?? 120;
-      damageArea(w, caster, mine.pos, 350, dmg);
-      modifierArea(w, caster, mine.pos, 350, { key: 'graf_detonate_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.3 } }, 'enemy');
-      w.emit({ kind: 'fx', fx: 'detonate', pos: V.clone(mine.pos), radius: 350 });
+      damageArea(w, caster, mine.pos, radius, dmg);
+      modifierArea(w, caster, mine.pos, radius, { key: 'graf_detonate_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.3 } }, 'enemy');
+      if (sc) {
+        modifierArea(w, caster, mine.pos, radius, { key: 'graf_detonate_sc_stun', duration: 1.5, states: { stunned: true } }, 'enemy');
+      }
+      w.emit({ kind: 'fx', fx: 'detonate', pos: V.clone(mine.pos), radius });
       mine.alive = false; mine.diedAt = w.time;
     }
   },
@@ -192,13 +198,22 @@ const SHOWER_DMG = [120, 200, 280];
 const SELENE_R: AbilityDef = {
   key: 'selene_shower', name: '月华倾泻', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [200, 300, 400], cooldown: [120, 110, 100],
+  scepter: { cooldown: [80, 70, 60], desc: '神杖:冷却降低;友方治疗量提升 50%,并对敌方英雄施加 2 秒减速 25%。' },
   castPoint: 0.4, tags: ['heal', 'nuke', 'aoe', 'ultimate'],
   description: '全图降下月华:治疗所有友方英雄,并伤害所有敌方英雄。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
     for (const u of w.units.values()) {
       if (!u.isHero() || !u.alive) continue;
-      if (u.team === caster.team) u.hp = Math.min(u.calc.maxHp, u.hp + SHOWER_HEAL[lvl - 1]);
-      else spellDamage(w, caster, u, SHOWER_DMG[lvl - 1]);
+      if (u.team === caster.team) {
+        const healAmt = sc ? SHOWER_HEAL[lvl - 1] * 1.5 : SHOWER_HEAL[lvl - 1];
+        u.hp = Math.min(u.calc.maxHp, u.hp + healAmt);
+      } else {
+        spellDamage(w, caster, u, SHOWER_DMG[lvl - 1]);
+        if (sc) {
+          applyModifier(w, u, { key: 'selene_shower_sc_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.25 } }, caster.id);
+        }
+      }
     }
     w.emit({ kind: 'fx', fx: 'moonshower', pos: V.clone(caster.pos) });
   },
@@ -285,14 +300,22 @@ const ELDER_RANGE = [350, 400, 450];
 const DRAK_R: AbilityDef = {
   key: 'drak_elder', name: '远古巨龙', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 100, 100], cooldown: [110, 100, 90],
+  scepter: { cooldown: [75, 65, 55], desc: '神杖:冷却降低;龙形态持续时间延长至 45 秒,并在变形时喷射烈焰冲击波,伤害周围 400 内敌人。' },
   castPoint: 0.2, tags: ['buff', 'ultimate'],
   description: '化身远古巨龙 30 秒:获得远程攻击距离、攻击溅射并附带减速。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const duration = sc ? 45 : 30;
     applyModifier(w, caster, {
-      key: 'drak_elder_buff', duration: 30, isBuff: true,
+      key: 'drak_elder_buff', duration, isBuff: true,
       stats: { bonusAttackRange: ELDER_RANGE[lvl - 1], bonusDamage: lvl * 15, bonusAttackSpeed: 0.3 },
     }, caster.id);
-    w.emit({ kind: 'fx', fx: 'elderdragon', pos: V.clone(caster.pos), radius: 150 });
+    if (sc) {
+      damageArea(w, caster, caster.pos, 400, 100 + lvl * 50);
+      w.emit({ kind: 'fx', fx: 'elderdragon', pos: V.clone(caster.pos), radius: 400 });
+    } else {
+      w.emit({ kind: 'fx', fx: 'elderdragon', pos: V.clone(caster.pos), radius: 150 });
+    }
   },
   // 巨龙形态:攻击溅射 + 减速(法球钩子)
   orbOnHit(w, attacker, target) {
@@ -384,15 +407,21 @@ const NOVA_PER_STACK = [40, 60, 80];
 const VENONA_R: AbilityDef = {
   key: 'venona_nova', name: '剧毒新星', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 225, 300], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;引爆范围扩大至 900,并对每层毒素额外造成 30 纯粹伤害。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '引爆周围敌人体内的毒素:每层剧毒造成额外爆发伤害。',
   onCast(w, caster, lvl) {
-    for (const e of enemiesIn(w, caster, caster.pos, 600)) {
+    const sc = hasScepter(caster);
+    const range = sc ? 900 : 600;
+    for (const e of enemiesIn(w, caster, caster.pos, range)) {
       const stacks = e.modifiers.filter((m) => m.key === 'venona_venom').length;
       spellDamage(w, caster, e, 100 + stacks * NOVA_PER_STACK[lvl - 1]);
+      if (sc && stacks > 0) {
+        Combat.applyDamage(w, e, { source: caster.id, attackType: 'spell', amount: stacks * 30, flags: { pure: true } });
+      }
       applyModifier(w, e, { key: 'venona_nova_slow', duration: 3, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
     }
-    w.emit({ kind: 'fx', fx: 'venomnova', pos: V.clone(caster.pos), radius: 600 });
+    w.emit({ kind: 'fx', fx: 'venomnova', pos: V.clone(caster.pos), radius: range });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 580).filter((t) => t.isHero());
@@ -489,12 +518,17 @@ const TRANCE_AS = [0.6, 0.9, 1.2];
 const GROM_R: AbilityDef = {
   key: 'grom_trance', name: '战斗专注·爆发', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 50, 50], cooldown: [45, 38, 31],
+  scepter: { cooldown: [30, 25, 20], desc: '神杖:冷却大幅降低;战斗恍惚额外赋予友军 20% 移速提升,持续时间延长至 10 秒。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '进入战斗恍惚:大幅提升自身与周围友军的攻击速度 7 秒。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const duration = sc ? 10 : 7;
+    const asBonus = sc ? TRANCE_AS[lvl - 1] + 0.2 : TRANCE_AS[lvl - 1];
+    const extraStats = sc ? { bonusAttackSpeed: asBonus, bonusMoveSpeedPct: 0.2 } : { bonusAttackSpeed: asBonus };
     modifierArea(w, caster, caster.pos, 900, {
-      key: 'grom_trance_buff', duration: 7, isBuff: true,
-      stats: { bonusAttackSpeed: TRANCE_AS[lvl - 1] },
+      key: 'grom_trance_buff', duration, isBuff: true,
+      stats: extraStats,
     }, 'ally');
     w.emit({ kind: 'fx', fx: 'trance', pos: V.clone(caster.pos), radius: 900 });
   },
@@ -582,15 +616,23 @@ const TRAP_SLOW = [-0.3, -0.4, -0.5];
 const OLIVE_R: AbilityDef = {
   key: 'olive_trap', name: '灵能陷阱', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1500, 1500, 1500], manaCost: [60, 60, 60], cooldown: [11, 8, 5],
+  scepter: { cooldown: [7, 5, 3], desc: '神杖:冷却进一步降低;陷阱范围扩大至 600,并对区域内敌人造成 1.5 秒减速 + 沉默。' },
   castPoint: 0.2, tags: ['slow', 'aoe', 'ultimate'],
   description: '在远处布下灵能陷阱,引爆后大幅减速并伤害区域内敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    damageArea(w, caster, pos, 400, 100 + lvl * 60);
-    modifierArea(w, caster, pos, 400, {
+    const sc = hasScepter(caster);
+    const radius = sc ? 600 : 400;
+    damageArea(w, caster, pos, radius, 100 + lvl * 60);
+    modifierArea(w, caster, pos, radius, {
       key: 'olive_trap_slow', duration: 5, stats: { bonusMoveSpeedPct: TRAP_SLOW[lvl - 1], bonusAttackSpeed: -0.3 },
     }, 'enemy');
-    w.emit({ kind: 'fx', fx: 'psitrap', pos: V.clone(pos), radius: 400 });
+    if (sc) {
+      modifierArea(w, caster, pos, radius, {
+        key: 'olive_trap_sc_silence', duration: 1.5, states: { silenced: true },
+      }, 'enemy');
+    }
+    w.emit({ kind: 'fx', fx: 'psitrap', pos: V.clone(pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 1200).filter((t) => t.isHero());
