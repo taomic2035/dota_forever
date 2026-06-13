@@ -6,19 +6,51 @@ import {
 } from '../src/render/resource3dAssets';
 
 describe('non-hero 3D resource samples', () => {
-  it('covers all first-pass resource categories with around 10 samples each', () => {
+  it('covers the full non-hero resource taxonomy with expandable samples', () => {
     expect(RESOURCE3D_CATEGORIES).toEqual([
       'lane_units',
       'neutral_units',
+      'boss_objectives',
       'buildings',
+      'shops_npcs',
+      'couriers_summons',
       'items',
+      'item_components',
+      'consumables',
+      'wards_traps',
       'spell_fx',
+      'projectiles',
+      'aoe_indicators',
+      'environment_fx',
       'map_props',
+      'runes_powerups',
+      'pickups_drops',
+      'status_effects',
+      'ability_icons',
+      'targeting_reticles',
+      'combat_numbers',
+      'health_mana_ui',
+      'screen_overlays',
+      'announcements',
+      'shop_inventory_ui',
+      'sound_cue_markers',
+      'hero_roster_ui',
+      'level_talent_ui',
+      'death_recap_ui',
+      'scoreboard_ui',
+      'match_flow_ui',
+      'cursor_commands',
+      'system_notifications',
+      'tutorial_guides',
+      'ui_badges',
+      'terrain_tiles',
+      'minimap_markers',
+      'team_banners',
     ]);
 
     for (const category of RESOURCE3D_CATEGORIES) {
       const assets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.category === category);
-      expect(assets.length, category).toBe(10);
+      expect(assets.length, category).toBeGreaterThanOrEqual(10);
     }
   });
 
@@ -50,5 +82,38 @@ describe('non-hero 3D resource samples', () => {
   it('uses globally unique resource keys', () => {
     const keys = RESOURCE3D_SAMPLE_ASSETS.map((asset) => asset.key);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('covers requested terrain dressing subtypes for map art direction', () => {
+    const terrainLikeAssets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => [
+      'terrain_tiles',
+      'map_props',
+      'environment_fx',
+    ].includes(asset.category));
+    const terrainText = terrainLikeAssets
+      .map((asset) => [
+        asset.key,
+        asset.name,
+        asset.role,
+        asset.silhouette,
+        asset.motif,
+      ].join(' '))
+      .join('\n');
+
+    const requiredTerrainConcepts: Array<[string, RegExp]> = [
+      ['flat ground', /(flat|plain|平地|地面|路面)/i],
+      ['trees', /(tree|树|woodland|林)/i],
+      ['grass', /(grass|草)/i],
+      ['flowers', /(flower|花)/i],
+      ['high ground', /(highground|高地)/i],
+      ['fences', /(fence|栅栏)/i],
+      ['slopes and ramps', /(slope|ramp|坡|斜坡)/i],
+      ['river', /(river|河道|水面)/i],
+      ['sky', /(sky|天空|cloud|云)/i],
+    ];
+
+    for (const [concept, pattern] of requiredTerrainConcepts) {
+      expect(terrainText, concept).toMatch(pattern);
+    }
   });
 });

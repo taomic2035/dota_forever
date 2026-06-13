@@ -27,10 +27,42 @@ import { createResource3DModel } from '../render/resource3dFactory';
 const CATEGORY_LABEL: Record<Resource3DCategory, string> = {
   lane_units: '兵线单位',
   neutral_units: '中立野怪',
+  boss_objectives: 'Boss / 目标',
   buildings: '建筑',
+  shops_npcs: '商店 / NPC',
+  couriers_summons: '信使 / 召唤物',
   items: '物品',
+  item_components: '物品组件',
+  consumables: '消耗品',
+  wards_traps: '守卫 / 陷阱',
   spell_fx: '技能 / 投射物',
+  projectiles: '独立弹道',
+  aoe_indicators: '范围指示',
+  environment_fx: '环境特效',
   map_props: '地图道具',
+  runes_powerups: '神符 / 增益',
+  pickups_drops: '掉落 / 拾取',
+  status_effects: '状态效果',
+  ability_icons: '技能图标',
+  targeting_reticles: '施法指示',
+  combat_numbers: '战斗数字',
+  health_mana_ui: '血蓝条 UI',
+  screen_overlays: '屏幕叠层',
+  announcements: '击杀 / 播报',
+  shop_inventory_ui: '商店 / 背包',
+  sound_cue_markers: '音效提示',
+  hero_roster_ui: '英雄名册',
+  level_talent_ui: '等级 / 天赋',
+  death_recap_ui: '死亡回放',
+  scoreboard_ui: '比分面板',
+  match_flow_ui: '赛前 / 结算',
+  cursor_commands: '鼠标命令',
+  system_notifications: '系统通知',
+  tutorial_guides: '教程引导',
+  ui_badges: 'UI 徽章',
+  terrain_tiles: '地貌块',
+  minimap_markers: '小地图标记',
+  team_banners: '队伍旗帜',
 };
 
 interface PreviewResource {
@@ -123,14 +155,25 @@ export function showResource3DPreview(parent: HTMLElement): void {
     labelsLayer.innerHTML = '';
     resources = [];
     const assets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.category === category);
+    const dense = assets.length > 15;
+    const columns = dense ? 6 : 5;
+    const rows = Math.ceil(assets.length / columns);
+    const spacingX = dense ? 2.08 : 2.65;
+    const spacingZ = dense ? 1.72 : 2.35;
+    const modelScale = dense ? 0.72 : 1;
     assets.forEach((asset, index) => {
       const { root: model } = createResource3DModel(asset);
-      const col = index % 5;
-      const row = Math.floor(index / 5);
+      const col = index % columns;
+      const row = Math.floor(index / columns);
       const anchor = new Group();
       anchor.name = `resource3d-slot:${asset.key}`;
-      anchor.position.set((col - 2) * 2.65, 0, (row - 0.5) * 2.35);
-      anchor.rotation.y = row === 0 ? 0.24 : -0.16;
+      anchor.position.set(
+        (col - (columns - 1) / 2) * spacingX,
+        0,
+        (row - (rows - 1) / 2) * spacingZ,
+      );
+      anchor.rotation.y = row % 2 === 0 ? 0.24 : -0.16;
+      anchor.scale.setScalar(modelScale);
       anchor.add(model);
       categoryRoot.add(anchor);
 
@@ -138,14 +181,14 @@ export function showResource3DPreview(parent: HTMLElement): void {
       label.style.cssText = [
         'position:absolute',
         'transform:translate(-50%, 24px)',
-        'min-width:108px',
-        'padding:5px 7px',
+        `min-width:${dense ? 84 : 108}px`,
+        `padding:${dense ? '4px 5px' : '5px 7px'}`,
         'border:1px solid rgba(230,205,120,.46)',
         'border-radius:6px',
         'background:linear-gradient(180deg, rgba(18,23,21,.88), rgba(7,9,8,.72))',
         'box-shadow:0 10px 24px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.1)',
         'text-align:center',
-        'font:700 11px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        `font:700 ${dense ? 10 : 11}px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif`,
         'line-height:1.35',
         'letter-spacing:0',
       ].join(';');

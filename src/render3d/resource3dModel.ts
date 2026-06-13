@@ -39,7 +39,7 @@ export function resourceAssetForUnit(
     case 'neutralSmall': return { key: 'neutral_wolf', scale: 25 };
     case 'neutralLarge': return { key: 'neutral_troll', scale: 34 };
     case 'neutralAncient': return { key: 'neutral_ancient_turtle', scale: 44 };
-    case 'boss': return { key: 'neutral_turtle_king', scale: 60 };
+    case 'boss': return { key: 'boss_pitlord_core', scale: 60 };
     default: return null;
   }
 }
