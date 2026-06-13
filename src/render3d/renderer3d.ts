@@ -13,6 +13,7 @@ import { humanoidSpec } from './modelParts';
 import { buildHumanoid, type HumanoidParts } from './modelGen';
 import { poseFor, type AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
+import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D } from './terrain3d';
 
@@ -23,8 +24,8 @@ export class Renderer3D {
   readonly canvas: HTMLCanvasElement;
   alpha = 0;
   viewerTeam: number | null = null;
-  /** fx 在 V4 实现;V1 空消费,保持与 2D 接口兼容。 */
-  readonly fx = { consume(_w: World, _team: number | null): void {} };
+  /** 3D 特效:消费事件流 + 弹道(与 2D fx 接口一致:consume(world, team))。 */
+  readonly fx: Fx3D;
 
   private models = new Map<number, ModelEntry>();
   private buildings = new Map<number, BuildingModel>();
@@ -38,6 +39,7 @@ export class Renderer3D {
   constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
     this.canvas = this.s3d.canvas;
+    this.fx = new Fx3D(this.s3d.scene);
     // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
     if (camera.zoom < 1.0) camera.zoom = 1.4;
     this.s3d.scene.add(buildTerrain3D(world.map));
@@ -184,6 +186,7 @@ export class Renderer3D {
       }
     }
 
+    this.fx.update(world, performance.now() / 1000);
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
