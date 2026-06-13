@@ -80,7 +80,7 @@ export class Hud {
               <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${hero.name}</b>
               <span style="color:#d9b44a;white-space:nowrap">${meta.kills}/${meta.deaths}/${meta.assists}</span>
             </div>
-            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 4px">阵亡 - ${respawnIn}s</div>${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
+            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 8px;margin-top:5px;color:#cfc7a5;font-size:11px;">
               <span>STR ${attrs.str.toFixed(0)} AGI ${attrs.agi.toFixed(0)} INT ${attrs.int.toFixed(0)}</span>
               <span>DMG ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
@@ -121,6 +121,19 @@ export class Hud {
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">Night</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
+  }
+
+  /** 死亡回放:显示最后击杀来源(被谁击杀)。 */
+  private deathRecap(world: World, hero: Unit): string {
+    const killer = hero.lastAttackerId ? world.getUnit(hero.lastAttackerId) : undefined;
+    if (!killer) return '';
+    const who = killer.isHero() ? killer.name
+      : killer.kind === 'tower' ? '防御塔'
+      : killer.kind === 'building' ? '建筑'
+      : killer.kind === 'boss' ? '深渊领主'
+      : killer.kind === 'neutral' ? '野怪' : '小兵';
+    const color = killer.isHero() ? (killer.heroDef?.color ?? '#ef5350') : '#b0a890';
+    return `<div style="font-size:11px;color:#9a9277;margin-bottom:2px">被 <span style="color:${color};font-weight:700">${who}</span> 击杀</div>`;
   }
 
   /** 死亡时买活行:可买活则显示按钮(费用),冷却中显示倒计时,金不足显示所需。 */
