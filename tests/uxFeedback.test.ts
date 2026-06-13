@@ -5,8 +5,9 @@ describe('UxFeedback', () => {
   it('expires world pulses deterministically', () => {
     const ux = new UxFeedback();
     ux.addWorldPulse({ kind: 'move', pos: { x: 100, y: 200 }, time: 10 });
+    ux.addWorldPulse({ kind: 'queued', pos: { x: 300, y: 400 }, time: 10.1 });
 
-    expect(ux.worldPulsesAt(10.1)).toHaveLength(1);
+    expect(ux.worldPulsesAt(10.1).map((pulse) => pulse.kind)).toEqual(['move', 'queued']);
     expect(ux.worldPulsesAt(10.7)).toHaveLength(0);
   });
 

@@ -1,6 +1,6 @@
 import type { Vec2 } from '../core/vec2';
 
-export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'reject' | 'stop' | 'hold' | 'ping';
+export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'queued' | 'reject' | 'stop' | 'hold' | 'ping';
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
 export type CursorIntentKind = 'attackmove' | 'cast' | 'item';

@@ -144,23 +144,23 @@ function startCast(w: World, u: Unit, o: Order): void {
   const index = o.abilityIndex!;
   const inst = u.abilities[index];
   const def = abilityDefAt(u, index);
-  if (!inst || !def || inst.level <= 0) { u.order = null; return; }
-  if (stateOf(u).silenced || w.time < inst.cooldownUntil) { u.order = null; return; }
+  if (!inst || !def || inst.level <= 0) { u.advanceOrder(); return; }
+  if (stateOf(u).silenced || w.time < inst.cooldownUntil) { u.advanceOrder(); return; }
   const lvl = inst.level;
   const mana = abilityManaCost(u, def, lvl);
-  if (u.mp < mana) { u.order = null; return; }
+  if (u.mp < mana) { u.advanceOrder(); return; }
 
   // 目标解析
   let target: Unit | undefined;
   let aim: Vec2 | undefined = o.pos;
   if (def.targetMode === 'unit') {
     target = w.getUnit(o.targetId!);
-    if (!target || !target.alive) { u.order = null; return; }
+    if (!target || !target.alive) { u.advanceOrder(); return; }
     // 权威目标校验:队伍/种类不合法则拒绝(人类/AI/未来网络命令一视同仁)
-    if (!targetMatchesFilter(u, target, def.targetTeam, def.targetKind)) { u.order = null; return; }
+    if (!targetMatchesFilter(u, target, def.targetTeam, def.targetKind)) { u.advanceOrder(); return; }
     // A3:无敌敌方单体不可被指向施法(不扣蓝/CD,与物品侧 M11 一致)。
     // 魔免不在此拦——技能是否穿魔免/是否纯粹伤害因技而异,由 onCast 与 M1 下游裁决。
-    if (isEnemy(u, target) && (target.invulnerable || stateOf(target).untargetable)) { u.order = null; return; }
+    if (isEnemy(u, target) && (target.invulnerable || stateOf(target).untargetable)) { u.advanceOrder(); return; }
     aim = target.pos;
   }
 
@@ -233,6 +233,7 @@ function executeCast(w: World, u: Unit, index: number, pos?: Vec2, targetId?: En
   w.emit({ kind: 'cast_done', unitId: u.id, abilityKey: def.key, pos, targetId });
   // M4 林肯法球:单体敌对指向技被格挡 → 已付蓝/CD,效果作废
   if (def.targetMode === 'unit' && target && isEnemy(u, target) && tryLinkenBlock(w, target, u.id)) {
+    u.advanceOrder();
     return;
   }
   if (def.channel) {
@@ -246,6 +247,7 @@ function executeCast(w: World, u: Unit, index: number, pos?: Vec2, targetId?: En
     def.onCast?.(w, u, lvl, pos, target);
   } else {
     def.onCast?.(w, u, lvl, pos, target);
+    u.advanceOrder();
   }
 }
 

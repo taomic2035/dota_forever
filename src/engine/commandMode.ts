@@ -1,16 +1,26 @@
 export type CommandModeResult =
   | { kind: 'none' }
   | { kind: 'instant-cast'; abilityIndex: number }
-  | { kind: 'pending-cast'; abilityIndex: number }
-  | { kind: 'cast'; abilityIndex: number }
+  | { kind: 'instant-cast'; abilityIndex: number; queued?: boolean }
+  | { kind: 'pending-cast'; abilityIndex: number; queued?: boolean }
+  | { kind: 'cast'; abilityIndex: number; queued?: boolean }
   | { kind: 'instant-item'; itemSlot: number }
-  | { kind: 'pending-item'; itemSlot: number }
-  | { kind: 'item'; itemSlot: number }
-  | { kind: 'pending-attackmove' }
-  | { kind: 'attackmove' };
+  | { kind: 'instant-item'; itemSlot: number; queued?: boolean }
+  | { kind: 'pending-item'; itemSlot: number; queued?: boolean }
+  | { kind: 'item'; itemSlot: number; queued?: boolean }
+  | { kind: 'pending-attackmove'; queued?: boolean }
+  | { kind: 'attackmove'; queued?: boolean };
+
+export interface CommandModeOptions {
+  queued?: boolean;
+}
 
 export class CommandMode {
-  private pending: { kind: 'none' } | { kind: 'cast'; abilityIndex: number } | { kind: 'item'; itemSlot: number } | { kind: 'attackmove' } = { kind: 'none' };
+  private pending:
+    | { kind: 'none' }
+    | { kind: 'cast'; abilityIndex: number; options: CommandModeOptions }
+    | { kind: 'item'; itemSlot: number; options: CommandModeOptions }
+    | { kind: 'attackmove'; options: CommandModeOptions } = { kind: 'none' };
 
   get pendingCast(): number {
     if (this.pending.kind === 'cast') return this.pending.abilityIndex;
@@ -22,27 +32,37 @@ export class CommandMode {
     return this.pending.kind === 'item' ? this.pending.itemSlot : -1;
   }
 
-  beginCast(abilityIndex: number, waitsForTarget: boolean): CommandModeResult {
-    if (!waitsForTarget) {
-      this.pending = { kind: 'none' };
-      return { kind: 'instant-cast', abilityIndex };
-    }
-    this.pending = { kind: 'cast', abilityIndex };
-    return { kind: 'pending-cast', abilityIndex };
+  pendingCastOptions(): CommandModeOptions {
+    return this.pending.kind === 'cast' || this.pending.kind === 'attackmove' ? { ...this.pending.options } : {};
   }
 
-  beginItem(itemSlot: number, waitsForTarget: boolean): CommandModeResult {
-    if (!waitsForTarget) {
-      this.pending = { kind: 'none' };
-      return { kind: 'instant-item', itemSlot };
-    }
-    this.pending = { kind: 'item', itemSlot };
-    return { kind: 'pending-item', itemSlot };
+  pendingItemOptions(): CommandModeOptions {
+    return this.pending.kind === 'item' ? { ...this.pending.options } : {};
   }
 
-  beginAttackMove(): CommandModeResult {
-    this.pending = { kind: 'attackmove' };
-    return { kind: 'pending-attackmove' };
+  beginCast(abilityIndex: number, waitsForTarget: boolean, options: CommandModeOptions = {}): CommandModeResult {
+    const resultOptions = resultQueued(options);
+    if (!waitsForTarget) {
+      this.pending = { kind: 'none' };
+      return { kind: 'instant-cast', abilityIndex, ...resultOptions };
+    }
+    this.pending = { kind: 'cast', abilityIndex, options: { ...options } };
+    return { kind: 'pending-cast', abilityIndex, ...resultOptions };
+  }
+
+  beginItem(itemSlot: number, waitsForTarget: boolean, options: CommandModeOptions = {}): CommandModeResult {
+    const resultOptions = resultQueued(options);
+    if (!waitsForTarget) {
+      this.pending = { kind: 'none' };
+      return { kind: 'instant-item', itemSlot, ...resultOptions };
+    }
+    this.pending = { kind: 'item', itemSlot, options: { ...options } };
+    return { kind: 'pending-item', itemSlot, ...resultOptions };
+  }
+
+  beginAttackMove(options: CommandModeOptions = {}): CommandModeResult {
+    this.pending = { kind: 'attackmove', options: { ...options } };
+    return { kind: 'pending-attackmove', ...resultQueued(options) };
   }
 
   previewCast(): number | null {
@@ -56,17 +76,20 @@ export class CommandMode {
   consumePrimary(options: { keepPending?: boolean } = {}): CommandModeResult {
     if (this.pending.kind === 'cast') {
       const abilityIndex = this.pending.abilityIndex;
+      const resultOptions = resultQueued(this.pending.options);
       if (!options.keepPending) this.pending = { kind: 'none' };
-      return { kind: 'cast', abilityIndex };
+      return { kind: 'cast', abilityIndex, ...resultOptions };
     }
     if (this.pending.kind === 'item') {
       const itemSlot = this.pending.itemSlot;
+      const resultOptions = resultQueued(this.pending.options);
       if (!options.keepPending) this.pending = { kind: 'none' };
-      return { kind: 'item', itemSlot };
+      return { kind: 'item', itemSlot, ...resultOptions };
     }
     if (this.pending.kind === 'attackmove') {
+      const resultOptions = resultQueued(this.pending.options);
       this.pending = { kind: 'none' };
-      return { kind: 'attackmove' };
+      return { kind: 'attackmove', ...resultOptions };
     }
     return { kind: 'none' };
   }
@@ -74,4 +97,8 @@ export class CommandMode {
   cancel(): void {
     this.pending = { kind: 'none' };
   }
+}
+
+function resultQueued(options: CommandModeOptions): { queued?: boolean } {
+  return options.queued ? { queued: true } : {};
 }

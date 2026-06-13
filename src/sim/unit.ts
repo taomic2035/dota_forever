@@ -214,6 +214,22 @@ export class Unit {
     this.channeling = null;
   }
 
+  queueOrder(o: Order): void {
+    if (!this.order) {
+      this.issueOrder(o);
+      return;
+    }
+    this.orderQueue.push(copyOrder(o));
+  }
+
+  advanceOrder(): void {
+    this.order = this.orderQueue.shift() ?? null;
+    this.path = [];
+    this.pathGoal = null;
+    this.attackTargetId = 0;
+    this.windupTargetId = 0;
+  }
+
   /** 移动指令执行;攻击/施法等战斗类 order 由 combat.ordersSystem 接管。 */
   stepMovement(w: World): void {
     const o = this.order;
@@ -221,9 +237,7 @@ export class Unit {
     if (o.type === 'move' && o.pos) {
       this.moveAlongPathTo(w, o.pos);
       if (V.dist(this.pos, o.pos) < 48) {
-        this.order = this.orderQueue.shift() ?? null;
-        this.path = [];
-        this.pathGoal = null;
+        this.advanceOrder();
       }
     }
   }
@@ -275,4 +289,11 @@ export class Unit {
       this.pathGoal = null;
     }
   }
+}
+
+function copyOrder(o: Order): Order {
+  return {
+    ...o,
+    pos: o.pos ? V.clone(o.pos) : undefined,
+  };
 }

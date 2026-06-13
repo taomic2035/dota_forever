@@ -207,6 +207,18 @@ function startGame(mode: 'play' | 'spectate'): void {
     ux.setCommandMessage({ kind: 'reject', label: rejectLabel[reason], time: world.time, color: '#ff3040' });
     ux.addWorldPulse({ kind: 'reject', pos, time: world.time });
   };
+  const orderPulseKind = (kind: 'move' | 'attack' | 'attackmove' | 'ping', options?: CastInputOptions) =>
+    options?.queued ? 'queued' : kind;
+  const issueHeroOrder = (
+    order: Parameters<Unit['issueOrder']>[0],
+    pulse: { kind: 'move' | 'attack' | 'attackmove' | 'ping'; pos: { x: number; y: number }; targetId?: number },
+    options?: CastInputOptions,
+  ) => {
+    if (!hero) return;
+    if (options?.queued) hero.queueOrder(order);
+    else hero.issueOrder(order);
+    ux.addWorldPulse({ kind: orderPulseKind(pulse.kind, options), pos: pulse.pos, targetId: pulse.targetId, time: world.time });
+  };
 
   // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
   const castRejectReason = (i: number): RejectReason | null =>
@@ -349,33 +361,37 @@ function startGame(mode: 'play' | 'spectate'): void {
   });
 
   input = new InputManager(renderer.canvas, camera, {
-    onRightClick(p) {
+    onRightClick(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
       const target = world.queryRadius(p, 60, (u) => u.team !== hero!.team && !u.invulnerable)[0];
       if (target) {
-        hero.issueOrder({ type: 'attack', targetId: target.id });
-        ux.addWorldPulse({ kind: 'attack', pos: target.pos, targetId: target.id, time: world.time });
+        issueHeroOrder(
+          { type: 'attack', targetId: target.id },
+          { kind: 'attack', pos: target.pos, targetId: target.id },
+          options,
+        );
       } else {
         const pos = map.nearestWalkable(p);
-        hero.issueOrder({ type: 'move', pos });
-        ux.addWorldPulse({ kind: 'move', pos, time: world.time });
+        issueHeroOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
       }
     },
     onLeftClick() {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
     },
-    onAttackMove(p) {
+    onAttackMove(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       const denyTarget = world.queryRadius(p, 60, (u) => u.team === hero!.team && u.kind === 'creep' && u.hp / u.calc.maxHp < 0.5)[0];
       if (denyTarget) {
-        hero.issueOrder({ type: 'attack', targetId: denyTarget.id });
-        ux.addWorldPulse({ kind: 'attack', pos: denyTarget.pos, targetId: denyTarget.id, time: world.time });
+        issueHeroOrder(
+          { type: 'attack', targetId: denyTarget.id },
+          { kind: 'attack', pos: denyTarget.pos, targetId: denyTarget.id },
+          options,
+        );
       } else {
         const pos = map.nearestWalkable(p);
-        hero.issueOrder({ type: 'attackmove', pos });
-        ux.addWorldPulse({ kind: 'attackmove', pos, time: world.time });
+        issueHeroOrder({ type: 'attackmove', pos }, { kind: 'attackmove', pos }, options);
       }
     },
     onPrepareCast(i, p, options?: CastInputOptions) {
@@ -386,9 +402,8 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       ux.clearCommandMessage();
       if (info.def.targetMode === 'none') {
-        hero.issueOrder({ type: 'cast', abilityIndex: i });
+        issueHeroOrder({ type: 'cast', abilityIndex: i }, { kind: 'ping', pos: hero.pos }, options);
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
-        ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
         ux.clearTargeting();
         return false;
       }
@@ -407,10 +422,9 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       if (info.def.targetMode === 'point') {
         const pos = map.nearestWalkable(p);
-        hero.issueOrder({ type: 'cast', abilityIndex: i, pos });
+        issueHeroOrder({ type: 'cast', abilityIndex: i, pos }, { kind: 'ping', pos }, options);
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
         ux.clearCommandMessage();
-        ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
         ux.clearTargeting();
         return true;
       }
@@ -419,10 +433,13 @@ function startGame(mode: 'play' | 'spectate'): void {
           ? selfTarget(info.def.targetTeam, info.def.targetKind)
           : targetAt(p, info.def.targetTeam, info.def.targetKind);
         if (target) {
-          hero.issueOrder({ type: 'cast', abilityIndex: i, targetId: target.id });
+          issueHeroOrder(
+            { type: 'cast', abilityIndex: i, targetId: target.id },
+            { kind: 'ping', pos: target.pos, targetId: target.id },
+            options,
+          );
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
           ux.clearCommandMessage();
-          ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
           ux.clearTargeting();
           return true;
         }
@@ -534,15 +551,21 @@ function startGame(mode: 'play' | 'spectate'): void {
       const info = itemInfo(slot);
       return !!hero && !!info && info.active.targetMode === 'unit';
     },
-    onPendingAttackMove(active) {
+    onPendingAttackMove(active, options?: CastInputOptions) {
       if (active) {
-        ux.setCursorIntent({ kind: 'attackmove', label: 'A-MOVE', time: world.time, color: '#ffd45a', targetHint: 'attack' });
+        ux.setCursorIntent({
+          kind: 'attackmove',
+          label: options?.queued ? 'QUEUE A-MOVE' : 'A-MOVE',
+          time: world.time,
+          color: options?.queued ? '#8dff7a' : '#ffd45a',
+          targetHint: 'attack',
+        });
       } else {
         ux.clearTargeting();
         ux.clearCursorIntent();
       }
     },
-    onPendingCast(i) {
+    onPendingCast(i, options?: CastInputOptions) {
       if (i === null || !hero) {
         ux.clearTargeting();
         ux.clearCursorIntent();
@@ -551,14 +574,14 @@ function startGame(mode: 'play' | 'spectate'): void {
         const def = hero.heroDef?.abilities[i];
         ux.setCursorIntent({
           kind: 'cast',
-          label: `CAST ${hotkey}`,
+          label: `${options?.queued ? 'QUEUE ' : ''}CAST ${hotkey}`,
           time: world.time,
-          color: '#5aa2ff',
+          color: options?.queued ? '#8dff7a' : '#5aa2ff',
           targetHint: cursorTargetHintFor(def?.targetMode, def?.targetTeam),
         });
       }
     },
-    onPendingItem(slot) {
+    onPendingItem(slot, options?: CastInputOptions) {
       if (slot === null || !hero) {
         ux.clearTargeting();
         ux.clearCursorIntent();
@@ -566,9 +589,9 @@ function startGame(mode: 'play' | 'spectate'): void {
         const info = itemInfo(slot);
         ux.setCursorIntent({
           kind: 'item',
-          label: `ITEM ${slot + 1}`,
+          label: `${options?.queued ? 'QUEUE ' : ''}ITEM ${slot + 1}`,
           time: world.time,
-          color: '#d9b44a',
+          color: options?.queued ? '#8dff7a' : '#d9b44a',
           targetHint: cursorTargetHintFor(info?.active.targetMode, info?.active.targetTeam),
         });
       }

@@ -308,7 +308,7 @@ export function ordersSystem(w: World): void {
       case 'attack': {
         const t = w.getUnit(o.targetId!);
         if (!t || !t.alive) {
-          u.order = u.orderQueue.shift() ?? null;
+          u.advanceOrder();
           break;
         }
         // 反补规则:攻击己方单位仅限血量<50%的小兵(或己方建筑<10%,经典可拆塔反补简化为不允许)
@@ -336,7 +336,7 @@ export function ordersSystem(w: World): void {
           attackRoutine(w, u, t);
         } else if (o.pos) {
           u.moveAlongPathTo(w, o.pos);
-          if (V.dist(u.pos, o.pos) < 64) u.order = u.orderQueue.shift() ?? null;
+          if (V.dist(u.pos, o.pos) < 64) u.advanceOrder();
         }
         break;
       }

@@ -16,6 +16,7 @@ import { V, type Vec2 } from '../core/vec2';
 import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
 import { terrainVisualAt } from './mapReadability';
 import { projectileVisualFor, type ProjectileSourceKind } from './projectileReadability';
+import { buildCommandQueuePath, type CommandQueueLeg } from './commandQueuePath';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -200,6 +201,7 @@ export class Renderer {
     this.drawMapMarkers(world);
     if (ux) this.drawUxPulses(world, ux);
     if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
+    this.drawCommandQueuePath(world, selectedId);
 
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)。复用 scratch 数组,避免每帧 spread 分配(D4)。
     const units = this.visibleScratch;
@@ -229,6 +231,74 @@ export class Renderer {
     }
   }
 
+  private drawCommandQueuePath(world: World, selectedId: number): void {
+    const unit = world.getUnit(selectedId);
+    if (!unit?.alive || unit.orderQueue.length === 0) return;
+    const legs = buildCommandQueuePath(world, unit);
+    if (legs.length === 0) return;
+
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const leg of legs) this.drawCommandQueueLeg(leg);
+    legs.forEach((leg, i) => this.drawCommandQueueNode(leg, i + 1));
+    ctx.restore();
+  }
+
+  private drawCommandQueueLeg(leg: CommandQueueLeg): void {
+    const ctx = this.ctx;
+    const from = this.camera.worldToScreen(leg.from);
+    const to = this.camera.worldToScreen(leg.to);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 3) return;
+
+    const isQueued = leg.kind === 'queued';
+    ctx.globalAlpha = isQueued ? 0.92 : 0.56;
+    ctx.strokeStyle = isQueued ? '#8dff7a' : '#c9ffc0';
+    ctx.lineWidth = Math.max(2, this.s(isQueued ? 5 : 3.5));
+    ctx.setLineDash([Math.max(7, this.s(16)), Math.max(5, this.s(11))]);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const ux = dx / len;
+    const uy = dy / len;
+    const arrow = Math.max(9, this.s(22));
+    const wing = Math.max(5, this.s(10));
+    ctx.fillStyle = isQueued ? '#8dff7a' : '#c9ffc0';
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y);
+    ctx.lineTo(to.x - ux * arrow - uy * wing, to.y - uy * arrow + ux * wing);
+    ctx.lineTo(to.x - ux * arrow + uy * wing, to.y - uy * arrow - ux * wing);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  private drawCommandQueueNode(leg: CommandQueueLeg, label: number): void {
+    const ctx = this.ctx;
+    const p = this.camera.worldToScreen(leg.to);
+    const r = Math.max(8, this.s(17));
+    const queued = leg.kind === 'queued';
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = queued ? 'rgba(20,48,22,0.88)' : 'rgba(34,52,29,0.78)';
+    ctx.strokeStyle = queued ? '#8dff7a' : '#c9ffc0';
+    ctx.lineWidth = Math.max(1.5, this.s(2.5));
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#f6ffe8';
+    ctx.font = `700 ${Math.max(9, r * 0.86)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(label), p.x, p.y + 0.5);
+  }
+
   /** 地图标记:本方商店范围(基地金环/秘密商店青环 + ◈)与深渊领主巢穴。 */
   private drawUxPulses(world: World, ux: UxFeedback): void {
     const ctx = this.ctx;
@@ -240,6 +310,7 @@ export class Renderer {
         pulse.kind === 'move' ? '#7cff6b' :
         pulse.kind === 'attack' ? '#ff4c42' :
         pulse.kind === 'attackmove' ? '#ffd45a' :
+        pulse.kind === 'queued' ? '#8dff7a' :
         pulse.kind === 'reject' ? '#ff3040' :
         pulse.kind === 'ping' ? '#48d8ff' :
         '#cfe8ff';
@@ -250,13 +321,21 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(p.x, p.y, this.s(34 + 80 * u), 0, Math.PI * 2);
       ctx.stroke();
-      if (pulse.kind === 'attack' || pulse.kind === 'attackmove') {
+      if (pulse.kind === 'attack' || pulse.kind === 'attackmove' || pulse.kind === 'queued') {
         ctx.beginPath();
         ctx.moveTo(p.x - this.s(22), p.y);
         ctx.lineTo(p.x + this.s(22), p.y);
         ctx.moveTo(p.x, p.y - this.s(22));
         ctx.lineTo(p.x, p.y + this.s(22));
         ctx.stroke();
+        if (pulse.kind === 'queued') {
+          ctx.beginPath();
+          ctx.moveTo(p.x - this.s(12), p.y - this.s(30));
+          ctx.lineTo(p.x + this.s(14), p.y - this.s(22));
+          ctx.lineTo(p.x - this.s(12), p.y - this.s(14));
+          ctx.closePath();
+          ctx.stroke();
+        }
       }
       ctx.restore();
     }

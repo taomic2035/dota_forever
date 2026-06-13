@@ -13,6 +13,14 @@ describe('CommandMode', () => {
     expect(mode.pendingCast).toBe(-1);
   });
 
+  it('preserves queued intent while a targeted cast is pending', () => {
+    const mode = new CommandMode();
+
+    expect(mode.beginCast(1, true, { queued: true })).toEqual({ kind: 'pending-cast', abilityIndex: 1, queued: true });
+    expect(mode.pendingCastOptions()).toEqual({ queued: true });
+    expect(mode.consumePrimary()).toEqual({ kind: 'cast', abilityIndex: 1, queued: true });
+  });
+
   it('does not enter pending mode for instant casts', () => {
     const mode = new CommandMode();
 
@@ -46,6 +54,14 @@ describe('CommandMode', () => {
     expect(mode.pendingCast).toBe(-2);
     expect(mode.consumePrimary()).toEqual({ kind: 'attackmove' });
     expect(mode.pendingCast).toBe(-1);
+  });
+
+  it('marks attack-move as queued when Shift starts the command', () => {
+    const mode = new CommandMode();
+
+    expect(mode.beginAttackMove({ queued: true })).toEqual({ kind: 'pending-attackmove', queued: true });
+    expect(mode.pendingCastOptions()).toEqual({ queued: true });
+    expect(mode.consumePrimary()).toEqual({ kind: 'attackmove', queued: true });
   });
 
   it('cancels any pending command', () => {
