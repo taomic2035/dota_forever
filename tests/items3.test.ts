@@ -216,14 +216,18 @@ describe('advanced items batch 3', () => {
     expect(t.calc.magicResist).toBeLessThan(mr0);
   });
 
-  it('洞察烟斗:友军护盾吸收伤害', () => {
+  it('洞察烟斗:魔法护盾仅吸魔法伤害,物理/纯粹穿透', () => {
     const slot = give(h, 'pipe');
     useItem(w, h, slot);
     run(1);
     expect(hasModifier(h, 'item_pipe_shield')).toBe(true);
     const hp0 = h.hp;
-    applyDamage(w, h, { source: 0, attackType: 'hero', amount: 300, flags: { pure: true } });
-    expect(h.hp).toBe(hp0); // 被护盾完全吸收
+    // 魔法伤害被护盾吸收(经矩阵/魔抗后仍在 400 护盾内)
+    applyDamage(w, h, { source: 0, attackType: 'spell', amount: 300, flags: { spell: true } });
+    expect(h.hp).toBe(hp0);
+    // 纯粹伤害穿透魔法护盾(经典:洞察仅挡魔法)
+    applyDamage(w, h, { source: 0, attackType: 'hero', amount: 100, flags: { pure: true } });
+    expect(h.hp).toBeLessThan(hp0);
   });
 
   it('刷新之球:重置技能冷却', () => {

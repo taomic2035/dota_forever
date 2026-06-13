@@ -143,10 +143,11 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   if (target.kind === 'illusion') amount *= target.illuIncoming;
 
   if (amount <= 0) return 0;
-  // 护盾吸收(modifier.data.shield)
+  // 护盾吸收(modifier.data.shield);shieldMagicOnly(如洞察烟斗)仅吸魔法伤害,物理/纯粹穿透
   for (const m of target.modifiers) {
     const shield = m.data?.shield ?? 0;
     if (shield <= 0) continue;
+    if (m.data?.shieldMagicOnly && !flags.spell) continue;
     const absorbed = Math.min(shield, amount);
     m.data!.shield = shield - absorbed;
     amount -= absorbed;

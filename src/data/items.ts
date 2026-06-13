@@ -874,11 +874,12 @@ ITEMS.push(
         for (const a of alliesIn(w, user, user.pos, 900)) {
           const m = applyModifier(w, a, { key: 'item_pipe_shield', duration: 10, isBuff: true }, user.id);
           m.data!.shield = 400;
+          m.data!.shieldMagicOnly = 1; // 洞察护盾仅吸魔法伤害(经典)
         }
         return true;
       },
     },
-    description: '+200 生命 +30% 魔抗 +8 生命回复;主动:为附近友军提供 400 点护盾 10 秒。' },
+    description: '+200 生命 +30% 魔抗 +8 生命回复;主动:为附近友军提供 400 点魔法护盾 10 秒。' },
 
   // 刷新之球:重置冷却
   { key: 'refresher', name: '刷新之球', cost: 5500, category: 'combined',
@@ -1557,7 +1558,8 @@ ITEMS.push(
     active: {
       name: '狂暴', cooldown: 18, targetMode: 'none',
       onUse(w, user) {
-        applyModifier(w, user, { key: 'item_madness_buff', duration: 8, isBuff: true, stats: { bonusAttackSpeed: 1.0, bonusMoveSpeedPct: 0.2 } }, user.id);
+        // 狂暴期间自身被沉默(经典核心代价,不可施法);buff 不可驱散直到到期
+        applyModifier(w, user, { key: 'item_madness_buff', duration: 8, isBuff: true, states: { silenced: true }, stats: { bonusAttackSpeed: 1.0, bonusMoveSpeedPct: 0.2 } }, user.id);
         return true;
       },
     },
