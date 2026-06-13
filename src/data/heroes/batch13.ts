@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, spellDamage,
+  damageArea, modifierArea, enemiesIn, spellDamage, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -73,14 +73,20 @@ const ECHO_PER = [40, 55, 70];
 const EAR_R: AbilityDef = {
   key: 'ear_echo', name: '回音击', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 78, 70], desc: '神杖:冷却降低;回音击范围从 600 扩展至 900,震荡余波额外眩晕所有命中敌人 1 秒。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '震荡大地:周围敌人越多,每个所受伤害越高。',
   onCast(w, caster, lvl) {
-    const foes = enemiesIn(w, caster, caster.pos, 600);
+    const sc = hasScepter(caster);
+    const radius = sc ? 900 : 600;
+    const foes = enemiesIn(w, caster, caster.pos, radius);
     const per = ECHO_BASE[lvl - 1] + foes.length * ECHO_PER[lvl - 1];
-    for (const e of foes) spellDamage(w, caster, e, per);
+    for (const e of foes) {
+      spellDamage(w, caster, e, per);
+      if (sc) applyModifier(w, e, { key: 'ear_echo_sc_stun', duration: 1, states: { stunned: true } }, caster.id);
+    }
     aftershock(w, caster);
-    w.emit({ kind: 'fx', fx: 'echoslam', pos: V.clone(caster.pos), radius: 600 });
+    w.emit({ kind: 'fx', fx: 'echoslam', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 580).filter((t) => t.isHero());
@@ -161,12 +167,18 @@ const FLARE_DMG = [400, 600, 800];
 const SKY_R: AbilityDef = {
   key: 'sky_flare', name: '神秘之耀', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1600, 1600, 1600], manaCost: [175, 275, 375], cooldown: [40, 30, 20],
+  scepter: { cooldown: [28, 21, 14], desc: '神杖:冷却大幅降低;爆炸范围从 220 扩展至 350,爆炸后留下 2 秒魔法减速光晕(敌人法抗降低 20%)。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '在远处引爆神秘能量,对小范围内的敌人造成毁灭性魔法伤害。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    damageArea(w, caster, pos, 220, FLARE_DMG[lvl - 1]);
-    w.emit({ kind: 'fx', fx: 'mysticflare', pos: V.clone(pos), radius: 220 });
+    const sc = hasScepter(caster);
+    const radius = sc ? 350 : 220;
+    damageArea(w, caster, pos, radius, FLARE_DMG[lvl - 1]);
+    if (sc) {
+      modifierArea(w, caster, pos, radius, { key: 'sky_flare_sc_aura', duration: 2, stats: { bonusMagicResist: -0.2 } }, 'enemy');
+    }
+    w.emit({ kind: 'fx', fx: 'mysticflare', pos: V.clone(pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 1400).filter((t) => t.isHero());
@@ -265,16 +277,23 @@ const MACRO_TICK = [50, 75, 100];
 const JAK_R: AbilityDef = {
   key: 'jak_macropyre', name: '岩浆狂暴', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [800, 800, 800], manaCost: [150, 225, 300], cooldown: [80, 70, 60],
+  scepter: { cooldown: [58, 50, 42], desc: '神杖:冷却降低;岩浆持续时间延长至 11 秒,范围从 450 扩展至 650,并对进入范围的敌人附加 2 秒缓速。' },
   castPoint: 0.4, tags: ['nuke', 'aoe', 'ultimate'],
   description: '点燃一片岩浆持续灼烧其中的敌人 7 秒。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     const at = V.clone(pos);
+    const duration = sc ? 11 : 7;
+    const radius = sc ? 650 : 450;
     applyModifier(w, caster, {
-      key: `jak_macropyre_${w.tick}`, duration: 7, isBuff: true, tickInterval: 0.5,
+      key: `jak_macropyre_${w.tick}`, duration, isBuff: true, tickInterval: 0.5,
       onTick(world) {
-        for (const e of enemiesIn(world, caster, at, 450)) spellDamage(world, caster, e, MACRO_TICK[lvl - 1]);
-        world.emit({ kind: 'fx', fx: 'macropyre', pos: at, radius: 450 });
+        for (const e of enemiesIn(world, caster, at, radius)) {
+          spellDamage(world, caster, e, MACRO_TICK[lvl - 1]);
+          if (sc) applyModifier(world, e, { key: 'jak_macropyre_sc_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.25 } }, caster.id);
+        }
+        world.emit({ kind: 'fx', fx: 'macropyre', pos: at, radius });
       },
     }, caster.id);
   },
@@ -339,10 +358,16 @@ const REINC_CD = [160, 130, 100];
 const WAK_R: AbilityDef = {
   key: 'wak_reincarnation', name: '重生', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [120, 140, 160], cooldown: [160, 130, 100],
+  scepter: { cooldown: [110, 90, 70], desc: '神杖:冷却降低;重生待命期间额外赋予 25% 吸血,亡君气息更为凶残。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '准备重生:致死时立即满血复活(消耗后进入冷却)。',
   onCast(w, caster, lvl) {
-    applyModifier(w, caster, { key: 'wak_reincarnation_buff', duration: 999, isBuff: true, data: { preventDeath: 1, reviveFull: 1 } }, caster.id);
+    const sc = hasScepter(caster);
+    applyModifier(w, caster, {
+      key: 'wak_reincarnation_buff', duration: 999, isBuff: true,
+      data: { preventDeath: 1, reviveFull: 1 },
+      stats: sc ? { lifesteal: 0.25 } : undefined,
+    }, caster.id);
     void lvl;
     w.emit({ kind: 'fx', fx: 'reincarnation_ready', pos: V.clone(caster.pos) });
   },
@@ -416,6 +441,7 @@ const FREEZE_TICK = [60, 90, 120];
 const CRY_R: AbilityDef = {
   key: 'cry_freeze', name: '冰晶爆轰', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [200, 300, 400], cooldown: [110, 100, 90],
+  scepter: { cooldown: [80, 72, 64], desc: '神杖:冷却降低;每次爆轰伤害额外对命中敌人施加 0.4 秒眩晕,冰封再无逃路。' },
   castPoint: 0.2, tags: ['nuke', 'aoe', 'channel', 'ultimate'],
   description: '引导极寒爆轰,持续重创并冻缓周身大范围的敌人。',
   onCast(w, caster) {
@@ -425,9 +451,11 @@ const CRY_R: AbilityDef = {
     duration: (lvl) => 3.5 + lvl * 0.5,
     tickInterval: 0.4,
     onChannelTick(w, caster, lvl) {
+      const sc = hasScepter(caster);
       for (const e of enemiesIn(w, caster, caster.pos, 600)) {
         spellDamage(w, caster, e, FREEZE_TICK[lvl - 1]);
         applyModifier(w, e, { key: 'cry_freeze_slow', duration: 0.6, stats: { bonusMoveSpeedPct: -0.4, bonusAttackSpeed: -0.4 } }, caster.id);
+        if (sc) applyModifier(w, e, { key: 'cry_freeze_sc_stun', duration: 0.4, states: { stunned: true } }, caster.id);
       }
       w.emit({ kind: 'fx', fx: 'freezingfield', pos: V.clone(caster.pos), radius: 600 });
     },
@@ -510,15 +538,21 @@ const ARENA_DUR = [6, 7, 8];
 const MAR_R: AbilityDef = {
   key: 'mar_arena', name: '血之竞技场', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 150, 200], cooldown: [90, 80, 70],
+  scepter: { cooldown: [64, 56, 48], desc: '神杖:冷却降低;竞技场持续时间延长 2 秒,且每 0.4 秒对困于场内的敌人额外造成 50 伤害。' },
   castPoint: 0.3, tags: ['buff', 'aoe', 'ultimate'],
   description: '召唤角斗竞技场:强化自身,并大幅减速困住周围的敌人。',
   onCast(w, caster, lvl) {
-    applyModifier(w, caster, { key: 'mar_arena_buff', duration: ARENA_DUR[lvl - 1], isBuff: true, stats: { bonusArmor: 6 + lvl * 2, bonusDamage: 20 + lvl * 15, incomingDamageReduction: 0.2 } }, caster.id);
+    const sc = hasScepter(caster);
+    const dur = ARENA_DUR[lvl - 1] + (sc ? 2 : 0);
+    applyModifier(w, caster, { key: 'mar_arena_buff', duration: dur, isBuff: true, stats: { bonusArmor: 6 + lvl * 2, bonusDamage: 20 + lvl * 15, incomingDamageReduction: 0.2 } }, caster.id);
     const at = V.clone(caster.pos);
     applyModifier(w, caster, {
-      key: `mar_arena_field_${w.tick}`, duration: ARENA_DUR[lvl - 1], isBuff: true, tickInterval: 0.4,
+      key: `mar_arena_field_${w.tick}`, duration: dur, isBuff: true, tickInterval: 0.4,
       onTick(world) {
-        for (const e of enemiesIn(world, caster, at, 450)) applyModifier(world, e, { key: 'mar_arena_slow', duration: 0.5, stats: { bonusMoveSpeedPct: -0.6 } }, caster.id);
+        for (const e of enemiesIn(world, caster, at, 450)) {
+          applyModifier(world, e, { key: 'mar_arena_slow', duration: 0.5, stats: { bonusMoveSpeedPct: -0.6 } }, caster.id);
+          if (sc) spellDamage(world, caster, e, 50);
+        }
         world.emit({ kind: 'fx', fx: 'arena', pos: at, radius: 450 });
       },
     }, caster.id);

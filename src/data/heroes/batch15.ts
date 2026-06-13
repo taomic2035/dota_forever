@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -73,6 +73,7 @@ const DRAIN_TICK = [70, 110, 150];
 const RUB_R: AbilityDef = {
   key: 'rub_drain', name: '奥术汲取', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 150, 200], cooldown: [90, 80, 70],
+  scepter: { cooldown: [60, 55, 50], desc: '神杖:冷却降低;每次汲取 tick 额外窃取目标 10% 法力并附加法力燃烧效果。' },
   castPoint: 0.3, tags: ['nuke', 'channel', 'ultimate'],
   description: '引导汲取目标:持续造成伤害并将其生命转化为自身生命。',
   onCast(w, caster, _lvl, _pos, target) {
@@ -87,6 +88,13 @@ const RUB_R: AbilityDef = {
       const d = spellDamage(w, caster, t, DRAIN_TICK[lvl - 1]);
       caster.hp = Math.min(caster.calc.maxHp, caster.hp + d);
       applyModifier(w, t, { key: 'rub_drain_slow', duration: 0.7, stats: { bonusMoveSpeedPct: -0.3 } }, caster.id);
+      // 神杖:额外窃取目标法力(10% 当前法力)
+      if (hasScepter(caster)) {
+        const stolen = t.mp * 0.1;
+        t.mp = Math.max(0, t.mp - stolen);
+        caster.mp = Math.min(caster.calc.maxMp, caster.mp + stolen);
+        applyModifier(w, t, { key: 'rub_drain_manaburn', duration: 0.7, stats: { bonusMpRegen: -2 } }, caster.id);
+      }
     },
   },
   aiScore(w, caster) {
@@ -182,20 +190,34 @@ const NOVA_DMG = [200, 300, 400];
 const PHX_R: AbilityDef = {
   key: 'phx_supernova', name: '超新星', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 100, 100], cooldown: [110, 100, 90],
+  scepter: { cooldown: [80, 72, 65], desc: '神杖:冷却降低;爆炸范围从 700 扩大至 950,爆炸同时在落点持续燃烧,为周围友军恢复生命。' },
   castPoint: 0.2, tags: ['nuke', 'aoe', 'ultimate'],
   description: '燃烧成蛋:期间无敌但无法行动并快速回血,数秒后炸裂震伤周围敌人。',
   onCast(w, caster, lvl) {
     caster.invulnerable = true;
+    const sc = hasScepter(caster);
     applyModifier(w, caster, {
       key: 'phx_supernova_egg', duration: 4, isBuff: true, states: { rooted: true, disarmed: true, silenced: true }, tickInterval: 0.5,
       onTick(_world, u) { u.hp = Math.min(u.calc.maxHp, u.hp + u.calc.maxHp * 0.06); },
       onExpire(world, u) {
         u.invulnerable = false;
-        for (const e of enemiesIn(world, u, u.pos, 700)) {
+        const blastRadius = sc ? 950 : 700;
+        for (const e of enemiesIn(world, u, u.pos, blastRadius)) {
           spellDamage(world, caster, e, NOVA_DMG[lvl - 1]);
           applyModifier(world, e, { key: 'phx_nova_stun', duration: 1.4, states: { stunned: true } }, caster.id);
         }
-        world.emit({ kind: 'fx', fx: 'supernova', pos: V.clone(u.pos), radius: 700 });
+        world.emit({ kind: 'fx', fx: 'supernova', pos: V.clone(u.pos), radius: blastRadius });
+        // 神杖:爆炸后余焰,持续治疗周围友军
+        if (sc) {
+          applyModifier(world, u, {
+            key: 'phx_nova_afterburn', duration: 3, isBuff: true, tickInterval: 0.5,
+            onTick(w2, healer) {
+              for (const ally of w2.queryRadius(healer.pos, 500, (a) => a.alive && a.team === healer.team && !a.isBuilding() && a.kind !== 'ward')) {
+                ally.hp = Math.min(ally.calc.maxHp, ally.hp + 30 * lvl);
+              }
+            },
+          }, caster.id);
+        }
       },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'supernova_egg', pos: V.clone(caster.pos) });
@@ -279,14 +301,18 @@ const ROLL_DUR = [3, 3.5, 4];
 const PAN_R: AbilityDef = {
   key: 'pan_roll', name: '滚滚妙妙', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 100, 100], cooldown: [60, 52, 44],
+  scepter: { cooldown: [42, 36, 30], desc: '神杖:冷却降低;滚球碰撞半径从 250 扩大至 375,持续时间延长 1 秒。' },
   castPoint: 0.2, tags: ['stun', 'aoe', 'buff', 'ultimate'],
   description: '蜷成滚球高速冲撞:期间提速并撞晕沿途敌人。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const rollRadius = sc ? 375 : 250;
+    const rollDur = sc ? ROLL_DUR[lvl - 1] + 1 : ROLL_DUR[lvl - 1];
     applyModifier(w, caster, {
-      key: 'pan_roll_buff', duration: ROLL_DUR[lvl - 1], isBuff: true,
+      key: 'pan_roll_buff', duration: rollDur, isBuff: true,
       stats: { bonusMoveSpeedPct: 0.5 }, tickInterval: 0.3,
       onTick(world, u) {
-        for (const e of enemiesIn(world, u, u.pos, 250)) {
+        for (const e of enemiesIn(world, u, u.pos, rollRadius)) {
           spellDamage(world, caster, e, 40 + lvl * 20);
           applyModifier(world, e, { key: 'pan_roll_stun', duration: 0.5, states: { stunned: true } }, caster.id);
         }
@@ -364,12 +390,22 @@ const PUNCH_DMG = [200, 325, 450];
 const TUS_R: AbilityDef = {
   key: 'tus_punch', name: '海象神拳', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200], manaCost: [100, 100, 100], cooldown: [40, 32, 24],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低;重拳击飞目标并在落点产生冲击波,震晕周围 350 内的其他敌人 1.2 秒。' },
   castPoint: 0.3, tags: ['stun', 'nuke', 'ultimate'],
   description: '一记重拳将目标击飞:造成巨额伤害并长时间击晕。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     spellDamage(w, caster, target, PUNCH_DMG[lvl - 1]);
     applyModifier(w, target, { key: 'tus_punch_stun', duration: 1.5 + lvl * 0.3, states: { stunned: true }, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+    // 神杖:落地冲击波震晕周围其他敌人
+    if (hasScepter(caster)) {
+      for (const e of enemiesIn(w, caster, target.pos, 350)) {
+        if (e.id === target.id) continue;
+        spellDamage(w, caster, e, PUNCH_DMG[lvl - 1] * 0.4);
+        applyModifier(w, e, { key: 'tus_punch_shockwave_stun', duration: 1.2, states: { stunned: true } }, caster.id);
+      }
+      w.emit({ kind: 'fx', fx: 'walruspunch', pos: V.clone(target.pos), radius: 350 });
+    }
     w.emit({ kind: 'fx', fx: 'walruspunch', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
@@ -455,12 +491,18 @@ const KPR_E: AbilityDef = {
 const KPR_R: AbilityDef = {
   key: 'kpr_recall', name: '跃迁', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'ally',
   castRange: [99999, 99999, 99999], manaCost: [75, 75, 75], cooldown: [60, 50, 40],
+  scepter: { cooldown: [40, 33, 26], desc: '神杖:冷却降低;跃迁落地时光之守卫为友军提供护盾(吸收 200+100×等级点伤害),持续 5 秒。' },
   castPoint: 0.5, tags: ['buff', 'ultimate'],
   description: '引导后将一名远方友军传送到自己身边,并提升其移速。',
-  onCast(w, caster, _lvl, _pos, target) {
+  onCast(w, caster, lvl, _pos, target) {
     if (!target || target.team !== caster.team) return;
     blinkTo(w, target, w.map.nearestWalkable(V.add(caster.pos, { x: 80, y: 0 })));
     applyModifier(w, target, { key: 'kpr_recall_buff', duration: 4, isBuff: true, stats: { bonusMoveSpeedPct: 0.25 } }, caster.id);
+    // 神杖:落地附赠光明护盾
+    if (hasScepter(caster)) {
+      const shieldMod = applyModifier(w, target, { key: 'kpr_recall_shield', duration: 5, isBuff: true }, caster.id);
+      shieldMod.data!.shield = 200 + 100 * lvl;
+    }
     w.emit({ kind: 'fx', fx: 'recall', pos: V.clone(caster.pos) });
   },
   aiScore() { return null; },
@@ -530,16 +572,23 @@ const OVERGROWTH_DPS = [60, 90, 120];
 const TRN_R: AbilityDef = {
   key: 'trn_overgrowth', name: '过载生长', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 175, 200], cooldown: [80, 75, 70],
+  scepter: { cooldown: [56, 52, 48], desc: '神杖:冷却降低;过载生长范围从 700 扩大至 1000,藤蔓缠绕结束时爆裂对周围敌人造成 120/160/200 伤害。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'ultimate'],
   description: '召唤藤蔓缠绕周身所有敌人,使其无法移动并持续受伤。',
   onCast(w, caster, lvl) {
-    for (const e of enemiesIn(w, caster, caster.pos, 700)) {
+    const sc = hasScepter(caster);
+    const overgrowthRadius = sc ? 1000 : 700;
+    for (const e of enemiesIn(w, caster, caster.pos, overgrowthRadius)) {
       applyModifier(w, e, {
         key: 'trn_overgrowth_root', duration: 2.5 + lvl * 0.5, states: { rooted: true }, tickInterval: 1,
         onTick: (world, u) => spellDamage(world, caster, u, OVERGROWTH_DPS[lvl - 1]),
+        onExpire: sc ? (world, u) => {
+          spellDamage(world, caster, u, [120, 160, 200][lvl - 1]);
+          world.emit({ kind: 'fx', fx: 'overgrowth', pos: V.clone(u.pos), radius: 150 });
+        } : undefined,
       }, caster.id);
     }
-    w.emit({ kind: 'fx', fx: 'overgrowth', pos: V.clone(caster.pos), radius: 700 });
+    w.emit({ kind: 'fx', fx: 'overgrowth', pos: V.clone(caster.pos), radius: overgrowthRadius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 680).filter((t) => t.isHero());
