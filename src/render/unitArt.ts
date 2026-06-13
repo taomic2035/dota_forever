@@ -47,7 +47,7 @@ export interface UnitArt {
 }
 
 export interface ArtInput {
-  kind: 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward' | 'illusion';
+  kind: 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward' | 'illusion' | 'courier';
   team: number;
   name: string;
   attackRange: number;
@@ -83,6 +83,10 @@ export function unitArt(u: ArtInput): UnitArt {
       role,
       weight: role === 'neutralAncient' ? 'heavy' : role === 'neutralLarge' ? 'medium' : 'light',
     };
+  }
+  if (u.kind === 'courier') {
+    // 信使:小型随身坐骑,队色微差(晨曦棕/永夜蓝)
+    return { shape: 'beast', primary: u.team === 0 ? '#8a6b48' : '#5676a8', accent: '#ffd782', radius: 15, weapon: 'none', role: 'neutralSmall', weight: 'light' };
   }
   if (u.kind === 'creep') {
     return creepArt(u);

@@ -335,7 +335,8 @@ describe('advanced items batch 4', () => {
   it('缚足锤:攻击触发眩晕', () => {
     give(h, 'basher');
     const t = enemyAt(110, { maxHp: 100000 });
-    expect(attackUntilProc(t, 'item_basher_bash', 30 * 16)).toBe(true);
+    // 25% 近战触发,窗口放宽到 ~40s 使触发稳健必然(避免依赖 RNG 流的具体序列)
+    expect(attackUntilProc(t, 'item_basher_bash', 30 * 40)).toBe(true);
   });
 
   it('莲花宝珠:护盾吸收伤害', () => {

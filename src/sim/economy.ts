@@ -94,7 +94,7 @@ export function installEconomy(w: World): void {
       if (!victim) continue;
       const killer = world.getUnit(e.killerId);
 
-      if (victim.kind === 'creep' || victim.kind === 'neutral' || victim.kind === 'boss') {
+      if (victim.kind === 'creep' || victim.kind === 'neutral' || victim.kind === 'boss' || victim.kind === 'courier') {
         const jungle = victim.kind === 'neutral' || victim.kind === 'boss';
         // 中立/Boss 的 team 是 Neutral,没有「对方阵营」语义,不存在反补
         const denied = !jungle && killer !== undefined && killer.team === victim.team;

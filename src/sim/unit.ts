@@ -14,7 +14,7 @@ import type { ItemInstance } from './items';
 import type { BuildingKind, Lane } from '../data/mapLayout';
 
 export type EntityId = number;
-export type UnitKind = 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward' | 'illusion';
+export type UnitKind = 'hero' | 'creep' | 'neutral' | 'boss' | 'tower' | 'building' | 'ward' | 'illusion' | 'courier';
 
 export type OrderType = 'move' | 'attack' | 'attackmove' | 'cast' | 'hold' | 'stop';
 export interface Order {
