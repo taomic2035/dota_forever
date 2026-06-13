@@ -2,7 +2,7 @@ import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
 import type { ItemInstance } from '../sim/items';
 import { heroAttributes } from '../sim/hero';
-import { canLearn, canLearnStatBonus, abilityReady } from '../sim/abilities';
+import { canLearn, canLearnStatBonus, abilityReady, hasScepter } from '../sim/abilities';
 import { itemDef } from '../data/items';
 import type { UxFeedback } from './uxFeedback';
 import { fxStyle } from '../render/fxStyle';
@@ -139,18 +139,23 @@ export class Hud {
     const learnable = canLearn(hero, i);
     const ready = abilityReady(world, hero, i);
     const family = fxStyle(def.key || def.name);
-    const border = learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
+    // 阿哈利姆神杖:持杖且该技能有升级时,洋红高亮 + ✦ 徽标
+    const aghs = !!(def.scepter || def.scepterPassive);
+    const scepterOn = aghs && hasScepter(hero);
+    const border = scepterOn ? '#d56bff' : learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
     const bg = lvl > 0 ? (ready || passive ? '#2a3a18' : '#1d2412') : '#0d100a';
     const flash = ux?.hudFlashFor(`ability-${i}`, world.time);
     const flashShadow = flash?.kind === 'reject' ? 'box-shadow:0 0 0 2px #ff3040 inset,0 0 10px #ff3040;' : '';
     const pips = Array.from({ length: def.maxLevel }, (_, k) =>
       `<span style="width:6px;height:4px;border-radius:1px;background:${k < lvl ? '#ffd54f' : '#3a4428'}"></span>`).join('');
-    return `<div title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}: ${def.description}"
+    const aghsDesc = aghs && def.scepter?.desc ? `\n${def.scepter.desc}` : aghs ? '\n神杖:增强升级' : '';
+    return `<div title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}: ${def.description}${aghsDesc}"
       style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
       <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
       <span style="position:absolute;top:2px;left:4px;font-size:10px;color:#cfd8a0;font-weight:700">${HOTKEYS[i]}</span>
       ${passive ? '<span style="position:absolute;top:2px;right:4px;font-size:8px;color:#9ab">P</span>' : ''}
+      ${scepterOn ? '<span style="position:absolute;bottom:2px;left:4px;font-size:10px;color:#d56bff;font-weight:800;text-shadow:0 0 5px #d56bff">✦</span>' : ''}
       <span style="font-size:10px;color:${lvl > 0 ? '#e8e2c8' : '#888'};text-align:center;line-height:1.05;padding:0 4px">${def.name.slice(0, 5)}</span>
       <div style="display:flex;gap:2px;margin-top:5px">${pips}</div>
       ${mana > 0 && lvl > 0 ? `<span style="position:absolute;bottom:2px;right:4px;font-size:9px;color:#5aa2ff">${mana}</span>` : ''}
