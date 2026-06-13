@@ -219,6 +219,20 @@ export class Hud {
     </div>`;
   }
 
+  /** 物品程序化图标:按类别绘制 SVG 符号(药瓶/宝石/剑/盾/法球/合成星)。 */
+  private itemIcon(category: string): string {
+    const M: Record<string, { c: string; p: string }> = {
+      consumable: { c: '#6fcf5a', p: '<path d="M10 3 H14 M11 3 V8 L7 19 H17 L13 8 V3"/>' },
+      attribute: { c: '#c9b07a', p: '<path d="M12 4 L19 9 L12 20 L5 9 Z"/>' },
+      weapon: { c: '#e0673a', p: '<path d="M12 3 V14 M8 14 H16 M11 14 V20 H13 V14"/>' },
+      armor: { c: '#6aa0d0', p: '<path d="M12 3 L19 6 V12 C19 17 12 21 12 21 C12 21 5 17 5 12 V6 Z"/>' },
+      arcane: { c: '#b06bff', p: '<circle cx="12" cy="12" r="6"/>' },
+      combined: { c: '#ffd54f', p: '<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/>' },
+    };
+    const m = M[category] ?? M.combined;
+    return `<svg viewBox="0 0 24 24" width="26" height="26" style="display:block"><g stroke="${m.c}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round">${m.p}</g></svg>`;
+  }
+
   private itemSlot(world: World, inst: ItemInstance | null, i: number, ux?: UxFeedback): string {
     const flash = ux?.hudFlashFor(`item-${i}`, world.time);
     const flashShadow =
@@ -238,8 +252,8 @@ export class Hud {
       background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;
       align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${i + 1}</span>
-      <span style="white-space:nowrap">${def.name.slice(0, 4)}</span>
-      ${inst.charges > 0 ? `<span style="font-size:10px;color:#ffd54f">x${inst.charges}</span>` : ''}
+      ${this.itemIcon(def.category)}
+      ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
     </div>`;
   }
 }
