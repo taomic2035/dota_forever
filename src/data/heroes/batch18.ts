@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -63,11 +63,17 @@ const URS_E: AbilityDef = {
 const URS_R: AbilityDef = {
   key: 'urs_enrage', name: '怒意', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 50, 50], cooldown: [40, 34, 28],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低;狂怒时额外震伤周围 400 内敌人并给自身施加护甲加成。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '陷入狂怒:大幅提升攻击力并减免所受伤害。',
   onCast(w, caster, lvl) {
     applyModifier(w, caster, { key: 'urs_enrage_buff', duration: 8, isBuff: true, stats: { bonusDamage: 40 + lvl * 25, incomingDamageReduction: 0.2 + lvl * 0.05 } }, caster.id);
     w.emit({ kind: 'fx', fx: 'enrage', pos: V.clone(caster.pos) });
+    if (hasScepter(caster)) {
+      damageArea(w, caster, caster.pos, 400, 80 + lvl * 40);
+      applyModifier(w, caster, { key: 'urs_enrage_sc_armor', duration: 8, isBuff: true, stats: { bonusArmor: 4 + lvl * 2 } }, caster.id);
+      w.emit({ kind: 'fx', fx: 'earthshock', pos: V.clone(caster.pos), radius: 400 });
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 500).filter((t) => t.isHero());
@@ -139,13 +145,21 @@ const INFEST_DMG = [200, 325, 450];
 const LIF_R: AbilityDef = {
   key: 'lif_infest', name: '猛扑寄生', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 125, 150], cooldown: [60, 50, 40],
+  scepter: { cooldown: [45, 35, 25], desc: '神杖:冷却降低;击晕时间延长至 2.2 秒,并对目标周围 300 内敌人喷射寄生孢子造成额外伤害。' },
   castPoint: 0.2, tags: ['nuke', 'stun', 'ultimate'],
   description: '猛扑撕咬目标:瞬移贴身造成巨额伤害并将其击晕。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     blinkTo(w, caster, w.map.nearestWalkable(V.add(target.pos, V.scale(V.norm(V.sub(caster.pos, target.pos)), 120))));
     spellDamage(w, caster, target, INFEST_DMG[lvl - 1]);
-    applyModifier(w, target, { key: 'lif_infest_stun', duration: 1.4, states: { stunned: true } }, caster.id);
+    const stunDur = hasScepter(caster) ? 2.2 : 1.4;
+    applyModifier(w, target, { key: 'lif_infest_stun', duration: stunDur, states: { stunned: true } }, caster.id);
+    if (hasScepter(caster)) {
+      for (const e of enemiesIn(w, caster, target.pos, 300)) {
+        if (e.id === target.id) continue;
+        spellDamage(w, caster, e, 80 + lvl * 30);
+      }
+    }
     caster.issueOrder({ type: 'attack', targetId: target.id });
     w.emit({ kind: 'fx', fx: 'infest', pos: V.clone(target.pos) });
   },
@@ -243,11 +257,17 @@ const TEMPEST_DUR = [16, 20, 24];
 const ARC_R: AbilityDef = {
   key: 'arc_tempest', name: '风暴双子', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [75, 75, 75], cooldown: [60, 50, 40],
+  scepter: { cooldown: [44, 34, 26], desc: '神杖:冷却降低;召唤双子时释放静电风暴冲击周围 450 内所有敌人并减速。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '召唤风暴之力附体:大幅提升攻击速度、攻击力与移动速度。',
   onCast(w, caster, lvl) {
     applyModifier(w, caster, { key: 'arc_tempest_buff', duration: TEMPEST_DUR[lvl - 1], isBuff: true, stats: { bonusAttackSpeed: 0.5 + lvl * 0.2, bonusDamage: 20 + lvl * 20, bonusMoveSpeedPct: 0.15 } }, caster.id);
     w.emit({ kind: 'fx', fx: 'tempestdouble', pos: V.clone(caster.pos) });
+    if (hasScepter(caster)) {
+      damageArea(w, caster, caster.pos, 450, 60 + lvl * 40);
+      modifierArea(w, caster, caster.pos, 450, { key: 'arc_tempest_sc_slow', duration: 1.5, stats: { bonusMoveSpeedPct: -0.3 } }, 'enemy');
+      w.emit({ kind: 'fx', fx: 'tempestdouble', pos: V.clone(caster.pos), radius: 450 });
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 700).filter((t) => t.isHero());
@@ -339,17 +359,20 @@ const KISS_DMG = [80, 120, 160];
 const SNP_R: AbilityDef = {
   key: 'snp_kisses', name: '飞弹之吻', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1400, 1400, 1400], manaCost: [150, 200, 250], cooldown: [60, 55, 50],
+  scepter: { cooldown: [44, 38, 32], desc: '神杖:冷却降低;飞弹轰炸范围扩大至 500,且每次命中附加短暂减速。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '向远处倾泻一连串爆炸飞弹,持续轰炸该区域 3 秒。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const radius = sc ? 500 : 350;
     applyModifier(w, caster, {
       key: `snp_kisses_${w.tick}`, duration: 3, isBuff: true, tickInterval: 0.4,
       onTick(world) {
-        damageArea(world, caster, at, 350, KISS_DMG[lvl - 1]);
-        modifierArea(world, caster, at, 350, { key: 'snp_kisses_slow', duration: 0.6, stats: { bonusMoveSpeedPct: -0.3 } }, 'enemy');
-        world.emit({ kind: 'fx', fx: 'mortimerkisses', pos: at, radius: 350 });
+        damageArea(world, caster, at, radius, KISS_DMG[lvl - 1]);
+        modifierArea(world, caster, at, radius, { key: 'snp_kisses_slow', duration: 0.6, stats: { bonusMoveSpeedPct: -0.3 } }, 'enemy');
+        world.emit({ kind: 'fx', fx: 'mortimerkisses', pos: at, radius });
       },
     }, caster.id);
   },
@@ -426,6 +449,7 @@ const BREAK_PCT = [0.3, 0.4, 0.5];
 const HSK_R: AbilityDef = {
   key: 'hsk_lifebreak', name: '生命燃烧', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 575, 600], manaCost: [75, 75, 75], cooldown: [50, 40, 30],
+  scepter: { cooldown: [38, 28, 20], desc: '神杖:冷却降低;生命燃烧除减速外额外给目标施加 1 秒眩晕。' },
   castPoint: 0.1, tags: ['nuke', 'ultimate'],
   description: '燃烧生命扑向目标:按目标当前生命百分比造成巨额伤害并减速。',
   onCast(w, caster, lvl, _pos, target) {
@@ -434,6 +458,9 @@ const HSK_R: AbilityDef = {
     caster.hp = Math.max(1, caster.hp - caster.calc.maxHp * 0.1);
     spellDamage(w, caster, target, target.hp * BREAK_PCT[lvl - 1]);
     applyModifier(w, target, { key: 'hsk_lifebreak_slow', duration: 4, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+    if (hasScepter(caster)) {
+      applyModifier(w, target, { key: 'hsk_lifebreak_sc_stun', duration: 1.0, states: { stunned: true } }, caster.id);
+    }
     w.emit({ kind: 'fx', fx: 'lifebreak', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
@@ -515,6 +542,7 @@ const IO_E: AbilityDef = {
 const IO_R: AbilityDef = {
   key: 'io_relocate', name: '转移', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [99999, 99999, 99999], manaCost: [100, 100, 100], cooldown: [70, 55, 40],
+  scepter: { cooldown: [50, 38, 26], desc: '神杖:冷却降低;转移额外携带所有系连友军,目标点落地时为所有人附加短暂护盾buff。' },
   castPoint: 0.4, tags: ['escape', 'ultimate'],
   description: '将自己与系连友军一同传送到全图任意位置(团队转移/驰援/逃生)。',
   onCast(w, caster, _lvl, pos) {
@@ -523,6 +551,10 @@ const IO_R: AbilityDef = {
     blinkTo(w, caster, dest);
     const tethered = [...w.units.values()].find((u) => u.alive && u.team === caster.team && u.id !== caster.id && hasModifier(u, 'io_tether_buff'));
     if (tethered) blinkTo(w, tethered, w.map.nearestWalkable(V.add(dest, { x: 80, y: 0 })));
+    if (hasScepter(caster)) {
+      applyModifier(w, caster, { key: 'io_relocate_sc_shield', duration: 3, isBuff: true, stats: { incomingDamageReduction: 0.3 } }, caster.id);
+      if (tethered) applyModifier(w, tethered, { key: 'io_relocate_sc_shield', duration: 3, isBuff: true, stats: { incomingDamageReduction: 0.3 } }, caster.id);
+    }
     w.emit({ kind: 'fx', fx: 'relocate', pos: V.clone(dest) });
   },
   aiScore() { return null; },

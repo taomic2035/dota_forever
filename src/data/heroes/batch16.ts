@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, spellDamage, blinkTo, createIllusion,
+  damageArea, modifierArea, enemiesIn, spellDamage, blinkTo, createIllusion, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import * as Combat from '../../sim/combat';
@@ -82,16 +82,20 @@ const REMNANT_DMG = [150, 250, 350];
 const EMB_R: AbilityDef = {
   key: 'emb_remnant', name: '残焰', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [1200, 1200, 1200], manaCost: [100, 100, 100], cooldown: [30, 24, 18],
+  scepter: { cooldown: [20, 16, 12], desc: '神杖:冷却降低;爆裂半径从 400 扩大至 600,爆裂同时眩晕范围内敌人 1 秒。' },
   castPoint: 0.1, tags: ['nuke', 'aoe', 'escape', 'ultimate'],
   description: '化作残焰高速冲向目标位置,抵达时爆裂灼伤周围敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     blinkTo(w, caster, pos);
-    for (const e of enemiesIn(w, caster, caster.pos, 400)) {
+    const sc = hasScepter(caster);
+    const r = sc ? 600 : 400;
+    for (const e of enemiesIn(w, caster, caster.pos, r)) {
       spellDamage(w, caster, e, REMNANT_DMG[lvl - 1]);
       applyModifier(w, e, { key: 'emb_remnant_slow', duration: 2, stats: { bonusMoveSpeedPct: -0.3 } }, caster.id);
+      if (sc) applyModifier(w, e, { key: 'emb_remnant_stun', duration: 1, states: { stunned: true } }, caster.id);
     }
-    w.emit({ kind: 'fx', fx: 'fireremnant', pos: V.clone(caster.pos), radius: 400 });
+    w.emit({ kind: 'fx', fx: 'fireremnant', pos: V.clone(caster.pos), radius: r });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 1100).filter((t) => t.isHero());
@@ -163,15 +167,28 @@ const STRIKE_DPS = [60, 90, 120];
 const VIP_R: AbilityDef = {
   key: 'vip_strike', name: '毒裔', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 175, 225], cooldown: [40, 30, 20],
+  scepter: { cooldown: [28, 20, 14], desc: '神杖:冷却降低;毒液蔓延至目标周围 350 内的其他敌人(剂量为主目标的 50%),并使所有中毒目标的减速加深至 70%。' },
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '剧毒终结:重创目标并施加致命剧毒——大幅减速并持续掉血 5 秒。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
+    const slow = sc ? -0.7 : -0.5;
     spellDamage(w, caster, target, 100 + lvl * 40);
     applyModifier(w, target, {
-      key: 'vip_strike_dot', duration: 5, stats: { bonusMoveSpeedPct: -0.5, bonusAttackSpeed: -0.4 }, tickInterval: 0.5,
+      key: 'vip_strike_dot', duration: 5, stats: { bonusMoveSpeedPct: slow, bonusAttackSpeed: -0.4 }, tickInterval: 0.5,
       onTick: (world, u) => spellDamage(world, caster, u, STRIKE_DPS[lvl - 1] / 2),
     }, caster.id);
+    // 神杖:毒液蔓延
+    if (sc) {
+      for (const nearby of enemiesIn(w, caster, target.pos, 350)) {
+        if (nearby.id === target.id) continue;
+        applyModifier(w, nearby, {
+          key: 'vip_strike_spread', duration: 5, stats: { bonusMoveSpeedPct: slow, bonusAttackSpeed: -0.3 }, tickInterval: 0.5,
+          onTick: (world, u) => spellDamage(world, caster, u, STRIKE_DPS[lvl - 1] / 4),
+        }, caster.id);
+      }
+    }
     w.emit({ kind: 'fx', fx: 'viperstrike', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
@@ -256,12 +273,17 @@ const BLAST_DMG = [200, 300, 400];
 const AA_R: AbilityDef = {
   key: 'aa_iceblast', name: '极寒之触', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [3000, 3500, 4000], manaCost: [150, 200, 250], cooldown: [60, 50, 40],
+  scepter: { cooldown: [45, 38, 30], desc: '神杖:冷却降低;冰封区域内的敌人额外被眩晕 1.5 秒并无法回春(驱散冻创效果)。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
   description: '向全图任意处投下极寒冰球:重创并长时间冰封该区域的敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     damageArea(w, caster, pos, 350, BLAST_DMG[lvl - 1]);
     modifierArea(w, caster, pos, 350, { key: 'aa_iceblast_debuff', duration: 5, stats: { bonusMoveSpeedPct: -0.5, bonusAttackSpeed: -0.4 } }, 'enemy');
+    if (sc) {
+      modifierArea(w, caster, pos, 350, { key: 'aa_iceblast_stun', duration: 1.5, states: { stunned: true } }, 'enemy');
+    }
     w.emit({ kind: 'fx', fx: 'iceblast', pos: V.clone(pos), radius: 350 });
   },
   aiScore(w, caster) {
@@ -355,10 +377,14 @@ const REPLICATE_DUR = [20, 24, 28];
 const MPH_R: AbilityDef = {
   key: 'mph_replicate', name: '复制', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 100, 100], cooldown: [60, 50, 40],
+  scepter: { cooldown: [45, 36, 28], desc: '神杖:冷却降低;复制体数量增加至 2 个,且每个复制体伤害输出提升至 120%(原 80%)。' },
   castPoint: 0.2, tags: ['ultimate'],
   description: '凝聚一个出伤强力的水之复制体协同作战。',
   onCast(w, caster, lvl) {
-    createIllusion(w, caster, 1, 0.8, 1.5, REPLICATE_DUR[lvl - 1]);
+    const sc = hasScepter(caster);
+    const count = sc ? 2 : 1;
+    const damagePct = sc ? 1.2 : 0.8;
+    createIllusion(w, caster, count, damagePct, 1.5, REPLICATE_DUR[lvl - 1]);
     w.emit({ kind: 'fx', fx: 'replicate', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {
@@ -447,6 +473,7 @@ const PURGE_DMG = [150, 225, 300];
 const SDM_R: AbilityDef = {
   key: 'sdm_purge', name: '恶魔清算', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 150, 175], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 35], desc: '神杖:冷却降低;清算时向目标周围 400 范围蔓延暗影腐蚀——周围敌人受到 150 伤害并被减速 50% 持续 3 秒。' },
   castPoint: 0.3, tags: ['nuke', 'slow', 'ultimate'],
   description: '恶魔清算:驱散目标增益、造成伤害并使其极度减速、缓慢流失生命。',
   onCast(w, caster, lvl, _pos, target) {
@@ -456,6 +483,15 @@ const SDM_R: AbilityDef = {
       key: 'sdm_purge_slow', duration: 5, stats: { bonusMoveSpeedPct: -0.7 }, tickInterval: 1,
       onTick: (world, u) => spellDamage(world, caster, u, 40 + lvl * 20),
     }, caster.id);
+    // 神杖:暗影腐蚀蔓延
+    if (hasScepter(caster)) {
+      for (const nearby of enemiesIn(w, caster, target.pos, 400)) {
+        if (nearby.id === target.id) continue;
+        spellDamage(w, caster, nearby, 150);
+        applyModifier(w, nearby, { key: 'sdm_purge_spread', duration: 3, stats: { bonusMoveSpeedPct: -0.5 } }, caster.id);
+      }
+      w.emit({ kind: 'fx', fx: 'demonicpurge', pos: V.clone(target.pos), radius: 400 });
+    }
     w.emit({ kind: 'fx', fx: 'demonicpurge', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {
@@ -539,19 +575,24 @@ const COMMAND_DPS = [60, 90, 120];
 const MKY_R: AbilityDef = {
   key: 'mky_command', name: '大圣天兵', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [700, 700, 700], manaCost: [150, 175, 200], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 58, 50], desc: '神杖:冷却降低;天兵持续时间从 6 秒延长至 9 秒,范围从 450 扩大至 600,且每次 tick 还对区域敌人施加 0.4 秒眩晕。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],
   description: '召出毫毛天兵布满一片区域,持续猛击其中的敌人并将其困在场内。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const dur = sc ? 9 : 6;
+    const r = sc ? 600 : 450;
     applyModifier(w, caster, {
-      key: `mky_command_${w.tick}`, duration: 6, isBuff: true, tickInterval: 0.5,
+      key: `mky_command_${w.tick}`, duration: dur, isBuff: true, tickInterval: 0.5,
       onTick(world) {
-        for (const e of enemiesIn(world, caster, at, 450)) {
+        for (const e of enemiesIn(world, caster, at, r)) {
           spellDamage(world, caster, e, COMMAND_DPS[lvl - 1]);
           applyModifier(world, e, { key: 'mky_command_slow', duration: 0.7, stats: { bonusMoveSpeedPct: -0.4 } }, caster.id);
+          if (sc) applyModifier(world, e, { key: 'mky_command_stun', duration: 0.4, states: { stunned: true } }, caster.id);
         }
-        world.emit({ kind: 'fx', fx: 'wukongcommand', pos: at, radius: 450 });
+        world.emit({ kind: 'fx', fx: 'wukongcommand', pos: at, radius: r });
       },
     }, caster.id);
   },

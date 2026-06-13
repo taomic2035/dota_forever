@@ -72,12 +72,14 @@ const RAGE_DMG = [60, 100, 140];
 const TIN_R: AbilityDef = {
   key: 'tin_rage', name: '巨化狂怒', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 125, 150], cooldown: [60, 55, 50],
+  scepter: { cooldown: [40, 36, 32], desc: '神杖:冷却降低,持续时间延长至 30 秒,溅射半径提升至 500。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '进入巨化狂怒:攻击附带溅射并大幅提升攻击力 20 秒。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
     applyModifier(w, caster, {
-      key: 'tin_rage_buff', duration: 20, isBuff: true,
-      stats: { bonusDamage: RAGE_DMG[lvl - 1] }, data: { cleavePct: 0.3 + lvl * 0.1, cleaveRadius: 350 },
+      key: 'tin_rage_buff', duration: sc ? 30 : 20, isBuff: true,
+      stats: { bonusDamage: RAGE_DMG[lvl - 1] }, data: { cleavePct: 0.3 + lvl * 0.1, cleaveRadius: sc ? 500 : 350 },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'tinyrage', pos: V.clone(caster.pos) });
   },
@@ -240,13 +242,15 @@ const NETHER_DMG = [200, 300, 400];
 const SBR_R: AbilityDef = {
   key: 'sbr_netherstrike', name: '星空裂击', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 700, 700], manaCost: [125, 150, 175], cooldown: [80, 60, 40],
+  scepter: { cooldown: [55, 42, 28], desc: '神杖:冷却大幅降低,伤害提升 50%,眩晕延长至 2.5 秒。' },
   castPoint: 0.3, tags: ['nuke', 'stun', 'ultimate'],
   description: '瞬移到目标身后给予致命一击:重创并击晕目标。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
     blinkTo(w, caster, w.map.nearestWalkable(V.add(target.pos, { x: 80, y: 60 })));
-    spellDamage(w, caster, target, NETHER_DMG[lvl - 1]);
-    applyModifier(w, target, { key: 'sbr_nether_stun', duration: 1.6, states: { stunned: true } }, caster.id);
+    spellDamage(w, caster, target, NETHER_DMG[lvl - 1] * (sc ? 1.5 : 1));
+    applyModifier(w, target, { key: 'sbr_nether_stun', duration: sc ? 2.5 : 1.6, states: { stunned: true } }, caster.id);
     caster.issueOrder({ type: 'attack', targetId: target.id });
     w.emit({ kind: 'fx', fx: 'netherstrike', pos: V.clone(target.pos) });
   },
@@ -331,17 +335,22 @@ const SLA_E: AbilityDef = {
 };
 
 const DANCE_DUR = [4, 5, 6];
+const DANCE_DUR_SC = [7, 9, 11];
 
 const SLA_R: AbilityDef = {
   key: 'sla_dance', name: '暗影之舞', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [60, 60, 60], cooldown: [40, 32, 24],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低,持续时间延长,隐身期间每跳回血量翻倍。' },
   castPoint: 0.0, tags: ['buff', 'escape', 'ultimate'],
   description: '隐入暗影:隐身、加速并快速回复生命。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const dur = sc ? DANCE_DUR_SC[lvl - 1] : DANCE_DUR[lvl - 1];
+    const healPerTick = sc ? (40 + lvl * 20) * 2 : 40 + lvl * 20;
     applyModifier(w, caster, {
-      key: 'sla_dance_buff', duration: DANCE_DUR[lvl - 1], isBuff: true,
+      key: 'sla_dance_buff', duration: dur, isBuff: true,
       states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.25 + lvl * 0.05 }, tickInterval: 0.5,
-      onTick: (_world, u) => { u.hp = Math.min(u.calc.maxHp, u.hp + 40 + lvl * 20); },
+      onTick: (_world, u) => { u.hp = Math.min(u.calc.maxHp, u.hp + healPerTick); },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'shadowdance', pos: V.clone(caster.pos) });
   },
@@ -405,16 +414,21 @@ const LYC_E: AbilityDef = {
 };
 
 const SHIFT_DUR = [12, 15, 18];
+const SHIFT_DUR_SC = [20, 25, 30];
 
 const LYC_R: AbilityDef = {
   key: 'lyc_shift', name: '变形', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [75, 75, 75], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低,持续时间大幅延长,暴击倍率额外+0.5。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '化身狼王:极速移动、暴击与额外生命,撕碎一切。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const dur = sc ? SHIFT_DUR_SC[lvl - 1] : SHIFT_DUR[lvl - 1];
+    const critMult = 1.7 + lvl * 0.1 + (sc ? 0.5 : 0);
     applyModifier(w, caster, {
-      key: 'lyc_shift_buff', duration: SHIFT_DUR[lvl - 1], isBuff: true,
-      stats: { bonusMoveSpeedPct: 0.4, critChance: 0.3, critMultiplier: 1.7 + lvl * 0.1, bonusHp: 150 + lvl * 100 },
+      key: 'lyc_shift_buff', duration: dur, isBuff: true,
+      stats: { bonusMoveSpeedPct: 0.4, critChance: 0.3, critMultiplier: critMult, bonusHp: 150 + lvl * 100 },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'shapeshift', pos: V.clone(caster.pos) });
   },
@@ -493,23 +507,28 @@ const GEM_E: AbilityDef = {
 };
 
 const MAGNETIZE_TICK = [50, 75, 100];
+const MAGNETIZE_TICK_SC = [85, 125, 165];
 
 const GEM_R: AbilityDef = {
   key: 'gem_magnetize', name: '怒石迸发', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [700, 700, 700], manaCost: [125, 175, 225], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 58, 50], desc: '神杖:冷却降低,每跳伤害大幅提升,磁化半径扩大至 600。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
   description: '磁化一片区域:持续伤害并减速其中敌人 6 秒。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     const at = V.clone(pos);
+    const tickDmg = sc ? MAGNETIZE_TICK_SC[lvl - 1] : MAGNETIZE_TICK[lvl - 1];
+    const radius = sc ? 600 : 450;
     applyModifier(w, caster, {
       key: `gem_magnetize_${w.tick}`, duration: 6, isBuff: true, tickInterval: 0.5,
       onTick(world) {
-        for (const e of enemiesIn(world, caster, at, 450)) {
-          spellDamage(world, caster, e, MAGNETIZE_TICK[lvl - 1]);
+        for (const e of enemiesIn(world, caster, at, radius)) {
+          spellDamage(world, caster, e, tickDmg);
           applyModifier(world, e, { key: 'gem_magnetize_slow', duration: 0.7, stats: { bonusMoveSpeedPct: -0.3 } }, caster.id);
         }
-        world.emit({ kind: 'fx', fx: 'magnetize', pos: at, radius: 450 });
+        world.emit({ kind: 'fx', fx: 'magnetize', pos: at, radius });
       },
     }, caster.id);
   },

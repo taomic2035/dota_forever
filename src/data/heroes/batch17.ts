@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -59,6 +59,7 @@ const TRUEFORM_DUR = [16, 20, 24];
 const DRU_R: AbilityDef = {
   key: 'dru_trueform', name: '真身形态', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 50, 50], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 34], desc: '神杖:冷却降低;化身时同时召唤一头神兽灵熊,并震击周围 400 内敌人。' },
   castPoint: 0.2, tags: ['buff', 'ultimate'],
   description: '化身真熊形态:大幅提升生命、护甲与攻击力。',
   onCast(w, caster, lvl) {
@@ -67,6 +68,13 @@ const DRU_R: AbilityDef = {
       stats: { bonusHp: 300 + lvl * 150, bonusArmor: 6 + lvl * 2, bonusDamage: 30 + lvl * 20 },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'trueform', pos: V.clone(caster.pos) });
+    // 神杖:召唤神兽灵熊 + 震击周围敌人
+    if (hasScepter(caster)) {
+      for (const u of w.units.values()) if (u.alive && u.name === '神兽灵熊' && u.summonOwnerId === caster.id) { u.alive = false; u.diedAt = w.time; }
+      summonUnit(w, caster, { name: '神兽灵熊', hp: BEAR_HP[lvl - 1] + 400, dmg: [50 + lvl * 10, 58 + lvl * 10], armor: 6 + lvl, ms: 330, range: 100, duration: 9999, magicResist: 0.3 }, V.add(caster.pos, { x: -90, y: 60 }), true);
+      damageArea(w, caster, caster.pos, 400, 80 + lvl * 40);
+      w.emit({ kind: 'fx', fx: 'spiritbear', pos: V.clone(caster.pos), radius: 400 });
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 600).filter((t) => t.isHero());
@@ -147,6 +155,7 @@ const DRAIN_TICK = [80, 120, 160];
 const PUG_R: AbilityDef = {
   key: 'pug_drain', name: '生命汲取', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [600, 600, 600], manaCost: [100, 150, 200], cooldown: [16, 12, 8],
+  scepter: { cooldown: [10, 7, 4], desc: '神杖:冷却大幅降低;每 tick 额外汲取 50% 生命,并对目标周围 350 内敌人造成溢出汲取伤害。' },
   castPoint: 0.1, tags: ['nuke', 'channel', 'ultimate'],
   description: '引导汲取目标生命,并转化为自身生命。',
   onCast(w, caster, _lvl, _pos, target) {
@@ -158,8 +167,17 @@ const PUG_R: AbilityDef = {
     onChannelTick(w, caster, lvl) {
       const t = caster.channeling?.targetId ? w.getUnit(caster.channeling.targetId) : undefined;
       if (!t || !t.alive || V.dist(caster.pos, t.pos) > 700) { if (caster.channeling) caster.channeling.until = -Infinity; return; }
-      const d = spellDamage(w, caster, t, DRAIN_TICK[lvl - 1]);
+      const base = DRAIN_TICK[lvl - 1];
+      const tick = hasScepter(caster) ? Math.round(base * 1.5) : base;
+      const d = spellDamage(w, caster, t, tick);
       caster.hp = Math.min(caster.calc.maxHp, caster.hp + d);
+      // 神杖:溢出汲取波及周围敌人
+      if (hasScepter(caster)) {
+        for (const e of enemiesIn(w, caster, t.pos, 350)) {
+          if (e.id === t.id) continue;
+          spellDamage(w, caster, e, Math.round(base * 0.5));
+        }
+      }
     },
   },
   aiScore(w, caster) {
@@ -256,14 +274,18 @@ const NOVA_DPS = [70, 105, 140];
 const LES_R: AbilityDef = {
   key: 'les_nova', name: '脉冲新星', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [60, 55, 50],
+  scepter: { cooldown: [42, 38, 34], desc: '神杖:冷却降低;脉冲新星半径从 500 扩大至 700,持续时间延长至 7 秒。' },
   castPoint: 0.2, tags: ['nuke', 'aoe', 'ultimate'],
   description: '爆发持续的脉冲新星,在 5 秒内不断重创周围所有敌人。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const radius = sc ? 700 : 500;
+    const duration = sc ? 7 : 5;
     applyModifier(w, caster, {
-      key: 'les_nova_buff', duration: 5, isBuff: true, tickInterval: 0.5,
-      onTick(world, u) { for (const e of enemiesIn(world, u, u.pos, 500)) spellDamage(world, u, e, NOVA_DPS[lvl - 1]); },
+      key: 'les_nova_buff', duration, isBuff: true, tickInterval: 0.5,
+      onTick(world, u) { for (const e of enemiesIn(world, u, u.pos, radius)) spellDamage(world, u, e, NOVA_DPS[lvl - 1]); },
     }, caster.id);
-    w.emit({ kind: 'fx', fx: 'pulsenova', pos: V.clone(caster.pos), radius: 500 });
+    w.emit({ kind: 'fx', fx: 'pulsenova', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 480).filter((t) => t.isHero());
@@ -349,15 +371,20 @@ const FEAR_DUR = [2.5, 3.0, 3.5];
 const DWL_R: AbilityDef = {
   key: 'dwl_terror', name: '恐惧', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 125, 150], cooldown: [60, 50, 40],
+  scepter: { cooldown: [42, 35, 28], desc: '神杖:冷却降低;恐惧范围扩大至 800,并对每个受影响的敌人施加 0.8 秒真实眩晕。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'ultimate'],
   description: '释放无边恐惧:周围敌人被吓退,无法攻击与施法并四散奔逃。',
   onCast(w, caster, lvl) {
-    for (const e of enemiesIn(w, caster, caster.pos, 600)) {
+    const sc = hasScepter(caster);
+    const radius = sc ? 800 : 600;
+    for (const e of enemiesIn(w, caster, caster.pos, radius)) {
       applyModifier(w, e, { key: 'dwl_terror_fear', duration: FEAR_DUR[lvl - 1], states: { disarmed: true, silenced: true }, stats: { bonusMoveSpeedPct: -0.15 } }, caster.id);
       const away = w.map.nearestWalkable(V.add(e.pos, V.scale(V.norm(V.sub(e.pos, caster.pos)), 700)));
       e.issueOrder({ type: 'move', pos: away });
+      // 神杖:附加 0.8 秒眩晕
+      if (sc) applyModifier(w, e, { key: 'dwl_terror_sc_stun', duration: 0.8, states: { stunned: true } }, caster.id);
     }
-    w.emit({ kind: 'fx', fx: 'terrorize', pos: V.clone(caster.pos), radius: 600 });
+    w.emit({ kind: 'fx', fx: 'terrorize', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 550).filter((t) => t.isHero());
@@ -439,14 +466,21 @@ const SOLAR_HEAL = [200, 300, 400];
 const DWN_R: AbilityDef = {
   key: 'dwn_solar', name: '旭日守护', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [99999, 99999, 99999], manaCost: [100, 100, 100], cooldown: [100, 90, 80],
+  scepter: { cooldown: [70, 62, 54], desc: '神杖:冷却降低;旭日守护范围从 600 扩大至 900,同时赋予区域内友军 3 秒护甲加成。' },
   castPoint: 0.3, tags: ['heal', 'aoe', 'ultimate'],
   description: '降临到一名友军身边,治疗并伤害落点周围的敌我双方阵营。',
   onCast(w, caster, lvl, _pos, target) {
     const dest = target && target.team === caster.team ? target.pos : caster.pos;
     blinkTo(w, caster, w.map.nearestWalkable(V.add(dest, { x: 60, y: 0 })));
-    for (const a of alliesIn(w, caster, caster.pos, 600)) a.hp = Math.min(a.calc.maxHp, a.hp + SOLAR_HEAL[lvl - 1]);
-    damageArea(w, caster, caster.pos, 600, SOLAR_HEAL[lvl - 1] * 0.5);
-    w.emit({ kind: 'fx', fx: 'solarguardian', pos: V.clone(caster.pos), radius: 600 });
+    const sc = hasScepter(caster);
+    const radius = sc ? 900 : 600;
+    for (const a of alliesIn(w, caster, caster.pos, radius)) {
+      a.hp = Math.min(a.calc.maxHp, a.hp + SOLAR_HEAL[lvl - 1]);
+      // 神杖:附加护甲 buff
+      if (sc) applyModifier(w, a, { key: 'dwn_solar_sc_armor', duration: 3, isBuff: true, stats: { bonusArmor: 6 + lvl * 2 } }, caster.id);
+    }
+    damageArea(w, caster, caster.pos, radius, SOLAR_HEAL[lvl - 1] * 0.5);
+    w.emit({ kind: 'fx', fx: 'solarguardian', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const allies = [...w.units.values()].filter((u) => u.isHero() && u.alive && u.team === caster.team && u.id !== caster.id && u.hp / u.calc.maxHp < 0.4);
@@ -536,6 +570,7 @@ const PULV_TICK = [80, 120, 160];
 const PBST_R: AbilityDef = {
   key: 'pbst_pulverize', name: '痛击', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [300, 300, 300], manaCost: [125, 150, 175], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 56, 48], desc: '神杖:冷却降低;每次砸击同时波及目标周围 300 内的敌人,造成 50% 分散伤害并击晕。' },
   castPoint: 0.3, tags: ['stun', 'channel', 'ultimate'],
   description: '抓住目标连续猛砸:引导期间反复造成伤害并击晕。',
   onCast(w, caster, _lvl, _pos, target) {
@@ -549,6 +584,14 @@ const PBST_R: AbilityDef = {
       if (!t || !t.alive || V.dist(caster.pos, t.pos) > 500) { if (caster.channeling) caster.channeling.until = -Infinity; return; }
       spellDamage(w, caster, t, PULV_TICK[lvl - 1]);
       applyModifier(w, t, { key: 'pbst_pulverize_stun', duration: 0.6, states: { stunned: true } }, caster.id);
+      // 神杖:波及周围 300 内其他敌人
+      if (hasScepter(caster)) {
+        for (const e of enemiesIn(w, caster, t.pos, 300)) {
+          if (e.id === t.id) continue;
+          spellDamage(w, caster, e, Math.round(PULV_TICK[lvl - 1] * 0.5));
+          applyModifier(w, e, { key: 'pbst_pulverize_sc_stun', duration: 0.6, states: { stunned: true } }, caster.id);
+        }
+      }
     },
   },
   aiScore(w, caster) {

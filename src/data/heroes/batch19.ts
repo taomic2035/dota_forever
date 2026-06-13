@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, summonUnit,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import type { Unit } from '../../sim/unit';
@@ -79,18 +79,25 @@ const EPI_DPS = [70, 100, 130];
 const SNK_R: AbilityDef = {
   key: 'snk_epicenter', name: '地震', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;震源范围扩大至 800 单位,减速幅度加深至 50%。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'channel', 'ultimate'],
   description: '引导震源:持续爆发一圈圈震荡波,伤害并减速周围敌人。',
-  onCast(w, caster) { w.emit({ kind: 'fx', fx: 'epicenter', pos: V.clone(caster.pos), radius: 600 }); },
+  onCast(w, caster) {
+    const r = hasScepter(caster) ? 800 : 600;
+    w.emit({ kind: 'fx', fx: 'epicenter', pos: V.clone(caster.pos), radius: r });
+  },
   channel: {
     duration: (lvl) => 2.5 + lvl * 0.5,
     tickInterval: 0.4,
     onChannelTick(w, caster, lvl) {
-      for (const e of enemiesIn(w, caster, caster.pos, 600)) {
+      const sc = hasScepter(caster);
+      const r = sc ? 800 : 600;
+      const slow = sc ? -0.5 : -0.3;
+      for (const e of enemiesIn(w, caster, caster.pos, r)) {
         spellDamage(w, caster, e, EPI_DPS[lvl - 1]);
-        applyModifier(w, e, { key: 'snk_epi_slow', duration: 0.6, stats: { bonusMoveSpeedPct: -0.3, bonusAttackSpeed: -0.3 } }, caster.id);
+        applyModifier(w, e, { key: 'snk_epi_slow', duration: 0.6, stats: { bonusMoveSpeedPct: slow, bonusAttackSpeed: -0.3 } }, caster.id);
       }
-      w.emit({ kind: 'fx', fx: 'epicenter', pos: V.clone(caster.pos), radius: 600 });
+      w.emit({ kind: 'fx', fx: 'epicenter', pos: V.clone(caster.pos), radius: r });
     },
   },
   aiScore(w, caster) {
@@ -175,15 +182,20 @@ const LASSO_DPS = [60, 90, 120];
 const BAT_R: AbilityDef = {
   key: 'bat_lasso', name: '烈焰套索', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [500, 500, 500], manaCost: [125, 150, 175], cooldown: [70, 55, 40],
+  scepter: { cooldown: [50, 38, 28], desc: '神杖:冷却降低;套索期间每次灼烧同时附带 -4 护甲减益,持续 4 秒。' },
   castPoint: 0.3, tags: ['stun', 'nuke', 'ultimate'],
   description: '套住目标将其拖在身后:持续灼烧并使其无法行动。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     const back = w.map.nearestWalkable(V.add(caster.pos, V.scale(V.norm(V.sub(target.pos, caster.pos)), -60)));
     target.pos = back; target.prevPos = V.clone(back); target.path = []; target.pathGoal = null;
+    const sc = hasScepter(caster);
     applyModifier(w, target, {
       key: 'bat_lasso_drag', duration: 1.8 + lvl * 0.3, states: { stunned: true }, tickInterval: 0.5,
-      onTick: (world, u) => spellDamage(world, caster, u, LASSO_DPS[lvl - 1] / 2),
+      onTick: (world, u) => {
+        spellDamage(world, caster, u, LASSO_DPS[lvl - 1] / 2);
+        if (sc) applyModifier(world, u, { key: 'bat_lasso_scorch', duration: 4, stats: { bonusArmor: -4 } }, caster.id);
+      },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'flaminglasso', pos: V.clone(target.pos) });
   },
@@ -275,12 +287,17 @@ const WARD_HP = [120, 160, 200];
 const SHM_R: AbilityDef = {
   key: 'shm_wards', name: '群蛇守卫', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [500, 500, 500], manaCost: [150, 175, 200], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 58, 50], desc: '神杖:冷却降低;多召出第 5 条群蛇守卫,且每条守卫攻击力额外提升 50%。' },
   castPoint: 0.3, tags: ['ultimate'],
   description: '召出一排群蛇守卫,猛烈攻击附近敌人(攻城利器)。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    for (let i = 0; i < 4; i++) {
-      summonUnit(w, caster, { name: '群蛇守卫', hp: WARD_HP[lvl - 1], dmg: [30 + lvl * 12, 36 + lvl * 12], armor: 0, ms: 0, range: 500, duration: 20, magicResist: 0, attackType: 'pierce' }, V.add(pos, { x: (i - 1.5) * 60, y: 0 }), false);
+    const sc = hasScepter(caster);
+    const count = sc ? 5 : 4;
+    const dmgBase = sc ? Math.round((30 + lvl * 12) * 1.5) : 30 + lvl * 12;
+    const dmgMax = sc ? Math.round((36 + lvl * 12) * 1.5) : 36 + lvl * 12;
+    for (let i = 0; i < count; i++) {
+      summonUnit(w, caster, { name: '群蛇守卫', hp: WARD_HP[lvl - 1], dmg: [dmgBase, dmgMax], armor: 0, ms: 0, range: 500, duration: 20, magicResist: 0, attackType: 'pierce' }, V.add(pos, { x: (i - (count - 1) / 2) * 60, y: 0 }), false);
     }
     w.emit({ kind: 'fx', fx: 'serpentwards', pos: V.clone(pos) });
   },
@@ -377,16 +394,19 @@ const BIND_DMG = [150, 225, 300];
 const GRM_R: AbilityDef = {
   key: 'grm_soulbind', name: '灵魂链结', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [800, 800, 800], manaCost: [125, 150, 175], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 35], desc: '神杖:冷却降低;墨链初始爆发附加 1.2 秒眩晕,彻底锁死目标区域。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
   description: '以墨链束缚一片敌人:重创并使其共同减速、持续受创。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     for (const e of enemiesIn(w, caster, pos, 400)) {
       spellDamage(w, caster, e, BIND_DMG[lvl - 1]);
       applyModifier(w, e, {
         key: 'grm_soulbind_link', duration: 4, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.35 }, tickInterval: 1,
         onTick: (world, u) => spellDamage(world, caster, u, 40 + lvl * 25),
       }, caster.id);
+      if (sc) applyModifier(w, e, { key: 'grm_soulbind_stun', duration: 1.2, states: { stunned: true } }, caster.id);
     }
     w.emit({ kind: 'fx', fx: 'soulbind', pos: V.clone(pos), radius: 400 });
   },
@@ -458,11 +478,16 @@ const ENCH_E: AbilityDef = {
 
 const ENCH_R: AbilityDef = {
   key: 'ench_untouchable', name: '不可侵犯', maxLevel: 3, ultimate: true, targetMode: 'passive',
+  scepter: { desc: '神杖:不可侵犯额外赋予 15/18/20% 闪避,令林莺更难被命中。' },
   tags: ['buff', 'ultimate'],
   description: '不可侵犯:任何攻击林莺的敌人都会被大幅减速。',
   passiveModifier: (lvl) => ({
     key: 'ench_untouchable_passive', isBuff: true,
     data: { retaliateSlowPct: 0.4 + lvl * 0.1, retaliateSlowAs: 0.5 + lvl * 0.1, retaliateSlowDur: 2.5 },
+  }),
+  scepterPassive: (lvl) => ({
+    key: 'ench_untouchable_sc_evasion', isBuff: true,
+    stats: { evasion: 0.13 + lvl * 0.02 },
   }),
 };
 
@@ -541,15 +566,22 @@ const PROMISE_DUR = [6, 7, 8];
 const ORA_R: AbilityDef = {
   key: 'ora_promise', name: '虚妄之诺', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'allyOrSelf',
   castRange: [700, 700, 700], manaCost: [100, 100, 100], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 55, 45], desc: '神杖:冷却降低;虚妄之诺同时覆盖施法范围内所有友军英雄。' },
   castPoint: 0.2, tags: ['buff', 'heal', 'ultimate'],
   description: '为友军许下虚妄之诺:数秒内大幅减伤并持续回复(救人神技)。',
   onCast(w, caster, lvl, _pos, target) {
     const t = target && target.team === caster.team ? target : caster;
-    applyModifier(w, t, {
-      key: 'ora_promise_buff', duration: PROMISE_DUR[lvl - 1], isBuff: true, stats: { incomingDamageReduction: 0.5 }, tickInterval: 0.5,
-      onTick: (_world, u) => { u.hp = Math.min(u.calc.maxHp, u.hp + 40 + lvl * 20); },
-    }, caster.id);
-    w.emit({ kind: 'fx', fx: 'falsepromise', pos: V.clone(t.pos) });
+    const targets: typeof t[] = [t];
+    if (hasScepter(caster)) {
+      for (const a of alliesIn(w, caster, caster.pos, 700)) { if (a.isHero() && a.id !== t.id) targets.push(a); }
+    }
+    for (const ally of targets) {
+      applyModifier(w, ally, {
+        key: 'ora_promise_buff', duration: PROMISE_DUR[lvl - 1], isBuff: true, stats: { incomingDamageReduction: 0.5 }, tickInterval: 0.5,
+        onTick: (_world, u) => { u.hp = Math.min(u.calc.maxHp, u.hp + 40 + lvl * 20); },
+      }, caster.id);
+      w.emit({ kind: 'fx', fx: 'falsepromise', pos: V.clone(ally.pos) });
+    }
   },
   aiScore(w, caster) {
     const allies = [...w.units.values()].filter((u) => u.isHero() && u.alive && u.team === caster.team && u.hp / u.calc.maxHp < 0.4);
