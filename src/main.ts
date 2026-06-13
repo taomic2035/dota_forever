@@ -18,6 +18,8 @@ import { ShopPanel } from './ui/shop';
 import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
+import { showHero3DPreview } from './ui/hero3dPreview';
+import { showResource3DPreview } from './ui/resource3dPreview';
 import { useItem, itemUseReason } from './sim/items';
 import { learnAbility, learnStatBonus, abilityCastReason } from './sim/abilities';
 import { itemDef } from './data/items';
@@ -46,7 +48,11 @@ app.addEventListener('contextmenu', (e) => e.preventDefault());
 const CONTROL_SETTINGS_KEY = 'dotaForever.controlSettings.v1';
 
 const modeParam = params.get('mode');
-if (!modeParam) {
+if (modeParam === 'hero3d-preview') {
+  showHero3DPreview(app);
+} else if (modeParam === 'resource3d-preview') {
+  showResource3DPreview(app);
+} else if (!modeParam) {
   showMenu(app);
 } else {
   startGame(modeParam as 'play' | 'spectate');
