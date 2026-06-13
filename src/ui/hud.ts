@@ -82,6 +82,7 @@ export class Hud {
               <span>ARM ${hero.calc.armor.toFixed(1)}</span>
               <span>LH/DN ${meta.lastHits}/${meta.denies}</span>
             </div>
+            ${dead ? '' : this.buffBar(world, hero)}
           </div>
         </div>
         <div style="display:flex;align-items:end;justify-content:center;gap:5px;min-width:0;">
@@ -115,6 +116,31 @@ export class Hud {
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">Night</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
+  }
+
+  /** buff/debuff 状态栏:活跃定时 modifier 按状态分类着色 + 剩余秒数(战斗可读性)。 */
+  private buffBar(world: World, hero: Unit): string {
+    const active = hero.modifiers
+      .filter((m) => m.expiresAt !== Infinity && m.expiresAt > world.time)
+      .sort((a, b) => a.expiresAt - b.expiresAt);
+    if (!active.length) return '';
+    const chips = active.slice(0, 10).map((m) => {
+      const rem = Math.max(0, m.expiresAt - world.time);
+      const s = m.def.states;
+      let tag: string, color: string;
+      if (s?.stunned) { tag = '晕'; color = '#ff4040'; }
+      else if (s?.rooted) { tag = '缚'; color = '#ff7a30'; }
+      else if (s?.silenced) { tag = '沉'; color = '#b06bff'; }
+      else if (s?.disarmed) { tag = '缴'; color = '#ff7a30'; }
+      else if (s?.muted) { tag = '禁'; color = '#b06bff'; }
+      else if (s?.invisible) { tag = '隐'; color = '#62c7ff'; }
+      else if (s?.magicImmune) { tag = '免'; color = '#ffd54f'; }
+      else if (m.def.isBuff) { tag = '▲'; color = '#6fcf5a'; }
+      else { tag = '▼'; color = '#ff9a3d'; }
+      const t = rem >= 1 ? String(Math.ceil(rem)) : rem.toFixed(1);
+      return `<span title="${m.def.key}" style="display:inline-flex;align-items:center;height:15px;padding:0 3px;border:1px solid ${color};border-radius:2px;background:${color}22;color:${color};font-size:9px;font-weight:700">${tag}${t}</span>`;
+    }).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-width:100%">${chips}</div>`;
   }
 
   private meter(value: number, max: number, top: string, bottom: string): string {
