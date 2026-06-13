@@ -1,7 +1,7 @@
 /** 霜语者·莉雅:智力法系辅助。冰霜新星/冰封禁制/秘法之泉/极寒领域。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { damageArea, modifierArea, enemiesIn, spellDamage } from '../../sim/abilities';
+import { damageArea, modifierArea, enemiesIn, spellDamage, hasScepter } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
 
 const NOVA_DMG = [110, 160, 210, 260];
@@ -74,17 +74,21 @@ const FIELD_TICK_DMG = [40, 65, 90];
 export const LIYA_R: AbilityDef = {
   key: 'liya_field', name: '极寒领域', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [200, 320, 440], cooldown: [110, 100, 90],
+  scepter: { cooldown: [80, 75, 70], desc: '神杖:冷却降低;领域范围扩大至 800、减速加深至 40%。' },
   castPoint: 0.3, tags: ['channel', 'aoe', 'slow'],
   description: '引导冰暴 6 秒,持续冻伤并减速周围敌人。',
   channel: {
     duration: () => 6,
     tickInterval: 0.5,
     onChannelTick(w, caster, lvl) {
-      damageArea(w, caster, caster.pos, 600, FIELD_TICK_DMG[lvl - 1]);
-      modifierArea(w, caster, caster.pos, 600, {
-        key: 'liya_field_slow', duration: 1.0, stats: { bonusMoveSpeedPct: -0.25 },
+      const sc = hasScepter(caster);
+      const r = sc ? 800 : 600;
+      const slow = sc ? -0.4 : -0.25;
+      damageArea(w, caster, caster.pos, r, FIELD_TICK_DMG[lvl - 1]);
+      modifierArea(w, caster, caster.pos, r, {
+        key: 'liya_field_slow', duration: 1.0, stats: { bonusMoveSpeedPct: slow },
       }, 'enemy');
-      w.emit({ kind: 'fx', fx: 'blizzard', pos: V.clone(caster.pos), radius: 600 });
+      w.emit({ kind: 'fx', fx: 'blizzard', pos: V.clone(caster.pos), radius: r });
     },
   },
   aiScore(w, caster) {

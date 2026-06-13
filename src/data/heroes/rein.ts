@@ -1,7 +1,7 @@
 /** 雷恩·铁壁:力量先手坦克。锤晕/战吼/顺劈/泰坦之力。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { abilityProjectile, spellDamage, modifierArea, enemiesIn } from '../../sim/abilities';
+import { abilityProjectile, spellDamage, modifierArea, enemiesIn, hasScepter } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
 import { applyDamage, isEnemy } from '../../sim/combat';
 
@@ -75,6 +75,7 @@ const TITAN_STR = [10, 20, 30];
 export const REIN_R: AbilityDef = {
   key: 'rein_titan', name: '泰坦之力', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 150, 200], cooldown: [80, 75, 70],
+  scepter: { cooldown: [55, 50, 45], desc: '神杖:冷却降低;化身时震退周围敌人(范围伤害 + 减速 30%)。' },
   castPoint: 0.2, tags: ['buff'],
   description: '化身泰坦,大幅提升攻击与力量。',
   onCast(w, caster, lvl) {
@@ -83,6 +84,14 @@ export const REIN_R: AbilityDef = {
       stats: { bonusDamagePct: TITAN_DMG_PCT[lvl - 1], bonusStr: TITAN_STR[lvl - 1] },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'titan', pos: V.clone(caster.pos), radius: 200 });
+    // 神杖:化身震荡波——范围伤害 + 减速
+    if (hasScepter(caster)) {
+      for (const foe of enemiesIn(w, caster, caster.pos, 350)) spellDamage(w, caster, foe, 150 + 50 * lvl);
+      modifierArea(w, caster, caster.pos, 350, {
+        key: 'rein_titan_shock', duration: 1.5, stats: { bonusMoveSpeedPct: -0.3 },
+      }, 'enemy');
+      w.emit({ kind: 'fx', fx: 'titan', pos: V.clone(caster.pos), radius: 350 });
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 700).filter((t) => t.isHero());

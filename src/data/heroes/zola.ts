@@ -1,7 +1,7 @@
 /** 雷霆先知·佐拉:智力全图法师。连环闪电/天雷/静电场/雷神之怒。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { enemiesIn, spellDamage } from '../../sim/abilities';
+import { enemiesIn, spellDamage, hasScepter } from '../../sim/abilities';
 import { isEnemy } from '../../sim/combat';
 import { applyModifier } from '../../sim/modifiers';
 import type { World } from '../../sim/world';
@@ -89,12 +89,15 @@ const WRATH_DMG = [210, 335, 460];
 export const ZOLA_R: AbilityDef = {
   key: 'zola_wrath', name: '雷神之怒', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [225, 325, 450], cooldown: [120, 100, 80],
+  scepter: { cooldown: [80, 70, 60], desc: '神杖:冷却降低;雷霆审判对每个敌方英雄附带 0.6 秒眩晕。' },
   castPoint: 0.5, tags: ['nuke', 'ultimate'],
   description: '雷霆审判全图所有敌方英雄。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
     for (const u of w.units.values()) {
       if (!u.isHero() || !u.alive || u.team === caster.team) continue;
       spellDamage(w, caster, u, WRATH_DMG[lvl - 1]);
+      if (sc) applyModifier(w, u, { key: 'zola_wrath_stun', duration: 0.6, states: { stunned: true } }, caster.id);
       w.emit({ kind: 'fx', fx: 'bolt', pos: V.clone(u.pos) });
     }
     staticFieldPulse(w, caster);
