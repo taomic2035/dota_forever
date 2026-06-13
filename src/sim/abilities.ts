@@ -276,14 +276,15 @@ attackHitHooks.push((w, attacker, target, dealt) => {
 //   攻击者持有 cleavePct → 对目标周围溅射物理伤害(劈砍/强化)
 //   目标持有 retaliateSlowPct → 攻击者被减速(冰甲类反伤)
 // 注:溅射走 applyDamage,不经攻击流水线,不会再次触发本钩子(无递归)。
-attackHitHooks.push((w, attacker, target, dealt) => {
+attackHitHooks.push((w, attacker, target, dealt, rawAmount) => {
   if (dealt <= 0) return;
   for (const m of attacker.modifiers) {
     const pct = m.def.data?.cleavePct;
     if (!pct) continue;
     const radius = m.def.data?.cleaveRadius ?? 250;
+    // 劈砍以原始攻击值(经暴击、未经主目标护甲)为基数,各溅射目标再各自走护甲(经典)
     for (const e of w.queryRadius(target.pos, radius, (t) => isEnemy(attacker, t) && t.id !== target.id && !t.isBuilding())) {
-      applyDamage(w, e, { source: attacker.id, attackType: attacker.calc.attackType, amount: dealt * pct });
+      applyDamage(w, e, { source: attacker.id, attackType: attacker.calc.attackType, amount: rawAmount * pct });
     }
   }
   for (const m of target.modifiers) {

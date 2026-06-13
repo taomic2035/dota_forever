@@ -31,7 +31,7 @@
 > balance 相关(A1/A3/A4/A2/A10)集中跑 batchsim 复验。
 
 ### 批次 B — 中等体量修复(B3/B4 ✅ 已完成 2026-06-13)
-- **[B1] 劈砍以原始攻击值为基数** `abilities.ts:286`:cleave 用主目标**经护甲后** `dealt` 应改用前摇掷骰的**原始伤害**;`attackHitHooks` 加 `rawAmount` 参数。(待做)
+- ✅ **[B1] 劈砍以原始攻击值为基数** `attackHitHooks` 加第 5 参 `rawAmount`(经暴击/幻象、未经主目标护甲),cleave hook 改用 `rawAmount*pct`;各溅射目标再各自走护甲。其余 hook 少声明一参(TS 合法)。
 - **[B2] 远程攻击前摇不因目标超距取消** `combat.ts:278`:语义存疑(经典前摇期超距亦取消),**降级复核**后再定。
 - ✅ **[B3] 升级即时补 HP/MP** `economy.addXp`:升级前记 maxHp/maxMp,升级后 recalcUnit 取正增量加到当前 hp/mp(战斗中升级的"免费血")。
 - ✅ **[B4] 英雄攻塔→塔转火该英雄** `buildings.buildingsSystem`:新增分支,敌方英雄直接攻塔时该塔立即锁定攻击者(dive 仇恨)。

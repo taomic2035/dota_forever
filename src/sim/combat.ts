@@ -250,11 +250,11 @@ export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomp
   if (dealt > 0 && attacker.calc.lifesteal > 0 && !target.isBuilding()) {
     attacker.hp = Math.min(attacker.calc.maxHp, attacker.hp + dealt * attacker.calc.lifesteal);
   }
-  // 攻击命中钩子(法球类技能由 abilities.ts 注册)
-  for (const hook of attackHitHooks) hook(w, attacker, target, dealt);
+  // 攻击命中钩子(法球类技能由 abilities.ts 注册)。rawAmount=经暴击/幻象但未经目标护甲的原始攻击值(供劈砍按经典以原始值为基数)
+  for (const hook of attackHitHooks) hook(w, attacker, target, dealt, amount);
 }
 
-export const attackHitHooks: Array<(w: World, attacker: Unit, target: Unit, dealt: number) => void> = [];
+export const attackHitHooks: Array<(w: World, attacker: Unit, target: Unit, dealt: number, rawAmount: number) => void> = [];
 
 /** 施法委托(abilities.ts 注入,避免循环依赖)。 */
 export const castHooks: {
