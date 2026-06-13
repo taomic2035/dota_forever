@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
-import { makeItem, afterInventoryChange } from '../src/sim/items';
+import { makeItem, afterInventoryChange, useItem } from '../src/sim/items';
 import { recalcUnit } from '../src/sim/combat';
 import { REIN, LIYA } from '../src/data/heroes';
+import type { UnitStats } from '../src/sim/unit';
 
 // 夯实物品 Wave A:补齐现有物品被遗漏的属性/光环(非扩数量)。
 describe('物品数据修复(Wave A)', () => {
@@ -42,5 +43,23 @@ describe('物品数据修复(Wave A)', () => {
     recalcUnit(ally);
     expect(ally.calc.armor - armor0).toBeCloseTo(5, 1);
     expect(ally.calc.ias - ias0).toBeCloseTo(0.30, 2);
+  });
+
+  it('点金手:点化给经验(此前漏给)', () => {
+    const w = createWorld(new GameMap(), { seed: 1, noBuildings: true });
+    const h = spawnHero(w, REIN, Team.Dawn, { x: 7000, y: 8000 });
+    h.inventory[0] = makeItem('midas');
+    const stats: UnitStats = {
+      maxHp: 500, hpRegen: 0, maxMp: 0, mpRegen: 0, dmgMin: 0, dmgMax: 0,
+      attackType: 'normal', armorType: 'medium', armor: 0, magicResist: 0,
+      attackRange: 100, attackPoint: 0.3, bat: 1, projectileSpeed: 0, moveSpeed: 0,
+      collisionRadius: 22, visionDay: 0, visionNight: 0, acquireRange: 0,
+      bountyMin: 0, bountyMax: 0, xpBounty: 88,
+    };
+    const creep = w.spawnUnit({ kind: 'creep', team: Team.Night, pos: { x: 7100, y: 8000 }, name: 'c', stats });
+    const xp0 = h.heroMeta!.xp;
+    expect(useItem(w, h, 0, undefined, creep)).toBe(true);
+    expect(creep.alive).toBe(false);
+    expect(h.heroMeta!.xp - xp0).toBeCloseTo(88, 1); // 吸收该单位经验
   });
 });

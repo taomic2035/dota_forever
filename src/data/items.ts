@@ -9,6 +9,7 @@ import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
 import { applyModifier, hasModifier } from '../sim/modifiers';
 import { blinkTo } from '../sim/abilities';
+import { addXp } from '../sim/economy';
 
 export type ItemCategory = 'consumable' | 'attribute' | 'weapon' | 'armor' | 'arcane' | 'combined';
 
@@ -948,12 +949,13 @@ ITEMS.push(
       onUse(w, user, _pos, target) {
         if (!target || target.isHero() || target.isBuilding()) return false;
         if (user.heroMeta) user.heroMeta.gold += 160;
+        addXp(w, user, target.base.xpBounty); // 点化也吸收该单位经验(经典 Midas 给经验,此前漏给)
         target.hp = 0; target.alive = false; target.diedAt = w.time;
         w.emit({ kind: 'fx', fx: 'midas', pos: V.clone(target.pos) });
         return true;
       },
     },
-    description: '+30% 攻速;主动:点化一个非英雄单位,立即获得额外金钱(发育核心)。' },
+    description: '+30% 攻速;主动:点化一个非英雄单位,立即获得额外金钱与经验(发育核心)。' },
 
   // 祭品之瓶:萃取治疗/伤害(充能)
   { key: 'urn', name: '萃取之瓶', cost: 875, category: 'combined',
