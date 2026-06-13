@@ -274,6 +274,8 @@ export function syncHolderModifiers(w: World, hero: Unit): void {
         key: def.holderModifier.key,
         sourceId: hero.id,
         expiresAt: Infinity,
+        // 持有型 modifier 若带 onTick(如巨人之心脱战回复),需初始化 nextTickAt 否则永不触发
+        nextTickAt: def.holderModifier.tickInterval !== undefined ? w.time + def.holderModifier.tickInterval : undefined,
         def: def.holderModifier,
         data: { __holder: 1 },
       });

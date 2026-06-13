@@ -295,7 +295,16 @@ ITEMS.push(
   { key: 'heart', name: '巨人之心', cost: 5300, category: 'combined',
     stats: { bonusStr: 30, bonusHp: 300, bonusHpRegen: 10 },
     recipe: { components: ['reaver', 'vitality_booster'], recipeCost: 1200 },
-    description: '+30 力量 +300 生命 +10 生命回复。' },
+    // 脱战(6 秒未受伤)后快速回复最大生命的 2%/s(经典巨人之心核心,前排续航)
+    holderModifier: {
+      key: 'item_heart_regen', tickInterval: 0.5,
+      onTick(w, u) {
+        if (w.time - u.lastDamagedAt >= 6 && u.hp < u.calc.maxHp) {
+          u.hp = Math.min(u.calc.maxHp, u.hp + u.calc.maxHp * 0.02 * 0.5);
+        }
+      },
+    },
+    description: '+30 力量 +300 生命 +10 生命回复;脱战 6 秒后每秒回复 2% 最大生命。' },
   { key: 'hood', name: '隐者兜帽', cost: 1100, category: 'combined',
     stats: { bonusMagicResist: 0.30, bonusHpRegen: 4 },
     recipe: { components: ['cloak', 'ring_regen'], recipeCost: 200 },
@@ -417,7 +426,11 @@ ITEMS.push(
         return true;
       },
     },
-    description: '+15 护甲 +25 智力;主动:冰环爆发 200 伤害并减速 40%。' },
+    holderModifier: {
+      key: 'item_shiva_aura',
+      aura: { radius: 750, affects: 'enemy', grant: { key: 'item_shiva_chill', stats: { bonusAttackSpeed: -0.3 } } },
+    },
+    description: '+15 护甲 +25 智力;被动:750 内敌人攻速 -30%;主动:冰环爆发 200 伤害并减速 40%。' },
 
   { key: 'arcane_boots', name: '秘法之靴', cost: 1500, category: 'combined',
     stats: { bonusMoveSpeed: 55, bonusMp: 250 }, // 含能量之球 +250 法力

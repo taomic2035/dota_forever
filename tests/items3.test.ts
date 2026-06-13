@@ -740,6 +740,30 @@ describe('advanced items batch 9', () => {
     run(40);
     expect(hasModifier(t, 'item_blight_armor')).toBe(true);
   });
+
+  it('寒冰守卫:被动减速光环降低附近敌人攻速', () => {
+    give(h, 'shiva');
+    const e = spawnHero(w, LIYA, Team.Night, w.map.nearestWalkable({ x: h.pos.x + 300, y: h.pos.y })); // 750 内
+    run(5);
+    expect(e.modifiers.some((m) => m.key === 'item_shiva_chill')).toBe(true);
+  });
+
+  it('巨人之心:脱战回复明显快于战斗中', () => {
+    h.pos = w.map.nearestWalkable({ x: 7520, y: 7520 }); // 远离泉水,隔离心之回复
+    give(h, 'heart');
+    run(2);
+    h.hp = 300;
+    // 战斗中(持续"刚受伤")3 秒回复 = 仅基础
+    const a0 = h.hp;
+    for (let i = 0; i < 3 * 30; i++) { h.lastDamagedAt = w.time; w.step(); }
+    const inCombatGain = h.hp - a0;
+    // 脱战 8 秒(越过 6 秒阈值)后再测 3 秒回复 = 基础 + 2%/s
+    for (let i = 0; i < 8 * 30; i++) w.step();
+    const b0 = h.hp;
+    for (let i = 0; i < 3 * 30; i++) w.step();
+    const outCombatGain = h.hp - b0;
+    expect(outCombatGain).toBeGreaterThan(inCombatGain + 30); // 脱战 %回复明显更快
+  });
 });
 
 function REIN_STATS() {
