@@ -105,7 +105,7 @@ export const FIRST_WAVE_TIME = 90;       // 比赛开始(0:00)后 90s 第一波
 export const WAVE_INTERVAL = 30;
 export const MELEE_PER_WAVE = 3;
 export const RANGED_PER_WAVE = 1;
-export const SIEGE_EVERY_N_WAVES = 7;
+export const SIEGE_EVERY_N_WAVES = 5; // 经典 DotA1:攻城车每 5 波(超级/精英兵波每波必出,见 creeps.spawnWave)
 export const CREEP_UPGRADE_INTERVAL = 450; // 7.5min 一次成长
 export const CREEP_UPGRADE_HP = { melee: 19, ranged: 18, siege: 28 };
 export const CREEP_UPGRADE_DMG = { melee: 1, ranged: 2, siege: 3 };
@@ -130,11 +130,13 @@ export const TOWER_STATS = {
 };
 export const TOWER_VISION = 1900;
 export const TOWER_TRUE_SIGHT = 900;
-// 注:摧毁兵营不直接给金(经典设计:奖励是该路超级兵),故无 teamGold 字段(D10)。
+// 摧毁兵营:奖励既是该路超级兵,亦给击杀方全队固定团队金(经典 DotA1,两者并存)。
 export const RAX_STATS = {
-  melee:  { hp: 1500, armor: 12 },
-  ranged: { hp: 1200, armor: 9 },
+  melee:  { hp: 1500, armor: 12, teamGold: 100 },
+  ranged: { hp: 1200, armor: 9, teamGold: 100 },
 };
+/** 一血额外赏金(经典 DotA1:首杀 +200 可靠金 + 全局公告)。 */
+export const FIRST_BLOOD_BOUNTY = 200;
 export const ANCIENT_STATS = { hp: 4250, armor: 13, regen: 3 };
 export const FOUNTAIN_STATS = { dmg: [230, 290] as [number, number], range: 1100, bat: 0.35, hpRegenPct: 0.04, mpRegenPct: 0.06 };
 export const FOUNTAIN_AURA_RADIUS = 1100;

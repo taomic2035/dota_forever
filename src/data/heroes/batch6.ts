@@ -409,7 +409,7 @@ const ZUKA_Q: AbilityDef = {
     if (!target) return;
     applyModifier(w, target, {
       key: 'zuka_hex_debuff', duration: HEX_DUR[lvl - 1],
-      states: { disarmed: true, silenced: true }, stats: { bonusMoveSpeedPct: -0.55 },
+      states: { disarmed: true, silenced: true, muted: true }, stats: { setMoveSpeed: 100 },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'hex', pos: V.clone(target.pos) });
   },

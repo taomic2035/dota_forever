@@ -18,6 +18,8 @@ export interface StatMods {
   bonusAttackSpeed: number; // IAS,0.1 = +10%
   bonusMoveSpeed: number;
   bonusMoveSpeedPct: number;
+  /** 固定移速覆盖(无视加/减速直接设定,如加速符文 522 / 妖术 100);多源取最严格(最小非零值)。 */
+  setMoveSpeed?: number;
   bonusStr: number;
   bonusAgi: number;
   bonusInt: number;
@@ -215,10 +217,12 @@ export function foldModifiers(u: Unit): void {
   u.bonusAttr.int = 0;
   let msFlat = 0;
   let msPct = 0;
+  let msFixed = 0; // 固定移速覆盖(取最严格=最小非零值;加速符文 522 / 妖术 100)
   let dmgPct = 0;
   for (const m of u.modifiers) {
     const s = m.def.stats;
     if (!s) continue;
+    if (s.setMoveSpeed && s.setMoveSpeed > 0) msFixed = msFixed === 0 ? s.setMoveSpeed : Math.min(msFixed, s.setMoveSpeed);
     c.maxHp += s.bonusHp ?? 0;
     c.maxMp += s.bonusMp ?? 0;
     c.dmgMin += s.bonusDamage ?? 0;
@@ -250,7 +254,8 @@ export function foldModifiers(u: Unit): void {
     c.dmgMin *= 1 + dmgPct;
     c.dmgMax *= 1 + dmgPct;
   }
-  const ms = (c.moveSpeed + msFlat) * (1 + msPct);
+  // 固定移速覆盖(加速符文/妖术)无视一切加减速;否则常规折算。
+  const ms = msFixed > 0 ? msFixed : (c.moveSpeed + msFlat) * (1 + msPct);
   // 基础移速为 0 的单位(固定守卫等)保持不动;否则钳制到 [MIN, MAX]
   c.moveSpeed = c.moveSpeed <= 0 ? 0 : Math.max(MIN_MOVE_SPEED, Math.min(MAX_MOVE_SPEED, ms));
 }

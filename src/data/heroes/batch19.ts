@@ -247,7 +247,7 @@ const SHM_W: AbilityDef = {
   description: '将目标变为无害形态(沉默+缴械+重度减速)。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    applyModifier(w, target, { key: 'shm_hex_debuff', duration: 1.5 + lvl * 0.5, states: { silenced: true, disarmed: true }, stats: { bonusMoveSpeedPct: -0.55 } }, caster.id);
+    applyModifier(w, target, { key: 'shm_hex_debuff', duration: 1.5 + lvl * 0.5, states: { silenced: true, disarmed: true, muted: true }, stats: { setMoveSpeed: 100 } }, caster.id);
     w.emit({ kind: 'fx', fx: 'hex', pos: V.clone(target.pos) });
   },
   aiScore(w, caster) {

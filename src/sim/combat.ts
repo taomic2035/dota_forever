@@ -37,6 +37,19 @@ export function inAttackRange(a: Unit, b: Unit, slack = 0): boolean {
   return V.dist(a.pos, b.pos) <= a.calc.attackRange + a.base.collisionRadius + b.base.collisionRadius + slack;
 }
 
+/**
+ * 施加嘲讽:被嘲讽者在 durationSec 内被迫攻击 sourceId(消费见 ordersSystem)。
+ * 收口规则:无敌单位不可被嘲讽;嘲讽即时中断被嘲讽者的引导(经典)。
+ * 注:魔免交互因技而异(狂战士之吼原型穿魔免),故此处不按魔免拦截,由具体技能决定。
+ */
+export function applyTaunt(w: World, target: Unit, sourceId: EntityId, durationSec: number): void {
+  if (target.invulnerable) return;
+  target.tauntedUntil = Math.max(target.tauntedUntil, w.time + durationSec);
+  target.tauntSourceId = sourceId;
+  target.windupTargetId = 0;
+  if (target.channeling) castHooks.breakChannel?.(w, target);
+}
+
 // ---------- 面板重算 ----------
 export function recalcUnit(u: Unit): void {
   const c = u.calc;

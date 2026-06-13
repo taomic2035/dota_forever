@@ -6,7 +6,7 @@ import {
   PERIODIC_GOLD, PERIODIC_GOLD_INTERVAL, STARTING_GOLD,
   XP_TABLE, MAX_LEVEL, XP_SHARE_RADIUS, DENY_XP_FACTOR,
   heroKillBounty, deathGoldLoss, xpForKillLevel, ASSIST_RADIUS,
-  TOWER_STATS, respawnTime,
+  TOWER_STATS, RAX_STATS, FIRST_BLOOD_BOUNTY, respawnTime,
 } from '../data/balance';
 import { Team } from './map';
 import type { World, WorldSystem } from './world';
@@ -66,6 +66,7 @@ function heroesOnTeamNear(w: World, pos: { x: number; y: number }, team: Team, r
 
 export function installEconomy(w: World): void {
   let nextPayday = Math.max(0, w.time) + PERIODIC_GOLD_INTERVAL;
+  let firstBloodTaken = false; // 一血:整局首次英雄击杀给击杀方额外赏金
 
   const system: WorldSystem = (world) => {
     // 工资(比赛 0:00 起)
@@ -114,6 +115,11 @@ export function installEconomy(w: World): void {
         if (killer && killer.isHero() && killer.team !== victim.team) {
           const bounty = heroKillBounty(victim.level, vm.streak);
           addGold(killer, bounty, true); // 击杀赏金为可靠金
+          if (!firstBloodTaken) { // 一血:额外 +200 可靠金 + 公告
+            firstBloodTaken = true;
+            addGold(killer, FIRST_BLOOD_BOUNTY, true);
+            world.emit({ kind: 'first_blood', killerId: killer.id, victimId: victim.id });
+          }
           killer.heroMeta!.kills++;
           killer.heroMeta!.streak++;
           for (const a of enemyHeroesNear(world, victim.pos, victim.team, ASSIST_RADIUS)) {
@@ -136,6 +142,12 @@ export function installEconomy(w: World): void {
         }
         for (const h of world.units.values()) {
           if (h.isHero() && h.team !== victim.team) addGold(h, ts.teamGold, true); // 团队拆塔金为可靠金
+        }
+      } else if (victim.buildingKind === 'rax_melee' || victim.buildingKind === 'rax_ranged') {
+        // 破营:除超级兵外,给击杀方全队固定团队金(经典 DotA1)
+        const rg = victim.buildingKind === 'rax_melee' ? RAX_STATS.melee.teamGold : RAX_STATS.ranged.teamGold;
+        for (const h of world.units.values()) {
+          if (h.isHero() && h.team !== victim.team) addGold(h, rg, true);
         }
       }
     }

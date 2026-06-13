@@ -773,7 +773,9 @@ ITEMS.push(
     stats: { bonusStr: 10, bonusDamage: 30 },
     recipe: { components: ['reaver', 'claymore'], recipeCost: 1000 },
     onAttack(w, attacker, target) {
-      if (target.isBuilding() || !w.rng.chance(0.2)) return;
+      if (target.isBuilding()) return;
+      const chance = attacker.calc.attackRange > 200 ? 0.10 : 0.25; // 经典:近战 25% / 远程 10%
+      if (!w.rng.chance(chance)) return;
       applyModifier(w, target, { key: 'item_abyssal_bash', duration: 0.6, states: { stunned: true }, data: { piercesSpellImmunity: 1 } }, attacker.id);
     },
     active: {
@@ -826,7 +828,7 @@ ITEMS.push(
       name: '妖术', manaCost: 100, cooldown: 20, targetMode: 'unit', targetTeam: 'enemy', castRange: 600,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
-        applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true, muted: true }, stats: { bonusMoveSpeedPct: -0.65 } }, user.id);
+        applyModifier(w, target, { key: 'item_hex', duration: 2, states: { silenced: true, disarmed: true, muted: true }, stats: { setMoveSpeed: 100 } }, user.id);
         return true;
       },
     },
@@ -1028,10 +1030,12 @@ ITEMS.push(
     stats: { bonusDamage: 24, bonusStr: 10 },
     recipe: { components: ['mithril_hammer', 'belt'], recipeCost: 450 },
     onAttack(w, attacker, target) {
-      if (target.isBuilding() || !w.rng.chance(0.2)) return;
+      if (target.isBuilding()) return;
+      const chance = attacker.calc.attackRange > 200 ? 0.10 : 0.25; // 经典:近战 25% / 远程 10%
+      if (!w.rng.chance(chance)) return;
       applyModifier(w, target, { key: 'item_basher_bash', duration: 0.8, states: { stunned: true }, data: { piercesSpellImmunity: 1 } }, attacker.id);
     },
-    description: '+24 攻击 +10 力量;攻击有 20% 概率短暂眩晕目标。' },
+    description: '+24 攻击 +10 力量;攻击眩晕目标(近战 25% / 远程 10%)。' },
 
   // 莲花宝珠:护盾 + 自净
   { key: 'lotus', name: '莲花宝珠', cost: 2750, category: 'combined',

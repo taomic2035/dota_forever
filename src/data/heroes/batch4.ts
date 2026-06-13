@@ -6,7 +6,7 @@ import {
   hasScepter,
 } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
-import { isEnemy, kill } from '../../sim/combat';
+import { isEnemy, kill, applyTaunt } from '../../sim/combat';
 import type { Unit } from '../../sim/unit';
 import type { World } from '../../sim/world';
 
@@ -22,9 +22,7 @@ const DUNCAN_Q: AbilityDef = {
   description: '强迫周围敌人攻击自己,同时自身获得护甲。',
   onCast(w, caster, lvl) {
     for (const e of enemiesIn(w, caster, caster.pos, 400)) {
-      e.tauntedUntil = w.time + TAUNT_DUR[lvl - 1];
-      e.tauntSourceId = caster.id;
-      e.windupTargetId = 0;
+      applyTaunt(w, e, caster.id, TAUNT_DUR[lvl - 1]); // 收口:尊重无敌 + 中断引导
     }
     applyModifier(w, caster, {
       key: 'duncan_taunt_armor', duration: TAUNT_DUR[lvl - 1] + 1, isBuff: true,

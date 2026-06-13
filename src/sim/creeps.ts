@@ -45,16 +45,16 @@ function laneWaypointsFor(w: World, team: Team, lane: Lane): Vec2[] {
 /** 兵营状态 → 本队该路兵种的超级等级。 */
 export function superTierFor(w: World, team: Team, lane: Lane, role: CreepRole): SuperTier {
   const enemy = team === Team.Dawn ? Team.Night : Team.Dawn;
-  let enemyRaxAlive = 0;
-  let laneRaxDead = false;
+  let meleeRaxDead = false, rangedRaxDead = false;
   for (const u of w.units.values()) {
-    if (u.team !== enemy || !u.buildingKind?.startsWith('rax')) continue;
-    if (u.alive) enemyRaxAlive++;
-    const matchKind = role === 'melee' ? 'rax_melee' : 'rax_ranged';
-    if (u.lane === lane && u.buildingKind === matchKind && !u.alive) laneRaxDead = true;
+    if (u.team !== enemy || u.lane !== lane || !u.buildingKind?.startsWith('rax')) continue;
+    if (u.buildingKind === 'rax_melee' && !u.alive) meleeRaxDead = true;
+    if (u.buildingKind === 'rax_ranged' && !u.alive) rangedRaxDead = true;
   }
-  if (enemyRaxAlive === 0) return 2; // 六营全破 → 精英
-  return laneRaxDead ? 1 : 0;
+  // 该路两座兵营(近战+远程)皆破 → 精英兵(mega);仅对应兵种营破 → 超级兵(经典 DotA1 按路升级)
+  if (meleeRaxDead && rangedRaxDead) return 2;
+  const matchDead = role === 'melee' ? meleeRaxDead : rangedRaxDead;
+  return matchDead ? 1 : 0;
 }
 
 function spawnWave(w: World, team: Team, lane: Lane, waveNumber: number): void {
@@ -62,13 +62,17 @@ function spawnWave(w: World, team: Team, lane: Lane, waveNumber: number): void {
   const spawnBase = wps[0];
   const upgrades = Math.floor(Math.max(0, w.time) / CREEP_UPGRADE_INTERVAL);
 
+  const meleeTier = superTierFor(w, team, lane, 'melee');
+  const rangedTier = superTierFor(w, team, lane, 'ranged');
+
   const roster: CreepRole[] = [];
   for (let i = 0; i < MELEE_PER_WAVE; i++) roster.push('melee');
   for (let i = 0; i < RANGED_PER_WAVE; i++) roster.push('ranged');
-  if (waveNumber % SIEGE_EVERY_N_WAVES === 0) roster.push('siege');
+  // 攻城车:每 SIEGE_EVERY_N_WAVES 波;该路一旦有兵营被破(超级/精英兵)则每波必出(经典 DotA1)
+  if (waveNumber % SIEGE_EVERY_N_WAVES === 0 || meleeTier >= 1 || rangedTier >= 1) roster.push('siege');
 
   roster.forEach((role, idx) => {
-    const tier = role === 'siege' ? superTierFor(w, team, lane, 'ranged') : superTierFor(w, team, lane, role);
+    const tier = role === 'melee' ? meleeTier : rangedTier; // siege 随远程兵种等级
     const jitter = { x: (idx % 3) * 70 - 70, y: Math.floor(idx / 3) * 70 - 35 };
     const pos = w.map.nearestWalkable(V.add(spawnBase, jitter));
     const u = w.spawnUnit({

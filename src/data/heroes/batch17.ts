@@ -5,6 +5,7 @@ import {
   damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
+import { applyTaunt } from '../../sim/combat';
 import type { Unit } from '../../sim/unit';
 import type { World } from '../../sim/world';
 
@@ -555,7 +556,7 @@ const PBST_E: AbilityDef = {
   onCast(w, caster, lvl) {
     applyModifier(w, caster, { key: 'pbst_uproar_buff', duration: 5, isBuff: true, stats: { bonusDamage: 20 + lvl * 15, bonusArmor: 4 + lvl } }, caster.id);
     for (const e of enemiesIn(w, caster, caster.pos, 400)) {
-      e.tauntedUntil = w.time + 2.5; e.tauntSourceId = caster.id;
+      applyTaunt(w, e, caster.id, 2.5); // 收口:尊重无敌 + 中断引导
     }
     w.emit({ kind: 'fx', fx: 'uproar', pos: V.clone(caster.pos), radius: 400 });
   },

@@ -33,7 +33,7 @@ export function applyRune(w: World, hero: Unit, type: RuneType): void {
   if (type === 'haste') {
     applyModifier(w, hero, {
       key: 'rune_haste', duration: RUNE_EFFECTS.haste.duration, isBuff: true,
-      stats: { bonusMoveSpeed: 600 }, // 折算后顶到上限 522
+      stats: { setMoveSpeed: RUNE_EFFECTS.haste.moveSpeed }, // 固定 522,无视任何加/减速(经典加速符文)
     }, hero.id);
   } else if (type === 'doubledamage') {
     applyModifier(w, hero, {
@@ -41,14 +41,16 @@ export function applyRune(w: World, hero: Unit, type: RuneType): void {
       stats: { bonusDamagePct: 1.0 },
     }, hero.id);
   } else if (type === 'regen') {
+    // 经典恢复符文:渐进恢复至满 HP/MP(约 30s),受击即中断。
+    const dur = RUNE_EFFECTS.regen.duration;
     applyModifier(w, hero, {
-      key: 'rune_regen', duration: 6, isBuff: true,
-      stats: { bonusHpRegen: 100 / 6, bonusMpRegen: 67 / 6 },
+      key: 'rune_regen', duration: dur, isBuff: true,
+      stats: { bonusHpRegen: hero.calc.maxHp / dur, bonusMpRegen: hero.calc.maxMp / dur },
       tickInterval: 0.1,
       onTick(world, u, m) {
-        m.data!.start ??= m.expiresAt - 6;
-        if (u.lastDamagedAt > (m.data!.start as number) + 0.05) m.expiresAt = -Infinity;
-        if (u.hp >= u.calc.maxHp && u.mp >= u.calc.maxMp) m.expiresAt = -Infinity;
+        m.data!.start ??= m.expiresAt - dur;
+        if (u.lastDamagedAt > (m.data!.start as number) + 0.05) m.expiresAt = -Infinity; // 受击中断
+        if (u.hp >= u.calc.maxHp && u.mp >= u.calc.maxMp) m.expiresAt = -Infinity;        // 满即结束
       },
     }, hero.id);
   } else if (type === 'invis') {

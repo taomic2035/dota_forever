@@ -16,17 +16,19 @@
 
 ## P1 — 保真缺口(按执行批次)
 
-### 批次 A — 低风险清晰修复(数值/触发/收口)
-- **[A1] 恢复符文 6s→30s** `runes.ts:45`:硬编码 `duration:6` 且总量仅 1/5;`balance.ts:158` 已定义 `regen{duration:30,hp,mp}` 却被忽略(内部不一致=bug)。改读常量 + 校正总量。
-- **[A2] 一血 +200 金** `economy.ts:114`:首次英雄击杀应给击杀方额外 200 可靠金 + 公告。当前无。
-- **[A3] 攻城车每 5 波(非 7)+ 超级兵波每波出车** `balance.ts:108`/`creeps.ts:68`:`SIEGE_EVERY_N_WAVES 7→5`;tier≥1 时每波必出 siege。
-- **[A4] 精英兵触发条件** `creeps.ts:46-57`:当前需对方 6 营全破;应为**某路近战+远程两营皆破**该路即超级兵。
-- **[A5] 嘲讽尊重魔免/无敌 + 中断引导** `batch4.ts:24` / `batch17.ts:558`:taunt 直写字段绕过 `immuneToDebuff`;且不中断 channel。经 `applyModifier`/收口判定 + breakChannel。
-- **[A6] 强驱散中断引导** `modifiers.ts:purge`:purge 删 mod 但不调 breakChannel;对自身 BKB/净魂应断引导。
-- **[A7] hex 移速固定 100 + 补 muted** `items.ts:829`(物品 hex 移速用 -65% 应为固定 100)、`batch6/batch19` 英雄 hex 缺 `muted`。
-- **[A8] 加速符文无视减速直设 522** `runes.ts:35`+`modifiers.ts:253`:当前 +600 再钳,与减速叠加时 <522;应直接设 522 无视减速。
-- **[A9] Basher/Abyssal 近战25%/远程10% 触发** `items.ts:1031`:当前固定 20%,远程 carry 触发率翻倍。按 `attackRange` 分支。
-- **[A10] 兵营摧毁给全队团队金** `economy.ts`(无 rax_fell 分支)+ `balance.ts:133`:破营除超级兵外还应给击杀方全队固定金(~100-200)。
+### 批次 A — 低风险清晰修复(数值/触发/收口)✅ 已完成(2026-06-13)
+- ✅ **[A1] 恢复符文 6s→30s** `runes.ts`:改读 `RUNE_EFFECTS.regen.duration`(30s),渐进恢复至满 HP/MP(rate=maxHp/30),受击中断。
+- ✅ **[A2] 一血 +200 金** `economy.ts`:`firstBloodTaken` 标记,首杀额外 `FIRST_BLOOD_BOUNTY=200` 可靠金 + `first_blood` 事件。
+- ✅ **[A3] 攻城车每 5 波 + 超级兵波每波出车** `balance.ts SIEGE_EVERY_N_WAVES 7→5`;`creeps.spawnWave` tier≥1 每波必出 siege。
+- ✅ **[A4] 精英兵触发** `creeps.superTierFor`:改为该路近战+远程两营皆破 → tier 2;对应兵种营破 → tier 1。
+- ✅ **[A5] 嘲讽尊重无敌 + 中断引导** 新增 `combat.applyTaunt`(无敌跳过 + breakChannel);batch4/batch17 改用之。(魔免交互因技而异,狂战吼原型穿魔免,故不一刀切按魔免拦。)
+- ⏭️ **[A6] 强驱散中断引导** —— **甄别后跳过**:纯驱散/对自身 BKB 在经典 DotA 不中断引导(中断源=眩晕/沉默/妖术/嘲讽/死亡/移动,均已覆盖)。非真实行为,不改。
+- ✅ **[A7] hex 移速固定 100 + muted** `items.ts` 物品 hex + `batch6/batch19` 英雄 hex:`setMoveSpeed:100` + `muted`。
+- ✅ **[A8] 加速符文固定 522 无视减速** 新增 `StatMods.setMoveSpeed`(fold 取最严格非零值);`runes` haste 用 `setMoveSpeed:522`。
+- ✅ **[A9] Basher/Abyssal 近战25%/远程10%** `items.ts`:按 `attacker.calc.attackRange>200` 分支触发率。
+- ✅ **[A10] 破营全队团队金** `economy.ts` 加 rax 分支 + `RAX_STATS.teamGold=100`(全队可靠金)。
+- ⏸️ **[A-defer] 首波时机 FIRST_WAVE_TIME=90→0** `balance.ts:104`:经典首波 0:00;影响早期节奏 + 多处测试引用,**暂缓**,与其他 balance 项一并核实回归。
+> balance 相关(A1/A3/A4/A2/A10)集中跑 batchsim 复验。
 
 ### 批次 B — 中等体量修复
 - **[B1] 劈砍以原始攻击值为基数** `abilities.ts:286`:cleave 用主目标**经护甲后** `dealt` 应改用前摇掷骰的**原始伤害**;`attackHitHooks` 加 `rawAmount` 参数。
