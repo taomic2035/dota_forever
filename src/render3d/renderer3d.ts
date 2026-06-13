@@ -12,6 +12,7 @@ import { unitArt, type ArtInput } from '../render/unitArt';
 import { humanoidSpec } from './modelParts';
 import { buildHumanoid, type HumanoidParts } from './modelGen';
 import { poseFor, type AnimState } from './pose';
+import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Scene3D } from './scene';
 import { buildTerrain3D } from './terrain3d';
 
@@ -26,6 +27,7 @@ export class Renderer3D {
   readonly fx = { consume(_w: World, _team: number | null): void {} };
 
   private models = new Map<number, ModelEntry>();
+  private buildings = new Map<number, BuildingModel>();
   private ray = new THREE.Raycaster();
   private ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
@@ -81,8 +83,23 @@ export class Renderer3D {
     const seen = new Set<number>();
 
     for (const u of world.units.values()) {
-      // V1 仅人形/可动单位;建筑/守卫在 V3
-      if (u.kind === 'tower' || u.kind === 'building' || u.kind === 'ward') continue;
+      if (u.kind === 'ward') continue; // 守卫 V3 后续
+      // 建筑:静态模型,置位一次;主基地护盾随无敌显隐
+      if (u.kind === 'tower' || u.kind === 'building') {
+        seen.add(u.id);
+        let b = this.buildings.get(u.id);
+        if (!b && u.buildingKind) {
+          b = buildBuilding(u.buildingKind, u.team);
+          b.group.position.set(u.pos.x, 0, u.pos.y);
+          this.s3d.scene.add(b.group);
+          this.buildings.set(u.id, b);
+        }
+        if (b) {
+          b.group.visible = u.alive;
+          if (b.shield) b.shield.visible = u.invulnerable;
+        }
+        continue;
+      }
       seen.add(u.id);
       const e = this.ensureModel(u);
       const m = e.parts;
@@ -133,6 +150,12 @@ export class Renderer3D {
       if (!seen.has(id)) {
         this.s3d.scene.remove(e.parts.root);
         this.models.delete(id);
+      }
+    }
+    for (const [id, b] of this.buildings) {
+      if (!seen.has(id)) {
+        this.s3d.scene.remove(b.group);
+        this.buildings.delete(id);
       }
     }
 
