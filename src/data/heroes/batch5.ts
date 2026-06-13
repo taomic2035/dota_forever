@@ -2,7 +2,7 @@
 import { V } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, createIllusion,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, createIllusion, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
 import * as Combat from '../../sim/combat';
@@ -70,12 +70,17 @@ const DOPP_IMAGES = [2, 3, 4];
 const SAYA_R: AbilityDef = {
   key: 'saya_doppel', name: '幻象大军', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [125, 150, 175], cooldown: [60, 50, 40],
+  scepter: { cooldown: [40, 32, 24], desc: '神杖:冷却降低;幻象数量额外增加 2 个,闪避持续时间延长至 4 秒,幻象输出提升至 55%。' },
   castPoint: 0.1, tags: ['buff', 'escape', 'ultimate'],
   description: '瞬间生成强力幻象大军,并短暂获得高额闪避。',
   onCast(w, caster, lvl) {
-    createIllusion(w, caster, DOPP_IMAGES[lvl - 1], 0.4, 2.5, 16);
+    const sc = hasScepter(caster);
+    const imageCount = DOPP_IMAGES[lvl - 1] + (sc ? 2 : 0);
+    const outDmg = sc ? 0.55 : 0.4;
+    const evasionDur = sc ? 4 : 2;
+    createIllusion(w, caster, imageCount, outDmg, 2.5, 16);
     applyModifier(w, caster, {
-      key: 'saya_doppel_buff', duration: 2, isBuff: true, stats: { evasion: 0.7 },
+      key: 'saya_doppel_buff', duration: evasionDur, isBuff: true, stats: { evasion: 0.7 },
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'images', pos: V.clone(caster.pos), radius: 200 });
   },
@@ -175,13 +180,17 @@ const GLACIER_DMG = [200, 300, 400];
 const AURORA_R: AbilityDef = {
   key: 'aurora_glacier', name: '极地寒峰', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [700, 700, 700], manaCost: [200, 280, 360], cooldown: [100, 90, 80],
+  scepter: { cooldown: [70, 62, 55], desc: '神杖:冷却降低;范围扩大至 650,冻结持续时间延长至 3 秒。' },
   castPoint: 0.4, tags: ['nuke', 'aoe', 'stun', 'ultimate'],
   description: '凝聚极地寒峰,冻结并重创大范围敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    damageArea(w, caster, pos, 450, GLACIER_DMG[lvl - 1]);
-    modifierArea(w, caster, pos, 450, { key: 'aurora_glacier_freeze', duration: 2, states: { stunned: true } }, 'enemy');
-    w.emit({ kind: 'fx', fx: 'glacier', pos: V.clone(pos), radius: 450 });
+    const sc = hasScepter(caster);
+    const radius = sc ? 650 : 450;
+    const freezeDur = sc ? 3 : 2;
+    damageArea(w, caster, pos, radius, GLACIER_DMG[lvl - 1]);
+    modifierArea(w, caster, pos, radius, { key: 'aurora_glacier_freeze', duration: freezeDur, states: { stunned: true } }, 'enemy');
+    w.emit({ kind: 'fx', fx: 'glacier', pos: V.clone(pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 700).filter((t) => t.isHero());
@@ -261,19 +270,23 @@ const PIT_DMG = [80, 120, 160];
 const BAL_R: AbilityDef = {
   key: 'bal_pit', name: '炼狱深渊', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [700, 700, 700], manaCost: [175, 250, 325], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;持续时间延长至 6 秒,范围扩大至 550。' },
   castPoint: 0.4, tags: ['aoe', 'stun', 'nuke', 'ultimate'],
   description: '撕裂大地为炼狱,区域内敌人反复被火焰禁锢并灼烧 4 秒。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
+    const sc = hasScepter(caster);
     const at = V.clone(pos);
+    const pitDur = sc ? 6 : 4;
+    const pitRadius = sc ? 550 : 400;
     applyModifier(w, caster, {
-      key: 'bal_pit_caster', duration: 4, isBuff: true, tickInterval: 0.5,
+      key: 'bal_pit_caster', duration: pitDur, isBuff: true, tickInterval: 0.5,
       onTick(world, u) {
-        for (const e of enemiesIn(world, u, at, 400)) {
+        for (const e of enemiesIn(world, u, at, pitRadius)) {
           spellDamage(world, u, e, PIT_DMG[lvl - 1] / 2);
           applyModifier(world, e, { key: 'bal_pit_root', duration: 0.6, states: { rooted: true } }, u.id);
         }
-        world.emit({ kind: 'fx', fx: 'pit', pos: at, radius: 400 });
+        world.emit({ kind: 'fx', fx: 'pit', pos: at, radius: pitRadius });
       },
     }, caster.id);
   },
@@ -364,12 +377,15 @@ const SNIPE_DMG = [300, 450, 600];
 const KELON_R: AbilityDef = {
   key: 'kelon_assassinate', name: '狙杀', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [1500, 1800, 2100], manaCost: [175, 200, 225], cooldown: [20, 15, 10],
+  scepter: { cooldown: [13, 10, 7], desc: '神杖:冷却降低;眩晕时间延长至 2 秒,施法前摇降低 0.3 秒。' },
   castPoint: 1.0, tags: ['nuke', 'ultimate'],
   description: '远距离蓄力狙击,造成巨额伤害并短暂眩晕。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
+    const stunDur = sc ? 2.0 : 0.8;
     spellDamage(w, caster, target, SNIPE_DMG[lvl - 1]);
-    applyModifier(w, target, { key: 'kelon_snipe_stun', duration: 0.8, states: { stunned: true } }, caster.id);
+    applyModifier(w, target, { key: 'kelon_snipe_stun', duration: stunDur, states: { stunned: true } }, caster.id);
     w.emit({ kind: 'fx', fx: 'snipe', pos: V.clone(caster.pos), pos2: V.clone(target.pos) });
   },
   aiScore(w, caster, lvl) {
@@ -475,18 +491,25 @@ const VORTEX_DUR = [1.5, 2, 2.5];
 const TAI_R: AbilityDef = {
   key: 'tai_vortex', name: '电磁漩涡', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [600, 600, 600], manaCost: [125, 150, 175], cooldown: [50, 45, 40],
+  scepter: { cooldown: [34, 30, 26], desc: '神杖:冷却降低;漩涡范围扩大至 550,禁锢升级为完全眩晕。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'ultimate'],
   description: '制造漩涡,将周围敌人拉向中心并禁锢。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     chargeOverload(w, caster);
+    const sc = hasScepter(caster);
     const at = V.clone(pos);
-    for (const e of enemiesIn(w, caster, at, 400)) {
+    const vortexRadius = sc ? 550 : 400;
+    for (const e of enemiesIn(w, caster, at, vortexRadius)) {
       e.pos = w.map.nearestWalkable(V.lerp(e.pos, at, 0.6));
       e.prevPos = V.clone(e.pos);
-      applyModifier(w, e, { key: 'tai_vortex_root', duration: VORTEX_DUR[lvl - 1], states: { rooted: true } }, caster.id);
+      if (sc) {
+        applyModifier(w, e, { key: 'tai_vortex_stun', duration: VORTEX_DUR[lvl - 1], states: { stunned: true } }, caster.id);
+      } else {
+        applyModifier(w, e, { key: 'tai_vortex_root', duration: VORTEX_DUR[lvl - 1], states: { rooted: true } }, caster.id);
+      }
     }
-    w.emit({ kind: 'fx', fx: 'vortex', pos: at, radius: 400 });
+    w.emit({ kind: 'fx', fx: 'vortex', pos: at, radius: vortexRadius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 600).filter((t) => t.isHero());
@@ -572,13 +595,26 @@ const FERVOR_IAS = [0.6, 0.9, 1.2];
 const NOX_R: AbilityDef = {
   key: 'nox_fervor', name: '狩猎热诚', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [50, 50, 50], cooldown: [40, 32, 24],
+  scepter: { cooldown: [28, 22, 16], desc: '神杖:冷却降低;热诚同时感染周围 600 范围内的友军英雄,且持续时间延长至 18 秒。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '激发狩猎热诚:12 秒内大幅提升攻击速度。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const fervorDur = sc ? 18 : 12;
     applyModifier(w, caster, {
-      key: 'nox_fervor_buff', duration: 12, isBuff: true,
+      key: 'nox_fervor_buff', duration: fervorDur, isBuff: true,
       stats: { bonusAttackSpeed: FERVOR_IAS[lvl - 1] },
     }, caster.id);
+    // 神杖:感染周围友军英雄
+    if (sc) {
+      for (const ally of alliesIn(w, caster, caster.pos, 600)) {
+        if (!ally.isHero() || ally.id === caster.id) continue;
+        applyModifier(w, ally, {
+          key: 'nox_fervor_buff', duration: fervorDur, isBuff: true,
+          stats: { bonusAttackSpeed: FERVOR_IAS[lvl - 1] },
+        }, caster.id);
+      }
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 600).filter((t) => t.isHero());

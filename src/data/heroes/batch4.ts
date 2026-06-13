@@ -3,6 +3,7 @@ import { V } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
   damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, abilityProjectile,
+  hasScepter,
 } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
 import { isEnemy, kill } from '../../sim/combat';
@@ -80,13 +81,22 @@ const FORT_REDUC = [0.2, 0.3, 0.4];
 const DUNCAN_R: AbilityDef = {
   key: 'duncan_fortress', name: '壁垒领域', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 150, 200], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 45, 40], desc: '神杖:冷却降低;壁垒持续时间延长至 14 秒,且激活时震退周围 500 范围内敌人并造成 150 魔法伤害。' },
   castPoint: 0.2, tags: ['buff', 'aoe', 'ultimate'],
   description: '展开壁垒,周围友军受到的伤害降低 8 秒。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
+    const dur = sc ? 14 : 8;
     modifierArea(w, caster, caster.pos, 800, {
-      key: 'duncan_fortress_buff', duration: 8, isBuff: true,
+      key: 'duncan_fortress_buff', duration: dur, isBuff: true,
       stats: { bonusArmor: 6, bonusMagicResist: FORT_REDUC[lvl - 1] },
     }, 'ally');
+    if (sc) {
+      for (const foe of enemiesIn(w, caster, caster.pos, 500)) {
+        spellDamage(w, caster, foe, 150);
+      }
+      w.emit({ kind: 'fx', fx: 'fortress', pos: V.clone(caster.pos), radius: 500 });
+    }
     w.emit({ kind: 'fx', fx: 'fortress', pos: V.clone(caster.pos), radius: 800 });
   },
   aiScore(w, caster) {
@@ -169,12 +179,17 @@ const ZENO_E: AbilityDef = {
 const ZENO_R: AbilityDef = {
   key: 'zeno_overload', name: '过载重置', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [120, 120, 120], cooldown: [40, 30, 20],
+  scepter: { cooldown: [28, 20, 14], desc: '神杖:冷却降低;过载同时重置 E 技能,并将移速加成提升至 35%、持续 6 秒。' },
   castPoint: 0.1, tags: ['buff', 'ultimate'],
   description: '过载奥术核心,立即重置 Q/W 的冷却时间。',
   onCast(w, caster) {
+    const sc = hasScepter(caster);
     caster.abilities[0].cooldownUntil = w.time;
     caster.abilities[1].cooldownUntil = w.time;
-    applyModifier(w, caster, { key: 'zeno_overload_buff', duration: 4, isBuff: true, stats: { bonusMoveSpeedPct: 0.2 } }, caster.id);
+    if (sc) caster.abilities[2].cooldownUntil = w.time;
+    const spd = sc ? 0.35 : 0.2;
+    const dur = sc ? 6 : 4;
+    applyModifier(w, caster, { key: 'zeno_overload_buff', duration: dur, isBuff: true, stats: { bonusMoveSpeedPct: spd } }, caster.id);
     w.emit({ kind: 'fx', fx: 'overload', pos: V.clone(caster.pos), radius: 150 });
   },
   aiScore(w, caster) {
@@ -248,6 +263,7 @@ const STAMPEDE_DUR = [3, 3.5, 4];
 const TORGA_R: AbilityDef = {
   key: 'torga_stampede', name: '马蹄飞踏', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [125, 150, 175], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 45, 40], desc: '神杖:冷却降低;飞踏发动瞬间冲击周围 400 范围内所有敌人,造成 200 魔法伤害并眩晕 1 秒。' },
   castPoint: 0.0, tags: ['buff', 'aoe', 'ultimate'],
   description: '全队进入飞踏状态,大幅加速并践踏沿途敌人。',
   onCast(w, caster, lvl) {
@@ -255,6 +271,13 @@ const TORGA_R: AbilityDef = {
       key: 'torga_stampede_buff', duration: STAMPEDE_DUR[lvl - 1], isBuff: true,
       stats: { bonusMoveSpeedPct: 0.6 },
     }, 'ally');
+    if (hasScepter(caster)) {
+      damageArea(w, caster, caster.pos, 400, 200);
+      modifierArea(w, caster, caster.pos, 400, {
+        key: 'torga_stampede_stun', duration: 1.0, states: { stunned: true },
+      }, 'enemy');
+      w.emit({ kind: 'fx', fx: 'stomp', pos: V.clone(caster.pos), radius: 400 });
+    }
     w.emit({ kind: 'fx', fx: 'stampede', pos: V.clone(caster.pos), radius: 1500 });
   },
   aiScore(w, caster) {
@@ -344,16 +367,20 @@ const SELIA_E: AbilityDef = {
 const SELIA_R: AbilityDef = {
   key: 'selia_swap', name: '灵魂换位', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'any',
   castRange: [700, 850, 1000], manaCost: [120, 120, 120], cooldown: [60, 45, 30],
+  scepter: { cooldown: [45, 35, 20], desc: '神杖:冷却降低;换位对敌方单位的眩晕延长至 1.5 秒,并附加 200 魔法伤害。' },
   castPoint: 0.0, tags: ['escape', 'ultimate'],
   description: '与目标单位瞬间交换位置(可救友、可拽敌)。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
     const a = V.clone(caster.pos);
     const b = V.clone(target.pos);
     blinkTo(w, caster, b);
     blinkTo(w, target, a);
     if (target.team !== caster.team) {
-      applyModifier(w, target, { key: 'selia_swap_stun', duration: 0.6, states: { stunned: true } }, caster.id);
+      const stunDur = sc ? 1.5 : 0.6;
+      applyModifier(w, target, { key: 'selia_swap_stun', duration: stunDur, states: { stunned: true } }, caster.id);
+      if (sc) spellDamage(w, caster, target, 200);
     }
     w.emit({ kind: 'fx', fx: 'swap', pos: a, pos2: b });
     void lvl;
@@ -444,14 +471,22 @@ const MOON_EVASION = [0.2, 0.3, 0.4];
 const MIRA_R: AbilityDef = {
   key: 'mira_moonlight', name: '月华披风', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 130, 160], cooldown: [60, 55, 50],
+  scepter: { cooldown: [45, 40, 35], desc: '神杖:冷却降低;月华披风额外为友军提供 10% 闪避加成,并同时对周围 600 范围内所有敌人发射月光束造成 150 魔法伤害。' },
   castPoint: 0.1, tags: ['buff', 'ultimate'],
   description: '沐浴月华,自身与周围友军获得高额闪避(夜晚效果更佳)。',
   onCast(w, caster, lvl) {
-    const evasion = MOON_EVASION[lvl - 1] + (w.isNight ? 0.15 : 0);
+    const sc = hasScepter(caster);
+    const evasion = MOON_EVASION[lvl - 1] + (w.isNight ? 0.15 : 0) + (sc ? 0.1 : 0);
     modifierArea(w, caster, caster.pos, 700, {
       key: 'mira_moonlight_buff', duration: 12, isBuff: true,
       stats: { evasion, bonusMoveSpeedPct: 0.12 },
     }, 'ally');
+    if (sc) {
+      for (const foe of enemiesIn(w, caster, caster.pos, 600)) {
+        spellDamage(w, caster, foe, 150);
+      }
+      w.emit({ kind: 'fx', fx: 'moonbeam', pos: V.clone(caster.pos), radius: 600 });
+    }
     w.emit({ kind: 'fx', fx: 'moonlight', pos: V.clone(caster.pos), radius: 700 });
   },
   aiScore(w, caster) {
@@ -538,14 +573,19 @@ const GRIM_E: AbilityDef = {
 
 const HARVEST_THRESH = [0.12, 0.16, 0.20];
 
+const HARVEST_SC_THRESH = [0.20, 0.25, 0.30];
+
 const GRIM_R: AbilityDef = {
   key: 'grim_harvest', name: '死神收割', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 600, 650], manaCost: [150, 175, 200], cooldown: [55, 45, 35],
+  scepter: { cooldown: [40, 32, 24], desc: '神杖:冷却降低;处决阈值提升至 20/25/30% 生命,让死神的镰刀更早落下。' },
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '处决目标:生命低于阈值则直接斩杀,否则造成等量于阈值的伤害。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
-    const threshold = target.calc.maxHp * HARVEST_THRESH[lvl - 1];
+    const sc = hasScepter(caster);
+    const thresh = sc ? HARVEST_SC_THRESH[lvl - 1] : HARVEST_THRESH[lvl - 1];
+    const threshold = target.calc.maxHp * thresh;
     if (target.hp <= threshold && !target.isBuilding() && target.kind !== 'boss') {
       kill(w, target, caster.id);
       w.emit({ kind: 'fx', fx: 'execute', pos: V.clone(target.pos) });

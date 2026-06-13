@@ -2,7 +2,7 @@
 import { V } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import { isEnemy } from '../../sim/combat';
@@ -77,13 +77,21 @@ const BERSERK_RETURN = [0.4, 0.6, 0.8];
 const KAZ_R: AbilityDef = {
   key: 'kaz_berserk', name: '狂战士之血', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [75, 75, 75], cooldown: [60, 50, 40],
+  scepter: { cooldown: [40, 33, 26], desc: '神杖:冷却降低;狂化持续时间延长至 12 秒,并对周围敌人喷溅血浪造成 100/140/180 魔法伤害。' },
   castPoint: 0.0, tags: ['buff', 'ultimate'],
   description: '8 秒内:受到的物理伤害部分转化为攻击力,并免疫减速。',
   onCast(w, caster, lvl) {
+    const sc = hasScepter(caster);
     applyModifier(w, caster, {
-      key: 'kaz_berserk_buff', duration: 8, isBuff: true,
+      key: 'kaz_berserk_buff', duration: sc ? 12 : 8, isBuff: true,
       stats: { bonusDamage: 40 + lvl * 30, bonusMoveSpeedPct: 0.2 },
     }, caster.id);
+    // 神杖:血浪震击周围敌人
+    if (sc) {
+      const bloodDmg = [100, 140, 180][lvl - 1];
+      for (const foe of enemiesIn(w, caster, caster.pos, 400)) spellDamage(w, caster, foe, bloodDmg);
+      w.emit({ kind: 'fx', fx: 'leap', pos: V.clone(caster.pos), radius: 400 });
+    }
     void BERSERK_RETURN;
   },
   aiScore(w, caster) {
@@ -163,6 +171,7 @@ const STORM_TICK = [55, 80, 105];
 const SELAS_R: AbilityDef = {
   key: 'selas_arrowstorm', name: '箭雨风暴', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [900, 900, 900], manaCost: [150, 220, 290], cooldown: [70, 60, 50],
+  scepter: { cooldown: [50, 42, 34], desc: '神杖:冷却降低;箭雨覆盖范围扩大至 650,每波箭雨同时减速命中敌人 30%。' },
   castPoint: 0.3, tags: ['aoe', 'channel', 'ultimate'],
   description: '在区域持续倾泻箭雨 5 秒。',
   channel: {
@@ -170,8 +179,15 @@ const SELAS_R: AbilityDef = {
     tickInterval: 0.5,
     onChannelTick(w, caster, lvl, pos) {
       if (!pos) return;
-      damageArea(w, caster, pos, 450, STORM_TICK[lvl - 1]);
-      w.emit({ kind: 'fx', fx: 'arrows', pos: V.clone(pos), radius: 450 });
+      const sc = hasScepter(caster);
+      const r = sc ? 650 : 450;
+      damageArea(w, caster, pos, r, STORM_TICK[lvl - 1]);
+      if (sc) {
+        modifierArea(w, caster, pos, r, {
+          key: 'selas_storm_sc_slow', duration: 1.2, stats: { bonusMoveSpeedPct: -0.3 },
+        }, 'enemy');
+      }
+      w.emit({ kind: 'fx', fx: 'arrows', pos: V.clone(pos), radius: r });
     },
   },
   aiScore(w, caster) {
@@ -248,16 +264,20 @@ const PRISON_DMG = [120, 180, 240];
 const GOLON_R: AbilityDef = {
   key: 'golon_prison', name: '大地禁锢', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [600, 600, 600], manaCost: [150, 225, 300], cooldown: [80, 70, 60],
+  scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;禁锢范围扩大至 500,持续时间延长至 3.5 秒。' },
   castPoint: 0.4, tags: ['stun', 'aoe', 'ultimate'],
   description: '岩柱崛起,禁锢并持续伤害区域内敌人 2.5 秒。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
-    modifierArea(w, caster, pos, 350, {
-      key: 'golon_prison_root', duration: 2.5, states: { rooted: true, disarmed: true },
+    const sc = hasScepter(caster);
+    const r = sc ? 500 : 350;
+    const dur = sc ? 3.5 : 2.5;
+    modifierArea(w, caster, pos, r, {
+      key: 'golon_prison_root', duration: dur, states: { rooted: true, disarmed: true },
       tickInterval: 0.5,
       onTick: (world, u) => { spellDamage(world, caster, u, PRISON_DMG[lvl - 1] / 5); },
     }, 'enemy');
-    w.emit({ kind: 'fx', fx: 'prison', pos: V.clone(pos), radius: 350 });
+    w.emit({ kind: 'fx', fx: 'prison', pos: V.clone(pos), radius: r });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 600).filter((t) => t.isHero());
@@ -352,16 +372,24 @@ const WRATH_TICK = [70, 110, 150];
 const NAYA_R: AbilityDef = {
   key: 'naya_wrath', name: '自然之怒', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [99999, 99999, 99999], manaCost: [180, 260, 340], cooldown: [60, 55, 50],
+  scepter: { cooldown: [42, 38, 34], desc: '神杖:冷却降低;轰击持续 5 次,命中敌人额外附带 1.2 秒眩晕。' },
   castPoint: 0.4, tags: ['nuke', 'aoe', 'ultimate'],
   description: '在全图任意区域降下自然之怒,反复轰击敌人。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const ticks = sc ? 5 : 3;
     applyModifier(w, caster, {
-      key: 'naya_wrath_caster', duration: 3.1, isBuff: true, tickInterval: 1,
+      key: 'naya_wrath_caster', duration: ticks + 0.1, isBuff: true, tickInterval: 1,
       onTick(world, u) {
         damageArea(world, u, at, 500, WRATH_TICK[lvl - 1]);
         world.emit({ kind: 'fx', fx: 'wrath', pos: V.clone(at), radius: 500 });
+        if (sc) {
+          modifierArea(world, u, at, 500, {
+            key: 'naya_wrath_stun', duration: 1.2, states: { stunned: true },
+          }, 'enemy');
+        }
       },
     }, caster.id);
   },
@@ -447,14 +475,24 @@ const PULSE_VAL = [200, 300, 400];
 const VOS_R: AbilityDef = {
   key: 'vos_pulse', name: '亡者脉冲', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 200, 250], cooldown: [30, 25, 20],
+  scepter: { cooldown: [20, 17, 14], desc: '神杖:冷却降低;脉冲范围扩大至 750,敌人被伤害后额外燃烧 80/120/160 点法力。' },
   castPoint: 0.3, tags: ['nuke', 'heal', 'aoe', 'ultimate'],
   description: '释放亡者波动:伤害周围敌人,同时治疗周围友军。',
   onCast(w, caster, lvl) {
-    damageArea(w, caster, caster.pos, 550, PULSE_VAL[lvl - 1]);
-    for (const a of alliesIn(w, caster, caster.pos, 550)) {
+    const sc = hasScepter(caster);
+    const r = sc ? 750 : 550;
+    const manaBurn = [80, 120, 160][lvl - 1];
+    damageArea(w, caster, caster.pos, r, PULSE_VAL[lvl - 1]);
+    for (const a of alliesIn(w, caster, caster.pos, r)) {
       a.hp = Math.min(a.calc.maxHp, a.hp + PULSE_VAL[lvl - 1] * 0.6);
     }
-    w.emit({ kind: 'fx', fx: 'pulse', pos: V.clone(caster.pos), radius: 550 });
+    if (sc) {
+      for (const foe of enemiesIn(w, caster, caster.pos, r)) {
+        const burn = Math.min(foe.mp, manaBurn);
+        foe.mp -= burn;
+      }
+    }
+    w.emit({ kind: 'fx', fx: 'pulse', pos: V.clone(caster.pos), radius: r });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 540).filter((t) => t.isHero());
@@ -539,13 +577,21 @@ const TERROR_DMG = [150, 225, 300];
 const VIRA_R: AbilityDef = {
   key: 'vira_terror', name: '恐惧降临', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [175, 250, 325], cooldown: [90, 80, 70],
+  scepter: { cooldown: [65, 57, 49], desc: '神杖:冷却降低;恐惧波动伤害提升至 220/330/440,并对命中敌人施加 1.5 秒眩晕。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
   description: '释放恐惧波动,伤害并使周围敌人陷入恐慌(大幅减速)。',
   onCast(w, caster, lvl) {
-    damageArea(w, caster, caster.pos, 600, TERROR_DMG[lvl - 1]);
+    const sc = hasScepter(caster);
+    const dmg = sc ? [220, 330, 440][lvl - 1] : TERROR_DMG[lvl - 1];
+    damageArea(w, caster, caster.pos, 600, dmg);
     modifierArea(w, caster, caster.pos, 600, {
       key: 'vira_terror_slow', duration: 3, stats: { bonusMoveSpeedPct: -0.45, bonusAttackSpeed: -0.4 },
     }, 'enemy');
+    if (sc) {
+      modifierArea(w, caster, caster.pos, 600, {
+        key: 'vira_terror_sc_stun', duration: 1.5, states: { stunned: true },
+      }, 'enemy');
+    }
     w.emit({ kind: 'fx', fx: 'terror', pos: V.clone(caster.pos), radius: 600 });
   },
   aiScore(w, caster) {

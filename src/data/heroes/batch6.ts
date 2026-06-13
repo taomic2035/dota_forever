@@ -2,7 +2,7 @@
 import { V } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, createIllusion, summonUnit,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, createIllusion, summonUnit, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, hasModifier } from '../../sim/modifiers';
 import { heroAttributes } from '../../sim/hero';
@@ -73,12 +73,23 @@ const BOLT_DMG = [400, 600, 800];
 const LAIN_R: AbilityDef = {
   key: 'lain_deathbolt', name: '死亡之雷', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [700, 750, 800], manaCost: [200, 350, 500], cooldown: [50, 40, 30],
+  scepter: { cooldown: [35, 28, 22], desc: '神杖:冷却大幅降低;雷击命中主目标后弹跳至附近 2 个敌人(弹跳伤害 50%)。' },
   castPoint: 0.4, tags: ['nuke', 'ultimate'],
   description: '凝聚毁灭之雷劈向目标,造成巨额魔法伤害。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
     spellDamage(w, caster, target, BOLT_DMG[lvl - 1]);
     w.emit({ kind: 'fx', fx: 'deathbolt', pos: V.clone(target.pos) });
+    // 神杖:弹跳至附近 2 个额外敌人(伤害 50%)
+    if (hasScepter(caster)) {
+      const hit = new Set<number>([target.id]);
+      const bounced = enemiesIn(w, caster, target.pos, 500).filter((e) => !hit.has(e.id));
+      for (let i = 0; i < Math.min(2, bounced.length); i++) {
+        hit.add(bounced[i].id);
+        spellDamage(w, caster, bounced[i], BOLT_DMG[lvl - 1] * 0.5);
+        w.emit({ kind: 'fx', fx: 'deathbolt', pos: V.clone(bounced[i].pos) });
+      }
+    }
   },
   aiScore(w, caster, lvl) {
     const foes = enemiesIn(w, caster, caster.pos, 700).filter((t) => t.isHero());
@@ -172,11 +183,14 @@ const REPLICATE_OUT = [0.5, 0.65, 0.8];
 const MORFIN_R: AbilityDef = {
   key: 'morfin_replicate', name: '潮汐复体', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 150, 200], cooldown: [50, 40, 30],
+  scepter: { cooldown: [35, 28, 22], desc: '神杖:冷却降低;额外生成 1 个复体(共 2 个),自身闪避持续延长至 4 秒。' },
   castPoint: 0.1, tags: ['buff', 'ultimate'],
   description: '分裂出一个强力复体协同作战,并短暂获得闪避。',
   onCast(w, caster, lvl) {
-    createIllusion(w, caster, 1, REPLICATE_OUT[lvl - 1], 2.0, 20);
-    applyModifier(w, caster, { key: 'morfin_replicate_buff', duration: 2, isBuff: true, stats: { evasion: 0.5 } }, caster.id);
+    const illusionCount = hasScepter(caster) ? 2 : 1;
+    createIllusion(w, caster, illusionCount, REPLICATE_OUT[lvl - 1], 2.0, 20);
+    const evasionDuration = hasScepter(caster) ? 4 : 2;
+    applyModifier(w, caster, { key: 'morfin_replicate_buff', duration: evasionDuration, isBuff: true, stats: { evasion: 0.5 } }, caster.id);
     w.emit({ kind: 'fx', fx: 'replicate', pos: V.clone(caster.pos), radius: 120 });
   },
   aiScore(w, caster) {
@@ -257,9 +271,14 @@ const WARPATH_DMG = [12, 18, 24];
 
 const BROG_R: AbilityDef = {
   key: 'brog_warpath', name: '战意', maxLevel: 3, ultimate: true, targetMode: 'passive',
+  scepter: { desc: '神杖:战意另外赋予额外 6/9/12% 伤害减免,荆棘之躯愈加坚硬。' },
   tags: ['buff', 'ultimate'],
   description: '每次施法叠加战意:提升攻击力与移速(持续叠加,数秒后衰减)。',
   passiveModifier: (lvl) => ({ key: 'brog_warpath_passive', isBuff: true, data: { perStack: WARPATH_DMG[lvl - 1] } }),
+  scepterPassive: (lvl) => ({
+    key: 'brog_warpath_sc_dr', isBuff: true,
+    stats: { incomingDamageReduction: 0.06 + (lvl - 1) * 0.03 },
+  }),
 };
 
 export const BROG: HeroDef = {
@@ -343,17 +362,25 @@ const TIMELAPSE_HEAL = [0.35, 0.45, 0.55];
 const WIF_R: AbilityDef = {
   key: 'wif_timelapse', name: '时光倒流', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [100, 100, 100], cooldown: [60, 50, 40],
+  scepter: { cooldown: [45, 38, 30], desc: '神杖:冷却降低;回溯时不再受距离限制地传送至泉水附近,魔法免疫延长至 3 秒。' },
   castPoint: 0.0, tags: ['escape', 'heal', 'ultimate'],
   description: '回溯时光:大幅恢复生命,瞬间撤回安全位置并短暂免疫魔法。',
   onCast(w, caster, lvl) {
     caster.hp = Math.min(caster.calc.maxHp, caster.hp + caster.calc.maxHp * TIMELAPSE_HEAL[lvl - 1]);
-    // 朝己方基地撤回一段
     const fountain = [...w.units.values()].find((b) => b.buildingKind === 'fountain' && b.team === caster.team);
     if (fountain) {
-      const dir = V.norm(V.sub(fountain.pos, caster.pos));
-      blinkTo(w, caster, V.add(caster.pos, V.scale(dir, 600)));
+      if (hasScepter(caster)) {
+        // 神杖:直接传送至泉水旁 200 范围内
+        const dir = V.norm(V.sub(caster.pos, fountain.pos));
+        blinkTo(w, caster, V.add(fountain.pos, V.scale(dir, 200)));
+      } else {
+        // 普通:朝己方基地撤回 600
+        const dir = V.norm(V.sub(fountain.pos, caster.pos));
+        blinkTo(w, caster, V.add(caster.pos, V.scale(dir, 600)));
+      }
     }
-    applyModifier(w, caster, { key: 'wif_timelapse_buff', duration: 1, isBuff: true, states: { magicImmune: true } }, caster.id);
+    const immuneDuration = hasScepter(caster) ? 3 : 1;
+    applyModifier(w, caster, { key: 'wif_timelapse_buff', duration: immuneDuration, isBuff: true, states: { magicImmune: true } }, caster.id);
     w.emit({ kind: 'fx', fx: 'timelapse', pos: V.clone(caster.pos) });
   },
   aiScore(w, caster) {
@@ -458,6 +485,7 @@ const DEATHWARD_DPS = [120, 180, 240];
 const ZUKA_R: AbilityDef = {
   key: 'zuka_deathward', name: '死亡守卫', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [200, 300, 400], cooldown: [100, 90, 80],
+  scepter: { cooldown: [70, 65, 60], desc: '神杖:冷却降低;死亡守卫每次射击对目标施加 30% 减速 1.5 秒,且伤害提升 50%。' },
   castPoint: 0.3, tags: ['channel', 'nuke', 'ultimate'],
   description: '引导召唤死亡守卫,持续轰击最近的敌方英雄 5 秒。',
   channel: {
@@ -467,7 +495,11 @@ const ZUKA_R: AbilityDef = {
       const foes = enemiesIn(w, caster, caster.pos, 900).filter((t) => t.isHero());
       if (!foes.length) return;
       foes.sort((a, b) => V.distSq(caster.pos, a.pos) - V.distSq(caster.pos, b.pos));
-      spellDamage(w, caster, foes[0], DEATHWARD_DPS[lvl - 1] * 0.3);
+      const tickMult = hasScepter(caster) ? 1.5 : 1;
+      spellDamage(w, caster, foes[0], DEATHWARD_DPS[lvl - 1] * 0.3 * tickMult);
+      if (hasScepter(caster)) {
+        applyModifier(w, foes[0], { key: 'zuka_deathward_sc_slow', duration: 1.5, stats: { bonusMoveSpeedPct: -0.3 } }, caster.id);
+      }
       w.emit({ kind: 'fx', fx: 'deathward', pos: V.clone(caster.pos), pos2: V.clone(foes[0].pos) });
     },
   },
@@ -561,16 +593,19 @@ const OVERGROWTH_DUR = [3, 4, 5];
 const CEDRIC_R: AbilityDef = {
   key: 'cedric_overgrowth', name: '藤蔓缠绕', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [150, 175, 200], cooldown: [70, 65, 60],
+  scepter: { cooldown: [50, 47, 44], desc: '神杖:冷却降低;藤蔓范围从 700 扩大至 1000,且每秒伤害提升 60%。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'ultimate'],
   description: '召唤藤蔓缠绕周围所有敌人,使其无法移动并持续受伤。',
   onCast(w, caster, lvl) {
-    modifierArea(w, caster, caster.pos, 700, {
+    const radius = hasScepter(caster) ? 1000 : 700;
+    const tickDmg = hasScepter(caster) ? (40 + lvl * 20) * 1.6 : 40 + lvl * 20;
+    modifierArea(w, caster, caster.pos, radius, {
       key: 'cedric_overgrowth_root', duration: OVERGROWTH_DUR[lvl - 1],
       states: { rooted: true },
       tickInterval: 1,
-      onTick(world, u) { spellDamage(world, caster, u, 40 + lvl * 20); },
+      onTick(world, u) { spellDamage(world, caster, u, tickDmg); },
     }, 'enemy');
-    w.emit({ kind: 'fx', fx: 'overgrowth', pos: V.clone(caster.pos), radius: 700 });
+    w.emit({ kind: 'fx', fx: 'overgrowth', pos: V.clone(caster.pos), radius });
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 650).filter((t) => t.isHero());
