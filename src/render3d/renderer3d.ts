@@ -35,12 +35,12 @@ export class Renderer3D {
   private octx: CanvasRenderingContext2D;
   private proj = new THREE.Vector3();
 
-  constructor(parent: HTMLElement, _world: World, private camera: Camera) {
+  constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
     this.canvas = this.s3d.canvas;
     // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
     if (camera.zoom < 1.0) camera.zoom = 1.4;
-    this.s3d.scene.add(buildTerrain3D());
+    this.s3d.scene.add(buildTerrain3D(world.map));
 
     this.overlay = document.createElement('canvas');
     this.overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;';
