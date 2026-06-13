@@ -675,11 +675,20 @@ ITEMS.push(
       name: '禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', targetTeam: 'enemy', castRange: 900,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
-        applyModifier(w, target, { key: 'item_orchid_silence', duration: 5, states: { silenced: true } }, user.id);
+        // 沉默 5 秒;到期爆发 Soul Burn——沉默期间累计承伤的 30% 作魔法伤害(经典纷争核心杀伤)
+        applyModifier(w, target, {
+          key: 'item_orchid_silence', duration: 5, states: { silenced: true },
+          data: { soulBurnPct: 0.3 },
+          onExpire(world, u, m) {
+            const burn = (m.data?.soulBurnAccum ?? 0) * (m.def.data?.soulBurnPct ?? 0);
+            const src = world.getUnit(m.sourceId);
+            if (burn > 0 && src && u.alive) _spellDamage(world, src, u, burn);
+          },
+        }, user.id);
         return true;
       },
     },
-    description: '+25 智力 +30% 攻速 +10% 法术增强;主动:沉默目标 5 秒。' },
+    description: '+25 智力 +30% 攻速 +10% 法术增强;主动:沉默目标 5 秒,到期爆发沉默期间承伤 30% 的魔法伤害。' },
 
   // 卫士胫甲:回复与移速
   { key: 'tranquil', name: '静谧之鞋', cost: 925, category: 'combined',
@@ -739,11 +748,12 @@ ITEMS.push(
     active: {
       name: '静电护盾', cooldown: 25, targetMode: 'none',
       onUse(w, user) {
-        applyModifier(w, user, { key: 'item_mjollnir_shield', duration: 15, isBuff: true, data: { retaliate: 0.35 } }, user.id);
+        // 被普攻时概率释放链状闪电(魔法),而非反弹物理(经典 Static Charge)
+        applyModifier(w, user, { key: 'item_mjollnir_shield', duration: 15, isBuff: true, data: { staticLightning: 150, staticChance: 0.25 } }, user.id);
         return true;
       },
     },
-    description: '+24 攻击 +50% 攻速;攻击 35% 触发连锁闪电;主动:静电护盾,15 秒内反弹所受物理伤害。' },
+    description: '+24 攻击 +50% 攻速;攻击 35% 触发连锁闪电;主动:静电护盾,15 秒内被普攻时 25% 概率向攻击者释放闪电(150 魔法)。' },
 
   // 净魂之刃:法力燃烧 + 驱散
   { key: 'diffusal', name: '净魂之刃', cost: 2000, category: 'combined',
@@ -1236,11 +1246,20 @@ ITEMS.push(
       name: '血棘禁锢', manaCost: 0, cooldown: 18, targetMode: 'unit', targetTeam: 'enemy', castRange: 900,
       onUse(w, user, _pos, target) {
         if (!target || target.team === user.team) return false;
-        applyModifier(w, target, { key: 'item_bloodthorn_silence', duration: 5, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.2 } }, user.id);
+        // 沉默+减速 5 秒;到期爆发 Soul Burn——承伤 40%(血棘强于纷争)
+        applyModifier(w, target, {
+          key: 'item_bloodthorn_silence', duration: 5, states: { silenced: true }, stats: { bonusMoveSpeedPct: -0.2 },
+          data: { soulBurnPct: 0.4 },
+          onExpire(world, u, m) {
+            const burn = (m.data?.soulBurnAccum ?? 0) * (m.def.data?.soulBurnPct ?? 0);
+            const src = world.getUnit(m.sourceId);
+            if (burn > 0 && src && u.alive) _spellDamage(world, src, u, burn);
+          },
+        }, user.id);
         return true;
       },
     },
-    description: '+30 智力 +攻速/暴击 +法术增强;主动:沉默并削弱目标 5 秒。' },
+    description: '+30 智力 +攻速/暴击 +法术增强;主动:沉默并削弱目标 5 秒,到期爆发沉默期间承伤 40% 的魔法伤害。' },
 );
 
 // ---------- 进阶物品批次 6(剩余经典/升级线) ----------

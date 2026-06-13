@@ -157,6 +157,12 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   target.hp -= amount;
   target.lastAttackerId = evt.source;
   target.lastDamagedAt = w.time;
+  // Soul Burn(纷争面纱/血棘):沉默期间累计承伤,到期由 modifier.onExpire 爆发其比例
+  if (!flags.reflected) {
+    for (const m of target.modifiers) {
+      if (m.def.data?.soulBurnPct && m.expiresAt > w.time) m.data!.soulBurnAccum = (m.data!.soulBurnAccum ?? 0) + amount;
+    }
+  }
   {
     const src = w.getUnit(evt.source);
     if (src && src.team !== target.team && (src.isHero() || src.kind === 'tower' || src.kind === 'boss')) {
@@ -164,7 +170,7 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
     }
   }
   w.emit({ kind: 'unit_damaged', unitId: target.id, sourceId: evt.source, amount, pos: V.clone(target.pos) });
-  // 反击/反伤(retaliate):仅对非反弹的物理伤害,反弹纯粹伤害给来源,标记防递归
+  // 反击/反伤(retaliate,火盾/反击类):仅对非反弹的物理伤害,反弹纯粹伤害给来源,标记防递归
   if (!flags.spell && !flags.reflected) {
     let retal = 0;
     for (const m of target.modifiers) retal += m.def.data?.retaliate ?? 0;
@@ -172,6 +178,16 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
       const src = w.getUnit(evt.source);
       if (src && src.alive && src.team !== target.team && !src.isBuilding()) {
         applyDamage(w, src, { source: target.id, attackType: 'hero', amount: amount * retal, flags: { pure: true, reflected: true } });
+      }
+    }
+    // 静电护盾(风暴之锤):被普攻时概率向攻击者释放链状闪电(魔法,非物理反弹)
+    for (const m of target.modifiers) {
+      const sl = m.def.data?.staticLightning ?? 0;
+      if (sl <= 0 || !w.rng.chance(m.def.data?.staticChance ?? 0.25)) continue;
+      const src = w.getUnit(evt.source);
+      if (src && src.alive && src.team !== target.team && !src.isBuilding()) {
+        applyDamage(w, src, { source: target.id, attackType: 'spell', amount: sl, flags: { spell: true, reflected: true } });
+        w.emit({ kind: 'fx', fx: 'lightning', pos: V.clone(src.pos) });
       }
     }
   }

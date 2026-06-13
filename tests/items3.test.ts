@@ -105,6 +105,21 @@ describe('advanced items batch 2', () => {
     run(3);
     expect(hasModifier(t, 'item_orchid_silence')).toBe(true);
   });
+
+  it('纷争面纱 Soul Burn:沉默期间承伤,到期爆发 30% 魔法伤害', () => {
+    const slot = give(h, 'orchid');
+    // 高血量假人(避免被打死 + 回血微弱,使 Soul Burn 明显压过自然回复)
+    const t = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable({ x: 6500, y: 9000 }),
+      name: 'dummy', stats: { ...REIN_STATS(), maxHp: 5000, hpRegen: 0 } });
+    t.hp = t.calc.maxHp;
+    useItem(w, h, slot, undefined, t);
+    run(2);
+    applyDamage(w, t, { source: h.id, attackType: 'hero', amount: 600, flags: { pure: true } }); // 沉默期间累计 600 承伤
+    const hpAfterHit = t.hp;
+    run(5 * 30 + 6); // 等沉默(5s)到期 → 爆发 600×30%=180 魔法
+    expect(hasModifier(t, 'item_orchid_silence')).toBe(false);
+    expect(t.hp).toBeLessThan(hpAfterHit - 50); // Soul Burn 造成可观额外伤害
+  });
 });
 
 describe('advanced items batch 3', () => {

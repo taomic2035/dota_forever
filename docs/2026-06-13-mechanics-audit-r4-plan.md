@@ -35,11 +35,13 @@
 - **[B2] 远程攻击前摇不因目标超距取消** `combat.ts:278`:语义存疑(经典前摇期超距亦取消),**降级复核**后再定。
 - ✅ **[B3] 升级即时补 HP/MP** `economy.addXp`:升级前记 maxHp/maxMp,升级后 recalcUnit 取正增量加到当前 hp/mp(战斗中升级的"免费血")。
 - ✅ **[B4] 英雄攻塔→塔转火该英雄** `buildings.buildingsSystem`:新增分支,敌方英雄直接攻塔时该塔立即锁定攻击者(dive 仇恨)。
-- **[B5] 法球/UAM 互斥** `abilities.ts:263`:多 `orbOnHit` 英雄(batch5/7/16)全部触发;一次攻击只应触发一个法球。(待做)
+- ⏭️ **[B5] 法球/UAM 互斥** —— **甄别为审计误读**:逐文件核查所有 `orbOnHit`(batch3-19)均分属**不同英雄**,无单英雄多法球,orb hook 遍历单英雄技能本就最多触发一个。非问题,不改。(物品法球+技能法球的 UAM 互斥为理论边缘,原创物品未必 UAM,暂留)
 - ✅ **[B6] Pipe 护盾仅挡魔法** `combat.ts` 护盾吸收加 `shieldMagicOnly` 判定(`!flags.spell` 跳过);pipe 标记 `shieldMagicOnly:1`,Lotus/Eternal 保持全类型。测试更新(魔法吸收/纯粹穿透)。
-- **[B7] Orchid/Bloodthorn Soul Burn** `items.ts:678/1234`:沉默到期应爆发"期间承魔法伤害×?%"纯伤;modifier onExpire 累计。(待做)
+- ✅ **[B7] Orchid/Bloodthorn Soul Burn** combat 沉默期间累计承伤(`m.data.soulBurnAccum`,守卫 `expiresAt>now` 防自累计);orchid(30%)/bloodthorn(40%)onExpire 爆发为魔法伤害。守卫测试。
 - ✅ **[B8] Mask of Madness 自沉默** `items.ts` madness_buff 加 `states:{silenced:true}`(开启期间不可施法,经典核心代价)。
-- **[B9] Mjollnir 反弹改闪电** `combat.ts:156`:Static Shield 应受击发链状闪电(魔法)而非物理反弹。(待做)
+- ✅ **[B9] Mjollnir 改闪电** 新增通用 `staticLightning`/`staticChance`(被普攻概率向攻击者放魔法闪电),mjollnir 用之并移除 `retaliate`(通用 retaliate 保留给火盾/反击类英雄)。
+
+> **批次 B 收官**:B1/B3/B4/B6/B7/B8/B9 ✅ 已做;B5 甄别为非问题;B2(远程攻击前摇取消)语义存疑暂缓。
 
 ### 批次 C — 较大特性/框架(部分需单独立项)
 - **[C1] 防御符文 Glyph** — 全缺失;己方建筑 10s 护盾 + ~5min CD。需 world 状态 + UI 触发。
