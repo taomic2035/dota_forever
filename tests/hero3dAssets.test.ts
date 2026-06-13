@@ -100,4 +100,34 @@ describe('classic hero 3D assets', () => {
     const silhouettes = CLASSIC_HERO3D_ASSETS.map((asset) => asset.model.silhouette);
     expect(new Set(silhouettes).size).toBe(CLASSIC_HERO3D_ASSETS.length);
   });
+
+  it('adds V5 first-read contracts and visible identity anchors for every hero', () => {
+    const primaryReads = new Set<string>();
+
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const partNames = new Set(asset.model.parts.map((part) => part.name));
+      const v5Anchors = asset.model.parts.filter((part) => part.name.startsWith('v5 '));
+
+      expect(asset.readability.primaryRead, `${asset.key} needs a first-read hook`).toBeTruthy();
+      expect(primaryReads.has(asset.readability.primaryRead), `${asset.key} primary read must be unique`).toBe(false);
+      primaryReads.add(asset.readability.primaryRead);
+
+      expect(asset.readability.silhouetteAnchors.length, `${asset.key} needs enough named silhouette anchors`).toBeGreaterThanOrEqual(5);
+      for (const anchor of asset.readability.silhouetteAnchors) {
+        expect(partNames.has(anchor), `${asset.key} anchor ${anchor} must map to a real part`).toBe(true);
+      }
+
+      expect(asset.readability.pose.stance, `${asset.key} needs a stance read`).toBeTruthy();
+      expect(asset.readability.pose.weaponLine, `${asset.key} needs a weapon line read`).toBeTruthy();
+      expect(asset.readability.pose.spellFocus, `${asset.key} needs a spell focus read`).toBeTruthy();
+      expect(asset.readability.fxPriority, `${asset.key} FX priority should not bury the hero`).toBeGreaterThanOrEqual(0.35);
+      expect(asset.readability.fxPriority, `${asset.key} FX priority should not bury the hero`).toBeLessThanOrEqual(0.85);
+
+      expect(v5Anchors.length, `${asset.key} needs visible V5 identity pieces`).toBeGreaterThanOrEqual(4);
+      expect(v5Anchors.some((part) => part.position[1] >= 2.2), `${asset.key} needs a head/crest read`).toBe(true);
+      expect(v5Anchors.some((part) => Math.abs(part.position[0]) >= asset.model.groundRadius * 0.85), `${asset.key} needs lateral weapon/shoulder read`).toBe(true);
+      expect(v5Anchors.some((part) => part.position[2] >= 0.55), `${asset.key} needs rear silhouette read`).toBe(true);
+      expect(v5Anchors.filter((part) => part.emissive).length, `${asset.key} needs readable glow anchors`).toBeGreaterThanOrEqual(3);
+    }
+  });
 });

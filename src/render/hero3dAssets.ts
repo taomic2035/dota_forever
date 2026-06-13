@@ -61,6 +61,19 @@ export interface Hero3DActionSpec {
   motion: 'loop' | 'strike' | 'cast' | 'channel' | 'flinch' | 'status' | 'fall';
 }
 
+export interface Hero3DReadabilitySpec {
+  primaryRead: string;
+  silhouetteAnchors: string[];
+  pose: {
+    stance: string;
+    weaponLine: string;
+    spellFocus: string;
+    profile: string;
+    lateralBias: -1 | 1;
+  };
+  fxPriority: number;
+}
+
 export interface Hero3DAssetSpec {
   key: string;
   name: string;
@@ -74,12 +87,15 @@ export interface Hero3DAssetSpec {
   };
   textures: Hero3DTextureSpec[];
   actions: Hero3DActionSpec[];
+  readability: Hero3DReadabilitySpec;
   previewCamera: {
     yaw: number;
     pitch: number;
     distance: number;
   };
 }
+
+type BaseHero3DAssetSpec = Omit<Hero3DAssetSpec, 'readability'>;
 
 function textures(primary: string, accent: string, glow: string, motif: string): Hero3DTextureSpec[] {
   return [
@@ -114,7 +130,7 @@ const actions: Hero3DActionSpec[] = REQUIRED_HERO3D_ACTIONS.map((name) => ({
 
 const basePreviewCamera = { yaw: 0.7, pitch: 0.78, distance: 7.6 };
 
-const BASE_CLASSIC_HERO3D_ASSETS: Hero3DAssetSpec[] = [
+const BASE_CLASSIC_HERO3D_ASSETS: BaseHero3DAssetSpec[] = [
   {
     key: 'rein',
     name: '雷恩',
@@ -329,7 +345,7 @@ const BASE_CLASSIC_HERO3D_ASSETS: Hero3DAssetSpec[] = [
   },
 ];
 
-function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
+function polishParts(asset: BaseHero3DAssetSpec, readability: Hero3DReadabilitySpec): Hero3DPartSpec[] {
   const radius = asset.model.groundRadius;
   const wide = Math.max(0.78, radius * 0.95);
   const [primary, accent] = asset.textures[0].palette;
@@ -461,7 +477,7 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       rotation: [Math.PI / 2, 0, -0.2],
     },
   ];
-  return [...asset.model.parts, ...shared, ...signatureParts(asset.key, primary, accent, glow)].map(withV2PartMetadata);
+  return [...asset.model.parts, ...shared, ...signatureParts(asset.key, primary, accent, glow), ...v5IdentityParts(asset, readability, primary, accent, glow)].map(withV2PartMetadata);
 }
 
 function withV2PartMetadata(part: Hero3DPartSpec): Hero3DPartSpec {
@@ -549,10 +565,107 @@ function signatureParts(key: string, primary: string, accent: string, glow: stri
   ];
 }
 
-export const CLASSIC_HERO3D_ASSETS: Hero3DAssetSpec[] = BASE_CLASSIC_HERO3D_ASSETS.map((asset) => ({
-  ...asset,
-  model: {
-    ...asset.model,
-    parts: polishParts(asset),
-  },
-}));
+function v5IdentityParts(
+  asset: BaseHero3DAssetSpec,
+  readability: Hero3DReadabilitySpec,
+  primary: string,
+  accent: string,
+  glow: string,
+): Hero3DPartSpec[] {
+  const radius = asset.model.groundRadius;
+  const side = readability.pose.lateralBias;
+  return [
+    {
+      name: `v5 ${asset.key} crest read`,
+      kind: 'sigil',
+      color: accent,
+      emissive: glow,
+      material: 'energy',
+      detail: 'rune',
+      scale: [radius * 0.58, 0.04, radius * 0.32],
+      position: [0, 2.52 + radius * 0.08, -0.02],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      name: `v5 ${asset.key} weapon line read`,
+      kind: 'sigil',
+      color: '#ffffff',
+      emissive: glow,
+      material: 'energy',
+      detail: 'edgeLight',
+      scale: [0.15, 0.035, radius * 1.14],
+      position: [side * radius * 1.02, 1.32, -0.16],
+      rotation: [Math.PI / 2, 0, side * -0.38],
+    },
+    {
+      name: `v5 ${asset.key} rear profile read`,
+      kind: 'cape',
+      color: primary,
+      emissive: glow,
+      material: 'cloth',
+      detail: 'fold',
+      scale: [radius * 0.58, 0.045, radius * 1.05],
+      position: [side * radius * 0.18, 1.34, 0.82],
+      rotation: [0.16, 0, side * 0.08],
+    },
+    {
+      name: `v5 ${asset.key} cast focus read`,
+      kind: 'orb',
+      color: accent,
+      emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
+      scale: [0.19, 0.19, 0.19],
+      position: [side * radius * 0.74, 1.86, -0.46],
+    },
+  ];
+}
+
+function readabilityForKey(key: string): Hero3DReadabilitySpec {
+  const baseAnchors = [
+    `v5 ${key} crest read`,
+    `v5 ${key} weapon line read`,
+    `v5 ${key} rear profile read`,
+    `v5 ${key} cast focus read`,
+  ];
+  const shared = (
+    primaryRead: string,
+    stance: string,
+    weaponLine: string,
+    spellFocus: string,
+    profile: string,
+    lateralBias: -1 | 1,
+    fxPriority: number,
+    anchors: string[] = [],
+  ): Hero3DReadabilitySpec => ({
+    primaryRead,
+    silhouetteAnchors: [...baseAnchors, ...anchors],
+    pose: { stance, weaponLine, spellFocus, profile, lateralBias },
+    fxPriority,
+  });
+  const specs: Record<string, Hero3DReadabilitySpec> = {
+    rein: shared('tower shield plus royal back banner', 'braced frontal wall', 'left tower shield wall', 'shield gem guard pulse', 'wide plated guardian', -1, 0.58, ['tower shield', 'royal back banner']),
+    liya: shared('ice mantle plus floating snow crown', 'upright spellcaster hover', 'right frost staff line', 'ice orb control point', 'wide frost mantle', 1, 0.62, ['ice mantle', 'floating snow crown']),
+    zola: shared('forked lightning crown and storm orb', 'lifted burst caster', 'right prophet staff line', 'storm orb discharge', 'thin storm robe with crown', 1, 0.7, ['forked thunder halo', 'storm orb']),
+    aili: shared('leaf longbow and quiver feathers', 'side-on archer lean', 'right longbow vertical read', 'wind arrow glow', 'narrow cloak archer', 1, 0.52, ['longbow', 'quiver feathers']),
+    gorm: shared('stone totem back and earth crown slab', 'heavy grounded stomp', 'right earth totem diagonal', 'molten fissure core', 'blocky stone tank', 1, 0.6, ['earth totem', 'totem back stone']),
+    grosh: shared('hook chain halo and toxic belly glyph', 'forward ganker hunch', 'right hook arm diagonal', 'miasma vial threat', 'stocky hook silhouette', 1, 0.66, ['hook arm', 'hook chain halo']),
+    kai: shared('dual daggers and smoke step crescent', 'low assassin crouch', 'twin inward dagger V', 'backstab eye gem', 'narrow smoke cloak', -1, 0.48, ['left dagger', 'right dagger']),
+    chenblade: shared('crossed twin blades and blade trails', 'rotating duelist stance', 'two blade trail sweep', 'whirl sigil focus', 'balanced blade dancer', 1, 0.56, ['blade trail left', 'blade trail right']),
+    olan: shared('sun halo staff and radiant disc', 'open healer posture', 'right sun staff vertical', 'healing mote focus', 'bright robed support', 1, 0.5, ['radiant sun disc', 'sun staff']),
+    morphis: shared('abyss book flame and horn circlet', 'coiled warlock cast', 'right abyss staff line', 'void flame focus', 'torn abyss mantle', -1, 0.72, ['shadow book', 'void flame']),
+  };
+  return specs[key] ?? shared('class crest and role glow', 'neutral ready stance', 'single weapon line', 'class gem focus', 'generic class profile', 1, 0.55);
+}
+
+export const CLASSIC_HERO3D_ASSETS: Hero3DAssetSpec[] = BASE_CLASSIC_HERO3D_ASSETS.map((asset) => {
+  const readability = readabilityForKey(asset.key);
+  return {
+    ...asset,
+    readability,
+    model: {
+      ...asset.model,
+      parts: polishParts(asset, readability),
+    },
+  };
+});

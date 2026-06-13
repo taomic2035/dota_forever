@@ -225,6 +225,39 @@ export function showResource3DPreview(parent: HTMLElement): void {
       category,
       RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.category === category).length,
     ])),
+    laneReadability: RESOURCE3D_SAMPLE_ASSETS
+      .filter((asset) => asset.category === 'lane_units')
+      .map((asset) => ({
+        key: asset.key,
+        teamRead: asset.laneReadability?.teamRead,
+        roleClass: asset.laneReadability?.roleClass,
+        formationSlot: asset.laneReadability?.formationSlot,
+        attackRead: asset.laneReadability?.attackRead,
+        anchors: asset.laneReadability?.silhouetteAnchors.length ?? 0,
+      })),
+    wildReadability: RESOURCE3D_SAMPLE_ASSETS
+      .filter((asset) => asset.category === 'neutral_units' || asset.category === 'boss_objectives')
+      .map((asset) => ({
+        key: asset.key,
+        category: asset.category,
+        tier: asset.wildReadability?.tier,
+        biome: asset.wildReadability?.biome,
+        packRole: asset.wildReadability?.packRole,
+        threatRead: asset.wildReadability?.threatRead,
+        anchors: asset.wildReadability?.silhouetteAnchors.length ?? 0,
+      })),
+    supportReadability: RESOURCE3D_SAMPLE_ASSETS
+      .filter((asset) => asset.category === 'couriers_summons' || asset.category === 'wards_traps')
+      .map((asset) => ({
+        key: asset.key,
+        category: asset.category,
+        roleClass: asset.supportReadability?.roleClass,
+        ownerRead: asset.supportReadability?.ownerRead,
+        interactionRead: asset.supportReadability?.interactionRead,
+        priorityBand: asset.supportReadability?.priorityBand,
+        visualPriority: asset.supportReadability?.visualPriority,
+        anchors: asset.supportReadability?.silhouetteAnchors.length ?? 0,
+      })),
   };
 }
 
@@ -338,6 +371,33 @@ declare global {
       categories: string[];
       total: number;
       counts: Record<string, number>;
+      laneReadability: {
+        key: string;
+        teamRead?: string;
+        roleClass?: string;
+        formationSlot?: string;
+        attackRead?: string;
+        anchors: number;
+      }[];
+      wildReadability: {
+        key: string;
+        category: string;
+        tier?: string;
+        biome?: string;
+        packRole?: string;
+        threatRead?: string;
+        anchors: number;
+      }[];
+      supportReadability: {
+        key: string;
+        category: string;
+        roleClass?: string;
+        ownerRead?: string;
+        interactionRead?: string;
+        priorityBand?: string;
+        visualPriority?: number;
+        anchors: number;
+      }[];
     };
   }
 }

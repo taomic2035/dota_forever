@@ -171,6 +171,12 @@ export function showHero3DPreview(parent: HTMLElement): void {
     keys: CLASSIC_HERO3D_ASSETS.map((asset) => asset.key),
     actions: [...REQUIRED_HERO3D_ACTIONS],
     textureChannels: CLASSIC_HERO3D_ASSETS[0].textures.map((texture) => texture.channel),
+    readability: CLASSIC_HERO3D_ASSETS.map((asset) => ({
+      key: asset.key,
+      primaryRead: asset.readability.primaryRead,
+      anchors: asset.readability.silhouetteAnchors.length,
+      fxPriority: asset.readability.fxPriority,
+    })),
   };
 }
 
@@ -359,6 +365,12 @@ declare global {
       keys: string[];
       actions: string[];
       textureChannels: string[];
+      readability: {
+        key: string;
+        primaryRead: string;
+        anchors: number;
+        fxPriority: number;
+      }[];
     };
   }
 }

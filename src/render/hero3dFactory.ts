@@ -8,6 +8,7 @@ import {
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  FrontSide,
   Group,
   LoopOnce,
   Mesh,
@@ -75,7 +76,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     flatShading: true,
     transparent: part.kind === 'aura' || part.material === 'energy',
     opacity: part.kind === 'aura' ? 0.72 : part.material === 'energy' ? 0.88 : 1,
-    side: part.kind === 'aura' ? DoubleSide : undefined,
+    side: part.kind === 'aura' ? DoubleSide : FrontSide,
   });
   const mesh = new Mesh(geometryFor(part), material);
   mesh.name = part.name;

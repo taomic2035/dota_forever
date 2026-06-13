@@ -27,6 +27,14 @@ Current V3 update for Opus merge:
 - V4 rocky cliff-face screenshot: `docs/screenshots/ux-3d-v4-map-cliff-face-rocky.png`.
 - V4 cliff biome polish screenshots: `docs/screenshots/ux-3d-v4-map-cliff-biome-polish.png`, `docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png`.
 - V4 river runtime motion screenshot: `docs/screenshots/ux-3d-v4-map-river-motion-polish.png`.
+- V5 hero readability summary: `docs/ux/2026-06-14-3d-v5-hero-readability-summary.md`.
+- V5 hero readability screenshot: `docs/screenshots/ux-3d-v5-hero-readability.png`.
+- V5 lane-unit readability summary: `docs/ux/2026-06-14-3d-v5-lane-unit-readability-summary.md`.
+- V5 lane-unit readability screenshot: `docs/screenshots/ux-3d-v5-lane-unit-readability.png`.
+- V5 neutral/boss readability summary: `docs/ux/2026-06-14-3d-v5-neutral-boss-readability-summary.md`.
+- V5 neutral/boss readability screenshot: `docs/screenshots/ux-3d-v5-neutral-boss-readability.png`.
+- V5 summon/ward readability summary: `docs/ux/2026-06-14-3d-v5-summon-ward-readability-summary.md`.
+- V5 summon/ward readability screenshot: `docs/screenshots/ux-3d-v5-summon-ward-readability.png`.
 - Adds material/detail metadata, high-detail procedural texture overlays, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, and shift-queued command UX.
 - Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
 
@@ -98,6 +106,11 @@ Total: 408 samples.
   - Each hero has procedural model parts, generated texture channels, action clip metadata, silhouette metadata, and preview camera metadata.
   - Preview route: `?mode=hero3d-preview`.
   - Evidence: `docs/screenshots/ux-hero3d-preview.png`.
+- [x] V5 hero readability polish exists for the first 10 classic heroes.
+  - Each hero has a unique `readability.primaryRead`, named silhouette anchors, stance/weapon/spell-focus pose metadata, and bounded `fxPriority`.
+  - Each hero receives visible V5 model anchors: crest read, weapon line read, rear profile read, and cast focus read.
+  - Hero preview exposes `window.__hero3dPreview.readability` for Opus smoke checks.
+  - Evidence: `docs/screenshots/ux-3d-v5-hero-readability.png`.
 - [x] Resource3D taxonomy is broad enough for a first integration pass.
   - 38 non-hero resource categories are defined in `RESOURCE3D_CATEGORIES`.
   - 408 total resource samples are defined in `RESOURCE3D_SAMPLE_ASSETS`.
@@ -109,6 +122,26 @@ Total: 408 samples.
   - Lane units, neutral units, Boss/objectives, buildings, shops/NPCs, couriers/summons.
   - Items, item components, consumables, wards/traps.
   - Runes/power-ups, pickups/drops, team banners, minimap markers.
+- [x] V5 lane-unit readability polish exists for the first 10 lane samples.
+  - Lane units now expose `laneReadability.teamRead`, `roleClass`, `formationSlot`, `attackRead`, and `silhouetteAnchors`.
+  - Covered role classes: melee, ranged, siege, super, utility, scout.
+  - Covered team reads: dawn, night, neutral.
+  - Each lane unit receives visible V5 model anchors: formation banner, role attack read, team trim plate, and formation foot rune.
+  - Resource preview exposes `window.__resource3dPreview.laneReadability` for Opus smoke checks.
+  - Evidence: `docs/screenshots/ux-3d-v5-lane-unit-readability.png`.
+- [x] V5 neutral / boss readability polish exists for 20 wild/objective samples.
+  - Neutral and boss/objective resources now expose `wildReadability.tier`, `biome`, `packRole`, `threatRead`, and `silhouetteAnchors`.
+  - Covered neutral tiers: small, medium, large, ancient, special.
+  - Covered objective tiers: boss, objective.
+  - Covered pack roles: fodder, leader, caster, flying, ancient, boss-core, objective-mechanic.
+  - Resource preview exposes `window.__resource3dPreview.wildReadability` for Opus smoke checks.
+  - Evidence: `docs/screenshots/ux-3d-v5-neutral-boss-readability.png`.
+- [x] V5 summon / ward readability polish exists for 20 support-object samples.
+  - Couriers, summons, illusions, wards, traps, and totems now expose `supportReadability`.
+  - Support objects define owner read, interaction read, expiration cue, priority band, and bounded visual priority.
+  - Max support-object visual priority is `0.56`, keeping them below hero-priority visuals.
+  - Resource preview exposes `window.__resource3dPreview.supportReadability` for Opus smoke checks.
+  - Evidence: `docs/screenshots/ux-3d-v5-summon-ward-readability.png`.
 - [x] Combat readability and VFX categories are covered.
   - Spell FX, projectiles, AoE indicators, status effects, targeting reticles.
   - Combat numbers, health/mana UI, screen overlays, announcements.
@@ -174,7 +207,8 @@ Total: 408 samples.
   - Ability icons, combat numbers, screen overlays, announcements, roster, scoreboard, death recap, and tutorial guides are sample 3D/style assets.
   - They are not yet wired into HUD/state screens.
 - [ ] Per-hero and per-item depth is not complete.
-  - The first 10 heroes have sample model/action contracts, but not every hero in the eventual roster.
+  - The first 10 heroes now have V5 first-read contracts and visible identity anchors, but not every hero in the eventual roster.
+  - The first 10 heroes still need authored GLB/PBR models, authored rigs, and per-hero final animation clips before production-art completion.
   - Items/components/abilities have representative samples, not one final unique asset per final gameplay entry.
 - [ ] Code splitting is not done.
   - Three.js is still statically imported through preview paths, so Vite reports a large chunk warning.
@@ -200,10 +234,23 @@ Changed files:
 
 - `src/render/resource3dAssets.ts`
   - New category/resource sample contract.
+  - Adds V5 lane-unit readability contracts and visible lane identity-anchor part generation.
+  - Adds V5 wild-creature readability contracts for neutral units and boss/objectives.
+  - Adds V5 support-object readability contracts for couriers, summons, wards, traps, illusions, and totems.
 - `src/render/resource3dFactory.ts`
   - Procedural Three.js resource model factory.
+  - Exposes lane-unit, wild-creature, and support-object readability on Resource3D model `userData`.
+  - Removes the previous resource material `side: undefined` warning.
+- `src/render/hero3dAssets.ts`
+  - Adds V5 hero readability contracts and visible identity-anchor part generation for the first 10 classic heroes.
+- `src/render/hero3dFactory.ts`
+  - Uses explicit `FrontSide` for non-aura materials, removing the previous Three.js `side: undefined` warning.
+- `src/ui/hero3dPreview.ts`
+  - Exposes V5 readability smoke data through `window.__hero3dPreview.readability`.
 - `src/ui/resource3dPreview.ts`
   - Category-tabbed preview page.
+  - Exposes lane-unit V5 readability smoke data through `window.__resource3dPreview.laneReadability`.
+  - Exposes wild-creature and support-object V5 smoke data through `window.__resource3dPreview.wildReadability` and `supportReadability`.
 - `src/main.ts`
   - Adds route-gated previews and renderer/UX wiring.
 - `src/render3d/fx3dVisual.ts`
@@ -325,11 +372,11 @@ http://127.0.0.1:5182/?mode=resource3d-preview
 
 After V4 terrain merge review, recommended next UX/art sequence:
 
-1. hero polish for the existing first 10 classic heroes;
-2. lane creep melee/ranged/siege polish for both teams;
-3. neutral creep and boss tier polish;
-4. summon and ward polish;
-5. skill and battle-FX timing/layer polish.
+1. V5 hero polish for the existing first 10 classic heroes: completed as a first-read/readability pass.
+2. V5 lane creep melee/ranged/siege polish for both teams: completed as a role/faction/readability pass.
+3. V5 neutral creep and boss tier polish: completed as a tier/biome/threat-read pass.
+4. V5 summon and ward polish: completed as an owner/interaction/low-priority pass.
+5. Skill and battle-FX timing/layer polish.
 
 ## Verification Evidence
 
@@ -339,6 +386,24 @@ Latest verified commands in this worktree:
 npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts
 2 files passed
 10 tests passed
+```
+
+```text
+npm test -- tests/hero3dAssets.test.ts
+1 file passed
+8 tests passed
+```
+
+```text
+npm test -- tests/resource3dAssets.test.ts
+1 file passed
+9 tests passed
+```
+
+```text
+npm test -- tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+7 files passed
+44 tests passed
 ```
 
 ```text
@@ -442,6 +507,57 @@ Console/page errors: none
 Screenshot: docs/screenshots/ux-3d-v3-fx-polish.png
 ```
 
+V5 hero readability runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5200/?mode=hero3d-preview
+Hero count: 10
+Readability contracts: 10
+Anchors per hero: 6
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v5-hero-readability.png
+```
+
+V5 lane-unit readability runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5201/?mode=resource3d-preview
+Lane unit count: 10
+Lane readability contracts: 10
+Anchors per lane unit: 6
+Role classes: melee, ranged, siege, super, utility, scout
+Team reads: dawn, night, neutral
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v5-lane-unit-readability.png
+```
+
+V5 neutral / boss readability runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5202/?mode=resource3d-preview
+Wild readability contracts: 20
+Neutral units: 10
+Boss/objectives: 10
+Tiers: ancient, boss, large, medium, objective, small, special
+Pack roles: ancient, boss-core, caster, flying, fodder, leader, objective-mechanic
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v5-neutral-boss-readability.png
+```
+
+V5 summon / ward readability runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5202/?mode=resource3d-preview
+Support readability contracts: 20
+Summons/couriers: 10
+Wards/traps: 10
+Role classes: courier, illusion, summon, totem, trap, ward
+Priority bands: low, medium
+Max visual priority: 0.56
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v5-summon-ward-readability.png
+```
+
 V4 3D map terrain runtime evidence:
 
 ```text
@@ -541,4 +657,7 @@ docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png
 - `src/sim/unit.ts` has intentional queued-order control plumbing. Review it with `src/engine/input.ts`, `tests/queuedOrders.test.ts`, and `tests/commandMode.test.ts`.
 - 3D FX runtime is now active in normal `renderer=3d` play mode through `src/render3d/fx3d.ts`.
 - V4 map terrain runtime layers are active in normal `renderer=3d` play mode through `src/render3d/terrain3d.ts`.
+- V5 first-read hero metadata is active in `?mode=hero3d-preview` and available for future GLB/PBR mapping through `src/render/hero3dAssets.ts`.
+- V5 lane-unit role/faction metadata is active in `?mode=resource3d-preview` and available for future creep GLB/PBR mapping through `src/render/resource3dAssets.ts`.
+- V5 neutral/boss and summon/ward metadata is active in `?mode=resource3d-preview` and available for future GLB/PBR mapping through `src/render/resource3dAssets.ts`.
 - Screenshots are intentional evidence under `docs/screenshots/`.

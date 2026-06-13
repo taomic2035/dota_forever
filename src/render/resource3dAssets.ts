@@ -108,6 +108,40 @@ export interface Resource3DTextureSpec {
   overlays: Resource3DTextureOverlay[];
 }
 
+export type ResourceLaneRoleClass = 'melee' | 'ranged' | 'siege' | 'super' | 'utility' | 'scout';
+export type ResourceLaneTeamRead = 'dawn' | 'night' | 'neutral';
+export type ResourceWildTier = 'small' | 'medium' | 'large' | 'ancient' | 'special' | 'boss' | 'objective';
+export type ResourceWildBiome = 'forest' | 'stone' | 'river' | 'sky' | 'demonic' | 'relic';
+export type ResourceWildPackRole = 'fodder' | 'leader' | 'caster' | 'flying' | 'ancient' | 'boss-core' | 'objective-mechanic';
+export type ResourceSupportRoleClass = 'courier' | 'summon' | 'ward' | 'trap' | 'illusion' | 'totem';
+export type ResourceSupportPriorityBand = 'low' | 'medium';
+
+export interface ResourceLaneReadabilitySpec {
+  teamRead: ResourceLaneTeamRead;
+  roleClass: ResourceLaneRoleClass;
+  formationSlot: string;
+  attackRead: string;
+  silhouetteAnchors: string[];
+}
+
+export interface ResourceWildReadabilitySpec {
+  tier: ResourceWildTier;
+  biome: ResourceWildBiome;
+  packRole: ResourceWildPackRole;
+  threatRead: string;
+  silhouetteAnchors: string[];
+}
+
+export interface ResourceSupportReadabilitySpec {
+  roleClass: ResourceSupportRoleClass;
+  ownerRead: string;
+  interactionRead: string;
+  expireCue: string;
+  priorityBand: ResourceSupportPriorityBand;
+  visualPriority: number;
+  silhouetteAnchors: string[];
+}
+
 export interface Resource3DAssetSpec {
   key: string;
   name: string;
@@ -120,6 +154,9 @@ export interface Resource3DAssetSpec {
   textureChannels: readonly Resource3DTextureChannel[];
   texture: Resource3DTextureSpec;
   previewMotion: Resource3DMotion;
+  laneReadability?: ResourceLaneReadabilitySpec;
+  wildReadability?: ResourceWildReadabilitySpec;
+  supportReadability?: ResourceSupportReadabilitySpec;
   parts: Resource3DPartSpec[];
 }
 
@@ -635,22 +672,36 @@ function seed(
   return { key, name, category, role, silhouette, motif, palette, motion, scale };
 }
 
-export const RESOURCE3D_SAMPLE_ASSETS: Resource3DAssetSpec[] = seeds.map((item, index) => ({
-  key: item.key,
-  name: item.name,
-  category: item.category,
-  role: item.role,
-  silhouette: item.silhouette,
-  motif: item.motif,
-  scale: item.scale ?? 1,
-  palette: item.palette,
-  textureChannels: RESOURCE3D_TEXTURE_CHANNELS,
-  texture: textureSpecFor(item.category),
-  previewMotion: item.motion,
-  parts: makeParts(item, index),
-}));
+export const RESOURCE3D_SAMPLE_ASSETS: Resource3DAssetSpec[] = seeds.map((item, index) => {
+  const laneReadability = laneReadabilityFor(item);
+  const wildReadability = wildReadabilityFor(item);
+  const supportReadability = supportReadabilityFor(item);
+  return {
+    key: item.key,
+    name: item.name,
+    category: item.category,
+    role: item.role,
+    silhouette: item.silhouette,
+    motif: item.motif,
+    scale: item.scale ?? 1,
+    palette: item.palette,
+    textureChannels: RESOURCE3D_TEXTURE_CHANNELS,
+    texture: textureSpecFor(item.category),
+    previewMotion: item.motion,
+    laneReadability,
+    wildReadability,
+    supportReadability,
+    parts: makeParts(item, index, laneReadability, wildReadability, supportReadability),
+  };
+});
 
-function makeParts(item: ResourceSeed, index: number): Resource3DPartSpec[] {
+function makeParts(
+  item: ResourceSeed,
+  index: number,
+  laneReadability?: ResourceLaneReadabilitySpec,
+  wildReadability?: ResourceWildReadabilitySpec,
+  supportReadability?: ResourceSupportReadabilitySpec,
+): Resource3DPartSpec[] {
   const [primary, accent, dark, glow] = item.palette;
   const tall = isStructureCategory(item.category)
     ? 1.35
@@ -695,7 +746,232 @@ function makeParts(item: ResourceSeed, index: number): Resource3DPartSpec[] {
     base.push(part('shoulder plate', 'plate', accent, [0.88, 0.12, 0.26], [0, 1.02, -0.16], glow));
     base.push(part('ground rune', 'ring', accent, [0.72, 0.05, 0.72], [0, 0.13, 0], glow));
   }
+  if (laneReadability) base.push(...v5LaneUnitParts(item, laneReadability, primary, accent, dark, glow));
+  if (wildReadability) base.push(...v5WildParts(item, wildReadability, primary, accent, dark, glow));
+  if (supportReadability) base.push(...v5SupportParts(item, supportReadability, primary, accent, dark, glow));
   return base;
+}
+
+function v5LaneUnitParts(
+  item: ResourceSeed,
+  read: ResourceLaneReadabilitySpec,
+  primary: string,
+  accent: string,
+  dark: string,
+  glow: string,
+): Resource3DPartSpec[] {
+  const side = read.teamRead === 'night' ? -1 : 1;
+  const roleScale = read.roleClass === 'siege' ? 1.28 : read.roleClass === 'super' ? 1.12 : 1;
+  const attackKind: Resource3DPartKind = read.roleClass === 'ranged' || read.roleClass === 'scout' ? 'beam' : 'weapon';
+  return [
+    part(`v5 lane ${item.key} formation banner`, 'banner', read.teamRead === 'night' ? dark : accent, [0.34 * roleScale, 0.06, 0.82 * roleScale], [side * 0.42, 1.02, 0.54], glow, [0.18, 0, side * 0.08]),
+    part(`v5 lane ${item.key} role attack read`, attackKind, glow, [0.14, read.roleClass === 'siege' ? 1.18 : 0.92, 0.14], [side * 0.68, 0.96, -0.18], glow, [0.34, 0, side * -0.42]),
+    part(`v5 lane ${item.key} team trim plate`, 'plate', primary, [0.7 * roleScale, 0.08, 0.2], [0, 0.95, -0.34], glow, [Math.PI / 2, 0, 0]),
+    part(`v5 lane ${item.key} formation foot rune`, 'ring', accent, [0.72 * roleScale, 0.05, 0.72 * roleScale], [0, 0.16, 0], glow),
+  ];
+}
+
+function laneReadabilityFor(item: ResourceSeed): ResourceLaneReadabilitySpec | undefined {
+  if (item.category !== 'lane_units') return undefined;
+  const teamRead: ResourceLaneTeamRead = item.key.startsWith('dawn_')
+    ? 'dawn'
+    : item.key.startsWith('night_')
+      ? 'night'
+      : 'neutral';
+  const roleClass: ResourceLaneRoleClass = item.key.includes('melee')
+    ? 'melee'
+    : item.key.includes('ranged')
+      ? 'ranged'
+      : item.key.includes('siege')
+        ? 'siege'
+        : item.key.includes('super')
+          ? 'super'
+          : item.key.includes('scout')
+            ? 'scout'
+            : 'utility';
+  const formationSlot: Record<ResourceLaneRoleClass, string> = {
+    melee: 'frontline body-block slot',
+    ranged: 'backline projectile slot',
+    siege: 'rear siege footprint slot',
+    super: 'frontline elite pressure slot',
+    utility: 'center banner support slot',
+    scout: 'offset vision probe slot',
+  };
+  const attackRead: Record<ResourceLaneRoleClass, string> = {
+    melee: 'short weapon arc',
+    ranged: 'thin projectile beam',
+    siege: 'low heavy launcher',
+    super: 'large elite strike',
+    utility: 'banner aura pulse',
+    scout: 'small vision spark',
+  };
+  return {
+    teamRead,
+    roleClass,
+    formationSlot: formationSlot[roleClass],
+    attackRead: attackRead[roleClass],
+    silhouetteAnchors: [
+      'main mass',
+      'top read',
+      `v5 lane ${item.key} formation banner`,
+      `v5 lane ${item.key} role attack read`,
+      `v5 lane ${item.key} team trim plate`,
+      `v5 lane ${item.key} formation foot rune`,
+    ],
+  };
+}
+
+function v5WildParts(
+  item: ResourceSeed,
+  read: ResourceWildReadabilitySpec,
+  primary: string,
+  accent: string,
+  dark: string,
+  glow: string,
+): Resource3DPartSpec[] {
+  const heavy = read.tier === 'boss' || read.tier === 'ancient' || read.tier === 'large';
+  const bossy = read.tier === 'boss' || read.tier === 'objective';
+  const side = read.biome === 'sky' || read.packRole === 'flying' ? -1 : 1;
+  return [
+    part(`v5 wild ${item.key} tier crown`, bossy ? 'banner' : 'plate', accent, [heavy ? 0.86 : 0.62, 0.08, heavy ? 0.36 : 0.28], [0, heavy ? 1.76 : 1.54, -0.05], glow, [Math.PI / 2, 0, 0]),
+    part(`v5 wild ${item.key} threat limb`, read.packRole === 'caster' || read.packRole === 'objective-mechanic' ? 'beam' : 'weapon', glow, [0.14, heavy ? 1.1 : 0.82, 0.14], [side * (heavy ? 0.78 : 0.64), 0.94, -0.18], glow, [0.36, 0, side * -0.46]),
+    part(`v5 wild ${item.key} biome back read`, 'banner', read.biome === 'demonic' ? dark : primary, [heavy ? 0.74 : 0.54, 0.06, heavy ? 0.94 : 0.72], [side * 0.12, 1.08, 0.62], glow, [0.18, 0, side * 0.1]),
+    part(`v5 wild ${item.key} threat core`, 'orb', accent, [heavy ? 0.24 : 0.18, heavy ? 0.24 : 0.18, heavy ? 0.24 : 0.18], [side * 0.32, 1.24, -0.4], glow),
+    part(`v5 wild ${item.key} camp footprint`, 'ring', accent, [heavy ? 0.92 : 0.74, 0.05, heavy ? 0.92 : 0.74], [0, 0.17, 0], glow),
+  ];
+}
+
+function wildReadabilityFor(item: ResourceSeed): ResourceWildReadabilitySpec | undefined {
+  if (item.category !== 'neutral_units' && item.category !== 'boss_objectives') return undefined;
+  const tier = wildTierFor(item);
+  const biome = wildBiomeFor(item);
+  const packRole = wildPackRoleFor(item);
+  return {
+    tier,
+    biome,
+    packRole,
+    threatRead: wildThreatReadFor(tier, biome, packRole),
+    silhouetteAnchors: [
+      'main mass',
+      'top read',
+      `v5 wild ${item.key} tier crown`,
+      `v5 wild ${item.key} threat limb`,
+      `v5 wild ${item.key} biome back read`,
+      `v5 wild ${item.key} threat core`,
+      `v5 wild ${item.key} camp footprint`,
+    ],
+  };
+}
+
+function wildTierFor(item: ResourceSeed): ResourceWildTier {
+  if (item.category === 'boss_objectives') return item.key.startsWith('boss_') ? 'boss' : 'objective';
+  if (item.key.includes('ancient') || item.key.includes('turtle')) return 'ancient';
+  if (item.key.includes('troll')) return 'large';
+  if (item.key.includes('lizard')) return 'medium';
+  if (item.key.includes('harpy') || item.key.includes('satyr')) return 'special';
+  return 'small';
+}
+
+function wildBiomeFor(item: ResourceSeed): ResourceWildBiome {
+  if (item.category === 'boss_objectives') {
+    if (item.key.includes('pit') || item.key.includes('tormentor')) return 'demonic';
+    if (item.key.includes('lotus') || item.key.includes('gate')) return 'river';
+    return 'relic';
+  }
+  if (item.key.includes('turtle')) return 'river';
+  if (item.key.includes('lizard') || item.key.includes('troll')) return 'stone';
+  if (item.key.includes('harpy')) return 'sky';
+  return 'forest';
+}
+
+function wildPackRoleFor(item: ResourceSeed): ResourceWildPackRole {
+  if (item.category === 'boss_objectives') return item.key.startsWith('boss_') ? 'boss-core' : 'objective-mechanic';
+  if (item.key.includes('alpha') || item.key.includes('elder') || item.key.includes('king')) return 'leader';
+  if (item.key.includes('priest') || item.key.includes('satyr')) return 'caster';
+  if (item.key.includes('harpy')) return 'flying';
+  if (item.key.includes('ancient') || item.key.includes('turtle')) return 'ancient';
+  return 'fodder';
+}
+
+function wildThreatReadFor(tier: ResourceWildTier, biome: ResourceWildBiome, role: ResourceWildPackRole): string {
+  if (tier === 'boss') return 'large boss core and danger aura';
+  if (tier === 'objective') return 'map objective mechanism glow';
+  if (role === 'caster') return `${biome} caster projectile focus`;
+  if (role === 'leader') return `${biome} leader crest and pack aura`;
+  if (role === 'flying') return 'sky silhouette and dive threat';
+  if (tier === 'ancient') return `${biome} ancient shell mass`;
+  return `${biome} camp body and bite threat`;
+}
+
+function v5SupportParts(
+  item: ResourceSeed,
+  read: ResourceSupportReadabilitySpec,
+  primary: string,
+  accent: string,
+  dark: string,
+  glow: string,
+): Resource3DPartSpec[] {
+  const medium = read.priorityBand === 'medium';
+  const ringScale = medium ? 0.78 : 0.62;
+  const markerKind: Resource3DPartKind = read.roleClass === 'ward' || read.roleClass === 'trap' ? 'orb' : 'banner';
+  return [
+    part(`v5 support ${item.key} owner ring`, 'ring', accent, [ringScale, 0.045, ringScale], [0, 0.18, 0], glow),
+    part(`v5 support ${item.key} owner marker`, markerKind, read.roleClass === 'trap' ? dark : primary, [medium ? 0.42 : 0.32, 0.055, medium ? 0.7 : 0.52], [0.26, medium ? 1.12 : 0.94, 0.42], glow, [0.18, 0, 0.18]),
+    part(`v5 support ${item.key} interaction spark`, 'orb', accent, [0.14, 0.14, 0.14], [-0.34, medium ? 1.28 : 1.06, -0.34], glow),
+    part(`v5 support ${item.key} expire tick`, 'beam', glow, [0.08, medium ? 0.76 : 0.56, 0.08], [0.48, 0.74, -0.12], glow, [0.26, 0, -0.34]),
+  ];
+}
+
+function supportReadabilityFor(item: ResourceSeed): ResourceSupportReadabilitySpec | undefined {
+  if (item.category !== 'couriers_summons' && item.category !== 'wards_traps') return undefined;
+  const roleClass = supportRoleFor(item);
+  const priorityBand: ResourceSupportPriorityBand = roleClass === 'summon' || roleClass === 'totem' ? 'medium' : 'low';
+  return {
+    roleClass,
+    ownerRead: supportOwnerReadFor(item, roleClass),
+    interactionRead: supportInteractionReadFor(roleClass),
+    expireCue: roleClass === 'courier' ? 'persistent service unit' : 'subtle timed fade cue',
+    priorityBand,
+    visualPriority: priorityBand === 'medium' ? 0.56 : 0.42,
+    silhouetteAnchors: [
+      'main mass',
+      'top read',
+      `v5 support ${item.key} owner ring`,
+      `v5 support ${item.key} owner marker`,
+      `v5 support ${item.key} interaction spark`,
+      `v5 support ${item.key} expire tick`,
+    ],
+  };
+}
+
+function supportRoleFor(item: ResourceSeed): ResourceSupportRoleClass {
+  if (item.key.includes('courier')) return 'courier';
+  if (item.key.includes('illusion')) return 'illusion';
+  if (item.key.includes('totem') || item.key.includes('healing_ward') || item.key.includes('serpent')) return 'totem';
+  if (item.key.includes('trap') || item.key.includes('mine')) return 'trap';
+  if (item.key.includes('ward') || item.key.includes('beacon') || item.key.includes('lantern')) return 'ward';
+  return 'summon';
+}
+
+function supportOwnerReadFor(item: ResourceSeed, role: ResourceSupportRoleClass): string {
+  if (role === 'courier') return 'service unit team accent';
+  if (role === 'trap') return 'placed hidden danger marker';
+  if (role === 'ward') return 'placed vision ownership marker';
+  if (role === 'illusion') return 'mirror owner echo';
+  if (role === 'totem') return 'summoned utility totem';
+  return `${item.role} owner-colored summon`;
+}
+
+function supportInteractionReadFor(role: ResourceSupportRoleClass): string {
+  switch (role) {
+    case 'courier': return 'non-combat delivery motion';
+    case 'trap': return 'trigger radius and impact cue';
+    case 'ward': return 'vision radius and reveal cue';
+    case 'illusion': return 'low-priority copy marker';
+    case 'totem': return 'utility aura pulse';
+    case 'summon':
+    default: return 'controlled unit attack cue';
+  }
 }
 
 function part(

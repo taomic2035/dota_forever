@@ -149,4 +149,98 @@ describe('non-hero 3D resource samples', () => {
       expect(terrainText, concept).toMatch(pattern);
     }
   });
+
+  it('adds V5 lane-unit readability contracts for team, role, formation, and attack read', () => {
+    const laneUnits = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.category === 'lane_units');
+    const roleClasses = new Set(laneUnits.map((asset) => asset.laneReadability?.roleClass));
+    const teamReads = new Set(laneUnits.map((asset) => asset.laneReadability?.teamRead));
+
+    expect(roleClasses).toEqual(new Set(['melee', 'ranged', 'siege', 'super', 'utility', 'scout']));
+    expect(teamReads).toEqual(new Set(['dawn', 'night', 'neutral']));
+
+    for (const asset of laneUnits) {
+      const partNames = new Set(asset.parts.map((part) => part.name));
+      const v5Parts = asset.parts.filter((part) => part.name.startsWith('v5 lane '));
+
+      expect(asset.laneReadability?.formationSlot, asset.key).toBeTruthy();
+      expect(asset.laneReadability?.attackRead, asset.key).toBeTruthy();
+      expect(asset.laneReadability?.silhouetteAnchors.length, asset.key).toBeGreaterThanOrEqual(4);
+      for (const anchor of asset.laneReadability?.silhouetteAnchors ?? []) {
+        expect(partNames.has(anchor), `${asset.key} lane anchor ${anchor} must map to a real part`).toBe(true);
+      }
+
+      expect(v5Parts.length, `${asset.key} needs V5 lane identity pieces`).toBeGreaterThanOrEqual(3);
+      expect(v5Parts.some((part) => part.kind === 'banner'), `${asset.key} needs a team/faction banner read`).toBe(true);
+      expect(v5Parts.some((part) => part.kind === 'weapon' || part.kind === 'beam'), `${asset.key} needs a role attack read`).toBe(true);
+      expect(v5Parts.some((part) => part.position[2] >= 0.42), `${asset.key} needs rear formation read`).toBe(true);
+    }
+  });
+
+  it('adds V5 wild-creature readability contracts for neutral tiers and boss objectives', () => {
+    const wildAssets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => (
+      asset.category === 'neutral_units' || asset.category === 'boss_objectives'
+    ));
+    const neutralTiers = new Set(
+      wildAssets
+        .filter((asset) => asset.category === 'neutral_units')
+        .map((asset) => asset.wildReadability?.tier),
+    );
+    const bossTiers = new Set(
+      wildAssets
+        .filter((asset) => asset.category === 'boss_objectives')
+        .map((asset) => asset.wildReadability?.tier),
+    );
+    const packRoles = new Set(wildAssets.map((asset) => asset.wildReadability?.packRole));
+
+    expect(neutralTiers).toEqual(new Set(['small', 'medium', 'large', 'ancient', 'special']));
+    expect(bossTiers).toEqual(new Set(['boss', 'objective']));
+    expect(packRoles).toEqual(new Set(['fodder', 'leader', 'caster', 'flying', 'ancient', 'boss-core', 'objective-mechanic']));
+
+    for (const asset of wildAssets) {
+      const partNames = new Set(asset.parts.map((part) => part.name));
+      const v5Parts = asset.parts.filter((part) => part.name.startsWith('v5 wild '));
+
+      expect(asset.wildReadability?.biome, asset.key).toBeTruthy();
+      expect(asset.wildReadability?.threatRead, asset.key).toBeTruthy();
+      expect(asset.wildReadability?.silhouetteAnchors.length, asset.key).toBeGreaterThanOrEqual(5);
+      for (const anchor of asset.wildReadability?.silhouetteAnchors ?? []) {
+        expect(partNames.has(anchor), `${asset.key} wild anchor ${anchor} must map to a real part`).toBe(true);
+      }
+
+      expect(v5Parts.length, `${asset.key} needs V5 wild identity pieces`).toBeGreaterThanOrEqual(4);
+      expect(v5Parts.some((part) => part.kind === 'plate' || part.kind === 'banner'), `${asset.key} needs a tier plate/banner read`).toBe(true);
+      expect(v5Parts.some((part) => part.kind === 'weapon' || part.kind === 'beam'), `${asset.key} needs a threat/attack read`).toBe(true);
+      expect(v5Parts.filter((part) => part.emissive).length, `${asset.key} needs visible threat glow`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('adds V5 summon and ward readability contracts without making them hero-priority', () => {
+    const supportAssets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => (
+      asset.category === 'couriers_summons' || asset.category === 'wards_traps'
+    ));
+    const roleClasses = new Set(supportAssets.map((asset) => asset.supportReadability?.roleClass));
+    const priorityBands = new Set(supportAssets.map((asset) => asset.supportReadability?.priorityBand));
+
+    expect(roleClasses).toEqual(new Set(['courier', 'summon', 'ward', 'trap', 'illusion', 'totem']));
+    expect(priorityBands).toEqual(new Set(['low', 'medium']));
+
+    for (const asset of supportAssets) {
+      const partNames = new Set(asset.parts.map((part) => part.name));
+      const v5Parts = asset.parts.filter((part) => part.name.startsWith('v5 support '));
+
+      expect(asset.supportReadability?.ownerRead, asset.key).toBeTruthy();
+      expect(asset.supportReadability?.interactionRead, asset.key).toBeTruthy();
+      expect(asset.supportReadability?.expireCue, asset.key).toBeTruthy();
+      expect(asset.supportReadability?.visualPriority, asset.key).toBeLessThan(0.65);
+      expect(asset.supportReadability?.silhouetteAnchors.length, asset.key).toBeGreaterThanOrEqual(5);
+      for (const anchor of asset.supportReadability?.silhouetteAnchors ?? []) {
+        expect(partNames.has(anchor), `${asset.key} support anchor ${anchor} must map to a real part`).toBe(true);
+      }
+
+      expect(v5Parts.length, `${asset.key} needs V5 support identity pieces`).toBeGreaterThanOrEqual(4);
+      expect(v5Parts.some((part) => part.kind === 'ring'), `${asset.key} needs owner/placement ring read`).toBe(true);
+      expect(v5Parts.some((part) => part.kind === 'banner' || part.kind === 'orb'), `${asset.key} needs low-priority owner marker`).toBe(true);
+      expect(v5Parts.filter((part) => part.emissive).length, `${asset.key} needs subtle status glow`).toBeGreaterThanOrEqual(3);
+    }
+  });
 });

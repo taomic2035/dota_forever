@@ -7,6 +7,7 @@ import {
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  FrontSide,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -102,6 +103,9 @@ export function createResource3DModel(asset: Resource3DAssetSpec): Resource3DMod
     role: asset.role,
     motion: asset.previewMotion,
     silhouette: asset.silhouette,
+    laneReadability: asset.laneReadability,
+    wildReadability: asset.wildReadability,
+    supportReadability: asset.supportReadability,
   };
 
   const textures = createTextures(asset);
@@ -125,7 +129,7 @@ function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DT
     flatShading: true,
     transparent: additive,
     opacity: additive ? 0.58 : 1,
-    side: additive ? DoubleSide : undefined,
+    side: additive ? DoubleSide : FrontSide,
   });
 
   const mesh = new Mesh(geometryCache[part.kind], material);
