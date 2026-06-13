@@ -13,7 +13,21 @@ Current V3 update for Opus merge:
 - V3 part-motion screenshot: `docs/screenshots/ux-3d-v3-resource-part-motion.png`.
 - V3 FX screenshot: `docs/screenshots/ux-3d-v3-fx-polish.png`.
 - Shift queue controls screenshot: `docs/screenshots/ux-shift-queue-controls.png`.
-- Adds material/detail metadata, high-detail procedural texture overlays, runtime resource motion, part-level model motion, richer 3D battle FX, and shift-queued command UX.
+- V4 map terrain research target: `docs/ux/2026-06-13-dota-map-elements-research-target.md`.
+- V4 map terrain summary: `docs/ux/2026-06-13-3d-v4-map-terrain-realism-summary.md`.
+- Next unit/FX research target: `docs/ux/2026-06-13-dota-unit-fx-research-target.md`.
+- V4 map terrain screenshot: `docs/screenshots/ux-3d-v4-map-terrain-realism.png`.
+- V4 tree-wall close-up screenshot: `docs/screenshots/ux-3d-v4-map-treewall-closeup.png`.
+- V4 tree-wall biome screenshots: `docs/screenshots/ux-3d-v4-map-treewall-biome-radiant.png`, `docs/screenshots/ux-3d-v4-map-treewall-biome-dire.png`.
+- V4 riverbank polish screenshot: `docs/screenshots/ux-3d-v4-map-river-bank-polish.png`.
+- V4 ground decal polish screenshot: `docs/screenshots/ux-3d-v4-map-ground-decals-polish.png`.
+- V4 sky/fog polish screenshot: `docs/screenshots/ux-3d-v4-map-sky-fog-polish.png`.
+- V4 fence/blocker polish screenshot: `docs/screenshots/ux-3d-v4-map-fence-blocker-polish.png`.
+- V4 highground/ramp screenshot: `docs/screenshots/ux-3d-v4-map-highground-ramp.png`.
+- V4 rocky cliff-face screenshot: `docs/screenshots/ux-3d-v4-map-cliff-face-rocky.png`.
+- V4 cliff biome polish screenshots: `docs/screenshots/ux-3d-v4-map-cliff-biome-polish.png`, `docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png`.
+- V4 river runtime motion screenshot: `docs/screenshots/ux-3d-v4-map-river-motion-polish.png`.
+- Adds material/detail metadata, high-detail procedural texture overlays, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, and shift-queued command UX.
 - Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
 
 Terrain screenshots:
@@ -126,6 +140,21 @@ Total: 408 samples.
   - `src/render3d/fx3dVisual.ts` maps `fxStyle` family/pattern metadata into 3D FX layers.
   - `src/render3d/fx3d.ts` renders burst / beam / AoE / projectile as multi-layer Three.js groups.
   - Evidence: `docs/screenshots/ux-3d-v3-fx-polish.png`.
+- [x] V4 map terrain realism research target and first runtime pass exist.
+  - Research target: `docs/ux/2026-06-13-dota-map-elements-research-target.md`.
+  - Runtime layers cover sky, cloud shadows, horizon haze, sun shafts, river current, wet riverbanks, foam/glints, worn dirt paths, grass mottle, stone slabs, tree wall trunks/canopies, Radiant/Dire tree biome accents, grass, flowers, reeds, river stones, layered cliff faces, Radiant/Dire cliff tint, rubble/cracks, layered cliff fences/blockers, highground edges, ramp stairs, and landmark rings.
+  - Riverbank polish adds `terrain-river-bank-mud` and `terrain-river-foam-glints` on top of existing `terrain-river-current`, `terrain-river-reeds`, and `terrain-river-stones`.
+  - River runtime motion adds visual-only contracts: `terrain-river-current.motion = flow`, `terrain-river-foam-glints.motion = foam-pulse`, and `terrain-river-reeds.motion = reed-sway`.
+  - Ground polish groups `terrain-ground-decals` with child layers `terrain-ground-dirt-paths`, `terrain-ground-grass-mottle`, and `terrain-ground-stone-slabs`.
+  - Sky/fog polish groups `terrain-atmosphere` with child layers `terrain-horizon-haze` and `terrain-sun-shafts`.
+  - Tree biome accents are grouped as `terrain-tree-biome-accents` with child layers `terrain-tree-radiant-light-canopy`, `terrain-tree-radiant-blooms`, `terrain-tree-dire-dark-canopy`, and `terrain-tree-dire-dead-branches`.
+  - Layered cliff faces are grouped as `terrain-cliff-faces` with child layers `terrain-cliff-face-walls`, `terrain-cliff-rock-caps`, and `terrain-cliff-ledge-shadows`.
+  - Cliff biome details are grouped as `terrain-cliff-biome-details` with child layers `terrain-cliff-radiant-moss`, `terrain-cliff-dire-scorch`, `terrain-cliff-rubble`, and `terrain-cliff-cracks`.
+  - Layered cliff fences are grouped as `terrain-cliff-fences` with child layers `terrain-cliff-fence-rails`, `terrain-cliff-fence-posts`, and `terrain-cliff-fence-stone-bases`.
+  - Evidence: `docs/screenshots/ux-3d-v4-map-terrain-realism.png`, `docs/screenshots/ux-3d-v4-map-treewall-closeup.png`, `docs/screenshots/ux-3d-v4-map-treewall-biome-radiant.png`, `docs/screenshots/ux-3d-v4-map-treewall-biome-dire.png`, `docs/screenshots/ux-3d-v4-map-river-bank-polish.png`, `docs/screenshots/ux-3d-v4-map-river-motion-polish.png`, `docs/screenshots/ux-3d-v4-map-ground-decals-polish.png`, `docs/screenshots/ux-3d-v4-map-sky-fog-polish.png`, `docs/screenshots/ux-3d-v4-map-fence-blocker-polish.png`, `docs/screenshots/ux-3d-v4-map-highground-ramp.png`, `docs/screenshots/ux-3d-v4-map-cliff-face-rocky.png`, `docs/screenshots/ux-3d-v4-map-cliff-biome-polish.png`, `docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png`.
+- [x] Next-phase hero/creep/summon/neutral/skill/FX research target exists.
+  - Research target: `docs/ux/2026-06-13-dota-unit-fx-research-target.md`.
+  - Scope is visual/UX asset polish only; no copied Dota assets and no gameplay-rule changes.
 
 ### Not Completed
 
@@ -151,8 +180,8 @@ Total: 408 samples.
   - Three.js is still statically imported through preview paths, so Vite reports a large chunk warning.
   - Recommended before production merge: lazy-load `hero3dPreview.ts` and `resource3dPreview.ts` behind query routes.
 - [x] Full-suite timing has fresh merge evidence.
-  - `npm test -- --run` passed in this worktree after the V3 FX polish.
-  - 101 test files passed, 867 tests passed.
+  - `npm test -- --run --pool=forks` passed in this worktree after the V4 terrain/cliff polish.
+  - 102 test files passed, 871 tests passed.
 
 ### Suggested Priority For Opus
 
@@ -181,6 +210,11 @@ Changed files:
   - Pure 3D FX layer contract from `fxStyle` family/pattern metadata.
 - `src/render3d/fx3d.ts`
   - Runtime multi-layer 3D FX and projectile group renderer.
+- `src/render3d/terrainDressing.ts`
+  - Pure deterministic terrain dressing sampler for V4 map realism.
+- `src/render3d/terrain3d.ts`
+  - Adds V4 named map layers: sky, cloud shadows, horizon haze, sun shafts, river current, wet riverbanks, foam/glints, ground dirt paths, grass mottle, stone slabs, tree canopies, Radiant/Dire tree biome accents, grass, flowers, reeds, river stones, layered cliff faces, cliff side tint/rubble/cracks, layered blockers, highground edges, ramp stairs, landmark rings.
+  - Exposes `updateTerrainRuntimeMotion(root, t)` for visual-only river current drift, foam pulsing, and reed sway.
 - `src/render/commandQueuePath.ts`
   - 2D queued route visual.
 - `src/render3d/commandQueue3d.ts`
@@ -209,6 +243,10 @@ Changed files:
   - V3 material/detail/texture, model motion, part motion, and 3D FX polish summary.
 - `docs/ux/2026-06-13-shift-queue-controls-summary.md`
   - Shift queue control UX summary.
+- `docs/ux/2026-06-13-dota-map-elements-research-target.md`
+  - Dota-informed map element research target.
+- `docs/ux/2026-06-13-3d-v4-map-terrain-realism-summary.md`
+  - V4 map terrain realism summary, screenshot evidence, and Opus handoff.
 
 `src/sim/**` changes in this branch are limited to queued-order control plumbing and related tests; no combat/math/pathing tuning is intended.
 
@@ -257,6 +295,7 @@ Known cost:
 5. Should the current procedural assets stay as fallback/debug assets after production art arrives?
 6. Should `projectiles`, `aoe_indicators`, and `environment_fx` eventually move into a dedicated VFX runtime contract?
 7. Should terrain assets get tile/prop placement metadata such as walkable, blocker, height level, river, and sky/background layer?
+8. Which first 10 heroes should stay in the immediate V5 polish batch if Opus changes the roster order?
 
 ## Next Action
 
@@ -284,6 +323,14 @@ http://127.0.0.1:5182/?mode=resource3d-preview
 6. Also open the 3D play route and verify shift-queued routes plus layered FX in a live scene.
 7. If merging into main, consider lazy-loading preview modules to reduce the main chunk before production release.
 
+After V4 terrain merge review, recommended next UX/art sequence:
+
+1. hero polish for the existing first 10 classic heroes;
+2. lane creep melee/ranged/siege polish for both teams;
+3. neutral creep and boss tier polish;
+4. summon and ward polish;
+5. skill and battle-FX timing/layer polish.
+
 ## Verification Evidence
 
 Latest verified commands in this worktree:
@@ -307,8 +354,20 @@ npm test -- tests/render3d/fx3dVisual.test.ts tests/fxstyle.test.ts tests/fxlaye
 ```
 
 ```text
+npm test -- tests/render3d/terrainDressing.test.ts
+1 file passed
+11 tests passed
+```
+
+```text
 npm run typecheck
 passed
+```
+
+```text
+npm test -- tests/render3d/terrainDressing.test.ts tests/resource3dAssets.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+6 files passed
+33 tests passed
 ```
 
 ```text
@@ -318,9 +377,9 @@ warning: Three.js keeps the output chunk above 500 kB
 ```
 
 ```text
-npm test -- --run
-101 files passed
-867 tests passed
+npm test -- --run --pool=forks
+102 files passed
+871 tests passed
 ```
 
 Preview smoke evidence:
@@ -383,10 +442,103 @@ Console/page errors: none
 Screenshot: docs/screenshots/ux-3d-v3-fx-polish.png
 ```
 
+V4 3D map terrain runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5190/?mode=play&hero=zola&renderer=3d&seed=42&speed=0
+Runtime layers:
+terrain-sky-dome: 1
+terrain-cloud-shadows: 5
+terrain-atmosphere: 10
+terrain-horizon-haze: 4
+terrain-sun-shafts: 6
+terrain-river-current: 9
+terrain-river-bank-mud: 250
+terrain-river-foam-glints: 189
+terrain-ground-decals: 2182
+terrain-ground-dirt-paths: 1306
+terrain-ground-grass-mottle: 483
+terrain-ground-stone-slabs: 393
+terrain-tree-trunks: 2800
+terrain-tree-canopy-primary: 2800
+terrain-tree-canopy-secondary: 5600
+terrain-tree-biome-accents: 3470
+terrain-tree-radiant-light-canopy: 1171
+terrain-tree-radiant-blooms: 586
+terrain-tree-dire-dark-canopy: 1142
+terrain-tree-dire-dead-branches: 571
+terrain-grass-tufts: 3672
+terrain-flower-patches: 651
+terrain-river-reeds: 275
+terrain-river-stones: 273
+terrain-cliff-faces: 316
+terrain-cliff-face-walls: 316
+terrain-cliff-rock-caps: 316
+terrain-cliff-ledge-shadows: 316
+terrain-cliff-biome-details: 803
+terrain-cliff-radiant-moss: 158
+terrain-cliff-dire-scorch: 158
+terrain-cliff-rubble: 253
+terrain-cliff-cracks: 234
+terrain-cliff-fences: 254
+terrain-cliff-fence-rails: 254
+terrain-cliff-fence-posts: 508
+terrain-cliff-fence-stone-bases: 508
+terrain-highground-edges: 316
+terrain-ramp-stairs: 18
+terrain-landmark-rings: 17
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v4-map-terrain-realism.png
+```
+
+V4 river runtime-motion evidence:
+
+```text
+Playwright @ http://127.0.0.1:5199/?mode=play&renderer=3d
+Runtime layers:
+terrain-river-current: 9
+terrain-river-bank-mud: 250
+terrain-river-reeds: 275
+terrain-river-stones: 273
+terrain-river-foam-glints: 189
+Motion contracts:
+terrain-river-current.motion: flow
+terrain-river-foam-glints.motion: foam-pulse
+terrain-river-reeds.motion: reed-sway
+Before:
+current strip x/z: 2741.364 / 3042.164
+foam opacity: 0.301
+reed rotation z: -0.014
+After:
+current strip x/z: 2683.075 / 2983.875
+foam opacity: 0.466
+reed rotation z: -0.025
+Canvas count: 2
+Page errors: none
+Screenshot: docs/screenshots/ux-3d-v4-map-river-motion-polish.png
+```
+
+```text
+Additional V4 terrain screenshots:
+docs/screenshots/ux-3d-v4-map-treewall-closeup.png
+docs/screenshots/ux-3d-v4-map-treewall-biome-radiant.png
+docs/screenshots/ux-3d-v4-map-treewall-biome-dire.png
+docs/screenshots/ux-3d-v4-map-river-bank-polish.png
+docs/screenshots/ux-3d-v4-map-river-motion-polish.png
+docs/screenshots/ux-3d-v4-map-ground-decals-polish.png
+docs/screenshots/ux-3d-v4-map-sky-fog-polish.png
+docs/screenshots/ux-3d-v4-map-fence-blocker-polish.png
+docs/screenshots/ux-3d-v4-map-highground-ramp.png
+docs/screenshots/ux-3d-v4-map-cliff-face-rocky.png
+docs/screenshots/ux-3d-v4-map-cliff-biome-polish.png
+docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png
+```
+
 ## Merge Notes
 
 - Main collision risk: `src/main.ts`.
 - Dependency collision risk remains `package.json` / `package-lock.json` from the shared Three.js dependency.
 - `src/sim/unit.ts` has intentional queued-order control plumbing. Review it with `src/engine/input.ts`, `tests/queuedOrders.test.ts`, and `tests/commandMode.test.ts`.
 - 3D FX runtime is now active in normal `renderer=3d` play mode through `src/render3d/fx3d.ts`.
+- V4 map terrain runtime layers are active in normal `renderer=3d` play mode through `src/render3d/terrain3d.ts`.
 - Screenshots are intentional evidence under `docs/screenshots/`.

@@ -14,8 +14,6 @@ export class Scene3D {
   readonly ambient: THREE.AmbientLight;
   readonly hemi: THREE.HemisphereLight;
   readonly canvas: HTMLCanvasElement;
-  /** 渐变天空穹顶(地平线→天顶)。预留接缝:后续可换 GPT 天空贴图/HDRI。 */
-  private skyMat!: THREE.ShaderMaterial;
   /** 后处理合成器:RenderPass → Bloom(发光件/特效辉光)→ OutputPass(色调映射输出)。 */
   private composer!: EffectComposer;
   private bloom!: UnrealBloomPass;
@@ -33,7 +31,7 @@ export class Scene3D {
     this.scene.background = new THREE.Color('#5a6e7c');
     this.scene.fog = new THREE.Fog(0x6a7e8c, 4200, 11000); // 距离雾:远端柔化并褪入天空地平线(非褪入虚空)
     this.cam = new THREE.PerspectiveCamera(40, 16 / 9, 10, 60000);
-    this.buildSky();
+    // 天空穹顶由 V4 地形层(terrain3d.buildTerrain3D 的 terrain-sky-dome)提供,场景不再自建。
 
     this.sun = new THREE.DirectionalLight('#fff6e0', 1.35);
     this.sun.castShadow = true;
@@ -58,28 +56,6 @@ export class Scene3D {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1280, 720), 0.55, 0.5, 0.82);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
-  }
-
-  /** 渐变天空穹顶:大球 BackSide + 竖直渐变着色(地平线→天顶)。后续可由 GPT 天空资产替换。 */
-  private buildSky(): void {
-    this.skyMat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      uniforms: {
-        topColor: { value: new THREE.Color('#2a4a72') },
-        bottomColor: { value: new THREE.Color('#6a7e8c') },
-        offset: { value: 1200 },
-        expo: { value: 0.7 },
-      },
-      vertexShader: `varying vec3 vW; void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform vec3 topColor; uniform vec3 bottomColor; uniform float offset; uniform float expo; varying vec3 vW;
-        void main(){ float h = normalize(vW + vec3(0.0, offset, 0.0)).y; gl_FragColor = vec4(mix(bottomColor, topColor, pow(max(h,0.0), expo)), 1.0); }`,
-    });
-    const sky = new THREE.Mesh(new THREE.SphereGeometry(30000, 24, 12), this.skyMat);
-    sky.position.set(7520, 0, 7520); // 地图中心,半径覆盖全图
-    sky.frustumCulled = false;
-    this.scene.add(sky);
   }
 
   resize(w: number, h: number) {
@@ -111,13 +87,10 @@ export class Scene3D {
     this.ambient.intensity = night ? 0.7 : 0.95;
     this.hemi.color.set(night ? '#46587e' : '#cfe0f2');
     this.hemi.intensity = night ? 0.5 : 0.85;
-    // 天空穹顶 + 雾 + 背景随昼夜过渡(地平线色与雾同源,远景柔化进天空)
-    const skyTop = night ? '#070b18' : '#2a4a72';
-    const skyBot = night ? '#141d33' : '#6a7e8c';
-    this.skyMat.uniforms.topColor.value.set(skyTop);
-    this.skyMat.uniforms.bottomColor.value.set(skyBot);
-    this.scene.background = new THREE.Color(skyBot);
-    if (this.scene.fog) (this.scene.fog as THREE.Fog).color.set(skyBot);
+    // 雾/背景随昼夜过渡(地平线色;天空穹顶由 V4 地形层提供,远景柔化进地平线)
+    const horizon = night ? '#141d33' : '#6a7e8c';
+    this.scene.background = new THREE.Color(horizon);
+    if (this.scene.fog) (this.scene.fog as THREE.Fog).color.set(horizon);
   }
 
   render() {

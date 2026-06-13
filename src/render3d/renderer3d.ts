@@ -17,7 +17,7 @@ import { poseFor, type AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
-import { buildTerrain3D, terrainElevation } from './terrain3d';
+import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './terrain3d';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { visualStateFor3D } from './visualState';
@@ -273,6 +273,7 @@ export class Renderer3D {
     this.fx.update(world, performance.now() / 1000);
     this.updateTargeting(world, ux);
     this.updateCommandQueue(world, selectedId, t);
+    updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
