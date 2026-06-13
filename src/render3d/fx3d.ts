@@ -1,21 +1,30 @@
-/** 3D 特效:消费 world 事件流 → 短时几何特效(爆发/光束/AoE 环 + 受击火花),弹道同步发光球。按 fxStyle 配色。 */
+/** 3D 特效:消费 world 事件流 → 多层短时几何特效(爆发/光束/AoE + 受击火花),弹道同步发光体。按 fxStyle 配色/纹理语法。 */
 import * as THREE from 'three';
 import type { World } from '../sim/world';
 import type { Vec2 } from '../core/vec2';
-import { fxStyle } from '../render/fxStyle';
+import { fxStyle, type FxStyle } from '../render/fxStyle';
+import { fx3DVisualState, type Fx3DLayer } from './fx3dVisual';
 
 interface FxItem {
-  obj: THREE.Mesh;
+  obj: THREE.Group;
   born: number;
   ttl: number;
   kind: 'burst' | 'beam' | 'aoe';
   peak: number;
 }
 
+const DAMAGE_STYLE: FxStyle = {
+  color: '#ffcaa0',
+  glow: 'rgba(255,202,160,0.45)',
+  motion: 'burst',
+  family: 'neutral',
+  pattern: 'spark',
+};
+
 export class Fx3D {
   private items: FxItem[] = [];
   private projGroup = new THREE.Group();
-  private projPool: THREE.Mesh[] = [];
+  private projPool: THREE.Group[] = [];
 
   constructor(private scene: THREE.Scene) {
     scene.add(this.projGroup);
@@ -26,48 +35,43 @@ export class Fx3D {
     const t = performance.now() / 1000;
     for (const e of world.events) {
       if (e.kind === 'fx') {
-        const col = new THREE.Color(fxStyle(e.fx).color);
-        if (e.pos2) this.beam(e.pos, e.pos2, col, t);
-        else if (e.radius && e.radius > 0) this.aoe(e.pos, e.radius, col, t, e.duration ?? 0.5);
-        else this.burst(e.pos, col, t, 1);
+        const style = fxStyle(e.fx);
+        if (e.pos2) this.beam(e.pos, e.pos2, style, t);
+        else if (e.radius && e.radius > 0) this.aoe(e.pos, e.radius, style, t, e.duration ?? 0.5);
+        else this.burst(e.pos, style, t, 1);
       } else if (e.kind === 'unit_damaged') {
-        this.burst(e.pos, new THREE.Color('#ffcaa0'), t, 0.55);
+        this.burst(e.pos, DAMAGE_STYLE, t, 0.55);
       }
     }
   }
 
-  private burst(pos: Vec2, col: THREE.Color, t: number, scale: number): void {
-    const m = new THREE.Mesh(
-      new THREE.SphereGeometry(16 * scale, 8, 8),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.9 }),
-    );
-    m.position.set(pos.x, 42, pos.y);
-    this.scene.add(m);
-    this.items.push({ obj: m, born: t, ttl: 0.35, kind: 'burst', peak: 0.9 });
+  private burst(pos: Vec2, style: FxStyle, t: number, scale: number): void {
+    const state = fx3DVisualState(style, 'burst');
+    const g = new THREE.Group();
+    g.position.set(pos.x, 24, pos.y);
+    for (const l of state.layers) this.addBurstLayer(g, l, state.verticalLift, scale);
+    this.scene.add(g);
+    this.items.push({ obj: g, born: t, ttl: 0.35 * state.durationScale, kind: 'burst', peak: 1 });
   }
 
-  private beam(a: Vec2, b: Vec2, col: THREE.Color, t: number): void {
+  private beam(a: Vec2, b: Vec2, style: FxStyle, t: number): void {
+    const state = fx3DVisualState(style, 'beam');
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    const m = new THREE.Mesh(
-      new THREE.CylinderGeometry(6, 6, len, 6),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85 }),
-    );
-    m.position.set((a.x + b.x) / 2, 50, (a.y + b.y) / 2);
-    m.rotation.z = Math.PI / 2;
-    m.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
-    this.scene.add(m);
-    this.items.push({ obj: m, born: t, ttl: 0.3, kind: 'beam', peak: 0.85 });
+    const g = new THREE.Group();
+    g.position.set((a.x + b.x) / 2, 52, (a.y + b.y) / 2);
+    g.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+    for (const l of state.layers) this.addBeamLayer(g, l, len);
+    this.scene.add(g);
+    this.items.push({ obj: g, born: t, ttl: 0.3 * state.durationScale, kind: 'beam', peak: 1 });
   }
 
-  private aoe(pos: Vec2, radius: number, col: THREE.Color, t: number, dur: number): void {
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius * 0.68, radius, 30),
-      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.45, side: THREE.DoubleSide }),
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(pos.x, 4, pos.y);
-    this.scene.add(ring);
-    this.items.push({ obj: ring, born: t, ttl: Math.min(2, Math.max(0.4, dur)), kind: 'aoe', peak: 0.45 });
+  private aoe(pos: Vec2, radius: number, style: FxStyle, t: number, dur: number): void {
+    const state = fx3DVisualState(style, 'aoe');
+    const g = new THREE.Group();
+    g.position.set(pos.x, 5, pos.y);
+    for (const l of state.layers) this.addAoeLayer(g, l, radius);
+    this.scene.add(g);
+    this.items.push({ obj: g, born: t, ttl: Math.min(2.6, Math.max(0.4, dur) * state.durationScale), kind: 'aoe', peak: 1 });
   }
 
   /** 由 renderer3d.render 每帧调用:衰减特效 + 同步弹道。 */
@@ -75,31 +79,154 @@ export class Fx3D {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i];
       const age = (now - it.born) / it.ttl;
-      const mat = it.obj.material as THREE.MeshBasicMaterial;
       if (age >= 1) {
         this.scene.remove(it.obj);
-        it.obj.geometry.dispose();
-        mat.dispose();
+        this.disposeObject(it.obj);
         this.items.splice(i, 1);
         continue;
       }
-      mat.opacity = (1 - age) * it.peak;
+      this.fadeObject(it.obj, age, it.peak);
       if (it.kind === 'burst') it.obj.scale.setScalar(1 + age * 2.2);
+      if (it.kind === 'aoe') it.obj.rotation.y += 0.004;
     }
 
     const ps = world.projectiles;
     while (this.projPool.length < ps.length) {
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(10, 8, 8),
-        new THREE.MeshBasicMaterial({ color: '#ffe08a' }),
-      );
-      this.projGroup.add(m);
-      this.projPool.push(m);
+      const g = this.createProjectileGroup(fxStyle('basic_attack_projectile'));
+      this.projGroup.add(g);
+      this.projPool.push(g);
     }
     for (let i = 0; i < this.projPool.length; i++) {
       const vis = i < ps.length;
-      this.projPool[i].visible = vis;
-      if (vis) this.projPool[i].position.set(ps[i].pos.x, 45, ps[i].pos.y);
+      const g = this.projPool[i];
+      g.visible = vis;
+      if (vis) {
+        const p = ps[i];
+        this.restyleProjectile(g, fxStyle(p.style ?? (p.kind === 'ability' ? 'arcanebolt' : 'basic_attack_projectile')));
+        g.position.set(p.pos.x, 45, p.pos.y);
+        g.rotation.y += 0.12;
+      }
     }
+  }
+
+  private material(l: Fx3DLayer, opacity = l.opacity): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color: new THREE.Color(l.color),
+      transparent: true,
+      opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+  }
+
+  private add(mesh: THREE.Mesh, l: Fx3DLayer, group: THREE.Group): void {
+    mesh.userData.fxOpacity = l.opacity;
+    mesh.userData.fxSpin = l.spin;
+    group.add(mesh);
+  }
+
+  private addBurstLayer(group: THREE.Group, l: Fx3DLayer, lift: number, scale: number): void {
+    for (let i = 0; i < l.count; i++) {
+      const a = (i / l.count) * Math.PI * 2;
+      const r = (16 + (i % 4) * 7) * scale * l.scale;
+      let mesh: THREE.Mesh;
+      if (l.shape === 'shard') mesh = new THREE.Mesh(new THREE.ConeGeometry(4 * scale, 22 * scale * l.scale, 4), this.material(l));
+      else if (l.shape === 'cloud') mesh = new THREE.Mesh(new THREE.SphereGeometry(14 * scale * l.scale, 8, 6), this.material(l));
+      else if (l.shape === 'crack') mesh = new THREE.Mesh(new THREE.BoxGeometry(34 * scale * l.scale, 2, 5 * scale), this.material(l));
+      else if (l.shape === 'halo' || l.shape === 'rune') mesh = new THREE.Mesh(new THREE.TorusGeometry(18 * scale * l.scale, 1.8 * scale, 6, 28), this.material(l));
+      else mesh = new THREE.Mesh(new THREE.SphereGeometry((l.role === 'glow' ? 18 : 7) * scale * l.scale, 8, 8), this.material(l));
+      mesh.position.set(Math.cos(a) * r, lift + (i % 3) * 7, Math.sin(a) * r);
+      mesh.rotation.set(i * 0.7, a, l.shape === 'crack' ? a : i * 0.37);
+      if (l.role === 'core' || l.role === 'glow') mesh.position.set(0, lift, 0);
+      this.add(mesh, l, group);
+    }
+  }
+
+  private addBeamLayer(group: THREE.Group, l: Fx3DLayer, len: number): void {
+    for (let i = 0; i < l.count; i++) {
+      const x = l.count === 1 ? 0 : -len / 2 + (len * (i + 0.5)) / l.count;
+      const wiggle = i % 2 === 0 ? 10 : -10;
+      let mesh: THREE.Mesh;
+      if (l.shape === 'beam') {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(5 * l.scale, 5 * l.scale, len, 8), this.material(l));
+        mesh.rotation.z = Math.PI / 2;
+      } else if (l.shape === 'jagged') {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(18, len / (l.count + 2)), 3.5 * l.scale, 3.5 * l.scale), this.material(l));
+        mesh.position.set(x, wiggle, i % 3 === 0 ? -wiggle * 0.65 : wiggle * 0.65);
+        mesh.rotation.z = (i % 2 === 0 ? 0.32 : -0.32);
+      } else {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(5 * l.scale, 6, 6), this.material(l));
+        mesh.position.set(x, wiggle * 0.85, (i % 3 - 1) * 8);
+      }
+      this.add(mesh, l, group);
+    }
+  }
+
+  private addAoeLayer(group: THREE.Group, l: Fx3DLayer, radius: number): void {
+    for (let i = 0; i < l.count; i++) {
+      const a = (i / l.count) * Math.PI * 2;
+      const r = radius * (l.role === 'glow' ? 1.02 : l.shape === 'cloud' ? 0.48 + (i % 3) * 0.12 : 0.78);
+      let mesh: THREE.Mesh;
+      if (l.shape === 'ring') mesh = new THREE.Mesh(new THREE.RingGeometry(radius * 0.68 * l.scale, radius * l.scale, 42), this.material(l));
+      else if (l.shape === 'halo' || l.shape === 'rune') mesh = new THREE.Mesh(new THREE.TorusGeometry(radius * (0.52 + i * 0.11) * l.scale, 2.2, 6, 42), this.material(l));
+      else if (l.shape === 'cloud') mesh = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.09 * l.scale, 9, 7), this.material(l));
+      else if (l.shape === 'crack') mesh = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.34 * l.scale, 2, 7), this.material(l));
+      else if (l.shape === 'shard') mesh = new THREE.Mesh(new THREE.ConeGeometry(6 * l.scale, 28 * l.scale, 4), this.material(l));
+      else mesh = new THREE.Mesh(new THREE.SphereGeometry(7 * l.scale, 6, 6), this.material(l));
+      mesh.position.set(Math.cos(a) * r, l.shape === 'cloud' ? 18 + (i % 3) * 7 : 1, Math.sin(a) * r);
+      mesh.rotation.set(-Math.PI / 2, a, i * 0.33);
+      if (l.shape === 'ring' || l.shape === 'halo' || l.shape === 'rune') mesh.position.set(0, 1 + i * 2, 0);
+      this.add(mesh, l, group);
+    }
+  }
+
+  private createProjectileGroup(style: FxStyle): THREE.Group {
+    const g = new THREE.Group();
+    const state = fx3DVisualState(style, 'projectile');
+    for (const l of state.layers) {
+      for (let i = 0; i < l.count; i++) {
+        const a = (i / Math.max(1, l.count)) * Math.PI * 2;
+        const mesh = l.shape === 'rune'
+          ? new THREE.Mesh(new THREE.TorusGeometry(10 * l.scale, 1.4, 5, 18), this.material(l))
+          : l.shape === 'shard'
+            ? new THREE.Mesh(new THREE.ConeGeometry(4 * l.scale, 16 * l.scale, 4), this.material(l))
+            : new THREE.Mesh(new THREE.SphereGeometry((l.role === 'glow' ? 11 : 5) * l.scale, 8, 8), this.material(l));
+        mesh.position.set(l.role === 'trail' ? -12 - i * 4 : Math.cos(a) * 5, Math.sin(a) * 4, l.role === 'trail' ? (i % 2 === 0 ? 4 : -4) : Math.sin(a) * 5);
+        mesh.rotation.set(a, i * 0.4, a * 0.5);
+        this.add(mesh, l, g);
+      }
+    }
+    return g;
+  }
+
+  private restyleProjectile(g: THREE.Group, style: FxStyle): void {
+    const color = new THREE.Color(style.color);
+    g.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const mat = mesh.material as THREE.MeshBasicMaterial | undefined;
+      if (mat?.color) mat.color.copy(color);
+    });
+  }
+
+  private fadeObject(root: THREE.Group, age: number, peak: number): void {
+    const fade = Math.max(0, 1 - age) * peak;
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      const mat = mesh.material as THREE.MeshBasicMaterial | undefined;
+      if (mat?.opacity !== undefined) mat.opacity = (mesh.userData.fxOpacity ?? 1) * fade;
+      const spin = mesh.userData.fxSpin ?? 0;
+      if (spin) mesh.rotation.y += spin * 0.018;
+    });
+  }
+
+  private disposeObject(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      mesh.geometry?.dispose();
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(material)) for (const m of material) m.dispose();
+      else material?.dispose();
+    });
   }
 }

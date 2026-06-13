@@ -1,9 +1,21 @@
 # Resource3D Handoff for Opus
 
-Date: 2026-06-13  
-Branch/worktree: `codex/hero-ingame-art` at `/Users/taomic/vibecoding/dota_forever-hero-ingame-art`  
-Preview URL: `http://127.0.0.1:5182/?mode=resource3d-preview`  
-Screenshot: `docs/screenshots/ux-resource3d-preview.png`
+Date: 2026-06-13
+Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Primary preview routes: `?mode=resource3d-preview`, `?mode=hero3d-preview`, `?mode=play&renderer=3d`
+Legacy phase-1 screenshot: `docs/screenshots/ux-resource3d-preview.png`
+
+Current V3 update for Opus merge:
+
+- Worktree/branch: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`.
+- V3 summary: `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`.
+- V3 screenshot: `docs/screenshots/ux-3d-v3-resource-material-motion.png`.
+- V3 part-motion screenshot: `docs/screenshots/ux-3d-v3-resource-part-motion.png`.
+- V3 FX screenshot: `docs/screenshots/ux-3d-v3-fx-polish.png`.
+- Shift queue controls screenshot: `docs/screenshots/ux-shift-queue-controls.png`.
+- Adds material/detail metadata, high-detail procedural texture overlays, runtime resource motion, part-level model motion, richer 3D battle FX, and shift-queued command UX.
+- Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
+
 Terrain screenshots:
 
 - `docs/screenshots/ux-resource3d-terrain-preview.png`
@@ -102,22 +114,33 @@ Total: 408 samples.
   - `window.__resource3dPreview` exposes category/count smoke data.
   - `tests/resource3dAssets.test.ts` locks taxonomy, minimum sample count, renderability, visual variety, unique keys, and requested terrain subtypes.
   - `tests/hero3dAssets.test.ts` locks hero keys, texture/action contract, silhouettes, and detail thresholds.
-- [x] Main simulation logic is untouched.
-  - No `src/sim/**` changes are part of this branch.
+- [x] Shift-queue command UX exists for controls integration.
+  - Shift + right click, attack move, abilities, and item commands can append to the selected unit order queue.
+  - 2D and 3D renderers can draw the selected unit queued route with numbered waypoints.
+  - Evidence: `docs/screenshots/ux-shift-queue-controls.png` and `docs/screenshots/ux-3d-shift-queue-route.png`.
+- [x] V3 resource runtime polish exists.
+  - Resource3D parts include material/detail/texture metadata.
+  - Runtime unit resources apply whole-model motion and part-level local motion.
+  - Evidence: `docs/screenshots/ux-3d-v3-resource-material-motion.png` and `docs/screenshots/ux-3d-v3-resource-part-motion.png`.
+- [x] V3 3D battle FX polish exists.
+  - `src/render3d/fx3dVisual.ts` maps `fxStyle` family/pattern metadata into 3D FX layers.
+  - `src/render3d/fx3d.ts` renders burst / beam / AoE / projectile as multi-layer Three.js groups.
+  - Evidence: `docs/screenshots/ux-3d-v3-fx-polish.png`.
 
 ### Not Completed
 
 - [ ] Production art assets are not done.
   - Current assets are procedural Three.js samples for art direction and integration contracts.
   - Final GLB/FBX models, hand-authored PBR textures, authored particles, rigging, and final animation clips still need a production pipeline.
-- [ ] `tree3d.js` / formal gameplay renderer integration is not wired yet.
-  - This branch only adds route-gated previews and reusable asset metadata/factories.
-  - No runtime mapping from simulation entities/items/effects to Resource3D assets has been added.
+- [ ] Full `tree3d.js` production-asset pipeline is not done.
+  - This branch provides in-project Three.js procedural assets and runtime visual contracts.
+  - Final external model import, skeleton retargeting, PBR texture file loading, LOD, and asset bundle packaging still need a formal production pipeline.
 - [ ] Placement/collision/LOD metadata is not defined.
   - Terrain and map props do not yet include fields such as `walkable`, `blocker`, `heightLevel`, `river`, `visionBlocker`, `placementLayer`, or LOD rules.
-- [ ] VFX and audio runtime contracts are still placeholders.
+- [ ] Final VFX and audio runtime contracts are still placeholders.
   - `spell_fx`, `projectiles`, `aoe_indicators`, `environment_fx`, and `sound_cue_markers` are visual/audio-binding samples, not final particle/audio systems.
   - No real `.wav`/`.ogg` sound files are included.
+  - V3 3D FX now has layered runtime geometry, but not GPU particles, texture atlases, or audio sync.
 - [ ] UI categories are sample style guides, not final UI implementation.
   - Ability icons, combat numbers, screen overlays, announcements, roster, scoreboard, death recap, and tutorial guides are sample 3D/style assets.
   - They are not yet wired into HUD/state screens.
@@ -127,13 +150,13 @@ Total: 408 samples.
 - [ ] Code splitting is not done.
   - Three.js is still statically imported through preview paths, so Vite reports a large chunk warning.
   - Recommended before production merge: lazy-load `hero3dPreview.ts` and `resource3dPreview.ts` behind query routes.
-- [ ] Full-suite timing needs owner decision.
-  - The latest full-suite attempt in this worktree had 729 passing tests and 2 existing `tests/creeps.test.ts` timeout failures under full-suite parallel load.
-  - `tests/creeps.test.ts` passed when rerun in isolation; this branch did not change `src/sim/**`.
+- [x] Full-suite timing has fresh merge evidence.
+  - `npm test -- --run` passed in this worktree after the V3 FX polish.
+  - 101 test files passed, 867 tests passed.
 
 ### Suggested Priority For Opus
 
-1. Merge the preview/data contracts without wiring gameplay first.
+1. Review and merge the UI/asset/control slice as a branch, not as a preview-only patch.
 2. Resolve route/dependency conflicts in `src/main.ts`, `package.json`, and `package-lock.json`.
 3. Lazy-load Three.js preview modules if the branch is going near production.
 4. Choose the first production-asset lane:
@@ -153,7 +176,19 @@ Changed files:
 - `src/ui/resource3dPreview.ts`
   - Category-tabbed preview page.
 - `src/main.ts`
-  - Adds `?mode=resource3d-preview`.
+  - Adds route-gated previews and renderer/UX wiring.
+- `src/render3d/fx3dVisual.ts`
+  - Pure 3D FX layer contract from `fxStyle` family/pattern metadata.
+- `src/render3d/fx3d.ts`
+  - Runtime multi-layer 3D FX and projectile group renderer.
+- `src/render/commandQueuePath.ts`
+  - 2D queued route visual.
+- `src/render3d/commandQueue3d.ts`
+  - 3D queued route visual.
+- `src/sim/unit.ts`
+  - Queued order state and advancement for shift-queue controls.
+- `src/engine/input.ts`
+  - Shift-modified command appending for movement/attack/ability/item flows.
 - `tests/resource3dAssets.test.ts`
   - Locks full category coverage, at least 10 samples per category, renderability, variety, and unique keys.
 - `docs/screenshots/ux-resource3d-preview.png`
@@ -170,14 +205,18 @@ Changed files:
   - Match-shell evidence for hero roster UI; adjacent categories cover level/talent UI, death recap, scoreboard, match flow, cursor commands, system notifications, and tutorial guides.
 - `docs/ux/2026-06-13-resource3d-phase1-summary.md`
   - Phase summary and future production-asset plan.
+- `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`
+  - V3 material/detail/texture, model motion, part motion, and 3D FX polish summary.
+- `docs/ux/2026-06-13-shift-queue-controls-summary.md`
+  - Shift queue control UX summary.
 
-No `src/sim/**` files were changed.
+`src/sim/**` changes in this branch are limited to queued-order control plumbing and related tests; no combat/math/pathing tuning is intended.
 
 ## Why
 
 After the Hero3D pass, the next art requirement is to cover all other game resource types without trying to finish production assets in one jump.
 
-This gives Opus a stable preview and data contract for non-hero resources now, while keeping main gameplay logic untouched. It also lets the team replace procedural samples category by category with GLB/PBR assets later.
+This gives Opus a stable preview and data contract for non-hero resources now, while also providing the UX/control visual layer needed for queued commands and 3D combat readability. It lets the team replace procedural samples category by category with GLB/PBR assets later.
 
 ## Tradeoff
 
@@ -193,6 +232,7 @@ Why this approach:
 - Lets each type be reviewed independently.
 - Keeps every sample in-project and directly previewable.
 - Avoids blocking on final modeling, rigging, or texture production.
+- Adds runtime visual polish only where it improves asset/control readability: queued routes, unit resource motion, part motion, and layered 3D FX.
 
 Alternatives considered:
 
@@ -200,8 +240,8 @@ Alternatives considered:
   - Deferred. This branch is for art-direction sampling and integration contracts.
 - Put all 408 samples on one canvas at once.
   - Rejected for readability. The preview uses category tabs so each type can be inspected cleanly.
-- Wire these assets into gameplay immediately.
-  - Deferred to avoid collision with Opus mainline work.
+- Fully replace gameplay visuals with production assets immediately.
+  - Deferred to avoid collision with Opus mainline work and because the GLB/PBR pipeline is not defined yet.
 
 Known cost:
 
@@ -225,11 +265,11 @@ Suggested Opus integration flow:
 1. Review `src/main.ts` route additions:
    - `?mode=hero3d-preview`
    - `?mode=resource3d-preview`
-2. Keep `src/sim/**` untouched unless intentionally wiring these resources into gameplay.
+2. Treat `src/sim/unit.ts` queued-order changes as UX/control plumbing; keep unrelated sim/combat/pathing changes out of the merge.
 3. Run:
 
 ```bash
-npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts
+npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts tests/render3d/fx3dVisual.test.ts tests/queuedOrders.test.ts
 npm run build
 npm test -- --run
 ```
@@ -241,7 +281,8 @@ http://127.0.0.1:5182/?mode=resource3d-preview
 ```
 
 5. Use the category tabs to review all 38 resource groups.
-6. If merging into main, consider lazy-loading preview modules to reduce the main chunk before production release.
+6. Also open the 3D play route and verify shift-queued routes plus layered FX in a live scene.
+7. If merging into main, consider lazy-loading preview modules to reduce the main chunk before production release.
 
 ## Verification Evidence
 
@@ -254,6 +295,23 @@ npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts
 ```
 
 ```text
+npm test -- tests/render3d/fx3dVisual.test.ts tests/fxstyle.test.ts tests/fxlayer.test.ts
+3 files passed
+40 tests passed
+```
+
+```text
+npm test -- tests/render3d/fx3dVisual.test.ts tests/fxstyle.test.ts tests/fxlayer.test.ts tests/render3d/resourceMotion.test.ts tests/resource3dFactory.test.ts tests/resource3dAssets.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts tests/commandMode.test.ts
+9 files passed
+71 tests passed
+```
+
+```text
+npm run typecheck
+passed
+```
+
+```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB
@@ -261,7 +319,8 @@ warning: Three.js keeps the output chunk above 500 kB
 
 ```text
 npm test -- --run
-Last full-suite attempt in this worktree: 729 tests passed; 2 existing `tests/creeps.test.ts` cases timed out under full-suite parallel load. `tests/creeps.test.ts` passed when rerun in isolation.
+101 files passed
+867 tests passed
 ```
 
 Preview smoke evidence:
@@ -313,9 +372,21 @@ Preview smoke evidence:
 }
 ```
 
+V3 3D FX runtime evidence:
+
+```text
+Playwright @ http://127.0.0.1:5189/?mode=play&hero=zola&renderer=3d&seed=42&speed=0
+Injected FX: fireblast, frostnova, lightning, miasma, purification, arcanebolt
+Scene objects: 2075
+Canvas count: 2
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v3-fx-polish.png
+```
+
 ## Merge Notes
 
 - Main collision risk: `src/main.ts`.
 - Dependency collision risk remains `package.json` / `package-lock.json` from the shared Three.js dependency.
-- No simulation logic changed.
+- `src/sim/unit.ts` has intentional queued-order control plumbing. Review it with `src/engine/input.ts`, `tests/queuedOrders.test.ts`, and `tests/commandMode.test.ts`.
+- 3D FX runtime is now active in normal `renderer=3d` play mode through `src/render3d/fx3d.ts`.
 - Screenshots are intentional evidence under `docs/screenshots/`.

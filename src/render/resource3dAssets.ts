@@ -49,6 +49,36 @@ export const RESOURCE3D_TEXTURE_CHANNELS = [
 export type Resource3DCategory = typeof RESOURCE3D_CATEGORIES[number];
 export type Resource3DTextureChannel = typeof RESOURCE3D_TEXTURE_CHANNELS[number];
 export type Resource3DMotion = 'idle' | 'pulse' | 'spin' | 'float' | 'impact' | 'ambient';
+export type Resource3DMaterialKind =
+  | 'cloth'
+  | 'leather'
+  | 'wood'
+  | 'stone'
+  | 'metal'
+  | 'crystal'
+  | 'energy'
+  | 'water'
+  | 'foliage'
+  | 'paper'
+  | 'shadow';
+export type Resource3DDetailKind =
+  | 'plain'
+  | 'trim'
+  | 'rune'
+  | 'edgeWear'
+  | 'scalePattern'
+  | 'leafVein'
+  | 'circuit'
+  | 'bannerGlyph'
+  | 'liquidRipple'
+  | 'sparkCore';
+export type Resource3DTextureOverlay =
+  | 'microGrain'
+  | 'motifInk'
+  | 'rimTrim'
+  | 'edgeWear'
+  | 'emissiveHotspots'
+  | 'materialMask';
 export type Resource3DPartKind =
   | 'base'
   | 'body'
@@ -66,9 +96,16 @@ export interface Resource3DPartSpec {
   kind: Resource3DPartKind;
   color: string;
   emissive?: string;
+  material: Resource3DMaterialKind;
+  detail: Resource3DDetailKind;
   scale: [number, number, number];
   position: [number, number, number];
   rotation?: [number, number, number];
+}
+
+export interface Resource3DTextureSpec {
+  detailLevel: number;
+  overlays: Resource3DTextureOverlay[];
 }
 
 export interface Resource3DAssetSpec {
@@ -81,6 +118,7 @@ export interface Resource3DAssetSpec {
   scale: number;
   palette: [string, string, string, string];
   textureChannels: readonly Resource3DTextureChannel[];
+  texture: Resource3DTextureSpec;
   previewMotion: Resource3DMotion;
   parts: Resource3DPartSpec[];
 }
@@ -607,6 +645,7 @@ export const RESOURCE3D_SAMPLE_ASSETS: Resource3DAssetSpec[] = seeds.map((item, 
   scale: item.scale ?? 1,
   palette: item.palette,
   textureChannels: RESOURCE3D_TEXTURE_CHANNELS,
+  texture: textureSpecFor(item.category),
   previewMotion: item.motion,
   parts: makeParts(item, index),
 }));
@@ -668,7 +707,69 @@ function part(
   emissive?: string,
   rotation?: [number, number, number],
 ): Resource3DPartSpec {
-  return { name, kind, color, scale, position, emissive, rotation };
+  return {
+    name,
+    kind,
+    color,
+    scale,
+    position,
+    emissive,
+    rotation,
+    material: materialForPart(name, kind),
+    detail: detailForPart(name, kind),
+  };
+}
+
+function textureSpecFor(category: Resource3DCategory): Resource3DTextureSpec {
+  const detailLevel = isPriority3DCategory(category) ? 4 : 3;
+  return {
+    detailLevel,
+    overlays: ['microGrain', 'motifInk', 'rimTrim', 'edgeWear', 'emissiveHotspots', 'materialMask'],
+  };
+}
+
+function materialForPart(name: string, kind: Resource3DPartKind): Resource3DMaterialKind {
+  if (kind === 'ring') return 'metal';
+  if (kind === 'orb') return 'crystal';
+  if (name.includes('base') || name.includes('ground') || name.includes('roof')) return 'stone';
+  if (name.includes('banner')) return 'cloth';
+  if (name.includes('mote') || name.includes('glow') || name.includes('beam')) return 'energy';
+  if (name.includes('gem') || name.includes('orb')) return 'crystal';
+  if (name.includes('scatter')) return 'foliage';
+  if (name.includes('face')) return 'paper';
+  switch (kind) {
+    case 'weapon':
+    case 'plate':
+      return 'metal';
+    case 'banner':
+      return 'cloth';
+    case 'beam':
+      return 'energy';
+    case 'prop':
+      return 'wood';
+    case 'base':
+      return 'stone';
+    case 'head':
+    case 'body':
+      return 'leather';
+    default:
+      return 'shadow';
+  }
+}
+
+function detailForPart(name: string, kind: Resource3DPartKind): Resource3DDetailKind {
+  if (name.includes('rune') || name.includes('ring')) return 'rune';
+  if (name.includes('banner')) return 'bannerGlyph';
+  if (name.includes('mote') || name.includes('glow') || name.includes('gem') || name.includes('orb')) return 'sparkCore';
+  if (name.includes('beam')) return 'circuit';
+  if (name.includes('scatter')) return 'leafVein';
+  if (name.includes('base') || name.includes('roof')) return 'edgeWear';
+  if (name.includes('main')) return 'scalePattern';
+  if (kind === 'beam') return 'circuit';
+  if (kind === 'ring') return 'rune';
+  if (kind === 'banner') return 'bannerGlyph';
+  if (kind === 'plate') return 'trim';
+  return 'plain';
 }
 
 function bodyKind(category: Resource3DCategory): Resource3DPartKind {
@@ -738,4 +839,17 @@ function isIconCategory(category: Resource3DCategory): boolean {
     || category === 'match_flow_ui'
     || category === 'system_notifications'
     || category === 'tutorial_guides';
+}
+
+function isPriority3DCategory(category: Resource3DCategory): boolean {
+  return category === 'lane_units'
+    || category === 'neutral_units'
+    || category === 'boss_objectives'
+    || category === 'buildings'
+    || category === 'couriers_summons'
+    || category === 'map_props'
+    || category === 'terrain_tiles'
+    || category === 'spell_fx'
+    || category === 'projectiles'
+    || category === 'status_effects';
 }

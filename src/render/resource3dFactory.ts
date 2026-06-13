@@ -18,11 +18,32 @@ import {
   Texture,
   TorusGeometry,
 } from 'three';
-import type { Resource3DAssetSpec, Resource3DPartKind, Resource3DPartSpec, Resource3DTextureChannel } from './resource3dAssets';
+import type {
+  Resource3DAssetSpec,
+  Resource3DMaterialKind,
+  Resource3DPartKind,
+  Resource3DPartSpec,
+  Resource3DTextureChannel,
+  Resource3DTextureSpec,
+} from './resource3dAssets';
 
 export interface Resource3DModel {
   root: Group;
   textures: Record<Resource3DTextureChannel, Texture>;
+}
+
+export interface ResourceMaterialProfile {
+  roughness: number;
+  metalness: number;
+  emissiveIntensity: number;
+}
+
+export interface ResourcePartAnimationUserData {
+  resourcePart: true;
+  partName: string;
+  partKind: Resource3DPartKind;
+  partDetail: Resource3DPartSpec['detail'];
+  partMaterial: Resource3DPartSpec['material'];
 }
 
 const geometryCache: Record<Resource3DPartKind, BoxGeometry | ConeGeometry | CylinderGeometry | RingGeometry | SphereGeometry | TorusGeometry> = {
@@ -37,6 +58,39 @@ const geometryCache: Record<Resource3DPartKind, BoxGeometry | ConeGeometry | Cyl
   beam: new CylinderGeometry(0.1, 0.18, 1, 12, 1, true),
   prop: new ConeGeometry(0.48, 1, 7),
 };
+
+export function resourceMaterialProfile(material: Resource3DMaterialKind, hasEmissive: boolean): ResourceMaterialProfile {
+  const base: Record<Resource3DMaterialKind, Omit<ResourceMaterialProfile, 'emissiveIntensity'>> = {
+    cloth: { roughness: 0.86, metalness: 0.02 },
+    leather: { roughness: 0.68, metalness: 0.04 },
+    wood: { roughness: 0.78, metalness: 0.03 },
+    stone: { roughness: 0.9, metalness: 0.01 },
+    metal: { roughness: 0.36, metalness: 0.62 },
+    crystal: { roughness: 0.28, metalness: 0.08 },
+    energy: { roughness: 0.2, metalness: 0 },
+    water: { roughness: 0.18, metalness: 0 },
+    foliage: { roughness: 0.82, metalness: 0.01 },
+    paper: { roughness: 0.92, metalness: 0 },
+    shadow: { roughness: 0.74, metalness: 0.04 },
+  };
+  const emissiveBoost: Record<Resource3DMaterialKind, number> = {
+    cloth: 0.85,
+    leather: 0.8,
+    wood: 0.78,
+    stone: 0.75,
+    metal: 0.96,
+    crystal: 1.36,
+    energy: 1.68,
+    water: 1.24,
+    foliage: 0.92,
+    paper: 0.82,
+    shadow: 1.12,
+  };
+  return {
+    ...base[material],
+    emissiveIntensity: hasEmissive ? emissiveBoost[material] : 0,
+  };
+}
 
 export function createResource3DModel(asset: Resource3DAssetSpec): Resource3DModel {
   const root = new Group();
@@ -57,16 +111,17 @@ export function createResource3DModel(asset: Resource3DAssetSpec): Resource3DMod
 
 function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DTextureChannel, Texture>): Object3D {
   const additive = part.kind === 'beam' || part.kind === 'ring';
+  const profile = resourceMaterialProfile(part.material, !!part.emissive);
   const material = new MeshStandardMaterial({
     color: new Color(part.color),
     map: textures.albedo,
     normalMap: textures.normal,
     roughnessMap: textures.orm,
-    roughness: part.kind === 'banner' || part.kind === 'prop' ? 0.78 : 0.5,
-    metalness: part.kind === 'weapon' || part.kind === 'plate' ? 0.34 : 0.08,
+    roughness: profile.roughness,
+    metalness: profile.metalness,
     emissive: new Color(part.emissive ?? '#000000'),
     emissiveMap: part.emissive ? textures.emissive : null,
-    emissiveIntensity: part.emissive ? 1.1 : 0,
+    emissiveIntensity: profile.emissiveIntensity,
     flatShading: true,
     transparent: additive,
     opacity: additive ? 0.58 : 1,
@@ -82,10 +137,14 @@ function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DT
   mesh.castShadow = part.kind !== 'beam' && part.kind !== 'ring';
   mesh.receiveShadow = part.kind !== 'beam';
 
-  if (part.kind === 'base' || part.kind === 'ring' || part.kind === 'beam') return mesh;
+  if (part.kind === 'base' || part.kind === 'ring' || part.kind === 'beam') {
+    tagMotionPart(mesh, part);
+    return mesh;
+  }
 
   const group = new Group();
   group.name = `resource-polished:${part.name}`;
+  tagMotionPart(group, part);
   group.add(mesh);
 
   const outline = new Mesh(geometryCache[part.kind], new MeshBasicMaterial({
@@ -116,19 +175,38 @@ function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DT
   return group;
 }
 
+function tagMotionPart(object: Object3D, part: Resource3DPartSpec): void {
+  Object.assign(object.userData, resourcePartAnimationUserData(part));
+}
+
+export function resourcePartAnimationUserData(part: Resource3DPartSpec): ResourcePartAnimationUserData {
+  return {
+    resourcePart: true,
+    partName: part.name,
+    partKind: part.kind,
+    partDetail: part.detail,
+    partMaterial: part.material,
+  };
+}
+
 function createTextures(asset: Resource3DAssetSpec): Record<Resource3DTextureChannel, Texture> {
   const out = {} as Record<Resource3DTextureChannel, Texture>;
   for (const channel of asset.textureChannels) {
-    const texture = new CanvasTexture(drawTexture(asset.palette, asset.motif, channel));
+    const texture = new CanvasTexture(drawTexture(asset.palette, asset.motif, channel, asset.texture));
     texture.name = `${asset.key}:${channel}:${asset.motif}`;
-    texture.userData = { channel, motif: asset.motif };
+    texture.userData = { channel, motif: asset.motif, detailLevel: asset.texture.detailLevel, overlays: asset.texture.overlays };
     if (channel === 'albedo' || channel === 'emissive') texture.colorSpace = SRGBColorSpace;
     out[channel] = texture;
   }
   return out;
 }
 
-function drawTexture(palette: [string, string, string, string], motif: string, channel: Resource3DTextureChannel): HTMLCanvasElement {
+function drawTexture(
+  palette: [string, string, string, string],
+  motif: string,
+  channel: Resource3DTextureChannel,
+  spec: Resource3DTextureSpec,
+): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 128;
@@ -178,5 +256,94 @@ function drawTexture(palette: [string, string, string, string], motif: string, c
   ctx.globalAlpha = 0.16;
   ctx.fillStyle = '#ffffff';
   for (let y = 10; y < 128; y += 22) ctx.fillRect((y * 5) % 50, y, 112, 3);
+  drawTextureOverlays(ctx, palette, motif, channel, spec);
   return canvas;
+}
+
+function drawTextureOverlays(
+  ctx: CanvasRenderingContext2D,
+  palette: [string, string, string, string],
+  motif: string,
+  channel: Resource3DTextureChannel,
+  spec: Resource3DTextureSpec,
+): void {
+  const [, accent, dark, glow] = palette;
+  if (spec.overlays.includes('microGrain')) {
+    ctx.globalAlpha = channel === 'normal' ? 0.08 : 0.12;
+    ctx.fillStyle = channel === 'orm' ? '#ffffff' : dark;
+    const step = Math.max(4, 13 - spec.detailLevel * 2);
+    for (let y = 4; y < 128; y += step) {
+      for (let x = (y * 7) % step; x < 128; x += step) {
+        ctx.fillRect(x, y, 1.2, 1.2);
+      }
+    }
+  }
+  if (spec.overlays.includes('rimTrim')) {
+    ctx.globalAlpha = channel === 'emissive' ? 0.38 : 0.22;
+    ctx.strokeStyle = channel === 'normal' ? '#9aa8ff' : accent;
+    ctx.lineWidth = 5;
+    ctx.strokeRect(9, 9, 110, 110);
+    ctx.globalAlpha *= 0.8;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(18, 18, 92, 92);
+  }
+  if (spec.overlays.includes('motifInk')) {
+    ctx.globalAlpha = channel === 'emissive' ? 0.5 : 0.24;
+    ctx.strokeStyle = channel === 'orm' ? '#c8c8c8' : glow;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    if (motif.includes('shield') || motif.includes('tower') || motif.includes('defense')) {
+      ctx.moveTo(64, 22);
+      ctx.lineTo(98, 42);
+      ctx.lineTo(88, 94);
+      ctx.lineTo(64, 110);
+      ctx.lineTo(40, 94);
+      ctx.lineTo(30, 42);
+      ctx.closePath();
+    } else if (motif.includes('water') || motif.includes('river') || motif.includes('pool')) {
+      for (let y = 40; y <= 88; y += 16) {
+        ctx.moveTo(26, y);
+        ctx.bezierCurveTo(45, y - 11, 61, y + 11, 82, y);
+        ctx.bezierCurveTo(96, y - 7, 105, y - 4, 114, y);
+      }
+    } else {
+      ctx.moveTo(32, 64);
+      ctx.lineTo(64, 28);
+      ctx.lineTo(96, 64);
+      ctx.lineTo(64, 100);
+      ctx.closePath();
+    }
+    ctx.stroke();
+  }
+  if (spec.overlays.includes('edgeWear')) {
+    ctx.globalAlpha = channel === 'normal' ? 0.12 : 0.18;
+    ctx.strokeStyle = channel === 'orm' ? '#303030' : '#ffffff';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < spec.detailLevel + 4; i++) {
+      const x = 12 + ((i * 23) % 96);
+      const y = 12 + ((i * 31) % 96);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 10, y + ((i % 2) * 2 - 1) * 5);
+      ctx.stroke();
+    }
+  }
+  if (spec.overlays.includes('emissiveHotspots')) {
+    ctx.globalAlpha = channel === 'emissive' ? 0.78 : 0.1;
+    ctx.fillStyle = glow;
+    for (let i = 0; i < Math.max(3, spec.detailLevel); i++) {
+      const x = 26 + ((i * 29) % 76);
+      const y = 28 + ((i * 37) % 72);
+      ctx.beginPath();
+      ctx.arc(x, y, 4 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (spec.overlays.includes('materialMask')) {
+    ctx.globalAlpha = channel === 'orm' ? 0.2 : 0.06;
+    ctx.fillStyle = channel === 'orm' ? '#101010' : '#ffffff';
+    ctx.fillRect(0, 0, 128, 8);
+    ctx.fillRect(0, 120, 128, 8);
+  }
+  ctx.globalAlpha = 1;
 }

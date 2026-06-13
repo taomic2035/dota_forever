@@ -11,9 +11,21 @@ import type { UnitVisualRole } from '../render/unitArt';
 import type { BuildingKind } from '../data/mapLayout';
 import type { BuildingModel } from './buildingGen';
 import type { AnimInput, UnitModel, TintMaterial } from './unitModel';
+import { resourceMotionState, resourcePartMotionState } from './resourceMotion';
+import type { Resource3DDetailKind, Resource3DMaterialKind, Resource3DPartKind } from '../render/resource3dAssets';
 
 const ASSET_BY_KEY = new Map(RESOURCE3D_SAMPLE_ASSETS.map((a) => [a.key, a]));
 const protoCache = new Map<string, THREE.Group>();
+
+interface AnimatedResourcePart {
+  object: THREE.Object3D;
+  kind: Resource3DPartKind;
+  detail: Resource3DDetailKind;
+  material: Resource3DMaterialKind;
+  initialPosition: THREE.Vector3;
+  initialRotation: THREE.Euler;
+  initialScale: THREE.Vector3;
+}
 
 function protoRoot(key: string): THREE.Group {
   let p = protoCache.get(key);
@@ -52,14 +64,27 @@ export function buildResource3DUnitModel(key: string, worldScale: number): UnitM
 
   // 逐单位克隆 Standard 材质(共享贴图引用),使受击/眩晕/隐身染色互不影响
   const materials: TintMaterial[] = [];
+  const animatedParts: AnimatedResourcePart[] = [];
   inner.traverse((o) => {
     const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const m = mesh.material as THREE.Material;
-    if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
-      const c = (m as THREE.MeshStandardMaterial).clone();
-      mesh.material = c;
-      if (c.emissiveIntensity === 0) materials.push(c);
+    if (o.userData.resourcePart) {
+      animatedParts.push({
+        object: o,
+        kind: o.userData.partKind as Resource3DPartKind,
+        detail: o.userData.partDetail as Resource3DDetailKind,
+        material: o.userData.partMaterial as Resource3DMaterialKind,
+        initialPosition: o.position.clone(),
+        initialRotation: o.rotation.clone(),
+        initialScale: o.scale.clone(),
+      });
+    }
+    if (mesh.isMesh) {
+      const m = mesh.material as THREE.Material;
+      if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+        const c = (m as THREE.MeshStandardMaterial).clone();
+        mesh.material = c;
+        if (c.emissiveIntensity === 0) materials.push(c);
+      }
     }
   });
 
@@ -73,24 +98,64 @@ export function buildResource3DUnitModel(key: string, worldScale: number): UnitM
     root: placement,
     materials,
     applyPose(a: AnimInput) {
+      const motion = resourceMotionState({
+        motion: asset.previewMotion,
+        state: a.state,
+        t: a.t,
+        phase: a.phase,
+        progress: a.progress,
+      });
       // 无骨骼,程序化驱动根节点:走路起伏摇摆 / 攻击前扑 / 待机微浮(局部单位,随缩放放大)
       switch (a.state) {
         case 'walk':
-          inner.position.set(0, Math.abs(Math.sin(a.phase)) * 0.16, 0);
-          inner.rotation.z = Math.sin(a.phase) * 0.06;
+          inner.position.set(0, motion.bobY, 0);
+          inner.rotation.z = motion.tiltZ;
           break;
         case 'attack':
-          inner.position.set(0, 0, Math.sin(a.progress * Math.PI) * 0.3);
-          inner.rotation.z = 0;
+          inner.position.set(0, motion.bobY, motion.forwardZ);
+          inner.rotation.z = motion.tiltZ;
           break;
         case 'cast':
         case 'channel':
-          inner.position.set(0, Math.sin(a.t * 5) * 0.06, 0);
-          inner.rotation.z = 0;
+          inner.position.set(0, motion.bobY, 0);
+          inner.rotation.z = motion.tiltZ;
           break;
         default: // idle
-          inner.position.set(0, Math.sin(a.t * 2) * 0.04, 0);
-          inner.rotation.z = 0;
+          inner.position.set(0, motion.bobY, 0);
+          inner.rotation.z = motion.tiltZ;
+      }
+      inner.rotation.y = motion.rotationY;
+      inner.scale.set(motion.scalePulse, motion.scalePulse * motion.squashY, motion.scalePulse);
+      let partEmissiveBoost = 0;
+      animatedParts.forEach((part, index) => {
+        const local = resourcePartMotionState({
+          kind: part.kind,
+          detail: part.detail,
+          material: part.material,
+          index,
+          t: a.t,
+          state: a.state,
+          progress: a.progress,
+        });
+        partEmissiveBoost = Math.max(partEmissiveBoost, local.emissiveBoost);
+        part.object.position.set(
+          part.initialPosition.x,
+          part.initialPosition.y + local.bobY,
+          part.initialPosition.z + local.forwardZ,
+        );
+        part.object.rotation.set(
+          part.initialRotation.x + local.rotationX,
+          part.initialRotation.y + local.rotationY,
+          part.initialRotation.z + local.rotationZ,
+        );
+        part.object.scale.set(
+          part.initialScale.x * local.scaleX,
+          part.initialScale.y * local.scaleY,
+          part.initialScale.z * local.scaleZ,
+        );
+      });
+      for (const m of materials) {
+        m.emissiveIntensity = motion.emissivePulse + partEmissiveBoost;
       }
     },
   };

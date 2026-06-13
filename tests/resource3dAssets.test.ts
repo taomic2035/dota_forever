@@ -62,7 +62,40 @@ describe('non-hero 3D resource samples', () => {
       expect(asset.parts.length, asset.key).toBeGreaterThanOrEqual(4);
       expect(asset.scale, asset.key).toBeGreaterThan(0);
       expect(asset.textureChannels, asset.key).toEqual(RESOURCE3D_TEXTURE_CHANNELS);
+      expect(asset.texture.detailLevel, asset.key).toBeGreaterThanOrEqual(2);
+      expect(asset.texture.overlays.length, asset.key).toBeGreaterThanOrEqual(3);
       expect(asset.previewMotion, asset.key).toMatch(/^(idle|pulse|spin|float|impact|ambient)$/);
+      for (const part of asset.parts) {
+        expect(part.material, `${asset.key}:${part.name}`).toMatch(/^(cloth|leather|wood|stone|metal|crystal|energy|water|foliage|paper|shadow)$/);
+        expect(part.detail, `${asset.key}:${part.name}`).toMatch(/^(plain|trim|rune|edgeWear|scalePattern|leafVein|circuit|bannerGlyph|liquidRipple|sparkCore)$/);
+      }
+    }
+  });
+
+  it('uses high-detail V3 materials for combat-critical world resources', () => {
+    const priority = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => [
+      'lane_units',
+      'neutral_units',
+      'boss_objectives',
+      'buildings',
+      'couriers_summons',
+      'map_props',
+      'terrain_tiles',
+      'spell_fx',
+      'projectiles',
+      'status_effects',
+    ].includes(asset.category));
+
+    expect(priority.length).toBeGreaterThan(80);
+    for (const asset of priority) {
+      const materials = new Set(asset.parts.map((part) => part.material));
+      const details = new Set(asset.parts.map((part) => part.detail));
+
+      expect(asset.texture.detailLevel, asset.key).toBeGreaterThanOrEqual(3);
+      expect(asset.texture.overlays, asset.key).toContain('microGrain');
+      expect(asset.texture.overlays, asset.key).toContain('motifInk');
+      expect(materials.size, `${asset.key} material variety`).toBeGreaterThanOrEqual(3);
+      expect(details.size, `${asset.key} detail variety`).toBeGreaterThanOrEqual(3);
     }
   });
 
