@@ -23,6 +23,8 @@
 - **3D 镜像 Shift 队列路线**:与 2D 共用 `commandQueuePath` 数据源,贴地绿色光带 + 终点脉冲节点 + 旗标,仅选中单位有排队指令时显示。
 - **V3 非英雄资源表现层**(对接 Codex):408 资源样本带 `material`/`detail` 元数据 + 多层程序纹理(微颗粒/边饰/磨损/符号墨线/热点);运行时资源动作(pulse 呼吸 / spin 旋转 / float 悬浮 / impact 前扑 / ambient 微浮)+ 部件级动作(旗帜摆动 / 符文环旋转 / 能量梁伸缩 / 宝珠悬浮);纯函数 `resourceMotionState`/`resourcePartMotionState`(只改模型局部变换与发光,不动 sim)。
 - **3D 战斗 FX 多层化**:`Fx3D` 从单球/环/柱升级为 core/glow/accent/particle/trail 多层 group(火→ember、冰→shard、雷→jagged beam+spark、毒→cloud、圣光→halo、奥术→rune);弹道池多层化、读 `Projectile.style`;纯函数 `fx3DVisualState`。
+- **英雄体型层级**:英雄模型整体放大(×1.5)明显高于小兵/野怪 + 脚下更大更亮的队色选取环与柔光盘,主控单位一眼可辨。
+- **渐变天空穹顶**:竖直渐变(地平线→天顶)BackSide 大球 + 昼夜联动,远景柔化褪入天空地平线(非褪入虚空);作为预留接缝,后续可换天空贴图/HDRI 资产。
 - 场景距离雾(纵深 + 柔化地图边缘);视锥外单位跳过动画(零画质损失性能优化)。
 
 ### 音效 / 打击感

@@ -25,6 +25,9 @@ import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type H
 import { stackedUnitVisualOffset } from './stackOffset';
 import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
 
+/** 英雄模型整体放大系数:让英雄体型明显高于小兵/野怪(DotA 视觉层级)。 */
+const HERO_MODEL_SCALE = 1.5;
+
 interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; statusFx: HeroStatusFxObjects; }
 
 export class Renderer3D {
@@ -110,16 +113,30 @@ export class Renderer3D {
         const res = resourceAssetForUnit(art.role, u.team, u.name);
         model = res ? buildResource3DUnitModel(res.key, res.scale) : buildUnitModel(art);
       }
-      // 贴地队色选取环(守卫等极小碰撞半径给个可见下限)
+      // 英雄整体放大,明确高于小兵/野怪(DotA 英雄体型显著);死亡下沉/位姿由 renderer 另置,不受影响
+      const isHero = u.isHero();
+      if (isHero) model.root.scale.multiplyScalar(HERO_MODEL_SCALE);
+      // 贴地队色选取环:英雄更大更亮 + 内圈实心盘,与小兵区分(守卫等极小半径给可见下限)
       const rr = Math.max(14, u.base.collisionRadius);
       const ringColor = this.TEAM[u.team] ?? '#bdbdbd';
+      const ringScale = isHero ? 1.7 : 1.0;
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(rr * 0.9, rr * 1.25, 20),
-        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
+        new THREE.RingGeometry(rr * 0.9 * ringScale, rr * (isHero ? 1.5 : 1.25) * ringScale, 28),
+        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: isHero ? 0.85 : 0.45, side: THREE.DoubleSide }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 1.5;
       model.root.add(ring);
+      if (isHero) {
+        // 英雄脚下柔光盘,进一步突出主控单位
+        const disc = new THREE.Mesh(
+          new THREE.CircleGeometry(rr * 1.35 * ringScale, 28),
+          new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+        );
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.y = 1.2;
+        model.root.add(disc);
+      }
       const statusFx = createHeroStatusFxObjects();
       model.root.add(statusFx.root);
       this.s3d.scene.add(model.root);
