@@ -6,6 +6,7 @@ import { spawnHero, tryBuyback } from './sim/hero';
 import { installBotAI } from './sim/ai/bots';
 import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
+import { shuffledHeroPool } from './sim/draft';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { Renderer3D } from './render3d/renderer3d';
@@ -126,16 +127,19 @@ function startGame(mode: 'play' | 'spectate'): void {
   const map = new GameMap();
   const world: World = createWorld(map, { seed, creeps: true });
 
-  // 阵容:每队 5 人(玩家占晨曦一个位置,其余为 bot)
+  // 阵容:每队 5 人(玩家占晨曦一个位置,其余为 bot)。
+  // bot 英雄按对局种子随机抽取、全程不重复(DotA 一局英雄唯一,不镜像),覆盖全 112 阵容;
+  // 用独立 Rng 实例洗牌(不触碰 world.rng,保持 sim 随机流确定性),?seed 可复现同一阵容。
   let hero: Unit | undefined;
   if (mode === 'play') {
     hero = spawnHero(world, heroByKey(heroKey) ?? HEROES[0], Team.Dawn);
   }
+  const draft = shuffledHeroPool(HEROES, seed, hero?.heroDef?.key);
+  let picked = 0;
   for (const team of [Team.Dawn, Team.Night]) {
     const botCount = team === Team.Dawn && hero ? 4 : 5;
-    const pool = HEROES.filter((h) => !(team === Team.Dawn && hero && h.key === hero.heroDef!.key));
     for (let i = 0; i < botCount; i++) {
-      spawnHero(world, pool[i % pool.length], team);
+      spawnHero(world, draft[picked++], team);
     }
   }
   installBotAI(world, (id) => hero?.id === id);
