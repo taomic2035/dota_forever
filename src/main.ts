@@ -21,7 +21,7 @@ import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { showHero3DPreview } from './ui/hero3dPreview';
 import { showResource3DPreview } from './ui/resource3dPreview';
-import { useItem, itemUseReason, itemInSlot } from './sim/items';
+import { useItem, itemUseReason, itemInSlot, moveToBackpack, moveFromBackpack } from './sim/items';
 import { learnAbility, learnStatBonus, abilityCastReason } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
@@ -156,6 +156,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
   hud.onLearnStat = () => { if (hero?.alive) learnStatBonus(hero); };
   hud.onBuyback = () => { if (hero && !hero.alive) tryBuyback(world, hero); };
+  hud.onMoveToBackpack = (s) => { if (hero?.alive) moveToBackpack(world, hero, s); };
+  hud.onMoveFromBackpack = (s) => { if (hero?.alive) moveFromBackpack(world, hero, s); };
   const killfeed = new KillFeed(app);
   const shop = new ShopPanel(app);
   const endScreen = new EndScreen(app);

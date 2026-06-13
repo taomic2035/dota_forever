@@ -19,6 +19,8 @@ export class Hud {
   onLearn?: (index: number) => void;
   onLearnStat?: () => void;
   onBuyback?: () => void;
+  onMoveToBackpack?: (invSlot: number) => void;
+  onMoveFromBackpack?: (bpSlot: number) => void;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -45,10 +47,12 @@ export class Hud {
     this.root.appendChild(this.bottom);
 
     this.bottom.addEventListener('click', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback]') as HTMLElement | null;
+      const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
       if (!el) return;
       if (el.hasAttribute('data-buyback')) this.onBuyback?.();
       else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
+      else if (el.hasAttribute('data-bag')) this.onMoveToBackpack?.(Number(el.getAttribute('data-bag')));
+      else if (el.hasAttribute('data-bagout')) this.onMoveFromBackpack?.(Number(el.getAttribute('data-bagout')));
       else this.onLearn?.(Number(el.getAttribute('data-learn')));
     });
   }
@@ -67,9 +71,10 @@ export class Hud {
     const abilityHtml = (hero.heroDef?.abilities ?? []).map((_, i) => this.abilitySlot(world, hero, i, ux)).join('');
     const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
     const tpHtml = this.itemSlot(world, hero.tpSlot, 6, ux); // 专属回城卷轴槽
+    const bagHtml = hero.backpack.map((inst, j) => this.backpackSlot(inst, j)).join(''); // 背包栏(3 格)
 
     this.bottom.innerHTML = `
-      <div style="display:grid;grid-template-columns:260px 1fr 332px;gap:10px;height:100%;">
+      <div style="display:grid;grid-template-columns:260px 1fr 392px;gap:10px;height:100%;">
         <div style="display:grid;grid-template-columns:74px 1fr;gap:8px;min-width:0;">
           <div style="position:relative;width:74px;height:74px;border-radius:4px;border:2px solid ${hero.heroDef?.color ?? '#888'};background:${dead ? '#252525' : (hero.heroDef?.color ?? '#555') + '33'};display:flex;align-items:center;justify-content:center;font-size:34px;color:${hero.heroDef?.color ?? '#ccc'}">
             ${hero.heroDef?.glyph ?? '?'}
@@ -99,6 +104,9 @@ export class Hud {
           <div style="align-self:flex-end">${tpHtml}</div>
           <div style="display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,64px);gap:5px;align-content:end;justify-content:end;">
             ${itemHtml}
+          </div>
+          <div title="背包栏" style="display:flex;flex-direction:column;gap:4px;align-self:flex-end;">
+            ${bagHtml}
           </div>
         </div>
       </div>`;
@@ -265,12 +273,26 @@ export class Hud {
     const def = itemDef(inst.itemKey);
     const onCd = world.time < inst.cooldownUntil;
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
-    return `<div title="${def.name}: ${def.description}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
-      background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;
+    const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
+    const tip = canBag ? `${def.name}: ${def.description}(点击移入背包栏)` : `${def.name}: ${def.description}`;
+    return `<div ${canBag ? `data-bag="${i}" ` : ''}title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
+      background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
       align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
+    </div>`;
+  }
+
+  /** 背包栏槽(后备栏,不提供加成;点击物品移入主物品栏,移入后 6 秒就绪)。 */
+  private backpackSlot(inst: ItemInstance | null, j: number): string {
+    if (!inst) {
+      return `<div title="背包栏(随身·不提供加成)" style="width:44px;height:44px;border:1px dashed #3a3320;border-radius:3px;background:#0c0e08;"></div>`;
+    }
+    const def = itemDef(inst.itemKey);
+    return `<div data-bagout="${j}" title="${def.name}(背包栏·无加成 — 点击移入物品栏,移入后 6 秒就绪)" style="position:relative;width:44px;height:44px;border:1px solid #6a5a3a;border-radius:3px;background:#1c1a12;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.78;">
+      ${this.itemIcon(def.category)}
+      ${inst.charges > 0 ? `<span style="position:absolute;bottom:0;right:2px;font-size:9px;color:#caa84a;font-weight:700">${inst.charges}</span>` : ''}
     </div>`;
   }
 }

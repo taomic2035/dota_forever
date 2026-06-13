@@ -60,7 +60,10 @@ function freeSlot(arr: (ItemInstance | null)[]): number {
   return arr.findIndex((s) => s === null);
 }
 
-export type BuyResult = 'ok' | 'ok_stash' | 'no_gold' | 'no_shop' | 'full';
+export type BuyResult = 'ok' | 'ok_stash' | 'ok_backpack' | 'no_gold' | 'no_shop' | 'full';
+
+/** 背包栏物品移入主物品栏后的就绪延迟(秒)——沿用 DotA,防止把背包当冷却仓库。 */
+export const BACKPACK_READY_DELAY = 6;
 
 /**
  * 购买:必须处于对应商店范围(死亡时可购入储藏)。
@@ -102,7 +105,17 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
     afterInventoryChange(w, hero);
     return 'ok';
   }
-  // 背包满或死亡 → 储藏(仅基地商店语义)
+  // 主物品栏满 → 背包栏(随身,但不给加成);仅普通商店、存活时走背包(秘密商店与死亡仍按下方语义)。
+  if (intoInventory && !def.secretShop) {
+    const bp = freeSlot(hero.backpack);
+    if (bp >= 0) {
+      hero.backpack[bp] = makeItem(key);
+      spendGold(hero, def.cost);
+      afterInventoryChange(w, hero);
+      return 'ok_backpack';
+    }
+  }
+  // 背包栏也满或死亡 → 储藏(仅基地商店语义)
   if (def.secretShop && hero.alive) return 'full'; // 秘密商店不送储藏
   const stashSlot = freeSlot(hero.stash);
   if (stashSlot < 0) return 'full';
@@ -138,6 +151,31 @@ export function takeFromStash(w: World, hero: Unit, stashSlot: number): boolean 
   if (slot < 0) return false;
   hero.inventory[slot] = inst;
   hero.stash[stashSlot] = null;
+  afterInventoryChange(w, hero);
+  return true;
+}
+
+/** 主物品栏 → 背包栏(腾出主栏一格;背包栏物品不提供任何加成)。需有空背包格。 */
+export function moveToBackpack(w: World, hero: Unit, invSlot: number): boolean {
+  const inst = hero.inventory[invSlot];
+  if (!inst) return false;
+  const bp = freeSlot(hero.backpack);
+  if (bp < 0) return false;
+  hero.backpack[bp] = inst;
+  hero.inventory[invSlot] = null;
+  afterInventoryChange(w, hero);
+  return true;
+}
+
+/** 背包栏 → 主物品栏(获得加成);移入后 6 秒就绪延迟(BACKPACK_READY_DELAY)。需有空物品格。 */
+export function moveFromBackpack(w: World, hero: Unit, bpSlot: number): boolean {
+  const inst = hero.backpack[bpSlot];
+  if (!inst) return false;
+  const inv = freeSlot(hero.inventory);
+  if (inv < 0) return false;
+  inst.cooldownUntil = Math.max(inst.cooldownUntil, w.time + BACKPACK_READY_DELAY);
+  hero.inventory[inv] = inst;
+  hero.backpack[bpSlot] = null;
   afterInventoryChange(w, hero);
   return true;
 }
@@ -252,7 +290,7 @@ export function afterInventoryChange(w: World, hero: Unit): void {
   for (const h of inventoryHooks) h(w, hero);
 }
 
-/** 物品数值折算进 calc(含背包,不含储藏)。 */
+/** 物品数值折算进 calc(仅主物品栏 6 格;后备背包栏 backpack 与储藏 stash 均不给加成)。 */
 function itemFold(u: Unit): void {
   if (!u.isHero()) return;
   const c = u.calc;

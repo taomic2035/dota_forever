@@ -162,6 +162,8 @@ export class Unit {
   stash: (ItemInstance | null)[] = [null, null, null, null, null, null];
   /** 专属回城卷轴槽(第 7 格,仅 TP)——不占 6 个物品格,不计入属性折算。 */
   tpSlot: ItemInstance | null = null;
+  /** 背包栏/后备栏(3 格)——随身携带但不提供任何加成;主物品栏满时购买溢出至此。 */
+  backpack: (ItemInstance | null)[] = [null, null, null];
 
   // 施法状态(abilities.ts 驱动)
   casting: { abilityIndex: number; pointUntil: number; pos?: Vec2; targetId?: EntityId } | null = null;

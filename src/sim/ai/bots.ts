@@ -96,7 +96,7 @@ export function shopping(w: World, u: Unit, st: BotState): void {
     const def = itemDef(key.startsWith('recipe_') ? key.slice(7) : key);
     if (def.secretShop) { st.buildIndex++; continue; }
     const r = buyItem(w, u, purchaseKeyFor(key) === key ? key : key);
-    if (r === 'ok' || r === 'ok_stash') st.buildIndex++;
+    if (r === 'ok' || r === 'ok_stash' || r === 'ok_backpack') st.buildIndex++;
     else break;
   }
 }

@@ -42,9 +42,11 @@ describe('items: buy/sell/stash', () => {
     expect(buyItem(w, h, 'sacred_relic')).toBe('ok');
   });
 
-  it('full inventory at home goes to stash; takeFromStash works', () => {
-    for (let i = 0; i < 6; i++) expect(buyItem(w, h, 'branch')).toBe('ok');
-    expect(buyItem(w, h, 'branch')).toBe('ok_stash');
+  it('溢出链:物品栏(6)→背包栏(3)→储藏;takeFromStash works', () => {
+    h.heroMeta!.gold = 5000;
+    for (let i = 0; i < 6; i++) expect(buyItem(w, h, 'branch')).toBe('ok'); // 主物品栏满
+    for (let i = 0; i < 3; i++) expect(buyItem(w, h, 'branch')).toBe('ok_backpack'); // 背包栏满
+    expect(buyItem(w, h, 'branch')).toBe('ok_stash'); // 再溢出到储藏
     expect(h.stash[0]?.itemKey).toBe('branch');
     // 腾一格再取
     sellItem(w, h, 0);

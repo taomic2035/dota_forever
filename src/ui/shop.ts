@@ -97,10 +97,11 @@ export class ShopPanel {
       row.onclick = () => {
         const r = buyItem(w, hero, purchaseKeyFor(def.key));
         if (r === 'ok') this.showToast(`购入 ${def.name}`);
+        else if (r === 'ok_backpack') this.showToast(`${def.name} 已放入背包栏`);
         else if (r === 'ok_stash') this.showToast(`${def.name} 已放入储藏处`);
         else if (r === 'no_gold') this.showToast('金币不足');
         else if (r === 'no_shop') this.showToast(def.secretShop ? '需要在秘密商店购买' : '不在商店范围内');
-        else this.showToast('背包与储藏已满');
+        else this.showToast('物品栏、背包栏与储藏均已满');
         this.lastRender = 0;
       };
       list.appendChild(row);
