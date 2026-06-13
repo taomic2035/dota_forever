@@ -158,12 +158,21 @@ export class Renderer3D {
         : st === 'death'
           ? Math.min(1, (now - u.diedAt) / 0.4)
           : 0;
-      m.applyPose({ state: st, t, phase: e.phase, progress });
 
       const sink = st === 'death' ? progress : 0;
-      m.root.position.set(ax, terrainElevation(world.map, ax, az) - sink * 26, az);
+      const ey = terrainElevation(world.map, ax, az);
+      m.root.position.set(ax, ey - sink * 26, az);
       m.root.rotation.y = -u.facing + Math.PI / 2;
       m.root.visible = u.alive || (now - u.diedAt) < 2;
+
+      // 视锥外:跳过动画/染色(纯 CPU 省,画面不变;渲染剔除由 three 自动处理)
+      this.proj.set(ax, ey + 70, az).project(this.s3d.cam);
+      const onScreen = this.proj.z < 1
+        && this.proj.x > -1.25 && this.proj.x < 1.25
+        && this.proj.y > -1.25 && this.proj.y < 1.25;
+      if (!onScreen) continue;
+
+      m.applyPose({ state: st, t, phase: e.phase, progress });
 
       // 状态视觉:受击闪白 / 眩晕泛光 / 隐身半透(每单位独立材质)
       const s = stateOf(u);
