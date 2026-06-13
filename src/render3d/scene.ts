@@ -20,6 +20,7 @@ export class Scene3D {
     parent.appendChild(this.canvas);
 
     this.scene.background = new THREE.Color('#0a0c08');
+    this.scene.fog = new THREE.Fog(0x0a0c08, 3600, 9200); // 距离雾:近处清晰,远端柔化(纵深+柔化地图边缘)
     this.cam = new THREE.PerspectiveCamera(40, 16 / 9, 10, 60000);
 
     this.sun = new THREE.DirectionalLight('#fff6e0', 1.35);
@@ -68,6 +69,7 @@ export class Scene3D {
     this.hemi.color.set(night ? '#46587e' : '#cfe0f2');
     this.hemi.intensity = night ? 0.5 : 0.85;
     this.scene.background = new THREE.Color(night ? '#05060a' : '#0a0c08');
+    if (this.scene.fog) (this.scene.fog as THREE.Fog).color.set(night ? '#05060a' : '#0a0c08');
   }
 
   render() {
