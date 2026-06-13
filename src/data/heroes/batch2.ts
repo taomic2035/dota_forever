@@ -2,7 +2,7 @@
 import { V, type Vec2 } from '../../core/vec2';
 import type { AbilityDef, HeroDef } from './types';
 import {
-  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo,
+  damageArea, modifierArea, enemiesIn, alliesIn, spellDamage, blinkTo, hasScepter,
 } from '../../sim/abilities';
 import { applyModifier, purge, hasModifier } from '../../sim/modifiers';
 import { isEnemy } from '../../sim/combat';
@@ -90,6 +90,7 @@ const ECHO_PER_UNIT = [40, 55, 70];
 const GORM_R: AbilityDef = {
   key: 'gorm_echo', name: '大地回响', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [145, 205, 265], cooldown: [130, 120, 110],
+  scepter: { cooldown: [90, 80, 70], desc: '神杖:冷却降低;震波向外扩散第二圈(范围 900),外圈敌人受到半量伤害并眩晕 0.8 秒。' },
   castPoint: 0.5, tags: ['nuke', 'aoe', 'ultimate'],
   description: '震波回响,周围每个单位都会放大伤害。',
   onCast(w, caster, lvl) {
@@ -99,6 +100,16 @@ const GORM_R: AbilityDef = {
     for (const t of targets) spellDamage(w, caster, t, dmg);
     w.emit({ kind: 'fx', fx: 'quake_echo', pos: V.clone(caster.pos), radius: 600 });
     gormAftershock(w, caster);
+    // 神杖:外圈扩散波
+    if (hasScepter(caster)) {
+      const innerIds = new Set(targets.map((t) => t.id));
+      for (const t of enemiesIn(w, caster, caster.pos, 900)) {
+        if (innerIds.has(t.id)) continue;
+        spellDamage(w, caster, t, dmg * 0.5);
+        applyModifier(w, t, { key: 'gorm_echo_sc_stun', duration: 0.8, states: { stunned: true } }, caster.id);
+      }
+      w.emit({ kind: 'fx', fx: 'quake_echo', pos: V.clone(caster.pos), radius: 900 });
+    }
   },
   aiScore(w, caster) {
     const heroes = enemiesIn(w, caster, caster.pos, 550).filter((t) => t.isHero());
@@ -210,6 +221,7 @@ const DISMEMBER_DPS = [85, 120, 155];
 const GROSH_R: AbilityDef = {
   key: 'grosh_dismember', name: '碎骨肢解', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [200, 200, 200], manaCost: [120, 150, 180], cooldown: [30, 25, 20],
+  scepter: { cooldown: [22, 18, 14], desc: '神杖:冷却降低;每次撕咬伤害提升 50%,并溅射周围 250 内其他敌人 40% 伤害。' },
   castPoint: 0.2, tags: ['stun', 'nuke', 'channel', 'ultimate'],
   description: '钳制目标 3 秒,持续撕咬造成重创。',
   channel: {
@@ -221,8 +233,17 @@ const GROSH_R: AbilityDef = {
         if (caster.channeling) caster.channeling.until = -Infinity;
         return;
       }
-      spellDamage(w, caster, t, DISMEMBER_DPS[lvl - 1] / 2);
+      const sc = hasScepter(caster);
+      const tickDmg = DISMEMBER_DPS[lvl - 1] / 2 * (sc ? 1.5 : 1);
+      spellDamage(w, caster, t, tickDmg);
       applyModifier(w, t, { key: 'grosh_dismember_lock', duration: 0.6, states: { stunned: true } }, caster.id);
+      // 神杖:溅射伤害
+      if (sc) {
+        for (const nearby of enemiesIn(w, caster, t.pos, 250)) {
+          if (nearby.id === t.id) continue;
+          spellDamage(w, caster, nearby, tickDmg * 0.4);
+        }
+      }
     },
   },
   onCast(w, caster, lvl, _pos, target) {
@@ -398,18 +419,26 @@ const OMNI_DMG = [170, 200, 230];
 const CHEN_R: AbilityDef = {
   key: 'chen_omni', name: '无双连斩', maxLevel: 3, ultimate: true, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [450, 500, 550], manaCost: [200, 275, 350], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 75, 65], desc: '神杖:冷却降低;斩击次数额外增加 2 次,每斩造成额外 100 纯粹伤害(无视护甲类型)。' },
   castPoint: 0.3, tags: ['nuke', 'ultimate'],
   description: '化影连斩周围敌人,每一斩都是致命剑光。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const sc = hasScepter(caster);
+    const strikes = OMNI_STRIKES[lvl - 1] + (sc ? 2 : 0);
     let current: Unit = target;
-    for (let i = 0; i < OMNI_STRIKES[lvl - 1]; i++) {
+    for (let i = 0; i < strikes; i++) {
       if (!current.alive) {
         const next = enemiesIn(w, caster, current.pos, 450).filter((t) => !t.isBuilding());
         if (!next.length) break;
         current = next[0];
       }
       spellDamage(w, caster, current, OMNI_DMG[lvl - 1]);
+      // 神杖:额外纯粹伤害
+      if (sc) {
+        current.hp = Math.max(0, current.hp - 100);
+        if (current.hp === 0) current.alive = false;
+      }
       w.emit({ kind: 'fx', fx: 'slash', pos: V.clone(current.pos) });
       const others = enemiesIn(w, caster, current.pos, 450).filter((t) => t.id !== current.id && !t.isBuilding());
       if (others.length) current = w.rng.pick(others);
@@ -513,6 +542,7 @@ const GUARD_DUR = [4, 5, 6];
 const OLAN_R: AbilityDef = {
   key: 'olan_guard', name: '神圣庇护', maxLevel: 3, ultimate: true, targetMode: 'none',
   manaCost: [175, 250, 325], cooldown: [150, 130, 110],
+  scepter: { cooldown: [110, 95, 80], desc: '神杖:冷却降低;神圣力量同时驱散周围友军的所有负面效果,并对周围敌人造成 200 神圣伤害。' },
   castPoint: 0.3, tags: ['buff', 'ultimate'],
   description: '神圣力量降临,周围友军免疫物理伤害。',
   onCast(w, caster, lvl) {
@@ -521,6 +551,16 @@ const OLAN_R: AbilityDef = {
       states: { physImmune: true },
     }, 'ally');
     w.emit({ kind: 'fx', fx: 'guardian', pos: V.clone(caster.pos), radius: 700 });
+    // 神杖:驱散友军负面 + 灼伤敌人
+    if (hasScepter(caster)) {
+      for (const ally of alliesIn(w, caster, caster.pos, 700)) {
+        if (ally.isHero()) purge(w, ally, false);
+      }
+      for (const foe of enemiesIn(w, caster, caster.pos, 700)) {
+        spellDamage(w, caster, foe, 200);
+      }
+      w.emit({ kind: 'fx', fx: 'guardian', pos: V.clone(caster.pos), radius: 700 });
+    }
   },
   aiScore(w, caster) {
     const allies = alliesIn(w, caster, caster.pos, 650).filter((t) => t.isHero() && t.hp / t.calc.maxHp < 0.45);
@@ -619,21 +659,29 @@ const RAIN_WAVE_DMG = [65, 95, 125];
 const MORPHIS_R: AbilityDef = {
   key: 'morphis_rain', name: '暗渊火雨', maxLevel: 3, ultimate: true, targetMode: 'point',
   castRange: [900, 900, 900], manaCost: [200, 300, 400], cooldown: [120, 110, 100],
+  scepter: { cooldown: [85, 78, 70], desc: '神杖:冷却降低;火雨波数增加至 7 波,范围从 450 扩大至 600,且每波都附带 0.5 秒眩晕。' },
   castPoint: 0.5, tags: ['aoe', 'nuke', 'ultimate'],
   description: '召唤暗渊之火轰击区域,5 波灼烧,首波眩晕。',
   onCast(w, caster, lvl, pos) {
     if (!pos) return;
     const at = V.clone(pos);
+    const sc = hasScepter(caster);
+    const totalWaves = sc ? 7 : 5;
+    const radius = sc ? 600 : 450;
+    const dur = (totalWaves - 1) * 0.8 + 0.1;
     applyModifier(w, caster, {
-      key: 'morphis_rain_caster', duration: 4.1, isBuff: true,
+      key: 'morphis_rain_caster', duration: dur, isBuff: true,
       tickInterval: 0.8,
       onTick(world, u, m) {
         m.data!.wave = (m.data!.wave ?? 0) + 1;
-        damageArea(world, u, at, 450, RAIN_WAVE_DMG[lvl - 1]);
-        if (m.data!.wave === 1) {
-          modifierArea(world, u, at, 450, { key: 'morphis_rain_stun', duration: 0.8, states: { stunned: true } }, 'enemy');
+        if (m.data!.wave > totalWaves) return;
+        damageArea(world, u, at, radius, RAIN_WAVE_DMG[lvl - 1]);
+        if (m.data!.wave === 1 || sc) {
+          modifierArea(world, u, at, radius, {
+            key: 'morphis_rain_stun', duration: sc ? 0.5 : 0.8, states: { stunned: true },
+          }, 'enemy');
         }
-        world.emit({ kind: 'fx', fx: 'firerain', pos: V.clone(at), radius: 450 });
+        world.emit({ kind: 'fx', fx: 'firerain', pos: V.clone(at), radius });
       },
     }, caster.id);
   },
