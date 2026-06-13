@@ -143,8 +143,9 @@ function startGame(mode: 'play' | 'spectate'): void {
   const camera = new Camera();
   camera.centerOn(hero?.pos ?? { x: 7520, y: 7520 });
   const use3d = params.get('renderer') === '3d';
-  const renderer = use3d
-    ? (new Renderer3D(app, world, camera) as unknown as Renderer)
+  const renderer3d = use3d ? new Renderer3D(app, world, camera) : null;
+  const renderer = renderer3d
+    ? (renderer3d as unknown as Renderer)
     : new Renderer(app, world, camera);
   renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
   const hud = new Hud(app);
@@ -572,7 +573,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         });
       }
     },
-  }, controlSettings);
+  }, controlSettings, renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
 
   const loop = new GameLoop({
     step() {

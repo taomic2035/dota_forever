@@ -17,6 +17,7 @@ import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D, terrainElevation } from './terrain3d';
+import type { UxFeedback } from '../ui/uxFeedback';
 
 interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; }
 
@@ -36,6 +37,12 @@ export class Renderer3D {
   private overlay: HTMLCanvasElement;
   private octx: CanvasRenderingContext2D;
   private proj = new THREE.Vector3();
+  /** 施法指示器:贴地距离环 / AoE 范围 / 线形(透视正确,跟随 ux.targeting)。 */
+  private tGroup = new THREE.Group();
+  private tRing!: THREE.Mesh;
+  private tAoe!: THREE.Mesh;
+  private tAoeRing!: THREE.Mesh;
+  private tLine!: THREE.Mesh;
 
   constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
@@ -44,6 +51,7 @@ export class Renderer3D {
     // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
     if (camera.zoom < 1.0) camera.zoom = 1.4;
     this.s3d.scene.add(buildTerrain3D(world.map));
+    this.buildTargeting();
 
     this.overlay = document.createElement('canvas');
     this.overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;';
@@ -115,7 +123,7 @@ export class Renderer3D {
     return moved ? 'walk' : 'idle';
   }
 
-  render(world: World, _selectedId: number, _ux?: unknown): void {
+  render(world: World, _selectedId: number, ux?: UxFeedback): void {
     const now = world.time;
     const t = performance.now() / 1000;
     const seen = new Set<number>();
@@ -203,6 +211,7 @@ export class Renderer3D {
     }
 
     this.fx.update(world, performance.now() / 1000);
+    this.updateTargeting(world, ux);
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
@@ -240,7 +249,56 @@ export class Renderer3D {
     }
   }
 
-  /** 屏幕坐标 → 世界坐标(raycast 到地面)。供 InputManager(play 模式 3D 在 V2 完整接入)。 */
+  private buildTargeting(): void {
+    const ringMat = () => new THREE.MeshBasicMaterial({ color: 0x50aaff, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
+    this.tRing = new THREE.Mesh(new THREE.RingGeometry(0.975, 1.0, 64), ringMat());
+    this.tAoe = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ color: 0x50aaff, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false }));
+    this.tAoeRing = new THREE.Mesh(new THREE.RingGeometry(0.93, 1.0, 48), ringMat());
+    for (const m of [this.tRing, this.tAoe, this.tAoeRing]) { m.rotation.x = -Math.PI / 2; m.renderOrder = 3; m.visible = false; }
+    this.tLine = new THREE.Mesh(new THREE.BoxGeometry(1, 3, 1), new THREE.MeshBasicMaterial({ color: 0x50aaff, transparent: true, opacity: 0.32, depthWrite: false }));
+    this.tLine.renderOrder = 3; this.tLine.visible = false;
+    this.tGroup.add(this.tRing, this.tAoe, this.tAoeRing, this.tLine);
+    this.tGroup.visible = false;
+    this.s3d.scene.add(this.tGroup);
+  }
+
+  /** 施法指示器:读 ux.targeting,贴地绘制距离环 / AoE 范围 / 线形(队色合法蓝、非法红)。 */
+  private updateTargeting(world: World, ux?: UxFeedback): void {
+    const t = ux?.targeting;
+    if (!t) { this.tGroup.visible = false; return; }
+    this.tGroup.visible = true;
+    const color = t.valid === false ? 0xff4656 : 0x50aaff;
+    const ox = t.origin.x, oz = t.origin.y;
+    const oy = terrainElevation(world.map, ox, oz) + 4;
+    const cur = t.cursor ?? t.origin;
+    const cx = cur.x, cz = cur.y;
+    const cy = terrainElevation(world.map, cx, cz) + 4;
+
+    (this.tRing.material as THREE.MeshBasicMaterial).color.setHex(color);
+    this.tRing.position.set(ox, oy, oz);
+    this.tRing.scale.set(t.range, t.range, t.range);
+
+    const aoeR = t.radius ?? (t.mode === 'unit' ? 70 : 0);
+    const showAoe = aoeR > 0;
+    this.tAoe.visible = showAoe; this.tAoeRing.visible = showAoe;
+    if (showAoe) {
+      for (const m of [this.tAoe, this.tAoeRing]) (m.material as THREE.MeshBasicMaterial).color.setHex(color);
+      this.tAoe.position.set(cx, cy, cz); this.tAoe.scale.setScalar(aoeR);
+      this.tAoeRing.position.set(cx, cy + 0.5, cz); this.tAoeRing.scale.setScalar(aoeR);
+    }
+
+    const showLine = t.mode === 'line';
+    this.tLine.visible = showLine;
+    if (showLine) {
+      const dx = cx - ox, dz = cz - oz; const len = Math.hypot(dx, dz) || 1;
+      (this.tLine.material as THREE.MeshBasicMaterial).color.setHex(color);
+      this.tLine.position.set((ox + cx) / 2, oy, (oz + cz) / 2);
+      this.tLine.scale.set(len, 1, t.width ?? 80);
+      this.tLine.rotation.y = -Math.atan2(dz, dx);
+    }
+  }
+
+  /** 屏幕坐标 → 世界坐标(raycast 到地面)。供 InputManager(3D play 模式点击/施法换算)。 */
   screenToWorld(sx: number, sy: number): { x: number; y: number } {
     const ndc = new THREE.Vector2(
       (sx / this.canvas.clientWidth) * 2 - 1,

@@ -55,18 +55,22 @@ export class InputManager {
   }
   edgePan = true;
   private keys = new Set<string>();
+  /** 屏幕点→世界点换算(2D 用相机平面投影;3D 用渲染器 raycast 到地面)。平移/缩放仍用相机。 */
+  private pointToWorld: (p: Vec2) => Vec2;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private camera: Camera,
     private cb: InputCallbacks,
     controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS,
+    pointToWorld?: (p: Vec2) => Vec2,
   ) {
     this.controlSettings = normalizeControlSettings(controlSettings);
     this.edgePan = this.controlSettings.cameraEdgePan;
+    this.pointToWorld = pointToWorld ?? ((p) => this.camera.screenToWorld(p));
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
-      const world = this.camera.screenToWorld(this.mouse);
+      const world = this.pointToWorld(this.mouse);
       this.cb.onPointerMove(this.mouse, world);
       const pending = this.commandMode.previewCast();
       if (pending !== null) this.cb.onPreviewCast(pending, world);
@@ -77,7 +81,7 @@ export class InputManager {
       }
     });
     canvas.addEventListener('mousedown', (e) => {
-      const world = this.camera.screenToWorld({ x: e.offsetX, y: e.offsetY });
+      const world = this.pointToWorld({ x: e.offsetX, y: e.offsetY });
       if (e.button === 2) {
         this.commandMode.cancel();
         this.smartHold = null;
@@ -125,7 +129,7 @@ export class InputManager {
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
       this.keys.add(e.key.toLowerCase());
-      const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
+      const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
       switch (e.key.toLowerCase()) {
         case 'q': this.handleCastHotkey(0, 'q', world, { selfCast: e.altKey && this.cb.canSelfCast?.(0) === true }); break;
         case 'w': this.handleCastHotkey(1, 'w', world, { selfCast: e.altKey && this.cb.canSelfCast?.(1) === true }); break;
@@ -169,7 +173,7 @@ export class InputManager {
       const key = e.key.toLowerCase();
       this.keys.delete(key);
       if (key === 'tab') this.cb.onToggleScoreboard(false);
-      const world = this.camera.screenToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
+      const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
       this.finishSmartHold(key, world);
     });
   }
