@@ -7,6 +7,7 @@ import { installBotAI } from './sim/ai/bots';
 import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { shuffledHeroPool } from './sim/draft';
+import { activateGlyph } from './sim/glyph';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { Renderer3D } from './render3d/renderer3d';
@@ -548,6 +549,8 @@ function startGame(mode: 'play' | 'spectate'): void {
     onTogglePause() { loop.paused = !loop.paused; },
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
+    onGlyph() { if (hero) activateGlyph(world, hero.team); }, // 防御符文:己方建筑短时免疫
+
     onPointerMove(screen) {
       ux.setCursorPosition(screen);
     },

@@ -51,6 +51,8 @@ export class World {
   forceNightUntil = -Infinity;
   /** 当前在场符文(installRunes 维护,至多一个) */
   runes: import('./runes').RuneSpawn[] = [];
+  /** 防御符文 Glyph 各队就绪时刻([Dawn, Night];world.time ≥ 此值方可激活)。 */
+  glyphReadyAt: number[] = [0, 0];
   /** 比赛实际开始前的准备时间偏移(time 从 -PREP 开始走) */
   constructor(map: GameMap, seed: number, startTime = -75) {
     this.map = map;

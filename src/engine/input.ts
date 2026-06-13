@@ -38,6 +38,7 @@ export interface InputCallbacks {
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
   onToggleShop(): void;
+  onGlyph(): void;
   onPointerMove(screen: Vec2, world: Vec2): void;
   onPendingAttackMove(active: boolean, options?: CastInputOptions): void;
   onPendingCast(index: number | null, options?: CastInputOptions): void;
@@ -170,6 +171,7 @@ export class InputManager {
           break;
         case 'h': this.cb.onHold(); break;
         case 'f': this.cb.onToggleShop(); break;
+        case 'g': this.cb.onGlyph(); break; // 防御符文 Glyph(己方建筑短时免疫)
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;

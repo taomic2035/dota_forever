@@ -94,6 +94,7 @@ export function recalcSystem(w: World): void {
 /** 结算一次伤害,返回实际造成量。 */
 export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   if (!target.alive || target.invulnerable || stateOf(target).untargetable) return 0;
+  if (w.time < target.glyphUntil) return 0; // 防御符文 Glyph:建筑短时免疫一切伤害
   let amount = evt.amount;
   const flags = evt.flags ?? {};
 

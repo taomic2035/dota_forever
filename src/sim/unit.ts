@@ -127,6 +127,8 @@ export class Unit {
   lane?: Lane;
   /** 后门保护激活中(无攻方小兵在侧):建筑受击减伤 + 快速回血。由 buildingsSystem 每帧批量更新。 */
   backdoorProtected = false;
+  /** 防御符文 Glyph 护盾持续至该时刻:建筑此前免疫一切伤害。 */
+  glyphUntil = -Infinity;
   /** 英雄专属经济/成长状态 */
   heroMeta?: HeroMeta;
   /** 野怪营地归属与驻留点 */

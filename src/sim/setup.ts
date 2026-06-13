@@ -13,6 +13,7 @@ import { installHeroRespawn } from './hero';
 import { installVision } from './vision';
 import { installItems } from './items';
 import { installCourier } from './courier';
+import { installGlyph } from './glyph';
 import { installRunes } from './runes';
 import { installNeutrals } from './neutrals';
 import { installPitlord } from './pitlord';
@@ -43,7 +44,10 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installDayNight(w); // 必须先于 vision:vision 每 tick 读 isNight,否则滞后一 tick(D2)
   installVision(w);
   installItems(w);
-  if (!opts.noBuildings) installCourier(w); // 信使需泉水(建筑)定位出生点
+  if (!opts.noBuildings) {
+    installCourier(w); // 信使需泉水(建筑)定位出生点
+    installGlyph(w);   // 防御符文需建筑
+  }
   installRunes(w);
   if (opts.creeps) {
     installNeutrals(w); // 与兵线一起代表“真实对局”

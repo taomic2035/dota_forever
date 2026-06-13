@@ -130,6 +130,9 @@ export const TOWER_STATS = {
 };
 export const TOWER_VISION = 1900;
 export const TOWER_TRUE_SIGHT = 900;
+// 防御符文 Glyph(经典 DotA1):激活后己方所有建筑短时免疫,长冷却。
+export const GLYPH_DURATION = 6;    // 护盾持续(秒)
+export const GLYPH_COOLDOWN = 300;  // 冷却(秒,5 分钟)
 // 后门保护(经典 DotA1):无攻方小兵在 BACKDOOR_RADIUS 内时,T3/T4/兵营/主基地受击减伤 + 快速回血。
 export const BACKDOOR_RADIUS = 900;
 export const BACKDOOR_DAMAGE_FACTOR = 0.4;     // 保护时受伤 ×0.4
