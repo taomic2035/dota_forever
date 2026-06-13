@@ -60,6 +60,13 @@ export interface Modifier {
   data?: Record<string, number>;
 }
 
+/** 单条光环:周期向半径内符合 affects 的目标授予 grant。 */
+export interface AuraSpec {
+  radius: number;
+  affects: 'ally' | 'enemy' | 'allyHero';
+  grant: ModifierDef;
+}
+
 /** Modifier 模板:施加时实例化为 Modifier。 */
 export interface ModifierDef {
   key: string;
@@ -70,12 +77,8 @@ export interface ModifierDef {
   /** 周期效果(DoT/回复) */
   tickInterval?: number;
   onTick?(w: World, u: Unit, m: Modifier): void;
-  /** 光环:挂在持有者身上,周期向半径内目标授予 grant */
-  aura?: {
-    radius: number;
-    affects: 'ally' | 'enemy' | 'allyHero';
-    grant: ModifierDef;
-  };
+  /** 光环:挂在持有者身上,周期向半径内目标授予 grant。可为数组(多光环,如 AC 友方增益+敌方减甲)。 */
+  aura?: AuraSpec | AuraSpec[];
   /** 同 key 不同来源是否可叠加(默认 false=刷新) */
   stackable?: boolean;
   /** 到期/移除回调 */
@@ -278,15 +281,17 @@ export function installModifiers(w: World): void {
       for (const holder of world.units.values()) {
         if (!holder.alive) continue;
         for (const m of holder.modifiers) {
-          const aura = m.def.aura;
-          if (!aura) continue;
-          const targets = world.queryRadius(holder.pos, aura.radius, (t) => {
-            if (aura.affects === 'enemy') return t.team !== holder.team && !t.isBuilding();
-            if (aura.affects === 'allyHero') return t.team === holder.team && t.isHero();
-            return t.team === holder.team && !t.isBuilding();
-          });
-          for (const t of targets) {
-            applyModifier(world, t, { ...aura.grant, duration: AURA_GRANT_DURATION }, holder.id);
+          if (!m.def.aura) continue;
+          const auras = Array.isArray(m.def.aura) ? m.def.aura : [m.def.aura];
+          for (const aura of auras) {
+            const targets = world.queryRadius(holder.pos, aura.radius, (t) => {
+              if (aura.affects === 'enemy') return t.team !== holder.team && !t.isBuilding();
+              if (aura.affects === 'allyHero') return t.team === holder.team && t.isHero();
+              return t.team === holder.team && !t.isBuilding();
+            });
+            for (const t of targets) {
+              applyModifier(world, t, { ...aura.grant, duration: AURA_GRANT_DURATION }, holder.id);
+            }
           }
         }
       }

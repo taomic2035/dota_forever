@@ -45,6 +45,18 @@ describe('物品数据修复(Wave A)', () => {
     expect(ally.calc.ias - ias0).toBeCloseTo(0.30, 2);
   });
 
+  it('战争号角光环:敌军 -5 护甲(多光环框架)', () => {
+    const w = createWorld(new GameMap(), { seed: 1, noBuildings: true });
+    const holder = spawnHero(w, REIN, Team.Dawn, { x: 7000, y: 8000 });
+    const enemy = spawnHero(w, LIYA, Team.Night, { x: 7200, y: 8000 });
+    const armor0 = enemy.calc.armor;
+    holder.inventory[0] = makeItem('assault');
+    afterInventoryChange(w, holder);
+    for (let i = 0; i < 30; i++) w.step();
+    recalcUnit(enemy);
+    expect(enemy.calc.armor - armor0).toBeCloseTo(-5, 1);
+  });
+
   it('点金手:点化给经验(此前漏给)', () => {
     const w = createWorld(new GameMap(), { seed: 1, noBuildings: true });
     const h = spawnHero(w, REIN, Team.Dawn, { x: 7000, y: 8000 });

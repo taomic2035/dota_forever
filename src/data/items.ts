@@ -396,12 +396,12 @@ ITEMS.push(
     recipe: { components: ['platemail', 'hyperstone', 'chainmail'], recipeCost: 1300 },
     holderModifier: {
       key: 'item_assault_aura',
-      aura: {
-        radius: 900, affects: 'ally',
-        grant: { key: 'item_assault_buff', isBuff: true, stats: { bonusAttackSpeed: 0.30, bonusArmor: 5 } },
-      },
+      aura: [
+        { radius: 900, affects: 'ally', grant: { key: 'item_assault_buff', isBuff: true, stats: { bonusAttackSpeed: 0.30, bonusArmor: 5 } } },
+        { radius: 900, affects: 'enemy', grant: { key: 'item_assault_neg', stats: { bonusArmor: -5 } } },
+      ],
     },
-    description: '+10 护甲 +55% 攻速;光环:周围友军 +30% 攻速、+5 护甲(敌方减甲光环见后续多光环框架)。' },
+    description: '+10 护甲 +55% 攻速;光环:友军 +30% 攻速、+5 护甲;敌军 -5 护甲。' },
 
   { key: 'shiva', name: '寒冰守卫', cost: 4700, category: 'combined',
     stats: { bonusArmor: 15, bonusInt: 25 },
