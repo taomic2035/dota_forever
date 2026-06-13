@@ -11,7 +11,7 @@ import { stateOf } from '../sim/combat';
 import { unitArt, type ArtInput } from '../render/unitArt';
 import { buildUnitModel, type UnitModel } from './unitModel';
 import { hasHero3DAsset, buildHero3DUnitModel } from './hero3dModel';
-import { resourceAssetForUnit, buildResource3DUnitModel } from './resource3dModel';
+import { resourceAssetForUnit, buildResource3DUnitModel, buildResource3DBuilding } from './resource3dModel';
 import type { AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
@@ -126,7 +126,8 @@ export class Renderer3D {
         seen.add(u.id);
         let b = this.buildings.get(u.id);
         if (!b && u.buildingKind) {
-          b = buildBuilding(u.buildingKind, u.team);
+          // 优先 resource3d 精细建筑,未映射则程序化兜底
+          b = buildResource3DBuilding(u.buildingKind, u.team) ?? buildBuilding(u.buildingKind, u.team);
           b.group.position.set(u.pos.x, 0, u.pos.y);
           this.s3d.scene.add(b.group);
           this.buildings.set(u.id, b);

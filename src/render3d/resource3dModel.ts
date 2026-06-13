@@ -8,6 +8,8 @@ import * as THREE from 'three';
 import { createResource3DModel } from '../render/resource3dFactory';
 import { RESOURCE3D_SAMPLE_ASSETS } from '../render/resource3dAssets';
 import type { UnitVisualRole } from '../render/unitArt';
+import type { BuildingKind } from '../data/mapLayout';
+import type { BuildingModel } from './buildingGen';
 import type { AnimInput, UnitModel, TintMaterial } from './unitModel';
 
 const ASSET_BY_KEY = new Map(RESOURCE3D_SAMPLE_ASSETS.map((a) => [a.key, a]));
@@ -92,4 +94,47 @@ export function buildResource3DUnitModel(key: string, worldScale: number): UnitM
       }
     },
   };
+}
+
+// ---------- 建筑(静态,无动作;主基地带无敌护盾) ----------
+const TEAM_SHIELD = ['#52d869', '#ef5350'];
+
+function resourceBuildingFor(kind: BuildingKind, team: number): { key: string; scale: number } | null {
+  const side = team === 0 ? 'dawn' : 'night';
+  switch (kind) {
+    case 'tower1': case 'tower2': return { key: `tower_t1_${side}`, scale: 95 };
+    case 'tower3': case 'tower4': return { key: `tower_t3_${side}`, scale: 108 };
+    case 'rax_melee': return { key: 'rax_melee', scale: 78 };
+    case 'rax_ranged': return { key: 'rax_ranged', scale: 78 };
+    case 'ancient': return { key: `ancient_${side}`, scale: 140 };
+    case 'fountain': return { key: 'fountain', scale: 62 };
+    default: return null;
+  }
+}
+
+/** resource3d 建筑模型(命中映射时替换程序化建筑)。主基地返回护盾供无敌显隐。 */
+export function buildResource3DBuilding(kind: BuildingKind, team: number): BuildingModel | null {
+  const map = resourceBuildingFor(kind, team);
+  if (!map) return null;
+  const asset = ASSET_BY_KEY.get(map.key);
+  if (!asset) return null;
+  const inner = protoRoot(map.key).clone(true); // 建筑无逐个染色,材质/几何/贴图全共享
+  inner.scale.setScalar(1);
+  const scaler = new THREE.Group();
+  scaler.scale.setScalar(map.scale * asset.scale);
+  scaler.add(inner);
+  const group = new THREE.Group();
+  group.add(scaler);
+
+  if (kind === 'ancient') {
+    const shield = new THREE.Mesh(
+      new THREE.SphereGeometry(240, 16, 16),
+      new THREE.MeshLambertMaterial({ color: TEAM_SHIELD[team] ?? '#7ec8e3', transparent: true, opacity: 0.16 }),
+    );
+    shield.position.y = 150;
+    shield.visible = false;
+    group.add(shield);
+    return { group, shield };
+  }
+  return { group };
 }
