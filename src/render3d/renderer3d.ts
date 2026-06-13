@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
 import type { Camera } from '../render/camera';
+import { stateOf } from '../sim/combat';
 import { unitArt, type ArtInput } from '../render/unitArt';
 import { humanoidSpec } from './modelParts';
 import { buildHumanoid, type HumanoidParts } from './modelGen';
@@ -112,6 +113,19 @@ export class Renderer3D {
       m.root.position.set(ax, -p.rootSink * 22, az);
       m.root.rotation.y = -u.facing + Math.PI / 2;
       m.root.visible = u.alive || (now - u.diedAt) < 2;
+
+      // 状态视觉:受击闪白 / 眩晕泛光 / 隐身半透(每单位独立材质)
+      const s = stateOf(u);
+      const hit = now - u.lastDamagedAt < 0.12;
+      const lvl = hit ? 0.7 : s.stunned ? 0.3 + 0.15 * Math.sin(t * 12) : 0;
+      const op = s.invisible ? 0.4 : 1;
+      for (const mm of m.materials) {
+        if (hit) mm.emissive.setRGB(lvl, lvl, lvl);
+        else if (s.stunned) mm.emissive.setRGB(lvl, lvl * 0.7, 0);
+        else mm.emissive.setRGB(0, 0, 0);
+        if (op < 1) { mm.transparent = true; mm.opacity = op; }
+        else if (mm.transparent) { mm.transparent = false; mm.opacity = 1; }
+      }
     }
 
     // 回收消失单位的模型

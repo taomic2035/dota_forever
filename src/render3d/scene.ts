@@ -45,7 +45,7 @@ export class Scene3D {
   /** 由 2D Camera(pos=世界中心 XZ,zoom)推导透视相机位姿(固定俯角约 55°)。 */
   syncCamera(c: Camera) {
     const dist = 900 / Math.max(0.12, c.zoom);
-    const pitch = Math.PI * 0.31;
+    const pitch = Math.PI * 0.27; // ~48° 俯角(更侧视,人形站姿清晰)
     const cx = c.pos.x, cz = c.pos.y;
     this.cam.position.set(cx, Math.sin(pitch) * dist, cz + Math.cos(pitch) * dist);
     this.cam.lookAt(cx, 0, cz);
