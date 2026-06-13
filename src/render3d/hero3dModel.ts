@@ -19,12 +19,15 @@ export function hasHero3DAsset(key: string): boolean {
   return ASSET_BY_KEY.has(key);
 }
 
-function actionForState(s: AnimState): string {
+function actionForState(s: AnimState, status?: AnimInput['status']): string {
+  if (status?.hit) return 'hit';
+  if (status?.stunned) return 'stunned';
+  if (status?.invisible) return 'invisible';
   switch (s) {
     case 'walk': return 'walk';
     case 'attack': return 'attack';
     case 'cast': return 'cast_q';
-    case 'channel': return 'cast_r';
+    case 'channel': return 'channel';
     case 'death': return 'death';
     default: return 'idle';
   }
@@ -79,7 +82,7 @@ export function buildHero3DUnitModel(key: string): UnitModel {
     applyPose(a: AnimInput) {
       const dt = prevT < 0 ? 0 : Math.min(0.1, Math.max(0, a.t - prevT));
       prevT = a.t;
-      const want = actionForState(a.state);
+      const want = actionForState(a.state, a.status);
       if (want !== curName) {
         const next = actions[want] ?? actions['idle'];
         if (next) {

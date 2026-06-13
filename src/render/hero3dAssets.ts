@@ -6,7 +6,10 @@ export const REQUIRED_HERO3D_ACTIONS = [
   'cast_w',
   'cast_e',
   'cast_r',
+  'channel',
   'hit',
+  'stunned',
+  'invisible',
   'death',
 ] as const;
 
@@ -19,6 +22,8 @@ export const REQUIRED_HERO3D_TEXTURES = [
 
 export type Hero3DActionName = typeof REQUIRED_HERO3D_ACTIONS[number];
 export type Hero3DTextureChannel = typeof REQUIRED_HERO3D_TEXTURES[number];
+export type Hero3DMaterialKind = 'cloth' | 'leather' | 'metal' | 'stone' | 'crystal' | 'energy' | 'shadow';
+export type Hero3DDetailKind = 'trim' | 'engraving' | 'rune' | 'fold' | 'edgeLight' | 'battleWear' | 'gemSetting';
 export type Hero3DPartKind =
   | 'body'
   | 'head'
@@ -35,6 +40,8 @@ export interface Hero3DPartSpec {
   kind: Hero3DPartKind;
   color: string;
   emissive?: string;
+  material?: Hero3DMaterialKind;
+  detail?: Hero3DDetailKind;
   scale: [number, number, number];
   position: [number, number, number];
   rotation?: [number, number, number];
@@ -44,12 +51,14 @@ export interface Hero3DTextureSpec {
   channel: Hero3DTextureChannel;
   palette: string[];
   motif: string;
+  detailLevel: number;
+  overlays: string[];
 }
 
 export interface Hero3DActionSpec {
   name: Hero3DActionName;
   duration: number;
-  motion: 'loop' | 'strike' | 'cast' | 'flinch' | 'fall';
+  motion: 'loop' | 'strike' | 'cast' | 'channel' | 'flinch' | 'status' | 'fall';
 }
 
 export interface Hero3DAssetSpec {
@@ -74,10 +83,10 @@ export interface Hero3DAssetSpec {
 
 function textures(primary: string, accent: string, glow: string, motif: string): Hero3DTextureSpec[] {
   return [
-    { channel: 'albedo', palette: [primary, accent, '#1a2018'], motif },
-    { channel: 'normal', palette: ['#8080ff', '#9ca8ff', '#6066aa'], motif: `${motif}-relief` },
-    { channel: 'orm', palette: ['#4a4030', '#80725c', '#c8b889'], motif: `${motif}-material` },
-    { channel: 'emissive', palette: [glow, '#050608', '#000000'], motif: `${motif}-glow` },
+    { channel: 'albedo', palette: [primary, accent, '#1a2018', glow], motif, detailLevel: 3, overlays: ['gradient', 'paint-strokes', 'rim-trim', 'micro-speckles'] },
+    { channel: 'normal', palette: ['#8080ff', '#9ca8ff', '#6066aa', '#d8ddff'], motif: `${motif}-relief`, detailLevel: 3, overlays: ['raised-runes', 'beveled-edges', 'cloth-grain'] },
+    { channel: 'orm', palette: ['#4a4030', '#80725c', '#c8b889', '#f0d890'], motif: `${motif}-material`, detailLevel: 2, overlays: ['metal-mask', 'roughness-noise', 'worn-edges'] },
+    { channel: 'emissive', palette: [glow, '#050608', '#000000', accent], motif: `${motif}-glow`, detailLevel: 3, overlays: ['inner-glow', 'pulse-veins', 'sigil-hotspots'] },
   ];
 }
 
@@ -86,14 +95,19 @@ const actions: Hero3DActionSpec[] = REQUIRED_HERO3D_ACTIONS.map((name) => ({
   duration:
     name === 'idle' ? 1.8 :
     name === 'walk' ? 0.9 :
+    name === 'channel' ? 1.2 :
     name === 'death' ? 1.1 :
     name === 'hit' ? 0.35 :
+    name === 'stunned' ? 0.75 :
+    name === 'invisible' ? 1.4 :
     name === 'attack' ? 0.65 :
     0.8,
   motion:
     name === 'idle' || name === 'walk' ? 'loop' :
+    name === 'channel' ? 'channel' :
     name === 'death' ? 'fall' :
     name === 'hit' ? 'flinch' :
+    name === 'stunned' || name === 'invisible' ? 'status' :
     name === 'attack' ? 'strike' :
     'cast',
 }));
@@ -326,21 +340,28 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'aura',
       color: accent,
       emissive: glow,
+      material: 'energy',
+      detail: 'rune',
       scale: [radius * 1.55, 0.08, radius * 1.55],
       position: [0, 0.08, 0],
     },
     {
       name: 'painted hero plinth',
-      kind: 'aura',
+      kind: 'sigil',
       color: '#171b17',
-      scale: [radius * 1.85, 0.05, radius * 1.85],
+      material: 'stone',
+      detail: 'engraving',
+      scale: [radius * 1.12, 0.035, radius * 1.12],
       position: [0, 0.02, 0],
+      rotation: [Math.PI / 2, 0, 0],
     },
     {
       name: 'left class mote',
       kind: 'orb',
       color: accent,
       emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
       scale: [0.13, 0.13, 0.13],
       position: [-wide, 1.74, -0.42],
     },
@@ -349,6 +370,8 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'orb',
       color: primary,
       emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
       scale: [0.11, 0.11, 0.11],
       position: [wide, 1.52, -0.5],
     },
@@ -357,6 +380,8 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'sigil',
       color: accent,
       emissive: glow,
+      material: 'energy',
+      detail: 'edgeLight',
       scale: [0.18, 0.035, 0.54],
       position: [-wide, 1.16, 0.2],
       rotation: [Math.PI / 2, 0, -0.28],
@@ -366,6 +391,8 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'sigil',
       color: accent,
       emissive: glow,
+      material: 'energy',
+      detail: 'edgeLight',
       scale: [0.18, 0.035, 0.54],
       position: [wide, 1.16, 0.2],
       rotation: [Math.PI / 2, 0, 0.28],
@@ -375,7 +402,9 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'cape',
       color: primary,
       emissive: glow,
-      scale: [radius * 0.9, 0.06, 0.72],
+      material: 'cloth',
+      detail: 'fold',
+      scale: [radius * 0.48, 0.035, 0.42],
       position: [0, 1.05, 0.72],
       rotation: [0.18, 0, 0],
     },
@@ -384,6 +413,8 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'sigil',
       color: accent,
       emissive: glow,
+      material: 'energy',
+      detail: 'rune',
       scale: [radius * 0.48, 0.045, radius * 0.48],
       position: [0, 2.18, -0.06],
       rotation: [Math.PI / 2, 0, 0],
@@ -393,11 +424,70 @@ function polishParts(asset: Hero3DAssetSpec): Hero3DPartSpec[] {
       kind: 'orb',
       color: '#ffffff',
       emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
       scale: [0.09, 0.09, 0.09],
       position: [radius * 0.58, 2.12, -0.18],
     },
+    {
+      name: 'front costume trim',
+      kind: 'sigil',
+      color: accent,
+      emissive: glow,
+      material: 'metal',
+      detail: 'trim',
+      scale: [radius * 0.38, 0.03, radius * 0.12],
+      position: [0, 1.36, -0.47],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      name: 'waist rune clasp',
+      kind: 'orb',
+      color: accent,
+      emissive: glow,
+      material: 'crystal',
+      detail: 'rune',
+      scale: [0.12, 0.12, 0.08],
+      position: [0, 1.02, -0.5],
+    },
+    {
+      name: 'battle worn side notch',
+      kind: 'sigil',
+      color: '#080a08',
+      material: 'leather',
+      detail: 'battleWear',
+      scale: [0.12, 0.025, 0.32],
+      position: [-radius * 0.52, 0.92, -0.46],
+      rotation: [Math.PI / 2, 0, -0.2],
+    },
   ];
-  return [...asset.model.parts, ...shared, ...signatureParts(asset.key, primary, accent, glow)];
+  return [...asset.model.parts, ...shared, ...signatureParts(asset.key, primary, accent, glow)].map(withV2PartMetadata);
+}
+
+function withV2PartMetadata(part: Hero3DPartSpec): Hero3DPartSpec {
+  return {
+    ...part,
+    material: part.material ?? materialForPart(part),
+    detail: part.detail ?? detailForPart(part),
+  };
+}
+
+function materialForPart(part: Hero3DPartSpec): Hero3DMaterialKind {
+  if (part.emissive || part.kind === 'aura') return 'energy';
+  if (part.kind === 'weapon' || part.kind === 'offhand' || part.kind === 'shoulder' || part.kind === 'sigil') return 'metal';
+  if (part.kind === 'orb') return 'crystal';
+  if (part.kind === 'cape') return 'cloth';
+  if (part.name.includes('stone') || part.name.includes('rock') || part.name.includes('totem')) return 'stone';
+  return part.kind === 'body' ? 'leather' : 'cloth';
+}
+
+function detailForPart(part: Hero3DPartSpec): Hero3DDetailKind {
+  if (part.kind === 'cape') return 'fold';
+  if (part.kind === 'orb') return 'gemSetting';
+  if (part.kind === 'aura' || part.kind === 'sigil') return 'rune';
+  if (part.kind === 'weapon' || part.kind === 'offhand' || part.kind === 'shoulder') return 'edgeLight';
+  if (part.name.includes('body') || part.name.includes('robe') || part.name.includes('armor')) return 'trim';
+  return 'engraving';
 }
 
 function signatureParts(key: string, primary: string, accent: string, glow: string): Hero3DPartSpec[] {
@@ -430,7 +520,7 @@ function signatureParts(key: string, primary: string, accent: string, glow: stri
     grosh: [
       { name: 'hook chain halo', kind: 'sigil', color: '#d5c2a1', emissive: '#91d66d', scale: [0.62, 0.08, 0.62], position: [0, 2.18, 0.04], rotation: [Math.PI / 2, 0, 0] },
       { name: 'toxic belly glyph', kind: 'orb', color: '#b7e27f', emissive: '#91d66d', scale: [0.22, 0.22, 0.08], position: [0, 1.14, -0.54] },
-      { name: 'butcher apron plates', kind: 'cape', color: '#3b2721', emissive: '#6f3f29', scale: [0.86, 0.08, 1.05], position: [0, 0.92, -0.54], rotation: [-0.18, 0, 0] },
+      { name: 'butcher apron plates', kind: 'cape', color: '#3b2721', emissive: '#6f3f29', scale: [0.56, 0.06, 0.5], position: [0, 0.86, -0.36], rotation: [-0.18, 0, 0] },
     ],
     kai: [
       { name: 'shadow horn crest', kind: 'sigil', color: '#eee6ff', emissive: '#b896ff', scale: [0.68, 0.06, 0.24], position: [0, 2.08, 0.03], rotation: [Math.PI / 2, 0, 0] },
@@ -444,7 +534,7 @@ function signatureParts(key: string, primary: string, accent: string, glow: stri
     ],
     olan: [
       { name: 'radiant sun disc', kind: 'sigil', color: '#fff7c8', emissive: '#ffe56b', scale: [0.72, 0.08, 0.72], position: [0, 2.58, 0], rotation: [Math.PI / 2, 0, 0] },
-      { name: 'gold prayer stole', kind: 'cape', color: '#b9892f', emissive: '#ffe56b', scale: [0.42, 0.08, 1.26], position: [0, 1.2, -0.48], rotation: [-0.16, 0, 0] },
+      { name: 'gold prayer stole', kind: 'cape', color: '#b9892f', emissive: '#ffe56b', scale: [0.26, 0.055, 0.52], position: [0, 1.18, -0.34], rotation: [-0.16, 0, 0] },
       { name: 'healing mote', kind: 'orb', color: '#fff9d8', emissive: '#fff08a', scale: [0.2, 0.2, 0.2], position: [0.54, 1.76, -0.36] },
     ],
     morphis: [

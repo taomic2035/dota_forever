@@ -23,11 +23,27 @@ describe('classic hero 3D assets', () => {
 
   it('defines model, texture, and animation contracts for every hero', () => {
     for (const asset of CLASSIC_HERO3D_ASSETS) {
-      expect(asset.model.parts.length, asset.key).toBeGreaterThanOrEqual(13);
+      expect(asset.model.parts.length, asset.key).toBeGreaterThanOrEqual(18);
       expect(asset.model.silhouette, asset.key).toBeTruthy();
       expect(asset.model.scale, asset.key).toBeGreaterThan(0);
       expect(asset.textures.map((texture) => texture.channel), asset.key).toEqual(REQUIRED_HERO3D_TEXTURES);
       expect(asset.actions.map((action) => action.name), asset.key).toEqual(REQUIRED_HERO3D_ACTIONS);
+    }
+  });
+
+  it('adds V2 material layers and high-density texture metadata', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const materials = new Set(asset.model.parts.map((part) => part.material));
+      const detailParts = asset.model.parts.filter((part) => part.detail);
+
+      expect(materials.has('cloth') || materials.has('leather'), `${asset.key} needs soft costume materials`).toBe(true);
+      expect(materials.has('metal') || materials.has('crystal') || materials.has('energy'), `${asset.key} needs premium hard/glow materials`).toBe(true);
+      expect(detailParts.length, `${asset.key} needs enough engraved/trimmed parts`).toBeGreaterThanOrEqual(8);
+
+      for (const texture of asset.textures) {
+        expect(texture.detailLevel, `${asset.key}:${texture.channel} needs V2 detail level`).toBeGreaterThanOrEqual(2);
+        expect(texture.overlays.length, `${asset.key}:${texture.channel} needs layered texture overlays`).toBeGreaterThanOrEqual(3);
+      }
     }
   });
 
@@ -53,6 +69,30 @@ describe('classic hero 3D assets', () => {
       expect(highAccents.length, `${asset.key} needs crest/halo/head-read accents`).toBeGreaterThanOrEqual(2);
       expect(wideAccents.length, `${asset.key} needs lateral weapon/shoulder silhouette`).toBeGreaterThanOrEqual(4);
       expect(nonBasePolish.length, `${asset.key} needs layered costume and VFX details`).toBeGreaterThanOrEqual(8);
+    }
+  });
+
+  it('keeps V2 polish pieces from occluding the hero body in gameplay camera', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const radius = asset.model.groundRadius;
+      for (const part of asset.model.parts) {
+        const isVerticalPlate = part.kind === 'cape' || part.kind === 'sigil' || part.kind === 'offhand';
+        const frontFacing = part.position[2] <= -0.42;
+        const tall = part.scale[2] > 0.58 || part.scale[1] > 0.9;
+
+        expect(
+          isVerticalPlate && frontFacing && tall,
+          `${asset.key}:${part.name} is too large in front of the silhouette`,
+        ).toBe(false);
+
+        if (part.name === 'painted hero plinth') {
+          expect(part.scale[0], `${asset.key}:${part.name} is too wide for gameplay camera`).toBeLessThanOrEqual(radius * 1.45);
+          expect(part.scale[2], `${asset.key}:${part.name} is too deep for gameplay camera`).toBeLessThanOrEqual(radius * 1.45);
+        }
+        if (part.name === 'back silhouette plate') {
+          expect(part.scale[2], `${asset.key}:${part.name} should read as a trim, not a wall`).toBeLessThanOrEqual(0.46);
+        }
+      }
     }
   });
 

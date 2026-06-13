@@ -13,14 +13,19 @@ import { unitArt, type ArtInput } from '../render/unitArt';
 import { buildUnitModel, type UnitModel } from './unitModel';
 import { hasHero3DAsset, buildHero3DUnitModel } from './hero3dModel';
 import { resourceAssetForUnit, buildResource3DUnitModel, buildResource3DBuilding } from './resource3dModel';
-import type { AnimState } from './pose';
+import { poseFor, type AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D, terrainElevation } from './terrain3d';
 import type { UxFeedback } from '../ui/uxFeedback';
+import { buildCommandQueuePath } from '../render/commandQueuePath';
+import { visualStateFor3D } from './visualState';
+import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
+import { stackedUnitVisualOffset } from './stackOffset';
+import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
 
-interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; }
+interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; statusFx: HeroStatusFxObjects; }
 
 export class Renderer3D {
   readonly s3d: Scene3D;
@@ -46,14 +51,17 @@ export class Renderer3D {
   private tLine!: THREE.Mesh;
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
+  private readonly queueFx: CommandQueue3DObjects;
 
   constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
     this.canvas = this.s3d.canvas;
     this.fx = new Fx3D(this.s3d.scene);
+    this.queueFx = createCommandQueue3DObjects(12);
     // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
     if (camera.zoom < 1.0) camera.zoom = 1.4;
     this.s3d.scene.add(buildTerrain3D(world.map));
+    this.s3d.scene.add(this.queueFx.root);
     this.buildTargeting();
     this.terrainThumb = bakeMiniTerrain(world.map);
 
@@ -112,8 +120,10 @@ export class Renderer3D {
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 1.5;
       model.root.add(ring);
+      const statusFx = createHeroStatusFxObjects();
+      model.root.add(statusFx.root);
       this.s3d.scene.add(model.root);
-      e = { model, phase: 0, lastX: u.pos.x, lastZ: u.pos.y };
+      e = { model, phase: 0, lastX: u.pos.x, lastZ: u.pos.y, statusFx };
       this.models.set(u.id, e);
     }
     return e;
@@ -127,10 +137,11 @@ export class Renderer3D {
     return moved ? 'walk' : 'idle';
   }
 
-  render(world: World, _selectedId: number, ux?: UxFeedback): void {
+  render(world: World, selectedId: number, ux?: UxFeedback): void {
     const now = world.time;
     const t = performance.now() / 1000;
     const seen = new Set<number>();
+    const stackGroups = this.stackGroups(world);
 
     for (const u of world.units.values()) {
       // 建筑:静态模型,置位一次;主基地护盾随无敌显隐
@@ -157,6 +168,13 @@ export class Renderer3D {
       // 插值位置
       const ax = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
       const az = u.prevPos.y + (u.pos.y - u.prevPos.y) * this.alpha;
+      const stack = stackGroups.get(this.stackKey(u.pos.x, u.pos.y));
+      const stackIndex = stack ? stack.indexOf(u.id) : -1;
+      const stackOffset = stack && stackIndex >= 0
+        ? stackedUnitVisualOffset(stackIndex, stack.length, Math.max(18, u.base.collisionRadius * 1.35))
+        : { x: 0, z: 0 };
+      const vx = ax + stackOffset.x;
+      const vz = az + stackOffset.z;
 
       // 走路相位:按本帧实际位移累加
       const dist = Math.hypot(ax - e.lastX, az - e.lastZ);
@@ -172,30 +190,51 @@ export class Renderer3D {
           : 0;
 
       const sink = st === 'death' ? progress : 0;
-      const ey = terrainElevation(world.map, ax, az);
-      m.root.position.set(ax, ey - sink * 26, az);
+      const ey = terrainElevation(world.map, vx, vz);
+      m.root.position.set(vx, ey - sink * 26, vz);
       m.root.rotation.y = -u.facing + Math.PI / 2;
       m.root.visible = u.alive || (now - u.diedAt) < 2;
 
       // 视锥外:跳过动画/染色(纯 CPU 省,画面不变;渲染剔除由 three 自动处理)
-      this.proj.set(ax, ey + 70, az).project(this.s3d.cam);
+      this.proj.set(vx, ey + 70, vz).project(this.s3d.cam);
       const onScreen = this.proj.z < 1
         && this.proj.x > -1.25 && this.proj.x < 1.25
         && this.proj.y > -1.25 && this.proj.y < 1.25;
       if (!onScreen) continue;
 
-      m.applyPose({ state: st, t, phase: e.phase, progress });
+      const s = stateOf(u);
+      const visual = visualStateFor3D({
+        now,
+        lastDamagedAt: u.lastDamagedAt,
+        stunned: !!s.stunned,
+        invisible: !!s.invisible,
+        t,
+      });
+      const poseInput = {
+        state: st,
+        t,
+        phase: e.phase,
+        progress,
+        status: {
+          hit: visual.hitFlash > 0,
+          stunned: visual.stunStars > 0,
+          invisible: visual.opacity < 1,
+        },
+      };
+      m.applyPose(poseInput);
+      const pose = poseFor(poseInput);
+      applyHeroStatusFx(e.statusFx, heroStatusFxState({
+        castGlow: pose.castGlow,
+        channelPulse: pose.channelPulse,
+        stunStars: visual.stunStars,
+        invisibilityAlpha: pose.invisibilityAlpha,
+        t,
+      }));
 
       // 状态视觉:受击闪白 / 眩晕泛光 / 隐身半透(每单位独立材质)
-      const s = stateOf(u);
-      const hit = now - u.lastDamagedAt < 0.12;
-      const lvl = hit ? 0.7 : s.stunned ? 0.3 + 0.15 * Math.sin(t * 12) : 0;
-      const op = s.invisible ? 0.4 : 1;
       for (const mm of m.materials) {
-        if (hit) mm.emissive.setRGB(lvl, lvl, lvl);
-        else if (s.stunned) mm.emissive.setRGB(lvl, lvl * 0.7, 0);
-        else mm.emissive.setRGB(0, 0, 0);
-        if (op < 1) { mm.transparent = true; mm.opacity = op; }
+        mm.emissive.setRGB(...visual.emissive);
+        if (visual.opacity < 1) { mm.transparent = true; mm.opacity = visual.opacity; }
         else if (mm.transparent) { mm.transparent = false; mm.opacity = 1; }
       }
     }
@@ -216,10 +255,34 @@ export class Renderer3D {
 
     this.fx.update(world, performance.now() / 1000);
     this.updateTargeting(world, ux);
+    this.updateCommandQueue(world, selectedId, t);
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
     this.drawBars(world);
+  }
+
+  private stackGroups(world: World): Map<string, number[]> {
+    const groups = new Map<string, number[]>();
+    for (const u of world.units.values()) {
+      if (!u.alive || u.kind === 'tower' || u.kind === 'building') continue;
+      const key = this.stackKey(u.pos.x, u.pos.y);
+      let list = groups.get(key);
+      if (!list) {
+        list = [];
+        groups.set(key, list);
+      }
+      list.push(u.id);
+    }
+    for (const [key, list] of groups) {
+      if (list.length <= 1) groups.delete(key);
+      else list.sort((a, b) => a - b);
+    }
+    return groups;
+  }
+
+  private stackKey(x: number, y: number): string {
+    return `${Math.round(x / 32)}:${Math.round(y / 32)}`;
   }
 
   /** 血条/蓝条:投影单位顶部到屏幕,2D 叠加层绘制(队色血条,英雄含蓝条)。 */
@@ -300,6 +363,19 @@ export class Renderer3D {
       this.tLine.scale.set(len, 1, t.width ?? 80);
       this.tLine.rotation.y = -Math.atan2(dz, dx);
     }
+  }
+
+  private updateCommandQueue(world: World, selectedId: number, t: number): void {
+    const unit = world.getUnit(selectedId);
+    if (!unit?.alive || unit.orderQueue.length === 0) {
+      applyCommandQueue3D(this.queueFx, commandQueue3DState([], { t, elevationAt: () => 0 }));
+      return;
+    }
+    const legs = buildCommandQueuePath(world, unit);
+    applyCommandQueue3D(this.queueFx, commandQueue3DState(legs, {
+      t,
+      elevationAt: (x, z) => terrainElevation(world.map, x, z),
+    }));
   }
 
   /** 屏幕坐标 → 世界坐标(raycast 到地面)。供 InputManager(3D play 模式点击/施法换算)。 */

@@ -15,6 +15,11 @@ export interface AnimInput {
   t: number;        // 渲染时间(秒,连续)
   phase: number;    // 移动相位(累计位移 × 系数)
   progress: number; // 动作进度 0..1(攻击/死亡)
+  status?: {
+    hit?: boolean;
+    stunned?: boolean;
+    invisible?: boolean;
+  };
 }
 
 /** 可被 renderer 染色的材质(Lambert 程序化 / Standard 英雄素材皆有 emissive/opacity)。 */
@@ -51,6 +56,7 @@ function humanoidModel(art: UnitArt): UnitModel {
       p.armL.rotation.x = q.armL;
       p.armR.rotation.x = q.armR + q.weaponSwing;
       p.hips.position.y = p.hipBaseY + q.torsoBob;
+      p.torso.rotation.y = q.torsoTwist;
     },
   };
 }

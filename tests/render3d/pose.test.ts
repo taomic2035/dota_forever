@@ -23,4 +23,26 @@ describe('poseFor(sim 字段→部件变换)', () => {
   it('attack:progress 中段武器挥砍角显著', () => {
     expect(Math.abs(poseFor({ state: 'attack', t: 0, phase: 0, progress: 0.5 }).weaponSwing)).toBeGreaterThan(0.3);
   });
+  it('cast/channel:暴露 V2 发光与脉冲强度', () => {
+    const cast = poseFor({ state: 'cast', t: 0.25, phase: 0, progress: 0.4 });
+    const channelA = poseFor({ state: 'channel', t: 0, phase: 0, progress: 0.4 });
+    const channelB = poseFor({ state: 'channel', t: 0.5, phase: 0, progress: 0.4 });
+
+    expect(cast.castGlow).toBeGreaterThan(0.6);
+    expect(channelA.channelPulse).not.toBeCloseTo(channelB.channelPulse, 4);
+    expect(channelA.channelPulse).toBeGreaterThanOrEqual(0);
+  });
+  it('status:受击/眩晕/隐身输出可渲染的状态姿态', () => {
+    const p = poseFor({
+      state: 'idle',
+      t: 0.33,
+      phase: 0,
+      progress: 0,
+      status: { hit: true, stunned: true, invisible: true },
+    });
+
+    expect(p.hitFlash).toBeGreaterThan(0.5);
+    expect(p.stunOrbit).toBeGreaterThan(0);
+    expect(p.invisibilityAlpha).toBeLessThan(1);
+  });
 });
