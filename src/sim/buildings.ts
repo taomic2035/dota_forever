@@ -124,14 +124,20 @@ function updateAncientProtection(w: World): void {
 export function buildingsSystem(w: World): void {
   // 周期刷新主建筑保护(事件可能在 step 之外产生)
   if (w.tick % 15 === 0) updateAncientProtection(w);
-  // 塔的保护性转火:敌方英雄攻击塔旁本方英雄
+  // 塔的转火仇恨:(a) 英雄直接攻塔 → 该塔立刻打该英雄(dive 仇恨);(b) 敌方英雄攻击塔旁本方英雄 → 附近本方塔保护性转火
   for (const e of w.events) {
     if (e.kind !== 'attack_launched') continue;
     const attacker = w.getUnit(e.unitId);
     const victim = w.getUnit(e.targetId);
-    if (!attacker || !victim) continue;
-    if (!attacker.isHero() || !victim.isHero()) continue;
-    if (attacker.team === victim.team) continue;
+    if (!attacker || !victim || !attacker.isHero() || attacker.team === victim.team) continue;
+    // (a) 英雄攻塔:塔立即锁定该英雄(经典推塔/gank 仇恨,Dive 风险)
+    if (victim.kind === 'tower' && victim.alive) {
+      victim.attackTargetId = attacker.id;
+      victim.windupTargetId = 0;
+      continue;
+    }
+    // (b) 保护性转火:仅当被攻击者为本方英雄
+    if (!victim.isHero()) continue;
     for (const tower of w.units.values()) {
       if (!tower.alive || tower.kind !== 'tower' || tower.team !== victim.team) continue;
       if (V.dist(tower.pos, victim.pos) > TOWER_HERO_DEFENSE_RADIUS) continue;

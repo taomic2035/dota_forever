@@ -9,6 +9,7 @@ import {
   TOWER_STATS, RAX_STATS, FIRST_BLOOD_BOUNTY, respawnTime,
 } from '../data/balance';
 import { Team } from './map';
+import { recalcUnit } from './combat';
 import type { World, WorldSystem } from './world';
 import type { Unit } from './unit';
 
@@ -45,10 +46,19 @@ export function addXp(w: World, u: Unit, amount: number): void {
   const m = u.heroMeta;
   if (!m || !u.alive || amount <= 0) return;
   m.xp += amount;
+  const prevMaxHp = u.calc.maxHp, prevMaxMp = u.calc.maxMp;
+  let leveled = false;
   while (u.level < MAX_LEVEL && m.xp >= XP_TABLE[u.level - 1]) {
     u.level++;
     m.skillPoints++;
     w.emit({ kind: 'hero_level', unitId: u.id, level: u.level });
+    leveled = true;
+  }
+  // 升级即时补血/蓝:当前 HP/MP 增加本次升级带来的上限增量(经典「升级回血」,战斗中升级少死一口)
+  if (leveled) {
+    recalcUnit(u);
+    if (u.calc.maxHp > prevMaxHp) u.hp += u.calc.maxHp - prevMaxHp;
+    if (u.calc.maxMp > prevMaxMp) u.mp += u.calc.maxMp - prevMaxMp;
   }
 }
 

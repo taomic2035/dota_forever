@@ -30,11 +30,11 @@
 - ⏸️ **[A-defer] 首波时机 FIRST_WAVE_TIME=90→0** `balance.ts:104`:经典首波 0:00;影响早期节奏 + 多处测试引用,**暂缓**,与其他 balance 项一并核实回归。
 > balance 相关(A1/A3/A4/A2/A10)集中跑 batchsim 复验。
 
-### 批次 B — 中等体量修复
-- **[B1] 劈砍以原始攻击值为基数** `abilities.ts:286`:cleave 用主目标**经护甲后** `dealt` 应改用前摇掷骰的**原始伤害**;`attackHitHooks` 加 `rawAmount` 参数。
-- **[B2] 远程攻击前摇不因目标超距取消** `combat.ts:278`:远程在 attackPoint 已发弹道不可取消;仅近战要求落地在距离内。
-- **[B3] 升级即时补 HP/MP** `economy.ts:49`:升级 maxHp 增但当前 hp 不补;应每级补 `Δstr×19`/`Δint×13`(战斗中升级的"免费血")。
-- **[B4] 英雄攻塔→塔转火该英雄** `buildings.ts:127`:仅监听"敌英雄打己方英雄";英雄直接攻塔时塔应立即切火(dive 仇恨)。
+### 批次 B — 中等体量修复(B3/B4 ✅ 已完成 2026-06-13)
+- **[B1] 劈砍以原始攻击值为基数** `abilities.ts:286`:cleave 用主目标**经护甲后** `dealt` 应改用前摇掷骰的**原始伤害**;`attackHitHooks` 加 `rawAmount` 参数。(待做)
+- **[B2] 远程攻击前摇不因目标超距取消** `combat.ts:278`:语义存疑(经典前摇期超距亦取消),**降级复核**后再定。
+- ✅ **[B3] 升级即时补 HP/MP** `economy.addXp`:升级前记 maxHp/maxMp,升级后 recalcUnit 取正增量加到当前 hp/mp(战斗中升级的"免费血")。
+- ✅ **[B4] 英雄攻塔→塔转火该英雄** `buildings.buildingsSystem`:新增分支,敌方英雄直接攻塔时该塔立即锁定攻击者(dive 仇恨)。
 - **[B5] 法球/UAM 互斥** `abilities.ts:263`:多 `orbOnHit` 英雄(batch5/7/16)全部触发;一次攻击只应触发一个法球。
 - **[B6] Pipe 护盾仅挡魔法** `combat.ts:133`:护盾无类型区分;Pipe 应仅吸魔法,Lotus/Eternal 全类型(需护盾加 type 标记)。
 - **[B7] Orchid/Bloodthorn Soul Burn** `items.ts:678/1234`:沉默到期应爆发"期间承魔法伤害×?%"纯伤;modifier onExpire 累计。
