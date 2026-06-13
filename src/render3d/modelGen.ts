@@ -10,6 +10,14 @@ function geo(w: number, h: number, d: number): THREE.BoxGeometry {
   return g;
 }
 
+const coneCache = new Map<string, THREE.ConeGeometry>();
+function coneGeo(r: number, h: number, seg = 6): THREE.ConeGeometry {
+  const k = `${r.toFixed(1)}x${h.toFixed(1)}x${seg}`;
+  let g = coneCache.get(k);
+  if (!g) { g = new THREE.ConeGeometry(r, h, seg); coneCache.set(k, g); }
+  return g;
+}
+
 export interface HumanoidParts {
   root: THREE.Group;
   hips: THREE.Group;
@@ -32,6 +40,11 @@ export function buildHumanoid(spec: HumanoidSpec): HumanoidParts {
   };
   const box = (w: number, h: number, d: number, color: string): THREE.Mesh => {
     const m = new THREE.Mesh(geo(w, h, d), mat(color));
+    m.castShadow = true;
+    return m;
+  };
+  const cone = (r: number, h: number, seg: number, color: string): THREE.Mesh => {
+    const m = new THREE.Mesh(coneGeo(r, h, seg), mat(color));
     m.castShadow = true;
     return m;
   };
@@ -59,6 +72,38 @@ export function buildHumanoid(spec: HumanoidSpec): HumanoidParts {
   crest.position.set(0, spec.torso.h * 0.62, spec.torso.d / 2 + 1);
   torso.add(crest);
 
+  // 头饰(角色化剪影:角/冠/法帽/兜帽/头盔)
+  const headTop = spec.torso.h + 4 + spec.head.h;
+  const hw = spec.head.w;
+  if (spec.headGear === 'horns') {
+    for (const sx of [-1, 1]) {
+      const horn = cone(3.5, 12, 5, spec.accent);
+      horn.position.set(sx * hw * 0.4, headTop - 2, 0);
+      horn.rotation.z = sx * -0.5;
+      torso.add(horn);
+    }
+  } else if (spec.headGear === 'crown') {
+    const band = box(hw + 3, 3, hw + 3, spec.accent);
+    band.position.y = headTop - 1; torso.add(band);
+    for (const a of [-1, 0, 1]) {
+      const spike = cone(2, 7, 4, spec.accent);
+      spike.position.set(a * hw * 0.34, headTop + 3, 0);
+      torso.add(spike);
+    }
+  } else if (spec.headGear === 'hat') {
+    const hat = cone(hw * 0.7, 20, 6, spec.accent);
+    hat.position.y = headTop + 8; torso.add(hat);
+  } else if (spec.headGear === 'hood') {
+    const hood = box(hw + 4, spec.head.h + 4, spec.head.d + 4, spec.accent);
+    hood.position.set(0, spec.torso.h + 4 + spec.head.h / 2 + 1, -1);
+    torso.add(hood);
+  } else if (spec.headGear === 'helm') {
+    const helm = box(hw + 3, spec.head.h * 0.7, spec.head.d + 3, spec.accent);
+    helm.position.y = headTop - spec.head.h * 0.3; torso.add(helm);
+    const fin = box(2, 7, spec.head.d + 5, spec.accent);
+    fin.position.y = headTop + 2; torso.add(fin);
+  }
+
   const mkArm = (sign: number): THREE.Group => {
     const g = new THREE.Group();
     g.position.set(sign * (spec.torso.w / 2 + spec.arm.w / 2), spec.torso.h, 0);
@@ -73,6 +118,22 @@ export function buildHumanoid(spec: HumanoidSpec): HumanoidParts {
   };
   const armL = mkArm(-1);
   const armR = mkArm(1);
+
+  // 肩甲(魁梧/部分英雄)
+  if (spec.hasShoulders) {
+    for (const sx of [-1, 1]) {
+      const pad = box(spec.arm.w + 6, 6, spec.torso.d + 4, spec.accent);
+      pad.position.set(sx * (spec.torso.w / 2 + 1), spec.torso.h - 2, 0);
+      torso.add(pad);
+    }
+  }
+  // 背披风(法系/辅助/刺客/部分英雄)
+  if (spec.hasCape) {
+    const cape = box(spec.torso.w + 2, spec.torso.h + spec.leg.h * 0.6, 2.5, spec.accent);
+    cape.position.set(0, spec.torso.h * 0.4, -spec.torso.d / 2 - 2);
+    cape.rotation.x = -0.08;
+    torso.add(cape);
+  }
 
   if (spec.weapon.kind !== 'none' && spec.weapon.length > 0) {
     const w = box(3.5, spec.weapon.length, 3.5, spec.weapon.color);
