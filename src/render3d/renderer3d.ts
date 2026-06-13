@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import type { World } from '../sim/world';
+import type { GameMap } from '../sim/map';
 import type { Unit } from '../sim/unit';
 import type { Camera } from '../render/camera';
 import { stateOf } from '../sim/combat';
@@ -43,6 +44,8 @@ export class Renderer3D {
   private tAoe!: THREE.Mesh;
   private tAoeRing!: THREE.Mesh;
   private tLine!: THREE.Mesh;
+  /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
+  private terrainThumb: HTMLCanvasElement;
 
   constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
@@ -52,6 +55,7 @@ export class Renderer3D {
     if (camera.zoom < 1.0) camera.zoom = 1.4;
     this.s3d.scene.add(buildTerrain3D(world.map));
     this.buildTargeting();
+    this.terrainThumb = bakeMiniTerrain(world.map);
 
     this.overlay = document.createElement('canvas');
     this.overlay.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:5;';
@@ -69,8 +73,8 @@ export class Renderer3D {
 
   private readonly TEAM = ['#52d869', '#ef5350'];
 
-  /** minimap 在 3D 下 V1 不接入;提供占位 world 尺寸。 */
-  get terrain() { return { width: 15040, height: 15040 }; }
+  /** 供 MiniMap 烘缩略图(canvas;与 2D Renderer.terrain 接口一致)。 */
+  get terrain(): HTMLCanvasElement { return this.terrainThumb; }
 
   private artInput(u: Unit): ArtInput {
     return {
@@ -309,4 +313,23 @@ export class Renderer3D {
     const ok = this.ray.ray.intersectPlane(this.ground, hit);
     return ok ? { x: hit.x, y: hit.z } : { x: this.camera.pos.x, y: this.camera.pos.y };
   }
+}
+
+/** 烘焙小地图地形缩略图(俯视:河/平地/高台 + 树),供 MiniMap 在 3D 下绘制背景。 */
+function bakeMiniTerrain(map: GameMap): HTMLCanvasElement {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = N; c.height = N;
+  const ctx = c.getContext('2d')!;
+  const cw = N / map.GW;
+  for (let cy = 0; cy < map.GH; cy++) {
+    for (let cx = 0; cx < map.GW; cx++) {
+      const h = map.height[map.cellIndex(cx, cy)];
+      let col = h === 0 ? '#244a58' : h === 2 ? '#47592c' : '#33421f';
+      if (map.trees.has(map.cellIndex(cx, cy))) col = '#1e3015';
+      ctx.fillStyle = col;
+      ctx.fillRect(cx * cw, cy * cw, cw + 1, cw + 1);
+    }
+  }
+  return c;
 }

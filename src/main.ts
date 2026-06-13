@@ -157,7 +157,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
   const commandCursor = new CommandCursor(app);
-  const minimap = use3d ? null : new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
+  // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
+  const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
     ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
   });
   const audio = new AudioDirector();
