@@ -1,5 +1,6 @@
 /** 主菜单与英雄选择(通过 URL 参数启动对局,无内部状态)。 */
 import { HEROES } from '../data/heroes';
+import { abilityIconSvg } from './abilityIconSvg';
 import {
   ABILITY_CAST_SLOT_COUNT,
   ITEM_CAST_SLOT_COUNT,
@@ -53,6 +54,7 @@ export function showMenu(parent: HTMLElement): void {
         <div style="font-size:34px;color:${h.color}">${h.glyph}</div>
         <div style="font-weight:700;margin-top:6px">${h.name}<span style="color:#9a8;font-size:11px"> · ${h.title}</span></div>
         <div style="font-size:11px;color:#aab;margin-top:3px">${h.primary === 'str' ? '力量' : h.primary === 'agi' ? '敏捷' : '智力'} · ${ROLE_NAME[h.aiRole]}</div>
+        <div style="display:flex;gap:5px;justify-content:center;margin-top:7px">${h.abilities.map((a) => abilityIconSvg(a, 22)).join('')}</div>
       </div>`;
     }).join('');
     root.innerHTML = `${title}
