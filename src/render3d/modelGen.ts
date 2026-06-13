@@ -28,13 +28,13 @@ export interface HumanoidParts {
   armR: THREE.Group;
   hipBaseY: number;
   /** 本单位所有材质(供 renderer 做受击闪白/眩晕/隐身染色)。 */
-  materials: THREE.MeshLambertMaterial[];
+  materials: THREE.MeshStandardMaterial[];
 }
 
 export function buildHumanoid(spec: HumanoidSpec): HumanoidParts {
-  const mats: THREE.MeshLambertMaterial[] = [];
-  const mat = (color: string): THREE.MeshLambertMaterial => {
-    const m = new THREE.MeshLambertMaterial({ color });
+  const mats: THREE.MeshStandardMaterial[] = [];
+  const mat = (color: string): THREE.MeshStandardMaterial => {
+    const m = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.05, flatShading: true });
     mats.push(m);
     return m;
   };
