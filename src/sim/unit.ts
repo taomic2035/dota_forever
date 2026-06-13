@@ -125,6 +125,8 @@ export class Unit {
   /** 建筑专属 */
   buildingKind?: BuildingKind;
   lane?: Lane;
+  /** 后门保护激活中(无攻方小兵在侧):建筑受击减伤 + 快速回血。由 buildingsSystem 每帧批量更新。 */
+  backdoorProtected = false;
   /** 英雄专属经济/成长状态 */
   heroMeta?: HeroMeta;
   /** 野怪营地归属与驻留点 */

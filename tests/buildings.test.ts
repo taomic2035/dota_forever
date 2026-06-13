@@ -84,4 +84,23 @@ describe('buildings', () => {
     for (let i = 0; i < 300 && enemy.alive; i++) w.step();
     expect(enemy.alive).toBe(false);
   });
+
+  it('后门保护:无攻方小兵在侧时 T3 受击减伤,有兵在侧则全额', () => {
+    const t3 = unitsBy((u) => u.team === Team.Dawn && u.buildingKind === 'tower3')[0];
+    for (let i = 0; i < 12; i++) w.step(); // 无敌方小兵 → 进入后门保护
+    expect(t3.backdoorProtected).toBe(true);
+    const dealtProtected = applyDamage(w, t3, { source: 0, attackType: 'hero', amount: 100 });
+    // 放敌方(夜魇)小兵在塔旁 → 解除保护
+    w.spawnUnit({ kind: 'creep', team: Team.Night, pos: { x: t3.pos.x + 120, y: t3.pos.y }, name: 'c', stats: stats({ maxHp: 800, dmgMin: 0, dmgMax: 0 }) });
+    for (let i = 0; i < 12; i++) w.step();
+    expect(t3.backdoorProtected).toBe(false);
+    const dealtOpen = applyDamage(w, t3, { source: 0, attackType: 'hero', amount: 100 });
+    expect(dealtOpen).toBeGreaterThan(dealtProtected); // 有兵在侧伤害更高(无后门减伤)
+  });
+
+  it('后门保护不及 T1(可被后门拆)', () => {
+    const t1 = unitsBy((u) => u.team === Team.Dawn && u.buildingKind === 'tower1')[0];
+    for (let i = 0; i < 12; i++) w.step();
+    expect(t1.backdoorProtected).toBe(false); // T1 永不享后门保护
+  });
 });

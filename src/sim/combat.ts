@@ -6,7 +6,7 @@ import { V } from '../core/vec2';
 import { turnTowards } from '../core/mathx';
 import {
   DAMAGE_MATRIX, armorReduction, MAX_IAS_BONUS, TURN_RATE,
-  UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT, MAGIC_RESIST_CAP,
+  UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT, MAGIC_RESIST_CAP, BACKDOOR_DAMAGE_FACTOR,
   type AttackType,
 } from '../data/balance';
 import type { World } from './world';
@@ -139,6 +139,8 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
   }
   // 通用承伤减免(棘背魔/壁垒等)
   if (target.calc.incomingDamageReduction > 0) amount *= 1 - target.calc.incomingDamageReduction;
+  // 后门保护:无攻方小兵在侧时建筑受击减伤(惩罚无兵推塔;buildingsSystem 另含快速回血)
+  if (target.backdoorProtected) amount *= BACKDOOR_DAMAGE_FACTOR;
   // 幻象受伤翻倍
   if (target.kind === 'illusion') amount *= target.illuIncoming;
 

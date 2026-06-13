@@ -130,6 +130,10 @@ export const TOWER_STATS = {
 };
 export const TOWER_VISION = 1900;
 export const TOWER_TRUE_SIGHT = 900;
+// 后门保护(经典 DotA1):无攻方小兵在 BACKDOOR_RADIUS 内时,T3/T4/兵营/主基地受击减伤 + 快速回血。
+export const BACKDOOR_RADIUS = 900;
+export const BACKDOOR_DAMAGE_FACTOR = 0.4;     // 保护时受伤 ×0.4
+export const BACKDOOR_REGEN_PCT_PER_SEC = 0.06; // 保护且受损时每秒回 6% 最大血(快速自愈,惩罚无兵推塔)
 // 摧毁兵营:奖励既是该路超级兵,亦给击杀方全队固定团队金(经典 DotA1,两者并存)。
 export const RAX_STATS = {
   melee:  { hp: 1500, armor: 12, teamGold: 100 },

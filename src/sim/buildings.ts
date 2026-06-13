@@ -6,13 +6,16 @@ import { V } from '../core/vec2';
 import {
   TOWER_STATS, RAX_STATS, ANCIENT_STATS, FOUNTAIN_STATS,
   TOWER_VISION, TOWER_TRUE_SIGHT, FOUNTAIN_AURA_RADIUS, TOWER_HERO_DEFENSE_RADIUS,
-  UNIT_RADIUS,
+  UNIT_RADIUS, BACKDOOR_RADIUS, BACKDOOR_REGEN_PCT_PER_SEC,
 } from '../data/balance';
 import type { BuildingKind } from '../data/mapLayout';
 import { Team } from './map';
 import { applyModifier } from './modifiers';
 import type { World } from './world';
 import type { Unit, UnitStats } from './unit';
+
+/** 享有后门保护的建筑(经典:T3/T4 高台塔、兵营、主基地;T1/T2 可被后门拆)。 */
+const BACKDOOR_BUILDINGS = new Set<BuildingKind>(['tower3', 'tower4', 'rax_melee', 'rax_ranged', 'ancient']);
 
 function towerTier(kind: BuildingKind): 't1' | 't2' | 't3' | 't4' | null {
   switch (kind) {
@@ -155,6 +158,21 @@ export function buildingsSystem(w: World): void {
       for (const ally of w.queryRadius(f.pos, FOUNTAIN_AURA_RADIUS, (u) => u.team === f.team && !u.isBuilding())) {
         ally.hp = Math.min(ally.calc.maxHp, ally.hp + ally.calc.maxHp * FOUNTAIN_STATS.hpRegenPct * dt6);
         ally.mp = Math.min(ally.calc.maxMp, ally.mp + ally.calc.maxMp * FOUNTAIN_STATS.mpRegenPct * dt6);
+      }
+    }
+  }
+
+  // 后门保护:无攻方小兵在侧 → T3/T4/兵营/主基地受击减伤(applyDamage 读 backdoorProtected)+ 快速回血
+  if (w.tick % 6 === 0) {
+    const dt6 = w.dt * 6;
+    for (const b of w.units.values()) {
+      if (!b.alive || !b.buildingKind) continue;
+      if (!BACKDOOR_BUILDINGS.has(b.buildingKind)) { b.backdoorProtected = false; continue; }
+      const enemyCreepNear = w.queryRadius(b.pos, BACKDOOR_RADIUS,
+        (u) => u.alive && u.kind === 'creep' && u.team !== b.team).length > 0;
+      b.backdoorProtected = !enemyCreepNear;
+      if (b.backdoorProtected && b.hp < b.calc.maxHp) {
+        b.hp = Math.min(b.calc.maxHp, b.hp + b.calc.maxHp * BACKDOOR_REGEN_PCT_PER_SEC * dt6);
       }
     }
   }
