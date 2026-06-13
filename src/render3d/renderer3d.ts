@@ -9,15 +9,14 @@ import type { Unit } from '../sim/unit';
 import type { Camera } from '../render/camera';
 import { stateOf } from '../sim/combat';
 import { unitArt, type ArtInput } from '../render/unitArt';
-import { humanoidSpec } from './modelParts';
-import { buildHumanoid, type HumanoidParts } from './modelGen';
-import { poseFor, type AnimState } from './pose';
+import { buildUnitModel, type UnitModel } from './unitModel';
+import type { AnimState } from './pose';
 import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D } from './terrain3d';
 
-interface ModelEntry { parts: HumanoidParts; phase: number; lastX: number; lastZ: number; }
+interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; }
 
 export class Renderer3D {
   readonly s3d: Scene3D;
@@ -79,18 +78,19 @@ export class Renderer3D {
   private ensureModel(u: Unit): ModelEntry {
     let e = this.models.get(u.id);
     if (!e) {
-      const parts = buildHumanoid(humanoidSpec(unitArt(this.artInput(u))));
-      // 贴地队色选取环
+      const model = buildUnitModel(unitArt(this.artInput(u)));
+      // 贴地队色选取环(守卫等极小碰撞半径给个可见下限)
+      const rr = Math.max(14, u.base.collisionRadius);
       const ringColor = this.TEAM[u.team] ?? '#bdbdbd';
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(u.base.collisionRadius * 0.9, u.base.collisionRadius * 1.25, 20),
+        new THREE.RingGeometry(rr * 0.9, rr * 1.25, 20),
         new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 1.5;
-      parts.root.add(ring);
-      this.s3d.scene.add(parts.root);
-      e = { parts, phase: 0, lastX: u.pos.x, lastZ: u.pos.y };
+      model.root.add(ring);
+      this.s3d.scene.add(model.root);
+      e = { model, phase: 0, lastX: u.pos.x, lastZ: u.pos.y };
       this.models.set(u.id, e);
     }
     return e;
@@ -110,7 +110,6 @@ export class Renderer3D {
     const seen = new Set<number>();
 
     for (const u of world.units.values()) {
-      if (u.kind === 'ward') continue; // 守卫 V3 后续
       // 建筑:静态模型,置位一次;主基地护盾随无敌显隐
       if (u.kind === 'tower' || u.kind === 'building') {
         seen.add(u.id);
@@ -129,7 +128,7 @@ export class Renderer3D {
       }
       seen.add(u.id);
       const e = this.ensureModel(u);
-      const m = e.parts;
+      const m = e.model;
 
       // 插值位置
       const ax = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
@@ -147,14 +146,10 @@ export class Renderer3D {
         : st === 'death'
           ? Math.min(1, (now - u.diedAt) / 0.4)
           : 0;
-      const p = poseFor({ state: st, t, phase: e.phase, progress });
+      m.applyPose({ state: st, t, phase: e.phase, progress });
 
-      m.legL.rotation.x = p.legL;
-      m.legR.rotation.x = p.legR;
-      m.armL.rotation.x = p.armL;
-      m.armR.rotation.x = p.armR + p.weaponSwing;
-      m.hips.position.y = m.hipBaseY + p.torsoBob;
-      m.root.position.set(ax, -p.rootSink * 22, az);
+      const sink = st === 'death' ? progress : 0;
+      m.root.position.set(ax, -sink * 26, az);
       m.root.rotation.y = -u.facing + Math.PI / 2;
       m.root.visible = u.alive || (now - u.diedAt) < 2;
 
@@ -175,7 +170,7 @@ export class Renderer3D {
     // 回收消失单位的模型
     for (const [id, e] of this.models) {
       if (!seen.has(id)) {
-        this.s3d.scene.remove(e.parts.root);
+        this.s3d.scene.remove(e.model.root);
         this.models.delete(id);
       }
     }
