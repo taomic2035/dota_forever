@@ -58,17 +58,23 @@ export function showMenu(parent: HTMLElement): void {
       </div>`;
     }).join('');
     root.innerHTML = `${title}
-      <div style="font-size:17px;color:#cfd8a0;margin-bottom:14px">选择你的英雄(悬停查看技能)</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-content:flex-start;max-width:900px;max-height:62vh;overflow-y:auto;padding:4px">${cards}</div>
-      <div style="display:flex;gap:14px;margin-top:22px">
+      <div style="font-size:17px;color:#cfd8a0;margin-bottom:12px">选择你的英雄</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-content:flex-start;max-width:900px;max-height:48vh;overflow-y:auto;padding:4px">${cards}</div>
+      <div id="hero-detail" style="width:min(880px,calc(100vw - 40px));min-height:120px;margin-top:12px;padding:12px 16px;background:#0c0f08e0;border:1px solid #3a4428;border-radius:10px;text-align:left">${heroDetailHtml(HEROES[0])}</div>
+      <div style="display:flex;gap:14px;margin-top:16px">
         <button id="btn-random" style="${btnCss('#3a3422', '#ffd54f')}">随机英雄</button>
         <button id="btn-back" style="${btnCss('#222', '#999')}">返回</button>
       </div>`;
+    const detail = root.querySelector('#hero-detail') as HTMLElement;
     root.querySelectorAll('.hero-card').forEach((el) => {
       el.addEventListener('click', () => {
         location.search = `?mode=play&hero=${(el as HTMLElement).dataset.key}`;
       });
-      el.addEventListener('mouseenter', () => { (el as HTMLElement).style.transform = 'scale(1.06)'; });
+      el.addEventListener('mouseenter', () => {
+        (el as HTMLElement).style.transform = 'scale(1.06)';
+        const h = HEROES.find((x) => x.key === (el as HTMLElement).dataset.key);
+        if (h) detail.innerHTML = heroDetailHtml(h);
+      });
       el.addEventListener('mouseleave', () => { (el as HTMLElement).style.transform = ''; });
     });
     root.querySelector('#btn-random')!.addEventListener('click', () => {
@@ -79,6 +85,26 @@ export function showMenu(parent: HTMLElement): void {
   };
 
   home();
+}
+
+const PICK_HOTKEYS = ['Q', 'W', 'E', 'R'];
+/** 英雄选择详情面板:4 技能(图标+热键+名+CD/法力/类型+描述)。 */
+function heroDetailHtml(h: (typeof HEROES)[number]): string {
+  const abis = h.abilities.map((a, i) => {
+    const cd = a.cooldown?.[0];
+    const mp = a.manaCost?.[0];
+    const meta = [a.ultimate ? '大招' : a.targetMode === 'passive' ? '被动' : '', cd ? `CD ${cd}s` : '', mp ? `${mp} 法力` : '']
+      .filter(Boolean).join(' · ');
+    return `<div style="display:flex;gap:8px;align-items:flex-start">
+      <div style="flex:none;margin-top:1px">${abilityIconSvg(a, 26)}</div>
+      <div style="min-width:0">
+        <div style="font-weight:700;color:#e8e2c8;font-size:12px">${PICK_HOTKEYS[i]} · ${a.name}${meta ? ` <span style="color:#8a9;font-weight:400;font-size:10px">${meta}</span>` : ''}</div>
+        <div style="font-size:11px;color:#aab;line-height:1.35">${a.description}</div>
+      </div></div>`;
+  }).join('');
+  const prim = h.primary === 'str' ? '力量' : h.primary === 'agi' ? '敏捷' : '智力';
+  return `<div style="font-weight:700;color:${h.color};margin-bottom:6px">${h.name} · ${h.title} <span style="color:#9a8;font-weight:400;font-size:12px">(${prim} · ${ROLE_NAME[h.aiRole]})</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 24px">${abis}</div>`;
 }
 
 function btnCss(bg: string, color: string): string {
