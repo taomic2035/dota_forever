@@ -30,8 +30,9 @@ export class MiniMap {
     this.root = document.createElement('canvas');
     this.root.width = SIZE;
     this.root.height = SIZE;
+    // 抬到底部 HUD 栏之上(右下角),避免与背包/技能栏重叠(HUD 栏高 172px)
     this.root.style.cssText =
-      'position:fixed;right:8px;bottom:8px;border:1px solid #3a4428;border-radius:8px;z-index:20;cursor:crosshair;';
+      'position:fixed;right:8px;bottom:180px;border:1px solid #3a4428;border-radius:8px;z-index:20;cursor:crosshair;';
     parent.appendChild(this.root);
     this.ctx = this.root.getContext('2d')!;
 
