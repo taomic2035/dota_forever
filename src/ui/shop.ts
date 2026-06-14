@@ -80,7 +80,7 @@ export class ShopPanel {
       b.textContent = c.label;
       b.style.cssText = `padding:3px 10px;border-radius:5px;border:1px solid #3a4428;cursor:pointer;font-size:12px;
         background:${this.cat === c.key ? '#3a4428' : '#1a2012'};color:#e8e2c8;`;
-      b.onclick = () => { this.cat = c.key as ItemCategory; this.lastRender = 0; this.render(w, hero); };
+      b.onmousedown = () => { this.cat = c.key as ItemCategory; this.lastRender = 0; this.render(w, hero); };
       tabs.appendChild(b);
     }
 
@@ -126,7 +126,7 @@ export class ShopPanel {
       const btn = document.createElement('button');
       btn.textContent = '取回';
       btn.style.cssText = 'font-size:11px;padding:1px 8px;border-radius:4px;border:1px solid #3a4428;background:#1a2012;color:#cfd8a0;cursor:pointer;';
-      btn.onclick = () => {
+      btn.onmousedown = () => {
         if (takeFromStash(w, hero, i)) this.showToast('已取回');
         else this.showToast('需在基地且背包有空位');
         this.lastRender = 0;
