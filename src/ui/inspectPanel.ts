@@ -1,12 +1,13 @@
 /**
  * 选中信息卡:左键选中"非受控单位"(敌方英雄/小兵/野怪/建筑/友军)时,
- * 在左侧显示其名称/类型/血蓝/核心面板。受控英雄由底部 HUD 展示,这里不重复。
- * 纯展示,读 ux.selectedUnitId;每帧节流(关键数值未变不重绘)。
+ * 在左侧显示其名称/类型/血蓝/核心面板 + buff/debuff 状态条。受控英雄由底部 HUD 展示,这里不重复。
+ * 纯展示,读 ux.selectedUnitId;每帧重绘(面板小)以保证状态倒计时实时。
  */
 import type { World } from '../sim/world';
 import type { Unit, UnitKind } from '../sim/unit';
 import type { UxFeedback } from './uxFeedback';
 import { TEAM_COLOR } from '../render/renderer';
+import { statusChips, statusChipTime } from '../render/statusChips';
 
 const KIND_LABEL: Record<UnitKind, string> = {
   hero: '英雄',
@@ -22,7 +23,6 @@ const KIND_LABEL: Record<UnitKind, string> = {
 
 export class InspectPanel {
   root: HTMLElement;
-  private sig = '';
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -42,21 +42,15 @@ export class InspectPanel {
     const sel = id ? world.getUnit(id) : undefined;
     // 仅在选中"存活的非受控单位"时显示
     if (!sel || !sel.alive || (hero && sel.id === hero.id)) {
-      if (this.root.style.display !== 'none') {
-        this.root.style.display = 'none';
-        this.sig = '';
-      }
+      if (this.root.style.display !== 'none') this.root.style.display = 'none';
       return;
     }
     this.root.style.display = 'block';
-    // 节流:同一单位且关键数值未变则跳过 innerHTML 重排
-    const next = `${sel.id}|${Math.round(sel.hp)}|${Math.round(sel.mp)}|${sel.level}|${Math.round(sel.calc.armor * 10)}`;
-    if (next === this.sig) return;
-    this.sig = next;
-    this.root.innerHTML = this.markup(hero, sel);
+    // 每帧重绘(面板小、仅选中非受控单位时显示),让状态条倒计时实时跳动,与 HUD 同策略
+    this.root.innerHTML = this.markup(world, hero, sel);
   }
 
-  private markup(hero: Unit | undefined, u: Unit): string {
+  private markup(world: World, hero: Unit | undefined, u: Unit): string {
     const accent = TEAM_COLOR[u.team] ?? '#bdbdbd';
     const rel = hero ? (u.team === hero.team ? '友军' : '敌方') : '';
     const kind = KIND_LABEL[u.kind] ?? '单位';
@@ -71,12 +65,20 @@ export class InspectPanel {
       this.stat('移速', String(Math.round(c.moveSpeed))),
       this.stat('攻击距离', String(Math.round(c.attackRange))),
     ].join('');
+    // 状态条:选中单位当前 buff/debuff(晕/沉/减益/增益 + 倒计时),与 HUD 共用 statusChips
+    const chips = statusChips(world, u, world.time, 8);
+    const statusRow = chips.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px">${chips.map((cp) =>
+          `<span title="${cp.key}" style="display:inline-flex;align-items:center;height:15px;padding:0 3px;border:1px solid ${cp.color};border-radius:2px;background:${cp.color}22;color:${cp.color};font-size:9px;font-weight:700">${cp.tag}${statusChipTime(cp.remaining)}</span>`,
+        ).join('')}</div>`
+      : '';
     return [
       `<div style="font-weight:600;font-size:13px;border-left:3px solid ${accent};padding-left:6px;margin-bottom:2px">${esc(u.name)}</div>`,
       `<div style="color:#9aa07e;font-size:11px;padding-left:9px;margin-bottom:6px">${sub}</div>`,
       this.meter(u.hp, hpMax, '#4caf50', '#1f6b2b', `${Math.round(u.hp)} / ${Math.round(hpMax)}`),
       mpMax > 0 ? this.meter(u.mp, mpMax, '#42a5f5', '#14569a', `${Math.round(u.mp)} / ${Math.round(mpMax)}`) : '',
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;margin-top:6px">${rows}</div>`,
+      statusRow,
     ].join('');
   }
 
