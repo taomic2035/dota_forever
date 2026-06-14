@@ -426,6 +426,29 @@ Dota 的 UI/操控核心不是单个按钮,而是一套高压战斗下的闭环:
 - 键鼠脚本:验证对应热键不会被 DOM 焦点、canvas、pause menu 冲掉。
 - 文档:更新本文件或新增对应 summary,记录完成项和剩余项。
 
+## 实现进度更新 (2026-06-14)
+
+「等 GPT 视觉版 / 持续完善基础机制 + 操控体验」指令下,按本文件路线图推进。已完成项(均 tsc 0 + 3D 实机端到端验证 + 全量 1254 测试绿):
+
+**P0 Dota-like 操控闭环**:
+- ✅ #1 Shift-queue:经核查早已完整接入(input.ts 全程传 `queued: e.shiftKey` → issueHeroOrder 在 queued 时走 `hero.queueOrder`;sim queueOrder/advanceOrder;2D drawCommandQueuePath + 3D updateCommandQueue/queueFx 可视化)。本文件原「输入层未接入」结论已过时。
+- ✅ #4 Hover 高亮 `9ef1c49`:onPointerMove 用 `sim/pick.pickUnitAt`(受迷雾约束、英雄优先)算悬停单位写 `ux.hoverUnitId`;2D drawUnit + 3D hovRing 画敌红/友绿/中立黄轮廓(右键预期反馈)。
+- ✅ #5 选择信息面板 `326cf4f`:左键 `pickUnitAt` 选中最近可见单位(点空地回受控英雄,永不丢失自己);`ux.selectedUnitId` 驱动 2D 绿椭圆 / 3D selRing 选中环 + 左侧 `ui/inspectPanel` 信息卡(名称/类型/等级/血蓝/攻击/护甲/魔抗/移速/攻击距离);开局默认选英雄,目标死亡/进雾自动回退。
+- ⏳ #2 完整 key rebinding(较大,待队列语义稳定后)/ #3 double-tap self-cast(较小):未做。
+
+**P1 HUD/商店/小地图定版**:
+- ✅ HUD #1 状态条:`render/statusPips.unitStatusPips` 共享纯函数(控制红>敌减益橙>增益绿,去重/控制优先/时长比例),2D drawStatusStrip 改用之 + 3D drawBars 头顶补 buff/debuff 状态点 `64f7002`。
+- ✅ 商店遮挡:商店 bottom 120→420,抬到右下角小地图(bottom180+SIZE232=412)之上,杜绝遮挡 `c1adde9`。
+- ✅ Minimap #1 3D 接入:此前会话已恢复(main.ts `new MiniMap` 无条件创建,2D/3D 均启用)。本文件原「3D 无小地图」结论已过时。
+- ⏳ Shop v2 / Inventory v2 / Minimap 右键命令:未做。
+
+**§10 音频反馈**:
+- ✅ 背景乐(此前会话,A 小调氛围 pad)+ 本次指令音/拒绝音 `a8a4020`:AudioDirector.command(移动柔/攻击脆,80ms 限频)/ reject(下行错误声,130ms 限频);issueHeroOrder 播确认音、showReject 播拒绝音。全程序化零样本。
+
+**新增可测纯函数**:`sim/pick.pickUnitAt`(4 测)、`render/statusPips.unitStatusPips`(4 测)、`ui/uxFeedback` 选择/悬停状态(+1 测)。
+
+剩余高价值项(下阶段候选,无 GPT 依赖):P0#3 double-tap self-cast、HUD 玩家英雄 buff/debuff 行(可复用 unitStatusPips)、inspectPanel 状态行、P0#2 key rebinding、P2 多单位/控制组/信使操控。
+
 ## 收敛检查
 
 1. 否决理由 -> ADR? 没有。本次是审计清单,没有否决技术方案。
