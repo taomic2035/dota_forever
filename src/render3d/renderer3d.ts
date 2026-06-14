@@ -61,8 +61,9 @@ export class Renderer3D {
     this.canvas = this.s3d.canvas;
     this.fx = new Fx3D(this.s3d.scene);
     this.queueFx = createCommandQueue3DObjects(12);
-    // 3D 透视下默认拉近一档(2D 俯视的 0.55 在 3D 里偏远)
-    if (camera.zoom < 1.0) camera.zoom = 1.4;
+    // 3D 默认视野:拉远到可看清英雄 + 周边战场(MOBA 可玩视野 ~1100 世界单位宽)。
+    // 旧值 1.4 过近(仅 ~470 宽,英雄占满屏看不到战场);改 0.62 配合更俯的视角与放大的模型。
+    if (camera.zoom < 1.0) camera.zoom = 0.62;
     this.s3d.scene.add(buildTerrain3D(world.map));
     this.s3d.scene.add(this.queueFx.root);
     this.buildTargeting();

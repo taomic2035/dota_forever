@@ -88,10 +88,13 @@ export class Hud {
             </div>
             ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
             <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 8px;margin-top:5px;color:#cfc7a5;font-size:11px;">
-              <span>STR ${attrs.str.toFixed(0)} AGI ${attrs.agi.toFixed(0)} INT ${attrs.int.toFixed(0)}</span>
-              <span>DMG ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
-              <span>ARM ${hero.calc.armor.toFixed(1)}</span>
-              <span>LH/DN ${meta.lastHits}/${meta.denies}</span>
+              <span title="力量/敏捷/智力">STR ${attrs.str.toFixed(0)} AGI ${attrs.agi.toFixed(0)} INT ${attrs.int.toFixed(0)}</span>
+              <span title="攻击力">⚔ ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
+              <span title="护甲(物理减伤)">🛡 ${hero.calc.armor.toFixed(1)}</span>
+              <span title="魔法抗性">魔抗 ${Math.round((hero.calc.magicResist ?? 0) * 100)}%</span>
+              <span title="移动速度">移速 ${Math.round(hero.calc.moveSpeed)}</span>
+              <span title="攻击速度(次/秒)">攻速 ${((1 + (hero.calc.ias ?? 0)) / Math.max(0.1, hero.calc.bat)).toFixed(2)}/s</span>
+              <span title="正补/反补">补/反 ${meta.lastHits}/${meta.denies}</span>
             </div>
             ${dead ? '' : this.buffBar(world, hero)}
           </div>
