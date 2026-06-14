@@ -87,12 +87,18 @@ export class ShopPanel {
     for (const def of items) {
       const row = document.createElement('div');
       const afford = gold >= effectiveCost(def);
-      row.style.cssText = `display:flex;justify-content:space-between;align-items:center;padding:4px 6px;border-radius:5px;cursor:pointer;
+      row.style.cssText = `display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:5px;cursor:pointer;
         ${afford ? '' : 'opacity:.45;'}`;
       row.onmouseenter = () => { row.style.background = '#222b18'; };
       row.onmouseleave = () => { row.style.background = ''; };
-      row.innerHTML = `<span>${def.secretShop ? '◈ ' : ''}${def.name}</span>
-        <span style="color:#ffd54f;font-size:12px">${effectiveCost(def)}</span>`;
+      row.innerHTML = `<span style="flex:none">${iconSvg(def.category)}</span>
+        <span style="flex:1;min-width:0">
+          <span style="display:flex;justify-content:space-between;gap:6px">
+            <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${def.secretShop ? '◈ ' : ''}${def.name}</b>
+            <span style="color:#ffd54f;font-size:12px;flex:none">${effectiveCost(def)}</span>
+          </span>
+          <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
+        </span>`;
       row.title = tooltip(def);
       row.onclick = () => {
         const r = buyItem(w, hero, purchaseKeyFor(def.key));
@@ -139,6 +145,20 @@ export class ShopPanel {
 
 function effectiveCost(def: ItemDef): number {
   return def.recipe && def.recipe.recipeCost > 0 ? def.recipe.recipeCost : def.cost;
+}
+
+/** 物品类别程序化 SVG 图标(与 HUD 一致:药瓶/宝石/剑/盾/法球/合成星)。 */
+function iconSvg(category: ItemCategory): string {
+  const M: Record<string, { c: string; p: string }> = {
+    consumable: { c: '#6fcf5a', p: '<path d="M10 3 H14 M11 3 V8 L7 19 H17 L13 8 V3"/>' },
+    attribute: { c: '#c9b07a', p: '<path d="M12 4 L19 9 L12 20 L5 9 Z"/>' },
+    weapon: { c: '#e0673a', p: '<path d="M12 3 V14 M8 14 H16 M11 14 V20 H13 V14"/>' },
+    armor: { c: '#6aa0d0', p: '<path d="M12 3 L19 6 V12 C19 17 12 21 12 21 C12 21 5 17 5 12 V6 Z"/>' },
+    arcane: { c: '#b06bff', p: '<circle cx="12" cy="12" r="6"/>' },
+    combined: { c: '#ffd54f', p: '<path d="M12 3 L14 10 L21 12 L14 14 L12 21 L10 14 L3 12 L10 10 Z"/>' },
+  };
+  const m = M[category] ?? M.combined;
+  return `<svg viewBox="0 0 24 24" width="22" height="22" style="display:block"><g stroke="${m.c}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round">${m.p}</g></svg>`;
 }
 
 function tooltip(def: ItemDef): string {
