@@ -27,7 +27,8 @@ export class ShopPanel {
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.style.cssText = [
-      'position:fixed;right:10px;top:80px;bottom:120px;width:300px;display:none;flex-direction:column;',
+      // bottom:420 让商店下沿抬到右下角小地图(bottom:180 + SIZE 232 = 412)之上,杜绝遮挡(UI 审计 P1-A)
+      'position:fixed;right:10px;top:80px;bottom:420px;width:300px;display:none;flex-direction:column;',
       'background:#10130bf2;border:1px solid #3a4428;border-radius:10px;padding:10px;z-index:40;',
       'color:#e8e2c8;font-size:13px;overflow:hidden;pointer-events:auto;',
     ].join('');
