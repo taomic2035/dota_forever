@@ -65,6 +65,8 @@ export class UxFeedback {
   selectedUnitId = 0;
   /** 鼠标悬停的单位 id(0 = 无)。敌/友/中立轮廓高亮,提供右键预期(pre-click)反馈。 */
   hoverUnitId = 0;
+  /** 按住 Alt 的信息层开关:显示防御塔攻击范围等战术信息(纯渲染)。 */
+  altInfo = false;
 
   addWorldPulse(pulse: WorldPulse): void {
     this.pulses.push(pulse);

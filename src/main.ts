@@ -647,6 +647,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     render(alpha) {
       renderer.alpha = alpha;
       input!.update(16.7);
+      ux.altInfo = input?.altDown ?? false; // 按住 Alt:信息层(塔攻击范围)
       if (camera.follow && hero) camera.centerOn(hero.pos); // 镜头跟随英雄(平移会暂停)
       // 选择校正:选中目标已死/进雾(且非受控英雄)→ 回到英雄,避免信息面板停留在失效目标
       if (ux.selectedUnitId && (!hero || ux.selectedUnitId !== hero.id)) {

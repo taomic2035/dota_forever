@@ -286,8 +286,46 @@ export class Renderer3D {
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
     this.drawBars(world);
+    if (ux?.altInfo) this.drawTowerRanges3D(world);
     this.drawUxPulses3D(world, ux);
     this.drawFloatTexts3D(world);
+  }
+
+  /** Alt 信息层:防御塔攻击范围圈(采样地面圆投影到 overlay;敌红=危险/友绿=安全)。塔位固定,不做迷雾门控。 */
+  private drawTowerRanges3D(world: World): void {
+    const ctx = this.octx, W = this.overlay.width, H = this.overlay.height;
+    const cam = this.s3d.cam;
+    const N = 48;
+    for (const u of world.units.values()) {
+      if (u.kind !== 'tower' || !u.alive) continue;
+      const range = u.calc.attackRange;
+      if (range <= 0) continue;
+      const enemy = this.viewerTeam !== null && u.team !== this.viewerTeam;
+      let allFront = true;
+      const pts: ({ x: number; y: number } | null)[] = [];
+      for (let i = 0; i <= N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const wx = u.pos.x + Math.cos(a) * range;
+        const wz = u.pos.y + Math.sin(a) * range;
+        this.proj.set(wx, terrainElevation(world.map, wx, wz) + 4, wz).project(cam);
+        if (this.proj.z > 1) { allFront = false; pts.push(null); continue; }
+        pts.push({ x: (this.proj.x * 0.5 + 0.5) * W, y: (-this.proj.y * 0.5 + 0.5) * H });
+      }
+      if (pts.every((p) => p === null)) continue;
+      ctx.beginPath();
+      let started = false;
+      for (const p of pts) {
+        if (!p) { started = false; continue; }
+        if (!started) { ctx.moveTo(p.x, p.y); started = true; } else ctx.lineTo(p.x, p.y);
+      }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = enemy ? 'rgba(255,80,72,0.6)' : 'rgba(120,210,120,0.5)';
+      if (allFront) {
+        ctx.fillStyle = enemy ? 'rgba(255,80,72,0.08)' : 'rgba(120,210,120,0.06)';
+        ctx.fill();
+      }
+      ctx.stroke();
+    }
   }
 
   /** 浮动战斗文字(伤害数字/赏金):投影世界锚点到 overlay,上浮淡出 + 描边(3D 战斗反馈,对齐 2D)。 */

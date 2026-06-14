@@ -4,8 +4,8 @@
  * sim 动作状态映射到素材 clip(idle/walk/attack/cast_q/cast_r/death),与程序化模型共用 applyPose 契约。
  */
 import * as THREE from 'three';
-import { createHero3DModel } from '../render/hero3dFactory';
-import { CLASSIC_HERO3D_ASSETS } from '../render/hero3dAssets';
+import { createHero3DModel, updateHeroRuntimePresentation } from '../render/hero3dFactory';
+import { CLASSIC_HERO3D_ASSETS, type Hero3DActionName } from '../render/hero3dAssets';
 import type { AnimState } from './pose';
 import type { AnimInput, UnitModel, TintMaterial } from './unitModel';
 
@@ -19,7 +19,7 @@ export function hasHero3DAsset(key: string): boolean {
   return ASSET_BY_KEY.has(key);
 }
 
-function actionForState(s: AnimState, status?: AnimInput['status']): string {
+function actionForState(s: AnimState, status?: AnimInput['status']): Hero3DActionName {
   if (status?.hit) return 'hit';
   if (status?.stunned) return 'stunned';
   if (status?.invisible) return 'invisible';
@@ -40,6 +40,11 @@ export function buildHero3DUnitModel(key: string): UnitModel {
 
   // 工厂在 root 上设了 asset.model.scale;clip 会绝对覆写 .scale,故归一到 1,缩放交给 scaler。
   built.root.scale.setScalar(1);
+  built.root.userData.baseScale = [1, 1, 1];
+  built.root.userData.gameplayRuntimeBridge = {
+    bridge: 'render3d/hero3dModel',
+    runtimeHelper: 'updateHeroRuntimePresentation',
+  };
   const scaler = new THREE.Group();
   scaler.scale.setScalar(HERO3D_WORLD_SCALE * asset.model.scale);
   scaler.add(built.root);
@@ -95,6 +100,7 @@ export function buildHero3DUnitModel(key: string): UnitModel {
         }
       }
       mixer.update(dt);
+      updateHeroRuntimePresentation(built.root, want, a.t * 1000);
     },
   };
 }

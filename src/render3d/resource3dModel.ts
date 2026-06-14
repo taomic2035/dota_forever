@@ -5,7 +5,7 @@
  *       避免每只小兵重画 CanvasTexture。
  */
 import * as THREE from 'three';
-import { createResource3DModel } from '../render/resource3dFactory';
+import { createResource3DModel, updateResourceRuntimeUnitPresentation, type ResourceRuntimeUnitState } from '../render/resource3dFactory';
 import { RESOURCE3D_SAMPLE_ASSETS } from '../render/resource3dAssets';
 import type { UnitVisualRole } from '../render/unitArt';
 import type { BuildingKind } from '../data/mapLayout';
@@ -36,6 +36,18 @@ function protoRoot(key: string): THREE.Group {
   return p;
 }
 
+function runtimeUnitStateForPose(input: AnimInput): ResourceRuntimeUnitState {
+  if (input.status?.hit) return 'hit';
+  switch (input.state) {
+    case 'walk': return 'move';
+    case 'attack': return 'attack';
+    case 'cast':
+    case 'channel': return 'cast';
+    case 'death': return 'death';
+    default: return 'idle';
+  }
+}
+
 /** sim 单位 → resource3d 资产 key + 世界缩放(无映射则返回 null,由 renderer 程序化兜底)。 */
 export function resourceAssetForUnit(
   role: UnitVisualRole,
@@ -61,6 +73,16 @@ export function buildResource3DUnitModel(key: string, worldScale: number): UnitM
   const asset = ASSET_BY_KEY.get(key)!;
   const inner = protoRoot(key).clone(true); // 共享几何/贴图/材质引用
   inner.scale.setScalar(1);
+  if (inner.userData.runtimeUnitPresentation) {
+    inner.userData.runtimeUnitPresentation = {
+      ...inner.userData.runtimeUnitPresentation,
+      baseRootScale: [1, 1, 1],
+    };
+  }
+  inner.userData.gameplayRuntimeBridge = {
+    bridge: 'render3d/resource3dModel',
+    runtimeHelper: 'updateResourceRuntimeUnitPresentation',
+  };
 
   // 逐单位克隆 Standard 材质(共享贴图引用),使受击/眩晕/隐身染色互不影响
   const materials: TintMaterial[] = [];
@@ -157,6 +179,7 @@ export function buildResource3DUnitModel(key: string, worldScale: number): UnitM
       for (const m of materials) {
         m.emissiveIntensity = motion.emissivePulse + partEmissiveBoost;
       }
+      updateResourceRuntimeUnitPresentation(inner, runtimeUnitStateForPose(a), a.t * 1000);
     },
   };
 }

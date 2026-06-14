@@ -205,6 +205,7 @@ export class Renderer {
     if (ux) this.drawUxPulses(world, ux);
     if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
     this.drawCommandQueuePath(world, selectedId);
+    if (ux?.altInfo) this.drawTowerRanges(world);
 
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)。复用 scratch 数组,避免每帧 spread 分配(D4)。
     const units = this.visibleScratch;
@@ -247,6 +248,29 @@ export class Renderer {
     ctx.lineJoin = 'round';
     for (const leg of legs) this.drawCommandQueueLeg(leg);
     legs.forEach((leg, i) => this.drawCommandQueueNode(leg, i + 1));
+    ctx.restore();
+  }
+
+  /** Alt 信息层:可见防御塔的攻击范围圈(敌方红=危险 / 友方绿=安全)。 */
+  private drawTowerRanges(world: World): void {
+    const ctx = this.ctx;
+    ctx.save();
+    for (const u of world.units.values()) {
+      if (u.kind !== 'tower' || !u.alive) continue;
+      if (this.viewerTeam !== null && !isVisibleTo(world, this.viewerTeam, u)) continue;
+      const range = u.calc.attackRange;
+      if (range <= 0) continue;
+      const p = this.camera.worldToScreen(u.pos);
+      const r = range * this.camera.zoom;
+      const enemy = this.viewerTeam !== null && u.team !== this.viewerTeam;
+      ctx.strokeStyle = enemy ? 'rgba(255,80,72,0.55)' : 'rgba(120,210,120,0.45)';
+      ctx.fillStyle = enemy ? 'rgba(255,80,72,0.08)' : 'rgba(120,210,120,0.06)';
+      ctx.lineWidth = Math.max(1, this.s(1.5));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

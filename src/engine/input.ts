@@ -195,6 +195,11 @@ export class InputManager {
 
   private dragging = false;
 
+  /** 是否按住 Alt(信息层:塔攻击范围等)。渲染层每帧读取。 */
+  get altDown(): boolean {
+    return this.keys.has('alt');
+  }
+
   setControlSettings(settings: ControlSettings): void {
     this.controlSettings = normalizeControlSettings(settings);
     this.edgePan = this.controlSettings.cameraEdgePan;
