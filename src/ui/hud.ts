@@ -17,6 +17,8 @@ export class Hud {
   root: HTMLElement;
   private topbar: HTMLElement;
   private bottom: HTMLElement;
+  /** 低血危险暗角:血量越低红光越强,临界脉动(DotA-like 危险反馈)。 */
+  private vignette: HTMLElement;
   onLearn?: (index: number) => void;
   onLearnStat?: () => void;
   onBuyback?: () => void;
@@ -47,6 +49,11 @@ export class Hud {
     ].join('');
     this.root.appendChild(this.bottom);
 
+    // 低血危险暗角(全屏红光内阴影,pointer-events:none,默认透明;update 按血量驱动)
+    this.vignette = document.createElement('div');
+    this.vignette.style.cssText = 'position:absolute;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 160px 40px rgba(200,10,10,0.85);transition:opacity .12s;';
+    this.root.insertBefore(this.vignette, this.topbar); // 置于最底,不遮 HUD/按钮
+
     // 用 mousedown 而非 click:HUD 每帧重建 innerHTML,click 需 mousedown+mouseup 命中同一元素,
     // 但元素在两者之间被重建销毁 → click 永不触发(学技能/买活/背包点击全失效)。mousedown 按下即触发,先于重建。
     this.bottom.addEventListener('mousedown', (e) => {
@@ -72,6 +79,15 @@ export class Hud {
     const meta = hero.heroMeta!;
     const dead = !hero.alive;
     const respawnIn = Math.max(0, Math.ceil(meta.respawnAt - world.time));
+    // 低血危险暗角:血 <35% 起红光渐强,<20% 脉动(DotA-like 危险反馈,提醒撤退)
+    const hpFrac = dead ? 1 : hero.hp / Math.max(1, hero.calc.maxHp);
+    if (hpFrac < 0.35) {
+      const danger = (0.35 - hpFrac) / 0.35;
+      const pulse = hpFrac < 0.2 ? 0.78 + 0.22 * Math.sin(performance.now() / 130) : 1;
+      this.vignette.style.opacity = String(Math.min(0.6, danger * 0.62 * pulse).toFixed(3));
+    } else if (this.vignette.style.opacity !== '0') {
+      this.vignette.style.opacity = '0';
+    }
     const abilityHtml = (hero.heroDef?.abilities ?? []).map((_, i) => this.abilitySlot(world, hero, i, ux)).join('');
     const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
     const tpHtml = this.itemSlot(world, hero.tpSlot, 6, ux); // 专属回城卷轴槽

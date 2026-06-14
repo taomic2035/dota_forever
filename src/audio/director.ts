@@ -160,6 +160,10 @@ export class AudioDirector {
           break;
       }
     }
+    // 低血危险周期警示(<25% 生命):lowHp 自带 700ms 限频 → 危急时反复脉冲提醒撤退
+    if (playerHero?.alive && playerHero.hp / Math.max(1, playerHero.calc.maxHp) < 0.25) {
+      this.lowHp();
+    }
   }
 
   private env(freq: number, type: OscillatorType, dur: number, gain: number, slide = 0): void {
@@ -231,6 +235,13 @@ export class AudioDirector {
   itemUse(): void {
     if (!this.ctx || this.throttled('item', 90)) return;
     this.env(620, 'triangle', 0.06, 0.05, 130);
+  }
+
+  /** 低血危险:低沉双拍紧张脉冲(DotA-like 撤退警示),自带限频。 */
+  lowHp(): void {
+    if (!this.ctx || this.throttled('lowhp', 700)) return;
+    this.env(160, 'sine', 0.18, 0.16, -40);
+    setTimeout(() => this.env(150, 'sine', 0.16, 0.14, -40), 200);
   }
 
   /** 按技能代表性标签合成施法音色(控制硬朗 / 治疗温暖 / 爆发明亮 / 大招宏大)。 */
