@@ -210,19 +210,19 @@ function startGame(mode: 'play' | 'spectate'): void {
     | 'wrong-target-type'
     | 'blocked';
   const rejectLabel: Record<RejectReason, string> = {
-    dead: 'DEAD',
-    'not-learned': 'NOT LEARNED',
-    passive: 'PASSIVE',
-    cooldown: 'ON COOLDOWN',
-    'no-mana': 'NO MANA',
-    silenced: 'SILENCED',
-    'empty-slot': 'EMPTY SLOT',
-    'no-active': 'NO ACTIVE',
-    'no-charges': 'NO CHARGES',
-    'invalid-target': 'INVALID TARGET',
-    'wrong-team': 'WRONG TEAM',
-    'wrong-target-type': 'WRONG TARGET TYPE',
-    blocked: "CAN'T USE",
+    dead: '英雄已死亡',
+    'not-learned': '未学习',
+    passive: '被动技能',
+    cooldown: '冷却中',
+    'no-mana': '法力不足',
+    silenced: '被沉默',
+    'empty-slot': '空槽位',
+    'no-active': '无主动效果',
+    'no-charges': '无充能',
+    'invalid-target': '无效目标',
+    'wrong-team': '目标阵营错误',
+    'wrong-target-type': '目标类型错误',
+    blocked: '无法使用',
   };
   const showReject = (reason: RejectReason, pos: { x: number; y: number }, hudKey?: string) => {
     if (hudKey) ux.flashHudSlot(hudKey, 'reject', world.time);

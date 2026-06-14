@@ -135,12 +135,12 @@ export class Hud {
     const rune = `${Math.floor(rLeft / 60)}:${(rLeft % 60).toString().padStart(2, '0')}`;
     this.topbar.innerHTML =
       `<span style="color:#8fd17a;font-weight:700">${dawnKills}</span>` +
-      `<span style="color:#8a9">Dawn</span>` +
-      `<span>${world.isNight ? 'NIGHT' : 'DAY'}</span>` +
+      `<span style="color:#8a9">晨曦</span>` +
+      `<span>${world.isNight ? '夜晚' : '白昼'}</span>` +
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
       `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
       `<span style="color:#ffd54f">${gold}</span>` +
-      `<span style="color:#a89">Night</span>` +
+      `<span style="color:#a89">永夜</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
   }
 
@@ -228,10 +228,10 @@ export class Hud {
 
   private statBonusSlot(hero: Unit): string {
     if (!canLearnStatBonus(hero)) return '';
-    return `<div data-learnstat="1" title="Attribute bonus"
+    return `<div data-learnstat="1" title="属性加点"
       style="width:42px;height:66px;border:1.5px solid #ffd54f;border-radius:4px;background:#2a3a18;cursor:pointer;
       display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;color:#ffd54f;box-shadow:0 0 6px #ffd54f66">
-      <span style="font-size:18px;font-weight:800;line-height:1">+</span><span>STAT</span>
+      <span style="font-size:18px;font-weight:800;line-height:1">+</span><span>加点</span>
     </div>`;
   }
 

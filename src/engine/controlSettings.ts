@@ -55,9 +55,9 @@ export function cycleCastInputMode(mode: CastInputMode): CastInputMode {
 }
 
 export function castInputModeLabel(mode: CastInputMode): string {
-  if (mode === 'quick') return 'Quick';
-  if (mode === 'smart') return 'Smart';
-  return 'Normal';
+  if (mode === 'quick') return '快速';
+  if (mode === 'smart') return '智能';
+  return '普通';
 }
 
 export function cycleCameraPanSpeed(speed: CameraPanSpeed): CameraPanSpeed {
@@ -66,9 +66,9 @@ export function cycleCameraPanSpeed(speed: CameraPanSpeed): CameraPanSpeed {
 }
 
 export function cameraPanSpeedLabel(speed: CameraPanSpeed): string {
-  if (speed === 'slow') return 'Slow';
-  if (speed === 'fast') return 'Fast';
-  return 'Normal';
+  if (speed === 'slow') return '慢';
+  if (speed === 'fast') return '快';
+  return '中';
 }
 
 export function cameraPanSpeedMultiplier(speed: CameraPanSpeed): number {
@@ -83,7 +83,7 @@ export function cycleCastInputOverride(mode: CastInputOverride): CastInputOverri
 }
 
 export function castInputModeOverrideLabel(mode: CastInputOverride, fallback: CastInputMode): string {
-  return mode ? castInputModeLabel(mode) : `Auto ${castInputModeLabel(fallback)}`;
+  return mode ? castInputModeLabel(mode) : `自动 ${castInputModeLabel(fallback)}`;
 }
 
 export function resolveAbilityCastMode(settings: ControlSettings, index: number): CastInputMode {
