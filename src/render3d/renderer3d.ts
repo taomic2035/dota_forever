@@ -279,6 +279,48 @@ export class Renderer3D {
     this.s3d.syncCamera(this.camera);
     this.s3d.render();
     this.drawBars(world);
+    this.drawUxPulses3D(world, ux);
+  }
+
+  /** 移动/攻击/施法落点脉冲:投影到 overlay 画透视正确的地面扩散环(3D 操作反馈,对齐 2D)。 */
+  private drawUxPulses3D(world: World, ux?: UxFeedback): void {
+    if (!ux) return;
+    const ctx = this.octx, W = this.overlay.width, H = this.overlay.height;
+    const cam = this.s3d.cam;
+    for (const pulse of ux.worldPulsesAt(world.time)) {
+      const age = world.time - pulse.time;
+      const u = Math.max(0, Math.min(1, age / 0.55));
+      const elev = terrainElevation(world.map, pulse.pos.x, pulse.pos.y) + 6;
+      this.proj.set(pulse.pos.x, elev, pulse.pos.y).project(cam);
+      if (this.proj.z > 1) continue; // 相机背后
+      const sx = (this.proj.x * 0.5 + 0.5) * W;
+      const sy = (-this.proj.y * 0.5 + 0.5) * H;
+      const baseR = 34 + 78 * u; // 世界单位,随时间扩散
+      this.proj.set(pulse.pos.x + baseR, elev, pulse.pos.y).project(cam);
+      const r = Math.max(6, Math.hypot((this.proj.x * 0.5 + 0.5) * W - sx, (-this.proj.y * 0.5 + 0.5) * H - sy));
+      const color =
+        pulse.kind === 'move' ? '#7cff6b' :
+        pulse.kind === 'attack' ? '#ff4c42' :
+        pulse.kind === 'attackmove' ? '#ffd45a' :
+        pulse.kind === 'queued' ? '#8dff7a' :
+        pulse.kind === 'reject' ? '#ff3040' :
+        pulse.kind === 'ping' ? '#48d8ff' : '#cfe8ff';
+      ctx.save();
+      ctx.globalAlpha = 1 - u;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1.5, 4.5 * (1 - u * 0.35));
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      if (pulse.kind === 'attack' || pulse.kind === 'attackmove' || pulse.kind === 'queued') {
+        const c = r * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(sx - c, sy); ctx.lineTo(sx + c, sy);
+        ctx.moveTo(sx, sy - c); ctx.lineTo(sx, sy + c);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
   }
 
   private stackGroups(world: World): Map<string, number[]> {

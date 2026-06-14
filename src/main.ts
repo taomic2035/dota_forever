@@ -20,6 +20,7 @@ import { ShopPanel } from './ui/shop';
 import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
 import { showMenu, createPauseMenu } from './ui/menu';
+import { showOnboarding } from './ui/onboarding';
 import { showHero3DPreview } from './ui/hero3dPreview';
 import { showResource3DPreview } from './ui/resource3dPreview';
 import { useItem, itemUseReason, itemInSlot, moveToBackpack, moveFromBackpack } from './sim/items';
@@ -629,6 +630,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   });
   loop.speed = speed;
   loop.start();
+  if (mode === 'play') showOnboarding(app); // 操作引导(可关闭)
 
   window.__game = { world, hero, camera, loop, renderer, ux, seed };
 }
