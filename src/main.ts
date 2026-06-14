@@ -375,7 +375,10 @@ function startGame(mode: 'play' | 'spectate'): void {
     onRightClick(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
-      const target = world.queryRadius(p, 60, (u) => u.team !== hero!.team && !u.invulnerable)[0];
+      // 容差 120(覆盖 3D 俯视下点击模型躯干→地面投影偏移)+ 取离点击最近的敌方,更跟手
+      const cands = world.queryRadius(p, 120, (u) => u.alive && u.team !== hero!.team && !u.invulnerable);
+      cands.sort((a, b) => ((a.pos.x - p.x) ** 2 + (a.pos.y - p.y) ** 2) - ((b.pos.x - p.x) ** 2 + (b.pos.y - p.y) ** 2));
+      const target = cands[0];
       if (target) {
         issueHeroOrder(
           { type: 'attack', targetId: target.id },
@@ -547,7 +550,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (hero) ux.addWorldPulse({ kind: 'hold', pos: hero.pos, time: world.time });
       hero?.issueOrder({ type: 'hold' });
     },
-    onCenterHero() { if (hero) camera.centerOn(hero.pos); },
+    onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
     onTogglePause() { loop.paused = !loop.paused; },
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
@@ -621,6 +624,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     render(alpha) {
       renderer.alpha = alpha;
       input!.update(16.7);
+      if (camera.follow && hero) camera.centerOn(hero.pos); // 镜头跟随英雄(平移会暂停)
       renderer.render(world, hero?.id ?? -1, ux);
       hud.update(world, hero, ux);
       commandCursor.update(world.time, ux);

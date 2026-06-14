@@ -9,6 +9,8 @@ export class Camera {
   zoom = 0.55; // 像素/世界单位
   viewW = 1280;
   viewH = 720;
+  /** 镜头跟随英雄(默认开;手动平移会暂停,空格重新锁定)。 */
+  follow = true;
 
   resize(w: number, h: number) {
     this.viewW = w;
@@ -30,6 +32,7 @@ export class Camera {
   }
 
   pan(dx: number, dy: number) {
+    if (dx !== 0 || dy !== 0) this.follow = false; // 手动平移暂停跟随
     this.pos.x = clamp(this.pos.x + dx / this.zoom, 0, WORLD);
     this.pos.y = clamp(this.pos.y + dy / this.zoom, 0, WORLD);
   }
