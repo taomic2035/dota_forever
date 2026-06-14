@@ -47,9 +47,12 @@ export class Hud {
     ].join('');
     this.root.appendChild(this.bottom);
 
-    this.bottom.addEventListener('click', (e) => {
+    // 用 mousedown 而非 click:HUD 每帧重建 innerHTML,click 需 mousedown+mouseup 命中同一元素,
+    // 但元素在两者之间被重建销毁 → click 永不触发(学技能/买活/背包点击全失效)。mousedown 按下即触发,先于重建。
+    this.bottom.addEventListener('mousedown', (e) => {
       const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
       if (!el) return;
+      e.preventDefault();
       if (el.hasAttribute('data-buyback')) this.onBuyback?.();
       else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
       else if (el.hasAttribute('data-bag')) this.onMoveToBackpack?.(Number(el.getAttribute('data-bag')));
