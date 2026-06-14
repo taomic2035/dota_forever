@@ -219,8 +219,8 @@ export class Hud {
     const pips = Array.from({ length: def.maxLevel }, (_, k) =>
       `<span style="width:6px;height:4px;border-radius:1px;background:${k < lvl ? '#ffd54f' : '#3a4428'}"></span>`).join('');
     const aghsDesc = aghs && def.scepter?.desc ? `\n${def.scepter.desc}` : aghs ? '\n神杖:增强升级' : '';
-    return `<div title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}: ${def.description}${aghsDesc}"
-      style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};
+    return `<div ${learnable ? `data-learn="${i}" ` : ''}title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}${learnable ? ' — 点击学习' : ''}: ${def.description}${aghsDesc}"
+      style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};${learnable ? 'cursor:pointer;' : ''}
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
       <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
       <span style="position:absolute;top:2px;left:4px;font-size:10px;color:#cfd8a0;font-weight:700">${HOTKEYS[i]}</span>

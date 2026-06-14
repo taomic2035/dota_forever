@@ -23,7 +23,7 @@ import { showMenu, createPauseMenu } from './ui/menu';
 import { showOnboarding } from './ui/onboarding';
 import { showHero3DPreview } from './ui/hero3dPreview';
 import { showResource3DPreview } from './ui/resource3dPreview';
-import { useItem, itemUseReason, itemInSlot, moveToBackpack, moveFromBackpack } from './sim/items';
+import { useItem, itemUseReason, itemInSlot, moveToBackpack, moveFromBackpack, makeItem } from './sim/items';
 import { learnAbility, learnStatBonus, abilityCastReason } from './sim/abilities';
 import { itemDef } from './data/items';
 import { AudioDirector } from './audio/director';
@@ -135,6 +135,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   let hero: Unit | undefined;
   if (mode === 'play') {
     hero = spawnHero(world, heroByKey(heroKey) ?? HEROES[0], Team.Dawn);
+    hero.tpSlot = makeItem('tp'); // 起始回城卷轴(玩家便利,对症「无法回城」)
   }
   const draft = shuffledHeroPool(HEROES, seed, hero?.heroDef?.key);
   let picked = 0;

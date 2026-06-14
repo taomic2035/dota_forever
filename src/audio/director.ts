@@ -19,6 +19,7 @@ export function representativeCastTag(tags: readonly AbilityTag[] | undefined): 
 export class AudioDirector {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private musicStarted = false;
   volume = 0.5;
   private lastSfx = new Map<string, number>();
   /** abilityKey → 代表性标签(惰性从 HEROES 构建一次)。 */
@@ -33,9 +34,67 @@ export class AudioDirector {
         this.master.connect(this.ctx.destination);
       }
       void this.ctx.resume();
+      this.startMusic();
     };
     window.addEventListener('pointerdown', unlock, { once: false });
     window.addEventListener('keydown', unlock, { once: false });
+  }
+
+  /**
+   * 原创程序化背景音乐:A 小调持续氛围 pad(失谐三角波和弦 + 低音 drone),
+   * 经暖色低通,慢速滤波 LFO 演进 + 呼吸 LFO,渐入低音量。零样本、无版权,循环无缝。
+   */
+  private startMusic(): void {
+    if (this.musicStarted || !this.ctx || !this.master) return;
+    this.musicStarted = true;
+    const ctx = this.ctx;
+    const t0 = ctx.currentTime;
+
+    const bus = ctx.createGain();
+    bus.gain.setValueAtTime(0.0001, t0);
+    bus.gain.linearRampToValueAtTime(0.14, t0 + 5); // 5s 渐入
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 640;
+    lp.Q.value = 0.7;
+    lp.connect(bus).connect(this.master);
+
+    // 滤波慢速 LFO(~26s 周期,音色缓慢明暗演进)
+    const fLfo = ctx.createOscillator();
+    const fLfoGain = ctx.createGain();
+    fLfo.frequency.value = 0.038;
+    fLfoGain.gain.value = 420;
+    fLfo.connect(fLfoGain).connect(lp.frequency);
+    fLfo.start();
+    // 呼吸 LFO(音量缓慢起伏)
+    const aLfo = ctx.createOscillator();
+    const aLfoGain = ctx.createGain();
+    aLfo.frequency.value = 0.06;
+    aLfoGain.gain.value = 0.04;
+    aLfo.connect(aLfoGain).connect(bus.gain);
+    aLfo.start();
+
+    // 和弦 pad:A 小调(A2/C3/E3/A3),每音失谐双振荡器铺厚
+    for (const f of [110, 130.81, 164.81, 220]) {
+      for (const det of [-4, 4]) {
+        const osc = ctx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.value = f;
+        osc.detune.value = det;
+        const g = ctx.createGain();
+        g.gain.value = 0.11;
+        osc.connect(g).connect(lp);
+        osc.start();
+      }
+    }
+    // 低音 drone(A1)
+    const bass = ctx.createOscillator();
+    bass.type = 'sine';
+    bass.frequency.value = 55;
+    const bg = ctx.createGain();
+    bg.gain.value = 0.2;
+    bass.connect(bg).connect(lp);
+    bass.start();
   }
 
   /** 限频:同名音效最短间隔。 */
