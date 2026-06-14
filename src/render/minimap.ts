@@ -26,6 +26,7 @@ export class MiniMap {
     terrain: HTMLCanvasElement,
     private camera: Camera,
     private onPing?: (wx: number, wy: number) => void,
+    private onMoveCommand?: (wx: number, wy: number) => void,
   ) {
     this.root = document.createElement('canvas');
     this.root.width = SIZE;
@@ -47,12 +48,16 @@ export class MiniMap {
       if (e.altKey) {
         this.ping(wx, wy);
         this.onPing?.(wx, wy);
+      } else if (e.button === 2) {
+        this.onMoveCommand?.(wx, wy); // 右键:命令英雄移动到此(MOBA 标配)
       } else {
+        this.camera.follow = false; // 暂停跟随,让小地图平移生效(否则下一帧又锁回英雄)
         this.camera.centerOn({ x: wx, y: wy });
       }
       e.preventDefault();
       e.stopPropagation();
     });
+    this.root.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   ping(wx: number, wy: number): void {
