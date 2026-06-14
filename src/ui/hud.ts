@@ -90,12 +90,14 @@ export class Hud {
               <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${hero.name}</b>
               <span style="color:#d9b44a;white-space:nowrap">${meta.kills}/${meta.deaths}/${meta.assists}</span>
             </div>
-            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a')}`}
-            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 8px;margin-top:5px;color:#cfc7a5;font-size:11px;">
+            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b', '生命')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a', '法力')}`}
+            ${dead ? '' : `<div style="display:flex;gap:8px;margin-top:4px;font-size:12px;font-weight:700;">
+              <span title="护甲(物理减伤)" style="flex:1;text-align:center;background:#1c2230;border:1px solid #3a4a6a;border-radius:3px;padding:2px 0;color:#9ec1ff">🛡 ${hero.calc.armor.toFixed(1)}</span>
+              <span title="魔法抗性" style="flex:1;text-align:center;background:#241c30;border:1px solid #4a3a6a;border-radius:3px;padding:2px 0;color:#c6a0ff">✨ ${Math.round((hero.calc.magicResist ?? 0) * 100)}%</span>
+              <span title="攻击力" style="flex:1;text-align:center;background:#2a2418;border:1px solid #5a4a25;border-radius:3px;padding:2px 0;color:#ffd28a">⚔ ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
+            </div>`}
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 8px;margin-top:4px;color:#cfc7a5;font-size:11px;">
               <span title="力量/敏捷/智力">STR ${attrs.str.toFixed(0)} AGI ${attrs.agi.toFixed(0)} INT ${attrs.int.toFixed(0)}</span>
-              <span title="攻击力">⚔ ${Math.round(hero.calc.dmgMin)}-${Math.round(hero.calc.dmgMax)}</span>
-              <span title="护甲(物理减伤)">🛡 ${hero.calc.armor.toFixed(1)}</span>
-              <span title="魔法抗性">魔抗 ${Math.round((hero.calc.magicResist ?? 0) * 100)}%</span>
               <span title="移动速度">移速 ${Math.round(hero.calc.moveSpeed)}</span>
               <span title="攻击速度(次/秒)">攻速 ${((1 + (hero.calc.ias ?? 0)) / Math.max(0.1, hero.calc.bat)).toFixed(2)}/s</span>
               <span title="正补/反补">补/反 ${meta.lastHits}/${meta.denies}</span>
@@ -182,12 +184,14 @@ export class Hud {
     return `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px;max-width:100%">${html}</div>`;
   }
 
-  private meter(value: number, max: number, top: string, bottom: string): string {
+  private meter(value: number, max: number, top: string, bottom: string, label = ''): string {
     const safeMax = Math.max(1, max);
     const frac = Math.max(0, Math.min(1, value / safeMax));
-    return `<div style="background:#070807;border:1px solid #1f2418;height:17px;margin:3px 0;position:relative">
+    // 加高加粗(血/蓝是第一信息),数值带阴影更易读;label 在左端标注 生命/法力
+    return `<div style="background:#070807;border:1px solid #2a3220;height:21px;margin:3px 0;position:relative;border-radius:3px;overflow:hidden">
       <div style="background:linear-gradient(${top},${bottom});height:100%;width:${frac * 100}%"></div>
-      <span style="position:absolute;inset:0;text-align:center;font-size:11px;line-height:17px;text-shadow:0 1px 2px #000">${Math.ceil(value)} / ${Math.round(max)}</span>
+      ${label ? `<span style="position:absolute;left:5px;top:0;line-height:21px;font-size:11px;color:#fff;opacity:.85;text-shadow:0 1px 2px #000">${label}</span>` : ''}
+      <span style="position:absolute;inset:0;text-align:center;font-size:12px;font-weight:700;line-height:21px;color:#fff;text-shadow:0 1px 2px #000">${Math.ceil(value)} / ${Math.round(max)}</span>
     </div>`;
   }
 
