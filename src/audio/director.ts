@@ -219,6 +219,12 @@ export class AudioDirector {
     this.env(220, 'sawtooth', 0.1, 0.1, -70);
   }
 
+  /** 物品成功使用:短促上行亮音,与移动/攻击确认区分(补全使用反馈闭环)。 */
+  itemUse(): void {
+    if (!this.ctx || this.throttled('item', 90)) return;
+    this.env(620, 'triangle', 0.06, 0.05, 130);
+  }
+
   /** 按技能代表性标签合成施法音色(控制硬朗 / 治疗温暖 / 爆发明亮 / 大招宏大)。 */
   castFor(abilityKey: string): void {
     switch (this.tagFor(abilityKey)) {

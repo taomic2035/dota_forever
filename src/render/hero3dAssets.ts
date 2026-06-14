@@ -477,7 +477,13 @@ function polishParts(asset: BaseHero3DAssetSpec, readability: Hero3DReadabilityS
       rotation: [Math.PI / 2, 0, -0.2],
     },
   ];
-  return [...asset.model.parts, ...shared, ...signatureParts(asset.key, primary, accent, glow), ...v5IdentityParts(asset, readability, primary, accent, glow)].map(withV2PartMetadata);
+  return [
+    ...asset.model.parts,
+    ...shared,
+    ...signatureParts(asset.key, primary, accent, glow),
+    ...v5IdentityParts(asset, readability, primary, accent, glow),
+    ...gameplayCameraRefinementParts(asset, readability, primary, accent, glow),
+  ].map(withV2PartMetadata);
 }
 
 function withV2PartMetadata(part: Hero3DPartSpec): Hero3DPartSpec {
@@ -617,6 +623,95 @@ function v5IdentityParts(
       detail: 'gemSetting',
       scale: [0.19, 0.19, 0.19],
       position: [side * radius * 0.74, 1.86, -0.46],
+    },
+  ];
+}
+
+function gameplayCameraRefinementParts(
+  asset: BaseHero3DAssetSpec,
+  readability: Hero3DReadabilitySpec,
+  primary: string,
+  accent: string,
+  glow: string,
+): Hero3DPartSpec[] {
+  const radius = asset.model.groundRadius;
+  const side = readability.pose.lateralBias;
+  const opposite = (side * -1) as -1 | 1;
+  const darkTrim = asset.key === 'olan' ? '#6d4f1f' : asset.key === 'liya' ? '#245b72' : asset.key === 'kai' ? '#18101f' : '#161a1c';
+  const metalTone = asset.key === 'gorm' ? '#c9a875' : asset.key === 'grosh' ? '#b7a084' : asset.key === 'morphis' ? '#d58cff' : accent;
+  return [
+    {
+      name: `v19 ${asset.key} layered chest plate upper`,
+      kind: 'sigil',
+      color: metalTone,
+      emissive: glow,
+      material: 'metal',
+      detail: 'trim',
+      scale: [radius * 0.42, 0.032, radius * 0.16],
+      position: [0, 1.48, -0.48],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      name: `v19 ${asset.key} layered chest plate lower`,
+      kind: 'sigil',
+      color: darkTrim,
+      material: asset.key === 'gorm' ? 'stone' : 'leather',
+      detail: 'engraving',
+      scale: [radius * 0.36, 0.026, radius * 0.13],
+      position: [0, 1.12, -0.5],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      name: `v19 ${asset.key} crown bevel shard`,
+      kind: 'sigil',
+      color: accent,
+      emissive: glow,
+      material: asset.key === 'kai' || asset.key === 'morphis' ? 'shadow' : 'energy',
+      detail: 'edgeLight',
+      scale: [radius * 0.34, 0.028, radius * 0.11],
+      position: [opposite * radius * 0.24, 2.28 + radius * 0.05, -0.18],
+      rotation: [Math.PI / 2, 0, opposite * 0.34],
+    },
+    {
+      name: `v19 ${asset.key} weapon head highlight`,
+      kind: 'weapon',
+      color: '#f7fbff',
+      emissive: glow,
+      material: 'metal',
+      detail: 'edgeLight',
+      scale: [0.11, radius * 0.48, 0.11],
+      position: [side * radius * 1.08, 1.78, -0.2],
+      rotation: [0.36, 0, side * -0.42],
+    },
+    {
+      name: `v19 ${asset.key} shoulder bevel near`,
+      kind: 'shoulder',
+      color: metalTone,
+      material: 'metal',
+      detail: 'battleWear',
+      scale: [radius * 0.22, 0.11, radius * 0.32],
+      position: [side * radius * 0.82, 1.62, -0.04],
+      rotation: [0, 0, side * -0.12],
+    },
+    {
+      name: `v19 ${asset.key} offside cloth fold`,
+      kind: 'cape',
+      color: primary,
+      material: asset.key === 'gorm' ? 'stone' : 'cloth',
+      detail: 'fold',
+      scale: [radius * 0.23, 0.028, radius * 0.5],
+      position: [opposite * radius * 0.78, 1.12, 0.5],
+      rotation: [0.18, 0, opposite * 0.16],
+    },
+    {
+      name: `v19 ${asset.key} focus gem inset`,
+      kind: 'orb',
+      color: '#ffffff',
+      emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
+      scale: [0.105, 0.105, 0.075],
+      position: [side * radius * 0.36, 1.34, -0.54],
     },
   ];
 }

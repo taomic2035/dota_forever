@@ -498,6 +498,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (ok) {
           ux.clearCommandMessage();
           ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
+          audio.itemUse();
         } else {
           showReject(itemUseFailureReason(slot), hero.pos, `item-${slot}`);
         }
@@ -525,6 +526,7 @@ function startGame(mode: 'play' | 'spectate'): void {
           ux.clearCommandMessage();
           ux.addWorldPulse({ kind: 'ping', pos, time: world.time });
           ux.clearTargeting();
+          audio.itemUse();
         } else {
           previewItem(slot, p);
           showReject(itemUseFailureReason(slot), pos, `item-${slot}`);
@@ -542,6 +544,7 @@ function startGame(mode: 'play' | 'spectate'): void {
             ux.clearCommandMessage();
             ux.addWorldPulse({ kind: 'ping', pos: target.pos, targetId: target.id, time: world.time });
             ux.clearTargeting();
+            audio.itemUse();
           } else {
             previewItem(slot, p);
             showReject(itemUseFailureReason(slot), target.pos, `item-${slot}`);

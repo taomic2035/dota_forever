@@ -130,4 +130,23 @@ describe('classic hero 3D assets', () => {
       expect(v5Anchors.filter((part) => part.emissive).length, `${asset.key} needs readable glow anchors`).toBeGreaterThanOrEqual(3);
     }
   });
+
+  it('adds V19 gameplay-camera refinement pieces to fight the paper-box read', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const v19Parts = asset.model.parts.filter((part) => part.name.startsWith('v19 '));
+      const materials = new Set(v19Parts.map((part) => part.material));
+      const details = new Set(v19Parts.map((part) => part.detail));
+      const headOrCrest = v19Parts.filter((part) => part.position[1] >= 2.05);
+      const torsoLayer = v19Parts.filter((part) => part.position[1] >= 0.86 && part.position[1] <= 1.58 && part.position[2] <= -0.34);
+      const weaponOrWideLayer = v19Parts.filter((part) => Math.abs(part.position[0]) >= asset.model.groundRadius * 0.72);
+
+      expect(v19Parts.length, `${asset.key} needs enough gameplay-camera refinement pieces`).toBeGreaterThanOrEqual(6);
+      expect(materials.size, `${asset.key} V19 pieces need material contrast`).toBeGreaterThanOrEqual(3);
+      expect(details.has('trim') || details.has('engraving'), `${asset.key} needs modeled armor/costume detail`).toBe(true);
+      expect(details.has('edgeLight') || details.has('gemSetting'), `${asset.key} needs readable highlight detail`).toBe(true);
+      expect(headOrCrest.length, `${asset.key} needs a far-camera head/crest detail`).toBeGreaterThanOrEqual(1);
+      expect(torsoLayer.length, `${asset.key} needs layered torso detail, not a single block`).toBeGreaterThanOrEqual(2);
+      expect(weaponOrWideLayer.length, `${asset.key} needs wide weapon/shoulder detail for the play camera`).toBeGreaterThanOrEqual(2);
+    }
+  });
 });

@@ -157,6 +157,24 @@ describe('hero3d runtime presentation', () => {
     expect(firstMeshGeometryType(shield)).toMatch(/Extrude/);
     expect(firstMeshGeometryType(cape)).toMatch(/Cylinder|Lathe/);
   });
+
+  it('exposes V19 gameplay-camera refinement metadata on real hero roots', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const { root } = createHero3DModel(asset);
+      const v19Parts = root.children.filter((child) => String(child.userData.partName ?? '').startsWith('v19 '));
+      const v19Materials = new Set(v19Parts.map((child) => child.userData.partMaterial));
+
+      expect(root.userData.gameplayModelQuality, asset.key).toMatchObject({
+        refinementLayer: 'v19-gameplay-camera-detail',
+        refinementLayerParts: expect.any(Number),
+        coreMaterialContrastBands: expect.any(Number),
+      });
+      expect(root.userData.gameplayModelQuality.refinementLayerParts, asset.key).toBeGreaterThanOrEqual(6);
+      expect(root.userData.gameplayModelQuality.coreMaterialContrastBands, asset.key).toBeGreaterThanOrEqual(3);
+      expect(v19Parts.length, `${asset.key} V19 parts should be in createHero3DModel output`).toBeGreaterThanOrEqual(6);
+      expect(v19Materials.size, `${asset.key} V19 runtime parts need material contrast`).toBeGreaterThanOrEqual(3);
+    }
+  });
 });
 
 function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBasicMaterial)[] {

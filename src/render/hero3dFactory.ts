@@ -70,6 +70,9 @@ export interface HeroGameplayModelQualityUserData {
   defaultZoom: 0.62;
   pitchRadians: number;
   heroModelScale: 1.5;
+  refinementLayer: 'v19-gameplay-camera-detail';
+  refinementLayerParts: number;
+  coreMaterialContrastBands: number;
   roundedReadableParts: number;
   primarySilhouetteParts: number;
   secondarySilhouetteParts: number;
@@ -193,12 +196,17 @@ export function heroRuntimeSurfaceUserData(asset: Hero3DAssetSpec, root?: Object
 
 export function heroGameplayModelQualityUserData(asset: Hero3DAssetSpec): HeroGameplayModelQualityUserData {
   const weights = asset.model.parts.map((part) => heroGameplaySilhouetteWeight(part));
+  const refinementParts = asset.model.parts.filter((part) => part.name.startsWith('v19 '));
+  const materialBands = new Set(refinementParts.map((part) => part.material ?? 'leather'));
   return {
     tunedFor: 'play-3d-default-camera',
     cameraFov: 40,
     defaultZoom: 0.62,
     pitchRadians: Math.PI * 0.31,
     heroModelScale: 1.5,
+    refinementLayer: 'v19-gameplay-camera-detail',
+    refinementLayerParts: refinementParts.length,
+    coreMaterialContrastBands: materialBands.size,
     roundedReadableParts: asset.model.parts.length,
     primarySilhouetteParts: weights.filter((weight) => weight === 'primary').length,
     secondarySilhouetteParts: weights.filter((weight) => weight === 'secondary').length,
