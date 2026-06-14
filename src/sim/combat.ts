@@ -266,6 +266,7 @@ export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomp
   if (crit && dealt > 0) {
     w.emit({ kind: 'fx', fx: 'crit', pos: V.clone(target.pos) });
   }
+  // 注:普通命中视觉/音效已由 unit_damaged 事件统一处理(fx3d burst + 伤害数字 + audio.hitImpact),不重复 emit
   if (dealt > 0 && attacker.calc.lifesteal > 0 && !target.isBuilding()) {
     attacker.hp = Math.min(attacker.calc.maxHp, attacker.hp + dealt * attacker.calc.lifesteal);
   }

@@ -31,7 +31,15 @@ export class AudioDirector {
         this.ctx = new AudioContext();
         this.master = this.ctx.createGain();
         this.master.gain.value = this.volume;
-        this.master.connect(this.ctx.destination);
+        // 限幅器:密集战斗多 noise+env 叠加防过载失真(master → 压缩 → 输出)
+        const comp = this.ctx.createDynamicsCompressor();
+        comp.threshold.value = -14;
+        comp.knee.value = 8;
+        comp.ratio.value = 6;
+        comp.attack.value = 0.003;
+        comp.release.value = 0.18;
+        this.master.connect(comp);
+        comp.connect(this.ctx.destination);
       }
       void this.ctx.resume();
       this.startMusic();
