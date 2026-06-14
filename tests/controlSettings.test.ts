@@ -99,20 +99,20 @@ describe('control settings', () => {
   });
 
   it('provides short display labels', () => {
-    expect(castInputModeLabel('normal')).toBe('Normal');
-    expect(castInputModeLabel('quick')).toBe('Quick');
-    expect(castInputModeLabel('smart')).toBe('Smart');
+    expect(castInputModeLabel('normal')).toBe('普通');
+    expect(castInputModeLabel('quick')).toBe('快速');
+    expect(castInputModeLabel('smart')).toBe('智能');
   });
 
   it('labels override slots with inherited auto fallback', () => {
-    expect(castInputModeOverrideLabel(undefined, 'quick')).toBe('Auto Quick');
-    expect(castInputModeOverrideLabel('smart', 'quick')).toBe('Smart');
+    expect(castInputModeOverrideLabel(undefined, 'quick')).toBe('自动 快速');
+    expect(castInputModeOverrideLabel('smart', 'quick')).toBe('智能');
   });
 
   it('provides camera speed labels and multipliers', () => {
-    expect(cameraPanSpeedLabel('slow')).toBe('Slow');
-    expect(cameraPanSpeedLabel('normal')).toBe('Normal');
-    expect(cameraPanSpeedLabel('fast')).toBe('Fast');
+    expect(cameraPanSpeedLabel('slow')).toBe('慢');
+    expect(cameraPanSpeedLabel('normal')).toBe('中');
+    expect(cameraPanSpeedLabel('fast')).toBe('快');
     expect(cameraPanSpeedMultiplier('slow')).toBeLessThan(cameraPanSpeedMultiplier('normal'));
     expect(cameraPanSpeedMultiplier('fast')).toBeGreaterThan(cameraPanSpeedMultiplier('normal'));
   });
