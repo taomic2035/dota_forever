@@ -638,12 +638,27 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
   }, controlSettings, renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
 
+  const buildingAlertAt = new Map<number, number>(); // 建筑被攻击警报的每建筑限频(world.time)
   const loop = new GameLoop({
     step() {
       world.step();
       renderer.fx.consume(world, renderer.viewerTeam);
       killfeed.consume(world);
       audio.consume(world, hero);
+      // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
+      if (hero) {
+        for (const e of world.events) {
+          if (e.kind !== 'unit_damaged') continue;
+          const tgt = world.getUnit(e.unitId);
+          if (!tgt?.isBuilding() || tgt.team !== hero.team) continue;
+          const src = world.getUnit(e.sourceId);
+          if (!src?.isHero() || src.team === hero.team) continue;
+          if (world.time - (buildingAlertAt.get(tgt.id) ?? -Infinity) < 6) continue;
+          buildingAlertAt.set(tgt.id, world.time);
+          ux.addWorldPulse({ kind: 'ping', pos: tgt.pos, time: world.time });
+          audio.alert();
+        }
+      }
     },
     render(alpha) {
       renderer.alpha = alpha;

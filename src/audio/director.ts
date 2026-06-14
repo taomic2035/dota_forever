@@ -244,6 +244,13 @@ export class AudioDirector {
     setTimeout(() => this.env(150, 'sine', 0.16, 0.14, -40), 200);
   }
 
+  /** 警报:己方建筑被攻击的急促上行三连音(宏观预警,与低血/拒绝区分)。 */
+  alert(): void {
+    if (!this.ctx || this.throttled('alert', 300)) return;
+    this.env(740, 'square', 0.07, 0.1, 80);
+    setTimeout(() => this.env(880, 'square', 0.07, 0.1, 80), 110);
+  }
+
   /** 按技能代表性标签合成施法音色(控制硬朗 / 治疗温暖 / 爆发明亮 / 大招宏大)。 */
   castFor(abilityKey: string): void {
     switch (this.tagFor(abilityKey)) {
