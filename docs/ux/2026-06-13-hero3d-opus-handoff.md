@@ -1,11 +1,13 @@
 # Hero3D Preview Handoff for Opus
 
 Date: 2026-06-13
-Current update: 2026-06-14 V23 hero real-play readability pass
+Current update: 2026-06-15 V24 hero FX occlusion budget pass
 Current branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
 Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
-Latest screenshot: `docs/screenshots/ux-3d-v23-hero-readability-real-play-clean.png`
+Latest screenshot: `docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png`
+V24 summary: `docs/ux/2026-06-15-3d-v24-hero-fx-occlusion-budget-summary.md`
+V24 gameplay screenshot: `docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png`
 V23 summary: `docs/ux/2026-06-14-3d-v23-hero-real-play-readability-summary.md`
 V23 gameplay screenshot: `docs/screenshots/ux-3d-v23-hero-readability-real-play-clean.png`
 V22 summary: `docs/ux/2026-06-14-3d-v22-hero-model-quality-finish-summary.md`
@@ -73,6 +75,10 @@ Changed files:
   - V23 reduces hero ground-ring/disc opacity and tightens the ring radius so selection/team glow frames the model instead of flooding it.
   - V23 moves hero health bars upward with `healthAnchorY: 152` so bars do not sit on the head silhouette.
   - V23 stores `model.root.userData.gameplay3DReadabilityProfile` for Opus inspection.
+- `src/render3d/statusFx.ts`
+  - V24 adds `HeroStatusFxState.readabilityBudget`.
+  - V24 caps cast/channel glow opacity at `0.48` and scale at `1.18`.
+  - V24 keeps channel glow stronger than cast glow while preventing status FX from covering the hero model in the play camera.
 - `src/ui/hero3dPreview.ts`
   - New full-screen Three.js hero showcase.
   - Includes a hero-selection-stage layout, action buttons, nameplates, lighting, fog, ground stage, background columns, and per-hero pads/light columns.
@@ -92,6 +98,8 @@ Changed files:
   - Verifies `cast` pose produces `runtimeAction.activeAction === "cast_q"`, runtime animated parts/materials, normalized base scale, and `gameplayRuntimeBridge` metadata.
 - `tests/render3d/renderer3dReadability.test.ts`
   - V23 locks hero/non-hero/building readability profiles, including hero scale, ring opacity, selected ring opacity, healthbar anchor, and non-hero compactness.
+- `tests/render3d/statusFx.test.ts`
+  - V24 locks the cast/channel FX occlusion budget for overdriven pose input.
 - `tests/hero3dPreview.test.ts`
   - Locks V14 preview smoke aggregation for runtime action/surface handoff checks.
 - `docs/screenshots/ux-hero3d-preview.png`
@@ -122,6 +130,8 @@ V20 handles the next real-play gap: V14 runtime material/part response previousl
 V22 returns to the core Opus feedback: real in-game model quality. It adds anatomy and material finishing on the same `createHero3DModel(...)` path used by `?mode=play&hero=rein&renderer=3d`, then verifies the result in the default play camera rather than relying only on the close hero preview.
 
 V23 handles the readability layer around that model in the real renderer. It makes the hero slightly larger at default gameplay zoom, moves the health bar above the head read, and tones down the persistent team/selection rings so UI feedback no longer competes with the model itself.
+
+V24 budgets status/cast/channel FX on top of the readable model. It keeps action feedback visible, but caps additive glow scale and opacity so the effect does not become a bright ball that hides the hero in the default play camera.
 
 ## Tradeoff
 
@@ -244,27 +254,45 @@ http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
   - hero `teamDiscOpacity: 0.08`
   - hero `healthAnchorY: 152`
   - hero selected ring opacity range `0.52-0.68`
+- V24 real-play hero FX occlusion hooks:
+  - `heroStatusFxState(...).readabilityBudget.pass`
+  - `heroStatusFxState(...).readabilityBudget.maxCastGlowOpacity`
+  - `heroStatusFxState(...).readabilityBudget.maxCastGlowScale`
+  - `status-fx:cast-glow`
 
 ## Verification Evidence
 
 Latest verified commands in this worktree:
 
 ```text
-npm test -- tests/render3d/renderer3dReadability.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/resource3dModel.test.ts tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts tests/hero3dPreview.test.ts
+npm test -- tests/render3d/statusFx.test.ts tests/render3d/pose.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/renderer3dReadability.test.ts tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts
 6 files passed
-24 tests passed
-```
-
-```text
-npm test -- --pool=forks --maxWorkers=1
-132 files passed
-1267 tests passed
+33 tests passed
 ```
 
 ```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB
+```
+
+V24 red-to-green evidence:
+
+```text
+npm test -- tests/render3d/statusFx.test.ts
+Before fix: 1 failed
+- expected readabilityBudget to match v24-play-camera-fx-occlusion-budget
+```
+
+Real play-route V24 evidence:
+
+```text
+URL: http://127.0.0.1:5233/?mode=play&hero=rein&renderer=3d
+Console/page errors: none
+Canvas: 1440 x 900
+Onboarding overlay: closed
+HUD hero: Rein / 雷恩 visible
+Screenshot: docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png
 ```
 
 V23 red-to-green evidence:

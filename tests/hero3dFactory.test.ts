@@ -199,6 +199,40 @@ describe('hero3d runtime presentation', () => {
       expect(depthLayers.size, `${asset.key} V22 runtime parts need foreground/core/rear depth`).toBeGreaterThanOrEqual(4);
     }
   });
+
+  it('caps V25 persistent emissive and runtime glint layers for the real play camera', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const { root } = createHero3DModel(asset);
+      const budget = root.userData.gameplayModelQuality.emissiveBudget;
+      const materials = runtimeSurfaceMaterials(root);
+      const idleGlints = materials.filter((material) => material.userData.heroRuntimeGlintLayer);
+      const energyCores = materials.filter((material) => material.userData.surfaceRole === 'core' && material.userData.partMaterial === 'energy');
+      const runtimeEmissive = materials.find(
+        (material): material is MeshStandardMaterial =>
+          material instanceof MeshStandardMaterial &&
+          material.userData.runtimeActionReactive &&
+          material.userData.baseEmissiveIntensity > 0,
+      );
+
+      expect(budget, asset.key).toMatchObject({
+        pass: 'v25-play-camera-emissive-budget',
+        maxIdleGlowOpacity: 0.22,
+        maxRuntimeGlowOpacity: 0.46,
+        maxEnergyCoreOpacity: 0.62,
+        maxRuntimeEmissiveIntensity: 2.35,
+      });
+      expect(idleGlints.length, `${asset.key} should still have readable glow layers`).toBeGreaterThan(0);
+      expect(idleGlints.every((material) => material.opacity <= budget.maxIdleGlowOpacity), `${asset.key} idle glow should not flood the play camera`).toBe(true);
+      expect(energyCores.every((material) => material.opacity <= budget.maxEnergyCoreOpacity), `${asset.key} energy cores should stay below the play-camera cap`).toBe(true);
+
+      updateHeroRuntimePresentation(root, 'cast_r', 480);
+
+      expect(idleGlints.every((material) => material.opacity <= budget.maxRuntimeGlowOpacity), `${asset.key} runtime glints should remain under budget`).toBe(true);
+      if (runtimeEmissive) {
+        expect(runtimeEmissive.emissiveIntensity, `${asset.key} runtime emissive should stay under budget`).toBeLessThanOrEqual(budget.maxRuntimeEmissiveIntensity);
+      }
+    }
+  });
 });
 
 function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBasicMaterial)[] {

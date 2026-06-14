@@ -580,7 +580,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     onTogglePause() { loop.paused = !loop.paused; },
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
-    onGlyph() { if (hero) activateGlyph(world, hero.team); }, // 防御符文:己方建筑短时免疫
+    onGlyph() { // 防御符文:己方建筑短时免疫;反馈激活/冷却(此前静默)
+      if (!hero) return;
+      if (activateGlyph(world, hero.team)) audio.command(false);
+      else { ux.setCommandMessage({ kind: 'reject', label: '守护冷却中', time: world.time, color: '#ff3040' }); audio.reject(); }
+    },
 
     onPointerMove(screen, worldPt) {
       ux.setCursorPosition(screen);

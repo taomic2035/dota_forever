@@ -158,12 +158,17 @@ export class Hud {
     const nextRune = t < 0 ? 0 : (Math.floor(t / RUNE_INTERVAL) + 1) * RUNE_INTERVAL;
     const rLeft = Math.max(0, Math.ceil(nextRune - t));
     const rune = `${Math.floor(rLeft / 60)}:${(rLeft % 60).toString().padStart(2, '0')}`;
+    // 守护符文(Glyph)冷却指示(按 G 强化己方建筑;读 world.glyphReadyAt[队])
+    const gReadyAt = hero ? (world.glyphReadyAt?.[hero.team] ?? 0) : 0;
+    const gLeft = Math.max(0, Math.ceil(gReadyAt - t));
+    const glyph = gLeft <= 0 ? '就绪' : `${Math.floor(gLeft / 60)}:${(gLeft % 60).toString().padStart(2, '0')}`;
     this.topbar.innerHTML =
       `<span style="color:#8fd17a;font-weight:700">${dawnKills}</span>` +
       `<span style="color:#8a9">晨曦</span>` +
       `<span>${world.isNight ? '夜晚' : '白昼'}</span>` +
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
       `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
+      `<span title="守护符文 G(强化己方建筑)" style="color:${gLeft <= 0 ? '#8fd17a' : '#9a9277'}">🛡${glyph}</span>` +
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">永夜</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
