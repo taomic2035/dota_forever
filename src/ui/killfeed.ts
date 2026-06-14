@@ -7,7 +7,7 @@ export class KillFeed {
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
     this.root.style.cssText =
-      'position:fixed;top:48px;right:12px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;pointer-events:none;z-index:30;';
+      'position:fixed;top:48px;right:12px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;pointer-events:none;z-index:45;';
     parent.appendChild(this.root);
   }
 
@@ -17,7 +17,9 @@ export class KillFeed {
       if (e.kind === 'hero_kill') {
         const killer = world.getUnit(e.killerId);
         const victim = world.getUnit(e.victimId);
-        const text = e.streakText ?? `${victim?.name ?? '英雄'} 阵亡`;
+        const text = e.streakText ?? (killer && killer.id !== victim?.id
+          ? `${killer.name} 击杀 ${victim?.name ?? '英雄'}`
+          : `${victim?.name ?? '英雄'} 阵亡`);
         this.push(text, killer ? (killer.team === 0 ? '#8fd17a' : '#ef9a9a') : '#bbb', e.bounty);
       } else if (e.kind === 'tower_fell') {
         this.push(`${world.getUnit(e.unitId)?.name ?? '防御塔'} 被摧毁`, '#ffd54f');

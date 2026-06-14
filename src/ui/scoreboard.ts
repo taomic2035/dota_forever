@@ -30,10 +30,15 @@ export class Scoreboard {
           const m = h.heroMeta!;
           const items = h.inventory
             .filter(Boolean)
-            .map((i) => itemDef(i!.itemKey).name.slice(0, 2))
+            .map((i) => `<span title="${itemDef(i!.itemKey).name}">${itemDef(i!.itemKey).name.slice(0, 3)}</span>`)
             .join('·');
-          return `<tr style="opacity:${h.alive ? 1 : 0.45}">
-            <td style="padding:2px 10px;color:${h.heroDef?.color ?? '#ccc'}">${h.heroDef?.glyph ?? ''} ${h.name}</td>
+          // 死亡:行内复活倒计时(+红点标记),取代仅 opacity 变暗
+          const respawnIn = !h.alive ? Math.max(0, Math.ceil((m.respawnAt ?? world.time) - world.time)) : 0;
+          const nameCell = h.alive
+            ? `${h.heroDef?.glyph ?? ''} ${h.name}`
+            : `<span style="color:#ef5350">✖</span> ${h.name} <span style="color:#ef5350;font-size:11px">复活 ${respawnIn}s</span>`;
+          return `<tr style="opacity:${h.alive ? 1 : 0.55}">
+            <td style="padding:2px 10px;color:${h.heroDef?.color ?? '#ccc'}">${nameCell}</td>
             <td style="padding:2px 10px">${h.level}</td>
             <td style="padding:2px 10px">${m.kills}/${m.deaths}/${m.assists}</td>
             <td style="padding:2px 10px">${m.lastHits}/${m.denies}</td>
