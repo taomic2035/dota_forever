@@ -47,7 +47,7 @@ export function buildingStats(kind: BuildingKind): UnitStats {
       ...common,
       maxHp: t.hp, hpRegen: 0,
       dmgMin: t.dmg[0], dmgMax: t.dmg[1],
-      attackType: 'normal', armorType: 'fortified', armor: t.armor,
+      attackType: 'tower', armorType: 'fortified', armor: t.armor,
       attackRange: t.range, bat: t.bat, projectileSpeed: 1100,
       collisionRadius: UNIT_RADIUS.tower,
       acquireRange: t.range,

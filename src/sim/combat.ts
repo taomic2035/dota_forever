@@ -5,7 +5,7 @@
 import { V } from '../core/vec2';
 import { turnTowards } from '../core/mathx';
 import {
-  DAMAGE_MATRIX, armorReduction, MAX_IAS_BONUS, TURN_RATE,
+  DAMAGE_MATRIX, armorReduction, MAX_IAS_BONUS, TURN_RATE, TOWER_ATTACK_RAMP, TOWER_ATTACK_RAMP_MAX,
   UPHILL_MISS_CHANCE, BLINK_DAMAGE_LOCKOUT, MAGIC_RESIST_CAP, BACKDOOR_DAMAGE_FACTOR,
   type AttackType,
 } from '../data/balance';
@@ -432,7 +432,24 @@ export function tryStartWindup(w: World, u: Unit, t: Unit): void {
   w.emit({ kind: 'attack_launched', unitId: u.id, targetId: t.id });
 }
 
+/**
+ * 防御塔连击递增:对同目标每次连续攻击伤害 +20%(经典 DotA1「久留塔下伤害递增」),
+ * 切换目标或闲置(>3s 未攻击)重置。返回伤害乘数(非塔单位恒为 1,不触状态)。
+ */
+function towerAttackRampMult(w: World, u: Unit, t: Unit): number {
+  if (!u.buildingKind?.startsWith('tower')) return 1;
+  if (u.attackStreakTargetId !== t.id || w.time - u.attackStreakAt > 3) {
+    u.attackStreak = 0;
+    u.attackStreakTargetId = t.id;
+  } else {
+    u.attackStreak += 1;
+  }
+  u.attackStreakAt = w.time;
+  return Math.min(1 + TOWER_ATTACK_RAMP * u.attackStreak, TOWER_ATTACK_RAMP_MAX);
+}
+
 function launchAttack(w: World, u: Unit, t: Unit): void {
+  const rampMult = towerAttackRampMult(w, u, t);
   if (u.calc.projectileSpeed > 0) {
     w.projectiles.push({
       pos: V.clone(u.pos),
@@ -440,7 +457,7 @@ function launchAttack(w: World, u: Unit, t: Unit): void {
       targetId: t.id,
       sourceId: u.id,
       kind: 'attack',
-      attackPayload: { amount: rollAttackDamage(w, u) },
+      attackPayload: { amount: rollAttackDamage(w, u) * rampMult },
     });
   } else {
     dealAttackDamage(w, u, t);

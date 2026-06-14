@@ -178,6 +178,10 @@ export class Unit {
   attackCooldownUntil = -Infinity; // world.time
   windupUntil = -Infinity;
   windupTargetId: EntityId | 0 = 0;
+  // 防御塔连击递增状态(经典 DotA1:对同目标连续攻击伤害 +20%/次,切换目标或闲置重置)
+  attackStreak = 0;
+  attackStreakTargetId: EntityId | 0 = 0;
+  attackStreakAt = -Infinity;
   lastAttackerId: EntityId | 0 = 0;
   lastDamagedAt = -Infinity;
   /** 受英雄/塔/Boss 伤害后闪烁类道具锁定至该时刻 */

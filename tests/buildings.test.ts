@@ -103,4 +103,31 @@ describe('buildings', () => {
     for (let i = 0; i < 12; i++) w.step();
     expect(t1.backdoorProtected).toBe(false); // T1 永不享后门保护
   });
+
+  it('塔伤连击递增 + 对英雄 0.5×(经典 DotA1:久留塔下伤害递增)', () => {
+    const tower = unitsBy((u) => u.team === Team.Dawn && u.buildingKind === 'tower1' && u.lane === 'mid')[0];
+    tower.base.dmgMin = tower.base.dmgMax = 110; // 固定塔伤,便于测净递增(fold 从 base 起算)
+    // 敌方英雄站塔射程内:无甲(测净伤)、高血不死、不动不还手
+    const enemy = w.spawnUnit({
+      kind: 'hero', team: Team.Night, pos: map.nearestWalkable({ x: tower.pos.x + 300, y: tower.pos.y }),
+      name: 'e', stats: stats({ maxHp: 50000, armor: 0, dmgMin: 0, dmgMax: 0, moveSpeed: 0 }),
+    });
+    enemy.hp = enemy.calc.maxHp;
+    const hits: number[] = [];
+    let prevHp = enemy.hp;
+    for (let i = 0; i < 30 * 12 && hits.length < 5; i++) {
+      w.step();
+      if (enemy.hp < prevHp - 0.01) { hits.push(prevHp - enemy.hp); prevHp = enemy.hp; }
+    }
+    expect(hits.length).toBeGreaterThanOrEqual(4);
+    // 连击递增:非降序(封顶 ×1.5 后 plateau,且偶发 miss 不致回落)
+    for (let i = 1; i < hits.length; i++) expect(hits[i]).toBeGreaterThanOrEqual(hits[i - 1] - 0.01);
+    // 确有递增发生(首两击差 ≈ +20% 步进 ≈ +11)
+    expect(hits[1]).toBeGreaterThan(hits[0]);
+    expect(hits[1] - hits[0]).toBeGreaterThan(8);
+    // 对英雄 0.5× 起:首击(streak0)≈ 110×0.5=55;若仍为 normal 0.75 则 ≈82.5。<70 区分二者
+    expect(Math.min(...hits)).toBeLessThan(70);
+    // 封顶:对英雄最高 0.5×1.5=0.75 → ≈82.5,不应超(无界递增才会更高)
+    expect(Math.max(...hits)).toBeLessThan(90);
+  });
 });

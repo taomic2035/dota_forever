@@ -9,7 +9,7 @@ export const TICK_RATE = 30;
 export const DT = 1 / TICK_RATE;
 
 // ---------- 攻击类型 × 护甲类型 ----------
-export type AttackType = 'hero' | 'normal' | 'pierce' | 'siege' | 'spell' | 'chaos';
+export type AttackType = 'hero' | 'normal' | 'pierce' | 'siege' | 'spell' | 'chaos' | 'tower';
 export type ArmorType = 'hero' | 'unarmored' | 'light' | 'medium' | 'heavy' | 'fortified';
 
 /** 克制矩阵:行=攻击类型,列=护甲类型。建筑(fortified)免疫法术;chaos 对所有护甲 100%。 */
@@ -20,7 +20,20 @@ export const DAMAGE_MATRIX: Record<AttackType, Record<ArmorType, number>> = {
   siege:  { hero: 0.5, unarmored: 1.0,  light: 1.0,  medium: 0.5, heavy: 1.0,  fortified: 1.5 },
   spell:  { hero: 1.0, unarmored: 1.0,  light: 1.0,  medium: 1.0, heavy: 1.0,  fortified: 0.0 },
   chaos:  { hero: 1.0, unarmored: 1.0,  light: 1.0,  medium: 1.0, heavy: 1.0,  fortified: 1.0 },
+  // 防御塔:经典 DotA1 塔用 Pierce(对英雄 0.5×);此处仅取「对英雄 0.5」忠实化 dive 手感,
+  // 对兵/建筑沿用 normal 值以保已验证的兵线均衡(完整 pierce 会令 melee 兵 1.5→0.75 重创推线)。
+  // 配合 launchAttack 的连击 +20% 递增,还原「久留塔下伤害递增」的经典机制。
+  tower:  { hero: 0.5, unarmored: 1.0,  light: 1.0,  medium: 1.5, heavy: 1.0,  fortified: 0.7 },
 };
+/** 塔连击递增:对同目标每次连续攻击 +20%(经典 DotA1),切换目标或闲置重置。 */
+export const TOWER_ATTACK_RAMP = 0.2;
+/**
+ * 递增乘数封顶 ×1.5:对英雄即 0.5×→0.75× 封顶。久攻持续伤害正好回到旧 normal 值(已 batchsim
+ * 验证 8/8 决胜),早期 dive 仍更弱(0.5-0.7,保留手感)。经典无明确上限,但无界递增令久攻高台塔
+ * 的英雄承受无界惩罚 → batchsim 实测会致攻坚僵局(seed 31337 从决胜变 90min 无胜者);
+ * 为对局健康(商用级:杜绝拖沓不决)对无上限作务实封顶。
+ */
+export const TOWER_ATTACK_RAMP_MAX = 1.5;
 
 /** WC3 护甲减伤公式;负甲为增伤(返回负数表示额外承伤)。 */
 export function armorReduction(armor: number): number {
