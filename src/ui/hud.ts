@@ -22,6 +22,7 @@ export class Hud {
   onLearn?: (index: number) => void;
   onLearnStat?: () => void;
   onBuyback?: () => void;
+  onSell?: (invSlot: number) => void;
   onMoveToBackpack?: (invSlot: number) => void;
   onMoveFromBackpack?: (bpSlot: number) => void;
 
@@ -60,6 +61,9 @@ export class Hud {
       const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
       if (!el) return;
       e.preventDefault();
+      // 右键库存物品 → 出售(经 shop.sellSlot 校验商店范围 + toast,天然防误卖)
+      if (e.button === 2 && el.hasAttribute('data-bag')) { this.onSell?.(Number(el.getAttribute('data-bag'))); return; }
+      if (e.button === 2) return; // 其他槽位右键不处理
       if (el.hasAttribute('data-buyback')) this.onBuyback?.();
       else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
       else if (el.hasAttribute('data-bag')) this.onMoveToBackpack?.(Number(el.getAttribute('data-bag')));
@@ -292,7 +296,7 @@ export class Hud {
     const onCd = world.time < inst.cooldownUntil;
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
-    const tip = canBag ? `${def.name}: ${def.description}(点击移入背包栏)` : `${def.name}: ${def.description}`;
+    const tip = canBag ? `${def.name}: ${def.description}(左键移入背包栏 · 右键出售)` : `${def.name}: ${def.description}`;
     return `<div ${canBag ? `data-bag="${i}" ` : ''}title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
       background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
       align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">

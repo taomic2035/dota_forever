@@ -12,6 +12,11 @@ export interface HeroStatusFxState {
   stunRing: { visible: boolean; opacity: number; rotation: number; scale: number };
   castGlow: { visible: boolean; opacity: number; scale: number };
   invisShell: { visible: boolean; opacity: number; scale: number };
+  readabilityBudget: {
+    pass: 'v24-play-camera-fx-occlusion-budget';
+    maxCastGlowOpacity: 0.48;
+    maxCastGlowScale: 1.18;
+  };
 }
 
 export interface HeroStatusFxObjects {
@@ -22,9 +27,14 @@ export interface HeroStatusFxObjects {
 }
 
 export function heroStatusFxState(i: HeroStatusFxInput): HeroStatusFxState {
+  const readabilityBudget: HeroStatusFxState['readabilityBudget'] = {
+    pass: 'v24-play-camera-fx-occlusion-budget',
+    maxCastGlowOpacity: 0.48,
+    maxCastGlowScale: 1.18,
+  };
   const castEnergy = Math.max(0, i.castGlow);
   const channelEnergy = Math.max(0, i.channelPulse);
-  const combinedCast = Math.min(1.35, castEnergy + channelEnergy * 0.45);
+  const combinedCast = Math.min(1, castEnergy + channelEnergy * 0.45);
   const invisible = i.invisibilityAlpha < 0.95;
 
   return {
@@ -36,14 +46,15 @@ export function heroStatusFxState(i: HeroStatusFxInput): HeroStatusFxState {
     },
     castGlow: {
       visible: combinedCast > 0.08,
-      opacity: Math.min(0.86, 0.24 + combinedCast * 0.46),
-      scale: 0.82 + combinedCast * 0.58,
+      opacity: Math.min(readabilityBudget.maxCastGlowOpacity, 0.16 + combinedCast * 0.32),
+      scale: Math.min(readabilityBudget.maxCastGlowScale, 0.78 + combinedCast * 0.4),
     },
     invisShell: {
       visible: invisible,
       opacity: invisible ? 0.18 + (1 - i.invisibilityAlpha) * 0.34 : 0,
       scale: 1.04 + (1 - i.invisibilityAlpha) * 0.12,
     },
+    readabilityBudget,
   };
 }
 

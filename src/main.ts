@@ -164,6 +164,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
   hud.onLearnStat = () => { if (hero?.alive) learnStatBonus(hero); };
   hud.onBuyback = () => { if (hero && !hero.alive) tryBuyback(world, hero); };
+  hud.onSell = (s) => { if (hero?.alive) shop.sellSlot(world, hero, s); }; // 右键库存物品出售(50% 返还,商店范围内)
   hud.onMoveToBackpack = (s) => { if (hero?.alive) moveToBackpack(world, hero, s); };
   hud.onMoveFromBackpack = (s) => { if (hero?.alive) moveFromBackpack(world, hero, s); };
   const killfeed = new KillFeed(app);

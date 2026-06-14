@@ -21,6 +21,19 @@ describe('heroStatusFxState', () => {
     expect(channel.castGlow.opacity).toBeGreaterThan(cast.castGlow.opacity);
   });
 
+  it('caps V24 cast and channel glow so the effect does not cover the hero model', () => {
+    const overloaded = heroStatusFxState({ castGlow: 1.2, channelPulse: 1.2, stunStars: 0, invisibilityAlpha: 1, t: 0.2 });
+
+    expect(overloaded.readabilityBudget).toMatchObject({
+      pass: 'v24-play-camera-fx-occlusion-budget',
+      maxCastGlowOpacity: 0.48,
+      maxCastGlowScale: 1.18,
+    });
+    expect(overloaded.castGlow.opacity).toBeLessThanOrEqual(overloaded.readabilityBudget.maxCastGlowOpacity);
+    expect(overloaded.castGlow.scale).toBeLessThanOrEqual(overloaded.readabilityBudget.maxCastGlowScale);
+    expect(overloaded.castGlow.visible).toBe(true);
+  });
+
   it('shows a soft shell for invisible units', () => {
     const v = heroStatusFxState({ castGlow: 0, channelPulse: 0, stunStars: 0, invisibilityAlpha: 0.42, t: 1 });
 
