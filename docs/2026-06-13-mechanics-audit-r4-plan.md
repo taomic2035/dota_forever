@@ -48,9 +48,9 @@
 - **[C2] Backdoor 保护** — 全缺失;无友军小兵时攻建筑减伤 + 快速回血。核心地图博弈。
 - **[C3] 堆野 + 拉野**:✅ 堆野机制**已支持并测试确认**——trySpawnCamp 占用检测用 420 出生框,野怪被引出(420–800,框外 leash 内)则整分钟刷新叠加新组;**玩家可手动堆野/拉野**(攻击野怪引出框外即可)。守卫测试 neutrals「堆野」。⬜ 待:AI 自动拉野(支援 bot 在拉野窗口把兵线引入营地)——复杂 AI 行为且对 bot 兵线表现有风险(易扰乱 ai/fullgame),作为后续增强。
 - ⏭️ **[C4] 转身率逐英雄** —— **甄别后跳过**:本引擎 `facing` **不门控普攻**(combat.ts:315 前摇计时到点即 launchAttack,无视朝向是否对准);全 sim 内 `facing` 仅 1 处被读(abilities.ts:393 定向技「身前 300」取点,且施法中 abilities.ts:177 已按 `TURN_RATE×4` 快速对准 aim)。审计「转身率影响攻击时机/背刺窗口」前提在此**不成立**——逐英雄转身率仅是视觉旋转速度,无玩法/平衡价值。同 A6/B5,不改。
-- **[C5] 高地随机揭雾** `vision.ts:65`:低地对高台硬性 0 视野;经典有 ~25% 概率偷看高台格(上坡 miss 姊妹机制)。
-- **[C6] 关键物品主动**(进行中):✅ Shiva 被动减速光环(holderModifier aura,-30% 攻速 750 内)、✅ Heart 脱战 6 秒后 2%/s 回血(holderModifier onTick)——**附带修复 syncHolderModifiers 未初始化 nextTickAt 导致持有型 onTick 永不触发的潜在 bug**。✅ Power Treads 三属性切换 ✅ Diffusal 8 次充能 ✅ Bloodstone 血石(近敌阵亡积充能上限30 + 每充能 +回复 + 死亡按充能缩短重生并失30%充能;economy 死亡循环 + itemFold 特例;守卫测试)。✅ Silver Edge Break(新增 broken 状态 + foldModifiers 中 broken 时跳过 passive_/scepter_passive_ 数值;静默之刃主动挂 armed 蓄势,onAttack 命中消耗蓄势施加 broken 5s;守卫测试)。⬜ 待:Bloodstone 死亡爆炸/法术吸命(更复杂)。
-- **[C7] 瞬发攻击工具** `combat.ts`:`grantInstantAttack(u)` 供大招/分身重置普攻 CD。
+- ⏭️ **[C5] 高地随机揭雾** —— **甄别后跳过**:核查 `vision.ts:65`(`height[i] > uh` 硬性遮断,低地对高台 0 视野)即经典 WC3/DotA1 忠实行为;经典**无**「~25% 概率偷看高台格」——该 25% 实为上坡 miss(`combat.ts UPHILL_MISS_CHANCE`,已实现 113-121),审计将其与视野混淆。加随机揭雾反成自创非真实行为,不改。
+- **[C6] 关键物品主动**(进行中):✅ Shiva 被动减速光环(holderModifier aura,-30% 攻速 750 内)、✅ Heart 脱战 6 秒后 2%/s 回血(holderModifier onTick)——**附带修复 syncHolderModifiers 未初始化 nextTickAt 导致持有型 onTick 永不触发的潜在 bug**。✅ Power Treads 三属性切换 ✅ Diffusal 8 次充能 ✅ Bloodstone 血石(近敌阵亡积充能上限30 + 每充能 +回复 + 死亡按充能缩短重生并失30%充能;economy 死亡循环 + itemFold 特例;守卫测试)。✅ Silver Edge Break(新增 broken 状态 + foldModifiers 中 broken 时跳过 passive_/scepter_passive_ 数值;静默之刃主动挂 armed 蓄势,onAttack 命中消耗蓄势施加 broken 5s;守卫测试)。⏸️ 待定增强:Bloodstone 死亡爆炸/法术吸命——**版本存疑**(法术吸命疑为 DotA2 血石特性,非 DotA1),无权威单版本数据前不实现存疑机制;血石核心(充能/缩短重生/回复)已全。
+- ⏸️ **[C7] 瞬发攻击工具** `grantInstantAttack(u)` —— **YAGNI 暂缓**:全 roster 现无任何技能/物品需要瞬发普攻重置(无消费方),无消费者前不引入死代码;未来若有「重置普攻 CD」类大招再随需补。
 
 ---
 
@@ -75,3 +75,16 @@
 4. **P0-2 塔伤类型 / P2 版本存疑项**:核实经典数据后定夺,勿盲改;balance 项一律 batchsim 回归。
 
 > 原则:清晰 bug 即修;版本/平衡敏感项先核实再动且回归;大特性立项。遵「机制保真优先、忠实 DotA 1 而非自创」。
+
+---
+
+## 第四轮收口状态(2026-06-14)
+
+**全部 P0/P1/C 项已闭环**——每项或已实现、或甄别为非真实机制跳过、或版本存疑/无消费者明确暂缓:
+
+- **已实现**:P0-1 信使 · 批次 A(A1-A5/A7-A10)· 批次 B(B1/B3/B4/B6-B9)· C1 Glyph · C2 Backdoor · C3 堆野 · C6 物品主动(Shiva/Heart/Treads/Diffusal/Bloodstone 核心/Silver Edge Break)· **首波 0:00 时机修正(本轮新增,batchsim 验健康)**。
+- **⏭️ 甄别为非真实机制跳过**(验证审计前提不成立,改之反成自创):A6 强驱散中断引导 · B5 法球互斥 · **C4 逐英雄转身率(facing 不门控普攻,纯视觉)** · **C5 高地随机揭雾(经典无 25% 偷看,硬性 0 视野已忠实;25% 实为已实现的上坡 miss)**。
+- **⏸️ 版本存疑/无消费者暂缓**(无权威单版本数据或无调用方前不动):P0-2 塔伤类型/护甲(版本相关 + 平衡敏感,batchsim 已示健康)· B2 远程前摇取消语义 · C6 血石死亡爆炸/法术吸命(疑 DotA2 特性)· C7 瞬发攻击工具(无消费方 YAGNI)· P2 版本存疑组(昼夜时长/守卫视野/起始金等)。
+- **⬜ 后续增强**(非核心缺口,需复杂 AI/框架):C3 AI 自动拉野 · 信使升级飞行/手动操控。
+
+> 核心结论:四轮审计后,**机制保真已达成熟忠实状态**(核心数值常数精确对齐,控制/物品/地图/经济/兵线野区/视野系统完整)。剩余项均为存疑待核实或增强,非正确性缺口。下阶段重心可转向 GPT 视觉素材对接(2.x 3D 层)与体验打磨。
