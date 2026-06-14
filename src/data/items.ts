@@ -7,7 +7,7 @@ import type { TargetKindFilter, TargetTeamFilter } from '../sim/targeting';
 import type { StatMods } from '../sim/modifiers';
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
-import { applyModifier, hasModifier } from '../sim/modifiers';
+import { applyModifier, hasModifier, removeModifier } from '../sim/modifiers';
 import { blinkTo } from '../sim/abilities';
 import { addXp } from '../sim/economy';
 
@@ -1153,14 +1153,22 @@ ITEMS.push(
   { key: 'silver_edge', name: '静默之刃', cost: 4600, category: 'combined',
     stats: { bonusDamage: 40, bonusAttackSpeed: 0.3, bonusStr: 10 },
     recipe: { components: ['shadow_blade', 'ogre_axe'], recipeCost: 600 },
+    onAttack(w, attacker, target) {
+      // 蓄势中的下次攻击对目标施加破坏(禁用被动 5 秒),消耗蓄势(经典静默之刃 Break)
+      if (target.isBuilding()) return;
+      if (!attacker.modifiers.some((m) => m.key === 'item_silveredge_armed')) return;
+      applyModifier(w, target, { key: 'item_silveredge_break', duration: 5, states: { broken: true } }, attacker.id);
+      removeModifier(w, attacker, 'item_silveredge_armed');
+    },
     active: {
       name: '潜行突袭', cooldown: 14, targetMode: 'none',
       onUse(w, user) {
         applyModifier(w, user, { key: 'item_silveredge', duration: 14, isBuff: true, states: { invisible: true }, stats: { bonusMoveSpeedPct: 0.2 } }, user.id);
+        applyModifier(w, user, { key: 'item_silveredge_armed', duration: 14, isBuff: true }, user.id); // 下次攻击破坏目标被动
         return true;
       },
     },
-    description: '+40 攻击 +30% 攻速 +10 力量;主动:隐身加速,下次攻击爆发(脱离即现身)。' },
+    description: '+40 攻击 +30% 攻速 +10 力量;主动:隐身加速,下次攻击破坏目标被动 5 秒(脱离即现身)。' },
 
   // 以太之镜:法术增强 + 法力
   { key: 'aether_lens', name: '以太之镜', cost: 2100, category: 'combined',

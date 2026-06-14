@@ -53,6 +53,8 @@ export interface StateMods {
   physImmune?: boolean;
   /** 升空/不可选取(如飓风旋风):不可被攻击/伤害/指向施法。由 modifier 派生,移除即恢复。 */
   untargetable?: boolean;
+  /** 破坏(Break):禁用被动技能(foldModifiers 跳过 passive_/scepter_passive_ 数值)。 */
+  broken?: boolean;
 }
 
 export interface Modifier {
@@ -204,6 +206,7 @@ export function modifierStates(u: Unit): StateMods {
     if (st.phased) s.phased = true;
     if (st.physImmune) s.physImmune = true;
     if (st.untargetable) s.untargetable = true;
+    if (st.broken) s.broken = true;
   }
   return s;
 }
@@ -219,9 +222,11 @@ export function foldModifiers(u: Unit): void {
   let msPct = 0;
   let msFixed = 0; // 固定移速覆盖(取最严格=最小非零值;加速符文 522 / 妖术 100)
   let dmgPct = 0;
+  const broken = u.modifiers.some((m) => m.def.states?.broken); // Break:禁用被动技能
   for (const m of u.modifiers) {
     const s = m.def.stats;
     if (!s) continue;
+    if (broken && (m.key.startsWith('passive_') || m.key.startsWith('scepter_passive_'))) continue; // 破坏:被动技能数值失效
     if (s.setMoveSpeed && s.setMoveSpeed > 0) msFixed = msFixed === 0 ? s.setMoveSpeed : Math.min(msFixed, s.setMoveSpeed);
     c.maxHp += s.bonusHp ?? 0;
     c.maxMp += s.bonusMp ?? 0;

@@ -820,6 +820,26 @@ describe('advanced items batch 9', () => {
     expect(remain).toBeLessThan(respawnTime(10)); // 按充能缩短
     expect(bs.charges).toBeLessThan(20);           // 死亡失部分充能
   });
+
+  it('破坏(Break):禁用被动技能数值(passive_ modifier 失效)', () => {
+    applyModifier(w, h, { key: 'passive_test', stats: { bonusArmor: 10 } }, h.id);
+    run(2);
+    const withPassive = h.calc.armor;
+    applyModifier(w, h, { key: 'dbg_break', duration: 5, states: { broken: true } }, h.id);
+    run(2);
+    expect(h.calc.armor).toBe(withPassive - 10); // 被动 +10 护甲被破坏失效
+  });
+
+  it('静默之刃:蓄势攻击对目标施加破坏并消耗蓄势', () => {
+    const slot = give(h, 'silver_edge');
+    const t = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: w.map.nearestWalkable({ x: h.pos.x + 110, y: h.pos.y }), name: 't', stats: { ...REIN_STATS(), maxHp: 100000 } });
+    useItem(w, h, slot); // 主动:隐身 + 蓄势
+    expect(hasModifier(h, 'item_silveredge_armed')).toBe(true);
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    for (let i = 0; i < 90 && !hasModifier(t, 'item_silveredge_break'); i++) w.step();
+    expect(hasModifier(t, 'item_silveredge_break')).toBe(true);   // 目标被破坏
+    expect(hasModifier(h, 'item_silveredge_armed')).toBe(false);  // 蓄势已消耗
+  });
 });
 
 function REIN_STATS() {

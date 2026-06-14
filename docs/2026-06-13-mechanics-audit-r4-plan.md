@@ -49,7 +49,7 @@
 - **[C3] 堆野 + 拉野** `neutrals.ts`/`creeps.ts`:堆野(:53–:55 引出)、拉野(兵线引入营地)。辅助核心。
 - **[C4] 转身率逐英雄** `balance.ts:49`(全局 TURN_RATE):`HeroDef.turnRate` + 各处读;消除背刺/转向博弈缺失。schema 变更。
 - **[C5] 高地随机揭雾** `vision.ts:65`:低地对高台硬性 0 视野;经典有 ~25% 概率偷看高台格(上坡 miss 姊妹机制)。
-- **[C6] 关键物品主动**(进行中):✅ Shiva 被动减速光环(holderModifier aura,-30% 攻速 750 内)、✅ Heart 脱战 6 秒后 2%/s 回血(holderModifier onTick)——**附带修复 syncHolderModifiers 未初始化 nextTickAt 导致持有型 onTick 永不触发的潜在 bug**。✅ Power Treads 三属性切换 ✅ Diffusal 8 次充能 ✅ Bloodstone 血石(近敌阵亡积充能上限30 + 每充能 +回复 + 死亡按充能缩短重生并失30%充能;economy 死亡循环 + itemFold 特例;守卫测试)。⬜ 待:Bloodstone 死亡爆炸/法术吸命(更复杂)、Silver Edge Break(需 break 框架)。
+- **[C6] 关键物品主动**(进行中):✅ Shiva 被动减速光环(holderModifier aura,-30% 攻速 750 内)、✅ Heart 脱战 6 秒后 2%/s 回血(holderModifier onTick)——**附带修复 syncHolderModifiers 未初始化 nextTickAt 导致持有型 onTick 永不触发的潜在 bug**。✅ Power Treads 三属性切换 ✅ Diffusal 8 次充能 ✅ Bloodstone 血石(近敌阵亡积充能上限30 + 每充能 +回复 + 死亡按充能缩短重生并失30%充能;economy 死亡循环 + itemFold 特例;守卫测试)。✅ Silver Edge Break(新增 broken 状态 + foldModifiers 中 broken 时跳过 passive_/scepter_passive_ 数值;静默之刃主动挂 armed 蓄势,onAttack 命中消耗蓄势施加 broken 5s;守卫测试)。⬜ 待:Bloodstone 死亡爆炸/法术吸命(更复杂)。
 - **[C7] 瞬发攻击工具** `combat.ts`:`grantInstantAttack(u)` 供大招/分身重置普攻 CD。
 
 ---
