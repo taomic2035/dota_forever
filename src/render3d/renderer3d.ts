@@ -20,6 +20,7 @@ import { Scene3D } from './scene';
 import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './terrain3d';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
+import { unitStatusPips } from '../render/statusPips';
 import { visualStateFor3D } from './visualState';
 import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
 import { stackedUnitVisualOffset } from './stackOffset';
@@ -410,6 +411,27 @@ export class Renderer3D {
         const mf = Math.max(0, Math.min(1, u.mp / u.calc.maxMp));
         ctx.fillStyle = '#1565c0';
         ctx.fillRect(sx - bw / 2, sy + bh + 1, bw * mf, 3);
+      }
+      // 状态色点(控制红/敌方减益橙/增益绿):英雄头顶,与 2D 共用 unitStatusPips
+      if (isHero) {
+        const pips = unitStatusPips(world, u, world.time, 6);
+        if (pips.length) {
+          const psz = 7, pgap = 2;
+          const totalW = pips.length * psz + (pips.length - 1) * pgap;
+          let px = sx - totalW / 2;
+          const py = sy - psz - 3;
+          for (const pip of pips) {
+            ctx.fillStyle = 'rgba(8,8,8,0.85)';
+            ctx.fillRect(px - 1, py - 1, psz + 2, psz + 2);
+            ctx.fillStyle = pip.color;
+            ctx.fillRect(px, py, psz, psz);
+            ctx.fillStyle = 'rgba(0,0,0,0.55)';
+            ctx.fillRect(px, py + psz - 2, psz, 2);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(px, py + psz - 2, psz * pip.frac, 2);
+            px += psz + pgap;
+          }
+        }
       }
     }
   }

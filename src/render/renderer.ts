@@ -10,6 +10,7 @@ import { FogRenderer } from './fog';
 import { FxLayer } from './fx';
 import { unitArt, darken, type UnitArt, type ArtInput } from './unitArt';
 import { isVisibleTo } from '../sim/vision';
+import { unitStatusPips } from './statusPips';
 import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
@@ -1001,33 +1002,9 @@ export class Renderer {
   /** 状态条:HP 条上方一排小方块,表示限时 buff/debuff(绿=增益,橙=减益,红=控制),底部细条示剩余。 */
   private drawStatusStrip(world: World, u: Unit, p: Vec2, r: number): void {
     const ctx = this.ctx;
-    const now = world.time;
-    // 限时、按 key 去重、控制优先
-    const seen = new Set<string>();
-    const list: { color: string; frac: number; prio: number }[] = [];
-    for (const m of u.modifiers) {
-      if (m.expiresAt === Infinity || m.expiresAt <= now) continue;
-      if (seen.has(m.key)) continue;
-      seen.add(m.key);
-      const st = m.def.states;
-      const control = !!(st && (st.stunned || st.rooted || st.silenced || st.disarmed));
-      let color: string;
-      let prio: number;
-      if (control) { color = '#ff3b3b'; prio = 0; }
-      else if (m.def.isBuff === true) { color = '#6fe06f'; prio = 2; }
-      else {
-        const src = world.getUnit(m.sourceId);
-        const fromEnemy = src ? src.team !== u.team : false;
-        if (fromEnemy) { color = '#ff9e40'; prio = 1; }
-        else { color = '#6fe06f'; prio = 2; }
-      }
-      const dur = m.def.duration;
-      const frac = dur && dur > 0 ? Math.max(0, Math.min(1, (m.expiresAt - now) / dur)) : 1;
-      list.push({ color, frac, prio });
-    }
-    if (!list.length) return;
-    list.sort((a, b) => a.prio - b.prio);
-    const show = list.slice(0, 6);
+    // 状态色点(控制红/敌方减益橙/增益绿)分类与 3D 共用 unitStatusPips,单一裁决来源
+    const show = unitStatusPips(world, u, world.time, 6);
+    if (!show.length) return;
     const sz = Math.max(4, this.s(9));
     const gap = Math.max(1, this.s(2));
     const totalW = show.length * sz + (show.length - 1) * gap;
