@@ -123,6 +123,17 @@ background:${bg};color:${color};cursor:pointer;font-weight:700;letter-spacing:2p
 export interface PauseMenuControlOptions {
   getSettings(): ControlSettings;
   onChange(settings: ControlSettings): void;
+  /** 音量 0-1(可选;暂停菜单提供 静音/低/中/高 循环)。 */
+  getVolume?(): number;
+  setVolume?(v: number): void;
+}
+
+const VOLUME_STEPS = [0, 0.25, 0.5, 0.8];
+function volumeLabel(v: number): string {
+  if (v <= 0.001) return '静音';
+  if (v <= 0.3) return '低';
+  if (v <= 0.6) return '中';
+  return '高';
 }
 
 export function createPauseMenu(
@@ -147,14 +158,15 @@ export function createPauseMenu(
       <button id="pm-ability-cast" style="${compactBtnCss('#1d2330', '#7ec8e3')}"></button>
       <button id="pm-item-cast" style="${compactBtnCss('#2c2a18', '#d9b44a')}"></button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:360px">
       <button id="pm-camera-speed" style="${compactBtnCss('#18271f', '#8fd17a')}"></button>
       <button id="pm-edge-pan" style="${compactBtnCss('#221a2c', '#c39cff')}"></button>
+      <button id="pm-volume" style="${compactBtnCss('#2c2218', '#ffb86b')}"></button>
     </div>
     <div style="width:430px;display:flex;flex-direction:column;gap:7px">
-      <div style="${sectionLabelCss('#7ec8e3')}">Abilities</div>
+      <div style="${sectionLabelCss('#7ec8e3')}">技能施法</div>
       <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">${abilityButtons}</div>
-      <div style="${sectionLabelCss('#d9b44a')}">Items</div>
+      <div style="${sectionLabelCss('#d9b44a')}">物品施放</div>
       <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:6px">${itemButtons}</div>
     </div>` : ''}
     <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
@@ -174,10 +186,12 @@ export function createPauseMenu(
     const item = root.querySelector('#pm-item-cast') as HTMLButtonElement | null;
     const camera = root.querySelector('#pm-camera-speed') as HTMLButtonElement | null;
     const edgePan = root.querySelector('#pm-edge-pan') as HTMLButtonElement | null;
-    if (ability) ability.textContent = `Ability ${castInputModeLabel(settings.abilityCast)}`;
-    if (item) item.textContent = `Item ${castInputModeLabel(settings.itemCast)}`;
-    if (camera) camera.textContent = `Camera ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
-    if (edgePan) edgePan.textContent = `Edge ${settings.cameraEdgePan ? 'On' : 'Off'}`;
+    const volume = root.querySelector('#pm-volume') as HTMLButtonElement | null;
+    if (ability) ability.textContent = `技能 ${castInputModeLabel(settings.abilityCast)}`;
+    if (item) item.textContent = `物品 ${castInputModeLabel(settings.itemCast)}`;
+    if (camera) camera.textContent = `镜头 ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
+    if (edgePan) edgePan.textContent = `边缘平移 ${settings.cameraEdgePan ? '开' : '关'}`;
+    if (volume) volume.textContent = controls.getVolume ? `音量 ${volumeLabel(controls.getVolume())}` : '音量 —';
     root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.abilityCastSlot);
       const hotkey = abilityHotkeys[slot] ?? '?';
@@ -210,6 +224,15 @@ export function createPauseMenu(
     if (!controls) return;
     const settings = controls.getSettings();
     controls.onChange({ ...settings, cameraEdgePan: !settings.cameraEdgePan });
+    syncControls();
+  });
+  root.querySelector('#pm-volume')?.addEventListener('click', () => {
+    if (!controls?.getVolume || !controls.setVolume) return;
+    const cur = controls.getVolume();
+    // 循环到下一档(就近匹配当前档后取下一个)
+    let idx = VOLUME_STEPS.findIndex((v) => Math.abs(v - cur) < 0.13);
+    if (idx < 0) idx = 2;
+    controls.setVolume(VOLUME_STEPS[(idx + 1) % VOLUME_STEPS.length]);
     syncControls();
   });
   root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {

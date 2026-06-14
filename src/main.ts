@@ -193,6 +193,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; }, {
     getSettings: () => controlSettings,
     onChange: setControlSettings,
+    getVolume: () => audio.volume,
+    setVolume: (v) => audio.setVolume(v),
   });
 
   type RejectReason =
