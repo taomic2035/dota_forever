@@ -127,6 +127,8 @@ export class Renderer3D {
   private selRing!: THREE.Mesh;
   /** 悬停轮廓:跟随鼠标悬停单位的贴地环,敌红/友绿/中立黄(右键预期反馈)。 */
   private hovRing!: THREE.Mesh;
+  /** 施法/引导进度条:渲染侧捕获每单位本次施法的起始时刻(sim 只存结束时刻),算进度。 */
+  private castTrack = new Map<number, { start: number; end: number }>();
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
   private readonly queueFx: CommandQueue3DObjects;
@@ -546,6 +548,21 @@ export class Renderer3D {
             px += psz + pgap;
           }
         }
+      }
+      // 施法/引导进度条(自己/敌方均显示,可看敌方施法进度以打断;渲染侧捕获起始算进度)
+      const castEnd = u.casting ? u.casting.pointUntil : u.channeling ? u.channeling.until : null;
+      if (castEnd !== null) {
+        const tr = this.castTrack.get(u.id);
+        if (!tr || Math.abs(tr.end - castEnd) > 0.02) this.castTrack.set(u.id, { start: world.time, end: castEnd });
+        const t2 = this.castTrack.get(u.id)!;
+        const cf = Math.max(0, Math.min(1, (world.time - t2.start) / Math.max(0.05, t2.end - t2.start)));
+        const cby = sy + bh + (isHero && u.calc.maxMp > 0 ? 5 : 2);
+        ctx.fillStyle = 'rgba(8,8,8,0.85)';
+        ctx.fillRect(sx - bw / 2 - 1, cby - 1, bw + 2, 5);
+        ctx.fillStyle = u.channeling ? '#ffc23a' : '#46d0ff'; // 引导金 / 施法青
+        ctx.fillRect(sx - bw / 2, cby, bw * cf, 3);
+      } else if (this.castTrack.has(u.id)) {
+        this.castTrack.delete(u.id);
       }
     }
   }
