@@ -1,12 +1,17 @@
 # Hero3D Preview Handoff for Opus
 
 Date: 2026-06-13
-Current update: 2026-06-14 V20 hero runtime bridge in real play route
+Current update: 2026-06-14 V23 hero real-play readability pass
 Current branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
 Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
-Latest screenshot: `docs/screenshots/ux-3d-v20-hero-runtime-bridge.png`
+Latest screenshot: `docs/screenshots/ux-3d-v23-hero-readability-real-play-clean.png`
+V23 summary: `docs/ux/2026-06-14-3d-v23-hero-real-play-readability-summary.md`
+V23 gameplay screenshot: `docs/screenshots/ux-3d-v23-hero-readability-real-play-clean.png`
+V22 summary: `docs/ux/2026-06-14-3d-v22-hero-model-quality-finish-summary.md`
+V22 gameplay screenshot: `docs/screenshots/ux-3d-v22-hero-model-quality-real-play-clean.png`
 V20 summary: `docs/ux/2026-06-14-3d-v20-hero-runtime-bridge-summary.md`
+V20 gameplay screenshot: `docs/screenshots/ux-3d-v20-hero-runtime-bridge.png`
 V19 summary: `docs/ux/2026-06-14-3d-v19-hero-gameplay-refinement-summary.md`
 Previous gameplay screenshot: `docs/screenshots/ux-3d-v19-hero-gameplay-refinement-clean.png`
 V18 gameplay screenshot: `docs/screenshots/ux-3d-v18-hero-gameplay-model-quality.png`
@@ -35,6 +40,13 @@ Changed files:
     - shoulder bevels;
     - cloth folds;
     - focus gem insets.
+  - V22 adds `playCameraFinishingParts(...)` so every classic hero gets a second real-play model-quality pass:
+    - left/right leg greaves;
+    - near/far forearm guards;
+    - face highlight bevels;
+    - rear depth vanes;
+    - hip cloth folds and front hem bevels;
+    - shoulder rim crowns.
 - `src/render/hero3dFactory.ts`
   - New procedural Three.js model factory.
   - Builds low-poly meshes, generated canvas textures, emissive/glow shells, outlines, and animation clips.
@@ -48,11 +60,19 @@ Changed files:
     - each runtime part is tagged with `gameplayGeometryProfile`, `gameplaySilhouetteWeight`, and `gameplayCameraRead`.
   - V18 adds `root.userData.gameplayModelQuality` for the real play-camera contract: `fov=40`, `defaultZoom=0.62`, `pitch=Math.PI * 0.31`, `heroModelScale=1.5`.
   - V19 extends `root.userData.gameplayModelQuality` with `refinementLayer`, `refinementLayerParts`, and `coreMaterialContrastBands`.
+  - V22 extends `root.userData.gameplayModelQuality` with `finishingLayer`, `finishingLayerParts`, `anatomyReadableParts`, `playCameraDepthLayers`, and `materialFinishLayers`.
+  - V22 tags runtime parts with `playCameraDepthLayer` and `playCameraAnatomyRead` for Opus smoke checks.
 - `src/render3d/hero3dModel.ts`
   - Bridges the fine hero assets into the real 3D play-route `UnitModel` contract.
   - V20 keeps existing `AnimationMixer` clip playback and also calls `updateHeroRuntimePresentation(...)` from `applyPose(...)`.
   - V20 adds `built.root.userData.gameplayRuntimeBridge` so Opus can inspect whether the real play route is consuming the runtime helper.
   - V20 normalizes `built.root.userData.baseScale` to `[1, 1, 1]` after gameplay placement, preventing helper scale pulses from double-applying the asset scale.
+- `src/render3d/renderer3d.ts`
+  - V23 adds `gameplay3DUnitReadabilityProfile(...)` as the tested source for real-play unit visibility parameters.
+  - V23 raises classic hero model presence in the gameplay renderer to `modelScale: 1.68`.
+  - V23 reduces hero ground-ring/disc opacity and tightens the ring radius so selection/team glow frames the model instead of flooding it.
+  - V23 moves hero health bars upward with `healthAnchorY: 152` so bars do not sit on the head silhouette.
+  - V23 stores `model.root.userData.gameplay3DReadabilityProfile` for Opus inspection.
 - `src/ui/hero3dPreview.ts`
   - New full-screen Three.js hero showcase.
   - Includes a hero-selection-stage layout, action buttons, nameplates, lighting, fog, ground stage, background columns, and per-hero pads/light columns.
@@ -61,13 +81,17 @@ Changed files:
   - New asset contract tests.
   - Locks the first 10 hero keys, texture/action contract, unique silhouettes, and minimum art-detail thresholds.
   - V19 locks gameplay-camera refinement coverage: enough `v19` parts, torso layering, head/crest detail, wide silhouette detail, and material contrast.
+  - V22 locks anatomy/material finishing coverage: enough `v22` parts, leg/forearm reads, face highlight, rear depth, foreground layers, and material contrast.
 - `tests/hero3dFactory.test.ts`
   - Locks V14 runtime action/surface contracts, material tags, non-drifting cast pulses, invisible/stunned/death states, and surface profile terms.
   - V18 adds red-to-green checks that classic heroes no longer ship paper-box gameplay geometry profiles, and that Rein's `heavy cuirass`, `tower shield`, and `royal back banner` use rounded/extruded/curved gameplay geometry.
   - V19 locks that `createHero3DModel(...)` actually outputs the refinement parts and exposes them through `root.userData.gameplayModelQuality`.
+  - V22 locks that `createHero3DModel(...)` actually outputs the finishing parts, depth-layer tags, anatomy-read tags, and quality metadata.
 - `tests/render3d/hero3dModel.test.ts`
   - V20 locks that the real gameplay `buildHero3DUnitModel(...).applyPose(...)` path routes through `updateHeroRuntimePresentation(...)`.
   - Verifies `cast` pose produces `runtimeAction.activeAction === "cast_q"`, runtime animated parts/materials, normalized base scale, and `gameplayRuntimeBridge` metadata.
+- `tests/render3d/renderer3dReadability.test.ts`
+  - V23 locks hero/non-hero/building readability profiles, including hero scale, ring opacity, selected ring opacity, healthbar anchor, and non-hero compactness.
 - `tests/hero3dPreview.test.ts`
   - Locks V14 preview smoke aggregation for runtime action/surface handoff checks.
 - `docs/screenshots/ux-hero3d-preview.png`
@@ -94,6 +118,10 @@ V18 specifically responds to Opus feedback from `docs/ux/2026-06-14-opus-to-code
 V19 continues that same feedback response. V18 removed the worst box-placeholder geometry profiles; V19 adds visible modeled detail on top of the base volumes so the ten classic heroes do not read as a single rounded body with small decorative attachments in the default play camera.
 
 V20 handles the next real-play gap: V14 runtime material/part response previously existed as a helper and preview smoke contract, but the production `render3d/hero3dModel` bridge only drove `AnimationMixer` clips. The real play route now consumes both, so cast/channel/status/death reads get the richer surface pulse and part response.
+
+V22 returns to the core Opus feedback: real in-game model quality. It adds anatomy and material finishing on the same `createHero3DModel(...)` path used by `?mode=play&hero=rein&renderer=3d`, then verifies the result in the default play camera rather than relying only on the close hero preview.
+
+V23 handles the readability layer around that model in the real renderer. It makes the hero slightly larger at default gameplay zoom, moves the health bar above the head read, and tones down the persistent team/selection rings so UI feedback no longer competes with the model itself.
 
 ## Tradeoff
 
@@ -199,21 +227,77 @@ http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
   - `root.userData.runtimeSurfaceAnimated`
   - `root.userData.runtimeActionAnimatedParts`
   - `root.userData.runtimeSurfaceAnimatedMaterials`
+- V22 real-play model-quality finish hooks:
+  - `root.userData.gameplayModelQuality.finishingLayer`
+  - `root.userData.gameplayModelQuality.finishingLayerParts`
+  - `root.userData.gameplayModelQuality.anatomyReadableParts`
+  - `root.userData.gameplayModelQuality.playCameraDepthLayers`
+  - `root.userData.gameplayModelQuality.materialFinishLayers`
+  - runtime parts whose `obj.userData.partName` starts with `v22 `
+  - `obj.userData.playCameraDepthLayer`
+  - `obj.userData.playCameraAnatomyRead`
+- V23 real-play renderer readability hooks:
+  - `gameplay3DUnitReadabilityProfile({ isHero, isBuilding, collisionRadius })`
+  - `model.root.userData.gameplay3DReadabilityProfile`
+  - hero `modelScale: 1.68`
+  - hero `teamRingOpacity: 0.54`
+  - hero `teamDiscOpacity: 0.08`
+  - hero `healthAnchorY: 152`
+  - hero selected ring opacity range `0.52-0.68`
 
 ## Verification Evidence
 
 Latest verified commands in this worktree:
 
 ```text
-npm test -- tests/render3d/hero3dModel.test.ts tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts
-3 files passed
-9 tests passed
+npm test -- tests/render3d/renderer3dReadability.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/resource3dModel.test.ts tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts tests/hero3dPreview.test.ts
+6 files passed
+24 tests passed
 ```
 
 ```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB
+```
+
+V23 red-to-green evidence:
+
+```text
+npm test -- tests/render3d/renderer3dReadability.test.ts
+Before fix: 3 failed
+- gameplay3DUnitReadabilityProfile was not exported/implemented
+```
+
+Real play-route V23 evidence:
+
+```text
+URL: http://127.0.0.1:5232/?mode=play&hero=rein&renderer=3d
+Console/page errors: none
+Canvas: 1440 x 900
+Onboarding overlay: closed
+HUD hero: Rein / 雷恩 visible
+Screenshot: docs/screenshots/ux-3d-v23-hero-readability-real-play-clean.png
+```
+
+V22 red-to-green evidence:
+
+```text
+npm test -- tests/hero3dAssets.test.ts tests/hero3dFactory.test.ts
+Before fix: 2 failed
+- missing V22 finishing parts in hero3dAssets
+- missing V22 gameplayModelQuality fields in hero3dFactory
+```
+
+Real play-route V22 evidence:
+
+```text
+URL: http://127.0.0.1:5231/?mode=play&hero=rein&renderer=3d
+Console/page errors: none
+Canvas: 1440 x 900
+Onboarding overlay: closed
+HUD hero: Rein / 雷恩 visible
+Screenshot: docs/screenshots/ux-3d-v22-hero-model-quality-real-play-clean.png
 ```
 
 V20 red-to-green evidence:

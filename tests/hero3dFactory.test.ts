@@ -175,6 +175,30 @@ describe('hero3d runtime presentation', () => {
       expect(v19Materials.size, `${asset.key} V19 runtime parts need material contrast`).toBeGreaterThanOrEqual(3);
     }
   });
+
+  it('exposes V22 play-camera anatomy and finish metadata on real hero roots', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const { root } = createHero3DModel(asset);
+      const v22Parts = root.children.filter((child) => String(child.userData.partName ?? '').startsWith('v22 '));
+      const v22Anatomy = v22Parts.filter((child) => child.userData.playCameraAnatomyRead);
+      const depthLayers = new Set(v22Parts.map((child) => child.userData.playCameraDepthLayer));
+
+      expect(root.userData.gameplayModelQuality, asset.key).toMatchObject({
+        finishingLayer: 'v22-play-camera-anatomy-and-material-depth',
+        finishingLayerParts: expect.any(Number),
+        anatomyReadableParts: expect.any(Number),
+        playCameraDepthLayers: expect.any(Number),
+        materialFinishLayers: expect.any(Number),
+      });
+      expect(root.userData.gameplayModelQuality.finishingLayerParts, asset.key).toBeGreaterThanOrEqual(9);
+      expect(root.userData.gameplayModelQuality.anatomyReadableParts, asset.key).toBeGreaterThanOrEqual(5);
+      expect(root.userData.gameplayModelQuality.playCameraDepthLayers, asset.key).toBeGreaterThanOrEqual(4);
+      expect(root.userData.gameplayModelQuality.materialFinishLayers, asset.key).toBeGreaterThanOrEqual(4);
+      expect(v22Parts.length, `${asset.key} V22 parts should be in createHero3DModel output`).toBeGreaterThanOrEqual(9);
+      expect(v22Anatomy.length, `${asset.key} V22 anatomy should be tagged for Opus smoke checks`).toBeGreaterThanOrEqual(5);
+      expect(depthLayers.size, `${asset.key} V22 runtime parts need foreground/core/rear depth`).toBeGreaterThanOrEqual(4);
+    }
+  });
 });
 
 function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBasicMaterial)[] {

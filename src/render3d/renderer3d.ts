@@ -26,8 +26,77 @@ import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type H
 import { stackedUnitVisualOffset } from './stackOffset';
 import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
 
-/** 英雄模型整体放大系数:让英雄体型明显高于小兵/野怪(DotA 视觉层级)。 */
-const HERO_MODEL_SCALE = 1.5;
+interface Gameplay3DReadabilityInput {
+  isHero: boolean;
+  isBuilding: boolean;
+  collisionRadius: number;
+}
+
+export interface Gameplay3DReadabilityProfile {
+  modelScale: number;
+  teamRingInnerRadius: number;
+  teamRingOuterRadius: number;
+  teamRingOpacity: number;
+  teamDiscRadius: number;
+  teamDiscOpacity: number;
+  selectedRingBaseRadius: number;
+  selectedRingOpacityMin: number;
+  selectedRingOpacityMax: number;
+  healthAnchorY: number;
+  healthBarWidth: number;
+  healthBarHeight: number;
+}
+
+/** V23:真实对局镜头下的单位可读性参数。英雄更大,地面光效更克制,血条上移避免压住模型。 */
+export function gameplay3DUnitReadabilityProfile(input: Gameplay3DReadabilityInput): Gameplay3DReadabilityProfile {
+  const rr = Math.max(14, input.collisionRadius);
+  if (input.isBuilding) {
+    return {
+      modelScale: 1,
+      teamRingInnerRadius: rr * 0.9,
+      teamRingOuterRadius: rr * 1.25,
+      teamRingOpacity: 0.45,
+      teamDiscRadius: 0,
+      teamDiscOpacity: 0,
+      selectedRingBaseRadius: Math.max(26, rr * 1.7),
+      selectedRingOpacityMin: 0.5,
+      selectedRingOpacityMax: 0.7,
+      healthAnchorY: 320,
+      healthBarWidth: 40,
+      healthBarHeight: 5,
+    };
+  }
+  if (input.isHero) {
+    return {
+      modelScale: 1.68,
+      teamRingInnerRadius: rr * 1.18,
+      teamRingOuterRadius: rr * 1.42,
+      teamRingOpacity: 0.54,
+      teamDiscRadius: rr * 1.48,
+      teamDiscOpacity: 0.08,
+      selectedRingBaseRadius: Math.max(34, rr * 1.72),
+      selectedRingOpacityMin: 0.52,
+      selectedRingOpacityMax: 0.68,
+      healthAnchorY: 152,
+      healthBarWidth: 50,
+      healthBarHeight: 6,
+    };
+  }
+  return {
+    modelScale: 1,
+    teamRingInnerRadius: rr * 0.9,
+    teamRingOuterRadius: rr * 1.25,
+    teamRingOpacity: 0.45,
+    teamDiscRadius: 0,
+    teamDiscOpacity: 0,
+    selectedRingBaseRadius: Math.max(26, rr * 1.7),
+    selectedRingOpacityMin: 0.5,
+    selectedRingOpacityMax: 0.7,
+    healthAnchorY: 112,
+    healthBarWidth: 28,
+    healthBarHeight: 5,
+  };
+}
 
 interface ModelEntry { model: UnitModel; phase: number; lastX: number; lastZ: number; statusFx: HeroStatusFxObjects; }
 
@@ -121,23 +190,23 @@ export class Renderer3D {
       }
       // 英雄整体放大,明确高于小兵/野怪(DotA 英雄体型显著);死亡下沉/位姿由 renderer 另置,不受影响
       const isHero = u.isHero();
-      if (isHero) model.root.scale.multiplyScalar(HERO_MODEL_SCALE);
+      const readability = gameplay3DUnitReadabilityProfile({ isHero, isBuilding: false, collisionRadius: u.base.collisionRadius });
+      if (isHero) model.root.scale.multiplyScalar(readability.modelScale);
+      model.root.userData.gameplay3DReadabilityProfile = readability;
       // 贴地队色选取环:英雄更大更亮 + 内圈实心盘,与小兵区分(守卫等极小半径给可见下限)
-      const rr = Math.max(14, u.base.collisionRadius);
       const ringColor = this.TEAM[u.team] ?? '#bdbdbd';
-      const ringScale = isHero ? 1.7 : 1.0;
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(rr * 0.9 * ringScale, rr * (isHero ? 1.5 : 1.25) * ringScale, 28),
-        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: isHero ? 0.85 : 0.45, side: THREE.DoubleSide }),
+        new THREE.RingGeometry(readability.teamRingInnerRadius, readability.teamRingOuterRadius, 28),
+        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: readability.teamRingOpacity, side: THREE.DoubleSide }),
       );
       ring.rotation.x = -Math.PI / 2;
       ring.position.y = 1.5;
       model.root.add(ring);
-      if (isHero) {
+      if (readability.teamDiscOpacity > 0) {
         // 英雄脚下柔光盘,进一步突出主控单位
         const disc = new THREE.Mesh(
-          new THREE.CircleGeometry(rr * 1.35 * ringScale, 28),
-          new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+          new THREE.CircleGeometry(readability.teamDiscRadius, 28),
+          new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: readability.teamDiscOpacity, side: THREE.DoubleSide, depthWrite: false }),
         );
         disc.rotation.x = -Math.PI / 2;
         disc.position.y = 1.2;
@@ -431,15 +500,16 @@ export class Renderer3D {
       if (!u.alive || u.kind === 'ward') continue;
       const isHero = u.isHero();
       const isBuild = u.kind === 'tower' || u.kind === 'building';
+      const readability = gameplay3DUnitReadabilityProfile({ isHero, isBuilding: isBuild, collisionRadius: u.base.collisionRadius });
       if (!isHero && !isBuild && u.hp >= u.calc.maxHp) continue; // 满血小兵/野怪不画,减杂乱
-      const topY = isBuild ? 320 : 112;
+      const topY = readability.healthAnchorY;
       this.proj.set(u.pos.x, topY + terrainElevation(world.map, u.pos.x, u.pos.y), u.pos.y).project(cam);
       if (this.proj.z > 1) continue; // 相机背后
       const sx = (this.proj.x * 0.5 + 0.5) * W;
       const sy = (-this.proj.y * 0.5 + 0.5) * H;
       if (sx < -50 || sx > W + 50 || sy < -50 || sy > H + 50) continue;
-      const bw = isHero ? 44 : isBuild ? 40 : 28;
-      const bh = 5;
+      const bw = readability.healthBarWidth;
+      const bh = readability.healthBarHeight;
       const frac = Math.max(0, Math.min(1, u.hp / u.calc.maxHp));
       ctx.fillStyle = 'rgba(8,8,8,0.82)';
       ctx.fillRect(sx - bw / 2 - 1, sy - 1, bw + 2, bh + 2);
@@ -532,11 +602,13 @@ export class Renderer3D {
     const vx = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
     const vz = u.prevPos.y + (u.pos.y - u.prevPos.y) * this.alpha;
     const ey = terrainElevation(world.map, vx, vz);
-    const baseR = Math.max(26, u.base.collisionRadius * 1.7);
+    const readability = gameplay3DUnitReadabilityProfile({ isHero: u.isHero(), isBuilding: u.kind === 'tower' || u.kind === 'building', collisionRadius: u.base.collisionRadius });
+    const baseR = readability.selectedRingBaseRadius;
     const pulse = baseR * (1 + 0.06 * Math.sin(t * 5));
     this.selRing.position.set(vx, ey + 2, vz);
     this.selRing.scale.set(pulse, pulse, pulse);
-    (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.2 * (0.5 + 0.5 * Math.sin(t * 5));
+    const wave = 0.5 + 0.5 * Math.sin(t * 5);
+    (this.selRing.material as THREE.MeshBasicMaterial).opacity = readability.selectedRingOpacityMin + (readability.selectedRingOpacityMax - readability.selectedRingOpacityMin) * wave;
     this.selRing.visible = true;
   }
 

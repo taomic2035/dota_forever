@@ -1,13 +1,13 @@
 # Resource3D Handoff for Opus
 
 Date: 2026-06-13
-Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
 Primary preview routes: `?mode=resource3d-preview`, `?mode=hero3d-preview`, `?mode=play&renderer=3d`
 Legacy phase-1 screenshot: `docs/screenshots/ux-resource3d-preview.png`
 
-Current V17 update for Opus merge:
+Current V21 update for Opus merge:
 
-- Worktree/branch: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`.
+- Worktree/branch: `main` at `/Users/taomic/vibecoding/dota_forever`.
 - V3 summary: `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`.
 - V3 screenshot: `docs/screenshots/ux-3d-v3-resource-material-motion.png`.
 - V3 part-motion screenshot: `docs/screenshots/ux-3d-v3-resource-part-motion.png`.
@@ -62,7 +62,10 @@ Current V17 update for Opus merge:
 - V16 map runtime ambience screenshot: `docs/screenshots/ux-3d-v16-map-runtime-ambience.png`.
 - V17 combat FX readability summary: `docs/ux/2026-06-14-3d-v17-combat-fx-readability-summary.md`.
 - V17 combat FX readability screenshot: `docs/screenshots/ux-3d-v17-combat-fx-readability.png`.
+- V21 real-play resource runtime bridge summary: `docs/ux/2026-06-14-3d-v21-resource-runtime-bridge-summary.md`.
+- V21 real-play resource runtime bridge screenshot: `docs/screenshots/ux-3d-v21-resource-runtime-bridge.png`.
 - Adds material/detail metadata, high-detail procedural texture overlays, runtime hero action/surface presentation, runtime non-hero unit presentation, runtime map/terrain ambience presentation, combat FX readability presentation, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, V9 VFX/audio sync contracts, V10 visible VFX playback layers, V11 VFX phase animation, V12 all-resource runtime motion, V13 runtime material/surface animation, and shift-queued command UX.
+- V21 note: non-hero resource units now consume `updateResourceRuntimeUnitPresentation(...)` in the real `?mode=play&renderer=3d` path through `src/render3d/resource3dModel.ts`, not only in `?mode=resource3d-preview`.
 - Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
 
 Terrain screenshots:
@@ -242,6 +245,13 @@ Total: 408 samples.
   - Unit runtime classes split assets into lane, wild, boss/objective, and support families.
   - Resource preview calls the V15 helper every frame and exposes global and current-category runtime unit smoke counts.
   - Evidence: `docs/screenshots/ux-3d-v15-unit-runtime-presentation.png`.
+- [x] V21 real-play resource runtime bridge exists for mapped non-hero units.
+  - `src/render3d/resource3dModel.ts` now calls `updateResourceRuntimeUnitPresentation(...)` from the real `UnitModel.applyPose(...)` path.
+  - Gameplay pose states map to resource runtime states: walk -> move, attack -> attack, cast/channel -> cast, death -> death, hit status -> hit.
+  - Resource roots expose `root.userData.gameplayRuntimeBridge` for Opus inspection.
+  - Runtime base scale is normalized to `[1, 1, 1]` under the gameplay scaler, preventing preview asset scale from double-applying in real play.
+  - Real play-route evidence confirms `resource3d:dawn_melee_creep` animates runtime unit parts/materials/cues during an attack pose.
+  - Evidence: `docs/screenshots/ux-3d-v21-resource-runtime-bridge.png`.
 - [x] V16 map runtime ambience exists for 58 terrain/map/environment Resource3D samples.
   - `terrain_tiles`, `map_props`, and `environment_fx` expose `root.userData.runtimeMapPresentation`.
   - `updateResourceRuntimeMapPresentation(root, elapsedMs)` drives deterministic river flow, sky haze, tree-wall occlusion, highground depth, grass/flower bloom, fence depth, and ground-dust ambience from cached base values.
@@ -463,6 +473,8 @@ Total: 408 samples.
   - `resource material -> material.userData.runtimeSurfaceShaderIntent`
   - `resource unit asset -> root.userData.runtimeUnitPresentation`
   - `resource unit asset -> updateResourceRuntimeUnitPresentation(root, actionState, elapsedMs)`
+  - `resource unit real-play bridge -> root.userData.gameplayRuntimeBridge`
+  - `resource unit real-play bridge -> src/render3d/resource3dModel.ts buildResource3DUnitModel(...).applyPose(...)`
   - `resource unit cue -> resource3d:v15-unit-action-cue:<assetKey>`
   - `resource unit cue -> object.userData.resourceRuntimeUnitActionCue`
   - `resource unit preview -> window.__resource3dPreview.runtimeUnitPresentation`
@@ -507,6 +519,11 @@ Changed files:
   - Adds V15 `runtimeUnitPresentation` contracts plus `updateResourceRuntimeUnitPresentation(root, actionState, elapsedMs)` for non-hero unit action posture, threat cues, support expiration, and material response.
   - Adds V16 `runtimeMapPresentation` contracts plus `updateResourceRuntimeMapPresentation(root, elapsedMs)` for terrain/map/environment ambience, river flow, sky haze, tree-wall occlusion, highground depth, and material response.
   - Adds V17 `runtimeFxReadability` contracts plus `updateResourceRuntimeFxReadability(root, elapsedMs)` for combat FX readability, projectile paths, AoE telegraphs, status auras, target reticles, and material response.
+- `src/render3d/resource3dModel.ts`
+  - Bridges Resource3D unit assets into the real 3D play-route `UnitModel` contract.
+  - V21 calls `updateResourceRuntimeUnitPresentation(...)` from real `applyPose(...)`.
+  - V21 maps gameplay pose states to runtime unit states and adds `root.userData.gameplayRuntimeBridge` for Opus inspection.
+  - V21 normalizes `runtimeUnitPresentation.baseRootScale` under the gameplay scaler.
 - `src/render/hero3dAssets.ts`
   - Adds V5 hero readability contracts and visible identity-anchor part generation for the first 10 classic heroes.
 - `src/render/hero3dFactory.ts`
@@ -573,6 +590,10 @@ Changed files:
   - Locks V10 preview smoke aggregation from generated runtime models.
   - Locks V11 animated playback smoke aggregation.
   - Locks V12 runtime motion smoke aggregation.
+  - Locks V15 runtime unit presentation smoke aggregation.
+- `tests/render3d/resource3dModel.test.ts`
+  - V21 locks that the real `buildResource3DUnitModel(...).applyPose(...)` path routes through `updateResourceRuntimeUnitPresentation(...)`.
+  - Verifies Dawn melee creep attack pose produces runtime unit state, animated parts/materials, action cue, threat pulse, normalized base scale, and gameplay bridge metadata.
   - Locks V13 runtime surface smoke aggregation.
   - Locks V15 runtime unit presentation smoke aggregation.
   - Locks V16 runtime map ambience smoke aggregation.
@@ -748,10 +769,48 @@ After V4 terrain merge review, recommended next UX/art sequence:
 15. V15 non-hero unit runtime presentation: completed as deterministic lane/wild/boss/support action posture, threat/expiration cue contracts, and preview smoke hooks.
 16. V16 map runtime ambience: completed as deterministic terrain/map/environment ambience, river/sky/tree/highground class contracts, visible ambience cues, and preview smoke hooks.
 17. V17 combat FX readability: completed as deterministic spell/projectile/AoE/status/reticle readability, danger-read contracts, visible FX cues, and preview smoke hooks.
+18. V21 real-play resource runtime bridge: completed as `src/render3d/resource3dModel.ts` consumption of `updateResourceRuntimeUnitPresentation(...)` for mapped non-hero units in `?mode=play&renderer=3d`.
 
 ## Verification Evidence
 
 Latest verified commands in this worktree:
+
+```text
+npm test -- tests/render3d/resource3dModel.test.ts tests/resource3dPreview.test.ts
+2 files passed
+8 tests passed
+```
+
+```text
+npm run build
+build passed
+warning: Three.js keeps the output chunk above 500 kB
+```
+
+V21 red-to-green evidence:
+
+```text
+npm test -- tests/render3d/resource3dModel.test.ts
+Before fix: 1 failed
+- expected gameplayRuntimeBridge to match updateResourceRuntimeUnitPresentation
+```
+
+Real play-route V21 evidence:
+
+```text
+URL: http://127.0.0.1:5230/?mode=play&hero=rein&renderer=3d&seed=42&speed=0
+Console/page errors: none
+Injected unit: kind=creep, team=Dawn, name=近战兵
+Scene root: resource3d:dawn_melee_creep found
+gameplayRuntimeBridge.runtimeHelper: updateResourceRuntimeUnitPresentation
+runtimeUnitState: attack
+runtimeUnitAnimated: true
+runtimeUnitAnimatedParts: 12
+runtimeUnitAnimatedMaterials: 35
+runtimeUnitActionCues: 1
+runtimeUnitThreatPulse: 0.17
+Screenshot: docs/screenshots/ux-3d-v21-resource-runtime-bridge.png
+```
 
 ```text
 npm test -- tests/resource3dFactory.test.ts

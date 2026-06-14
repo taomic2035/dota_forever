@@ -72,6 +72,11 @@ export interface HeroGameplayModelQualityUserData {
   heroModelScale: 1.5;
   refinementLayer: 'v19-gameplay-camera-detail';
   refinementLayerParts: number;
+  finishingLayer: 'v22-play-camera-anatomy-and-material-depth';
+  finishingLayerParts: number;
+  anatomyReadableParts: number;
+  playCameraDepthLayers: number;
+  materialFinishLayers: number;
   coreMaterialContrastBands: number;
   roundedReadableParts: number;
   primarySilhouetteParts: number;
@@ -197,7 +202,11 @@ export function heroRuntimeSurfaceUserData(asset: Hero3DAssetSpec, root?: Object
 export function heroGameplayModelQualityUserData(asset: Hero3DAssetSpec): HeroGameplayModelQualityUserData {
   const weights = asset.model.parts.map((part) => heroGameplaySilhouetteWeight(part));
   const refinementParts = asset.model.parts.filter((part) => part.name.startsWith('v19 '));
+  const finishingParts = asset.model.parts.filter((part) => part.name.startsWith('v22 '));
   const materialBands = new Set(refinementParts.map((part) => part.material ?? 'leather'));
+  const finishingMaterials = new Set(finishingParts.map((part) => part.material ?? 'leather'));
+  const finishingDepthLayers = new Set(finishingParts.map((part) => playCameraDepthLayer(part)));
+  const anatomyParts = finishingParts.filter(isPlayCameraAnatomyRead);
   return {
     tunedFor: 'play-3d-default-camera',
     cameraFov: 40,
@@ -206,6 +215,11 @@ export function heroGameplayModelQualityUserData(asset: Hero3DAssetSpec): HeroGa
     heroModelScale: 1.5,
     refinementLayer: 'v19-gameplay-camera-detail',
     refinementLayerParts: refinementParts.length,
+    finishingLayer: 'v22-play-camera-anatomy-and-material-depth',
+    finishingLayerParts: finishingParts.length,
+    anatomyReadableParts: anatomyParts.length,
+    playCameraDepthLayers: finishingDepthLayers.size,
+    materialFinishLayers: finishingMaterials.size,
     coreMaterialContrastBands: materialBands.size,
     roundedReadableParts: asset.model.parts.length,
     primarySilhouetteParts: weights.filter((weight) => weight === 'primary').length,
@@ -395,6 +409,8 @@ function tagHeroRuntimePart(obj: Object3D, part: Hero3DPartSpec, materialProfile
   obj.userData.gameplayGeometryProfile = geometryProfile;
   obj.userData.gameplaySilhouetteWeight = heroGameplaySilhouetteWeight(part);
   obj.userData.gameplayCameraRead = true;
+  obj.userData.playCameraDepthLayer = playCameraDepthLayer(part);
+  obj.userData.playCameraAnatomyRead = isPlayCameraAnatomyRead(part);
   obj.userData.roundedReadableGameplayPiece = geometryProfile !== 'soft-ground-aura';
   obj.userData.runtimeActionReactive = part.kind !== 'body' || !!part.emissive || materialProfile.rimLightIntensity >= 0.58;
   obj.userData.basePosition = [obj.position.x, obj.position.y, obj.position.z];
@@ -578,6 +594,29 @@ function updateHeroRuntimeMaterial(
   material.userData.runtimeHeroSurfacePulse = actionPulse;
   material.userData.runtimeHeroSurfaceShaderIntent = shaderIntent;
   return true;
+}
+
+function playCameraDepthLayer(part: Hero3DPartSpec): 'foreground' | 'front' | 'core' | 'rear' | 'back' {
+  const z = part.position[2];
+  if (z <= -0.42) return 'foreground';
+  if (z <= -0.12) return 'front';
+  if (z < 0.28) return 'core';
+  if (z < 0.64) return 'rear';
+  return 'back';
+}
+
+function isPlayCameraAnatomyRead(part: Hero3DPartSpec): boolean {
+  const name = part.name.toLowerCase();
+  return (
+    name.startsWith('v22 ') &&
+    (
+      name.includes('leg greave') ||
+      name.includes('forearm guard') ||
+      name.includes('face highlight') ||
+      name.includes('shoulder rim') ||
+      name.includes('hip cloth')
+    )
+  );
 }
 
 function clamp(value: number, min: number, max: number): number {

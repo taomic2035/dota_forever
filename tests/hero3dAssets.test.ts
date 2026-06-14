@@ -149,4 +149,30 @@ describe('classic hero 3D assets', () => {
       expect(weaponOrWideLayer.length, `${asset.key} needs wide weapon/shoulder detail for the play camera`).toBeGreaterThanOrEqual(2);
     }
   });
+
+  it('adds V22 play-camera anatomy and material finishing so heroes stop reading as paper boxes', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const v22Parts = asset.model.parts.filter((part) => part.name.startsWith('v22 '));
+      const materialBands = new Set(v22Parts.map((part) => part.material));
+      const details = new Set(v22Parts.map((part) => part.detail));
+      const legGreaves = v22Parts.filter((part) => part.name.includes('leg greave'));
+      const forearmGuards = v22Parts.filter((part) => part.name.includes('forearm guard'));
+      const depthVanes = v22Parts.filter((part) => part.name.includes('back depth vane'));
+      const faceReads = v22Parts.filter((part) => part.name.includes('face highlight'));
+      const frontLayers = v22Parts.filter((part) => part.position[2] <= -0.42);
+      const rearLayers = v22Parts.filter((part) => part.position[2] >= 0.5);
+
+      expect(v22Parts.length, `${asset.key} needs a visible V22 finishing pass`).toBeGreaterThanOrEqual(9);
+      expect(materialBands.size, `${asset.key} V22 parts need premium material contrast`).toBeGreaterThanOrEqual(4);
+      expect(details.has('trim'), `${asset.key} needs modeled trim in V22`).toBe(true);
+      expect(details.has('fold'), `${asset.key} needs cloth/fold depth in V22`).toBe(true);
+      expect(details.has('edgeLight') || details.has('gemSetting'), `${asset.key} needs far-camera highlight detail in V22`).toBe(true);
+      expect(legGreaves.length, `${asset.key} needs readable legs, not one torso block`).toBeGreaterThanOrEqual(2);
+      expect(forearmGuards.length, `${asset.key} needs readable arms/weapon-side anatomy`).toBeGreaterThanOrEqual(2);
+      expect(depthVanes.length, `${asset.key} needs rear depth so the silhouette is not flat`).toBeGreaterThanOrEqual(1);
+      expect(faceReads.length, `${asset.key} needs a face/head focal highlight at play zoom`).toBeGreaterThanOrEqual(1);
+      expect(frontLayers.length, `${asset.key} needs foreground material layers`).toBeGreaterThanOrEqual(3);
+      expect(rearLayers.length, `${asset.key} needs rear depth layers`).toBeGreaterThanOrEqual(1);
+    }
+  });
 });

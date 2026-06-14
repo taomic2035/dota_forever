@@ -483,6 +483,7 @@ function polishParts(asset: BaseHero3DAssetSpec, readability: Hero3DReadabilityS
     ...signatureParts(asset.key, primary, accent, glow),
     ...v5IdentityParts(asset, readability, primary, accent, glow),
     ...gameplayCameraRefinementParts(asset, readability, primary, accent, glow),
+    ...playCameraFinishingParts(asset, readability, primary, accent, glow),
   ].map(withV2PartMetadata);
 }
 
@@ -712,6 +713,128 @@ function gameplayCameraRefinementParts(
       detail: 'gemSetting',
       scale: [0.105, 0.105, 0.075],
       position: [side * radius * 0.36, 1.34, -0.54],
+    },
+  ];
+}
+
+function playCameraFinishingParts(
+  asset: BaseHero3DAssetSpec,
+  readability: Hero3DReadabilitySpec,
+  primary: string,
+  accent: string,
+  glow: string,
+): Hero3DPartSpec[] {
+  const radius = asset.model.groundRadius;
+  const side = readability.pose.lateralBias;
+  const opposite = (side * -1) as -1 | 1;
+  const heavyMaterial: Hero3DMaterialKind = asset.key === 'gorm' ? 'stone' : asset.key === 'kai' || asset.key === 'morphis' ? 'shadow' : 'metal';
+  const clothMaterial: Hero3DMaterialKind = asset.key === 'rein' || asset.key === 'gorm' || asset.key === 'grosh' ? 'leather' : 'cloth';
+  const darkGround = asset.key === 'liya' ? '#153847' : asset.key === 'olan' ? '#6a4f1f' : asset.key === 'kai' ? '#120b18' : '#111518';
+  const coolHighlight = asset.key === 'grosh' ? '#d7c29a' : asset.key === 'gorm' ? '#ffd491' : '#f7fbff';
+  return [
+    {
+      name: `v22 ${asset.key} left leg greave`,
+      kind: 'body',
+      color: heavyMaterial === 'stone' ? '#b99c82' : accent,
+      material: heavyMaterial,
+      detail: 'battleWear',
+      scale: [radius * 0.17, 0.52, radius * 0.16],
+      position: [-radius * 0.25, 0.52, -0.08],
+      rotation: [0.05, 0, -0.04],
+    },
+    {
+      name: `v22 ${asset.key} right leg greave`,
+      kind: 'body',
+      color: heavyMaterial === 'stone' ? '#d2b28a' : primary,
+      material: heavyMaterial,
+      detail: 'trim',
+      scale: [radius * 0.17, 0.52, radius * 0.16],
+      position: [radius * 0.25, 0.52, -0.08],
+      rotation: [0.05, 0, 0.04],
+    },
+    {
+      name: `v22 ${asset.key} near forearm guard`,
+      kind: 'offhand',
+      color: coolHighlight,
+      emissive: glow,
+      material: 'metal',
+      detail: 'edgeLight',
+      scale: [radius * 0.13, 0.36, radius * 0.15],
+      position: [side * radius * 0.72, 1.16, -0.28],
+      rotation: [0.32, 0, side * -0.34],
+    },
+    {
+      name: `v22 ${asset.key} far forearm guard`,
+      kind: 'weapon',
+      color: accent,
+      material: heavyMaterial,
+      detail: 'trim',
+      scale: [radius * 0.1, 0.4, radius * 0.1],
+      position: [opposite * radius * 0.62, 1.08, -0.18],
+      rotation: [0.24, 0, opposite * 0.3],
+    },
+    {
+      name: `v22 ${asset.key} back depth vane`,
+      kind: 'cape',
+      color: darkGround,
+      emissive: glow,
+      material: clothMaterial,
+      detail: 'fold',
+      scale: [radius * 0.18, 0.03, radius * 0.76],
+      position: [opposite * radius * 0.22, 1.32, 0.78],
+      rotation: [0.2, 0, opposite * 0.14],
+    },
+    {
+      name: `v22 ${asset.key} face highlight bevel`,
+      kind: 'sigil',
+      color: coolHighlight,
+      emissive: glow,
+      material: 'crystal',
+      detail: 'gemSetting',
+      scale: [radius * 0.18, 0.026, radius * 0.08],
+      position: [0, 1.98 + radius * 0.06, -0.47],
+      rotation: [Math.PI / 2, 0, 0],
+    },
+    {
+      name: `v22 ${asset.key} left hip cloth fold`,
+      kind: 'cape',
+      color: primary,
+      material: clothMaterial,
+      detail: 'fold',
+      scale: [radius * 0.16, 0.026, radius * 0.34],
+      position: [-radius * 0.34, 0.9, -0.46],
+      rotation: [-0.12, 0, -0.08],
+    },
+    {
+      name: `v22 ${asset.key} right hip cloth fold`,
+      kind: 'cape',
+      color: accent,
+      material: clothMaterial,
+      detail: 'fold',
+      scale: [radius * 0.16, 0.026, radius * 0.34],
+      position: [radius * 0.34, 0.9, -0.46],
+      rotation: [-0.12, 0, 0.08],
+    },
+    {
+      name: `v22 ${asset.key} shoulder rim crown`,
+      kind: 'shoulder',
+      color: accent,
+      emissive: glow,
+      material: 'energy',
+      detail: 'edgeLight',
+      scale: [radius * 0.18, 0.08, radius * 0.24],
+      position: [side * radius * 0.68, 1.78, -0.08],
+      rotation: [0, 0, side * -0.18],
+    },
+    {
+      name: `v22 ${asset.key} front hem shadow bevel`,
+      kind: 'sigil',
+      color: darkGround,
+      material: clothMaterial,
+      detail: 'trim',
+      scale: [radius * 0.42, 0.022, radius * 0.1],
+      position: [0, 0.74, -0.55],
+      rotation: [Math.PI / 2, 0, 0],
     },
   ];
 }
