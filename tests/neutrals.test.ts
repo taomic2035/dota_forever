@@ -63,4 +63,20 @@ describe('neutral camps', () => {
     expect(h.heroMeta!.gold).toBeGreaterThan(gold0 + 15);
     expect(h.heroMeta!.xp).toBeGreaterThan(20);
   });
+
+  it('堆野:野怪被引出出生框后整分钟刷新叠加新一组', () => {
+    const w = createWorld(map, { seed: 24, creeps: true, startTime: 25 });
+    for (let i = 0; i < 30 * 8; i++) w.step(); // 0:33,营地已刷
+    const camp = map.camps.find((c) => c.side === Team.Dawn && c.tier === 'small')!;
+    const first = [...w.units.values()].filter((u) => u.kind === 'neutral' && u.campId === camp.id && u.alive);
+    expect(first.length).toBeGreaterThan(0);
+    const out = w.map.nearestWalkable({ x: camp.pos.x + 520, y: camp.pos.y }); // 框(420)外、leash(800)内
+    // 推进越过 1:00 整分钟刷新,期间持续把这组野怪固定在出生框外(模拟被拉走)
+    for (let i = 0; i < 30 * 32; i++) {
+      for (const u of first) { if (u.alive) { u.pos = { ...out }; u.order = null; u.leashing = false; } }
+      w.step();
+    }
+    const all = [...w.units.values()].filter((u) => u.kind === 'neutral' && u.campId === camp.id && u.alive);
+    expect(all.length).toBeGreaterThan(first.length); // 出生框为空 → 叠加新一组(堆野)
+  });
 });
