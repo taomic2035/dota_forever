@@ -18,6 +18,7 @@ import { GameLoop } from './engine/loop';
 import { InputManager, type CastInputOptions } from './engine/input';
 import { Hud } from './ui/hud';
 import { KillFeed } from './ui/killfeed';
+import { Announce } from './ui/announce';
 import { ShopPanel } from './ui/shop';
 import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
@@ -166,6 +167,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   hud.onMoveToBackpack = (s) => { if (hero?.alive) moveToBackpack(world, hero, s); };
   hud.onMoveFromBackpack = (s) => { if (hero?.alive) moveFromBackpack(world, hero, s); };
   const killfeed = new KillFeed(app);
+  const announce = new Announce(app); // 公屏播报:一血/连杀里程碑
   const shop = new ShopPanel(app);
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
@@ -647,6 +649,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.fx.consume(world, renderer.viewerTeam);
       killfeed.consume(world);
       audio.consume(world, hero);
+      announce.consume(world, audio); // 公屏播报:一血/连杀里程碑(全局,含敌方预警)
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
         for (const e of world.events) {
@@ -676,6 +679,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
       hud.update(world, hero, ux);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
+      announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);
       shop.update(world, hero);
       minimap?.render(world, renderer.viewerTeam, ux);

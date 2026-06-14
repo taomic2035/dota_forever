@@ -251,6 +251,14 @@ export class AudioDirector {
     setTimeout(() => this.env(880, 'square', 0.07, 0.1, 80), 110);
   }
 
+  /** 公屏播报 stinger:一血/连杀的戏剧性上行和弦(低+高同响),招牌正反馈。 */
+  announce(): void {
+    if (!this.ctx || this.throttled('announce', 400)) return;
+    this.env(330, 'triangle', 0.5, 0.18, 120);
+    this.env(440, 'sine', 0.5, 0.14, 160);
+    setTimeout(() => { this.env(660, 'triangle', 0.45, 0.16, 120); }, 130);
+  }
+
   /** 按技能代表性标签合成施法音色(控制硬朗 / 治疗温暖 / 爆发明亮 / 大招宏大)。 */
   castFor(abilityKey: string): void {
     switch (this.tagFor(abilityKey)) {
