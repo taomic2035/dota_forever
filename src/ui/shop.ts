@@ -101,7 +101,8 @@ export class ShopPanel {
           <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
         </span>`;
       row.title = tooltip(def);
-      row.onclick = () => {
+      // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
+      row.onmousedown = () => {
         const r = buyItem(w, hero, purchaseKeyFor(def.key));
         if (r === 'ok') this.showToast(`购入 ${def.name}`);
         else if (r === 'ok_backpack') this.showToast(`${def.name} 已放入背包栏`);
