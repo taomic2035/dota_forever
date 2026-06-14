@@ -206,6 +206,19 @@ export class AudioDirector {
   /** 神符拾取:轻柔上行微光。 */
   runePickup(): void { this.env(720, 'sine', 0.13, 0.13, 320); }
 
+  /** 指令确认:右键移动/攻击的轻点反馈(短促、低音量、限频防刷,补"操作没反馈不跟手")。 */
+  command(isAttack: boolean): void {
+    if (!this.ctx || this.throttled('cmd', 80)) return;
+    if (isAttack) this.env(520, 'square', 0.06, 0.05, -60);
+    else this.env(340, 'sine', 0.05, 0.045, 90);
+  }
+
+  /** 指令被拒(无蓝/冷却/非法目标):短促下行错误声,与确认音区分。 */
+  reject(): void {
+    if (!this.ctx || this.throttled('reject', 130)) return;
+    this.env(220, 'sawtooth', 0.1, 0.1, -70);
+  }
+
   /** 按技能代表性标签合成施法音色(控制硬朗 / 治疗温暖 / 爆发明亮 / 大招宏大)。 */
   castFor(abilityKey: string): void {
     switch (this.tagFor(abilityKey)) {

@@ -227,6 +227,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     if (hudKey) ux.flashHudSlot(hudKey, 'reject', world.time);
     ux.setCommandMessage({ kind: 'reject', label: rejectLabel[reason], time: world.time, color: '#ff3040' });
     ux.addWorldPulse({ kind: 'reject', pos, time: world.time });
+    audio.reject(); // 听觉拒绝反馈(自带限频),避免战斗特效淹没文字提示
   };
   const orderPulseKind = (kind: 'move' | 'attack' | 'attackmove' | 'ping', options?: CastInputOptions) =>
     options?.queued ? 'queued' : kind;
@@ -239,6 +240,8 @@ function startGame(mode: 'play' | 'spectate'): void {
     if (options?.queued) hero.queueOrder(order);
     else hero.issueOrder(order);
     ux.addWorldPulse({ kind: orderPulseKind(pulse.kind, options), pos: pulse.pos, targetId: pulse.targetId, time: world.time });
+    // 指令确认音(移动/攻击);cast 用 'ping',其施法音由 cast_done 事件给出,此处不重复
+    if (pulse.kind !== 'ping') audio.command(pulse.kind === 'attack');
   };
 
   // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
