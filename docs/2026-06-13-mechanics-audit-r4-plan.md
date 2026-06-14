@@ -10,7 +10,7 @@
 ## P0 — 影响对局正确性
 
 - ✅ **[P0-1] 信使(courier)** — 已实现 `sim/courier.ts`(installCourier):每队一只,自动把英雄储藏处物品送达(TP 归专属槽/满进背包),可被击杀(赏金 60 + 35s 泉水重生)。UnitKind 加 'courier';unitArt 加 courier case(小型坐骑,队色);economy 死亡赏金接入。守卫测试 courier.test(3)+ 3D 实机冒烟。注:信使是普通单位(可攻击/有视野/order 移动),级联小;新单位逐 tick 处理会移位 sim RNG 流(确定性仍成立),已把依赖 RNG 的 basher 触发测试窗口放宽至稳健。**待:升级飞行信使、玩家手动操控(当前自动投送)。**
-- **[P0-2] 防御塔对英雄伤害类型存疑** — `buildings.ts:47` 塔 `attackType:'normal'` → 经矩阵对英雄 ×0.75。审计称应 100%。**balance 敏感 + 版本存疑**,需核实经典塔攻击/护甲表后再定,先留档勿盲改。
+- ⏸️ **[P0-2] 防御塔对英雄伤害类型存疑** — `buildings.ts:47` 塔 `attackType:'normal'` → 经矩阵对英雄 ×0.75。审计称应 100%。**再核实后保留留档**:经典塔攻击/护甲为版本相关数值(6.x 各版不一),且 0.75→1.0 等于塔对英雄伤害 +33%,显著加重 dive 惩罚、改变全图地图博弈;当前 batchsim 已示对局健康决胜。无权威单版本数据前不盲改此平衡敏感项(同 P2 版本存疑组处置)。
 
 ---
 
@@ -27,7 +27,7 @@
 - ✅ **[A8] 加速符文固定 522 无视减速** 新增 `StatMods.setMoveSpeed`(fold 取最严格非零值);`runes` haste 用 `setMoveSpeed:522`。
 - ✅ **[A9] Basher/Abyssal 近战25%/远程10%** `items.ts`:按 `attacker.calc.attackRange>200` 分支触发率。
 - ✅ **[A10] 破营全队团队金** `economy.ts` 加 rax 分支 + `RAX_STATS.teamGold=100`(全队可靠金)。
-- ⏸️ **[A-defer] 首波时机 FIRST_WAVE_TIME=90→0** `balance.ts:104`:经典首波 0:00;影响早期节奏 + 多处测试引用,**暂缓**,与其他 balance 项一并核实回归。
+- ✅ **[A-defer→已修] 首波时机 FIRST_WAVE_TIME=90→0** `balance.ts:104`:经典开场号角 0:00 即出兵线(先于 0:30 野怪);原 1:30 出兵且晚于野怪、开局 90s 无线可补,明显偏离。修法:`FIRST_WAVE_TIME=0` + `creeps.installCreeps` 加「mid-start 跳过已过波次边界:不一次性爆发补刷、波号按绝对时间推进」——使波次相位=f(绝对时间),真实对局(起 -75)得 0:00 首波,而 mid-start 测试相位不变(全 1201 测试绿)。batchsim 8 种子复验:**8/8 决胜、阵营晨曦3/永夜5 无横扫、时长 44–79min(均 61),平衡健康**。
 > balance 相关(A1/A3/A4/A2/A10)集中跑 batchsim 复验。
 
 ### 批次 B — 中等体量修复(B3/B4 ✅ 已完成 2026-06-13)
@@ -47,7 +47,7 @@
 - **[C1] 防御符文 Glyph** — 全缺失;己方建筑 10s 护盾 + ~5min CD。需 world 状态 + UI 触发。
 - **[C2] Backdoor 保护** — 全缺失;无友军小兵时攻建筑减伤 + 快速回血。核心地图博弈。
 - **[C3] 堆野 + 拉野**:✅ 堆野机制**已支持并测试确认**——trySpawnCamp 占用检测用 420 出生框,野怪被引出(420–800,框外 leash 内)则整分钟刷新叠加新组;**玩家可手动堆野/拉野**(攻击野怪引出框外即可)。守卫测试 neutrals「堆野」。⬜ 待:AI 自动拉野(支援 bot 在拉野窗口把兵线引入营地)——复杂 AI 行为且对 bot 兵线表现有风险(易扰乱 ai/fullgame),作为后续增强。
-- **[C4] 转身率逐英雄** `balance.ts:49`(全局 TURN_RATE):`HeroDef.turnRate` + 各处读;消除背刺/转向博弈缺失。schema 变更。
+- ⏭️ **[C4] 转身率逐英雄** —— **甄别后跳过**:本引擎 `facing` **不门控普攻**(combat.ts:315 前摇计时到点即 launchAttack,无视朝向是否对准);全 sim 内 `facing` 仅 1 处被读(abilities.ts:393 定向技「身前 300」取点,且施法中 abilities.ts:177 已按 `TURN_RATE×4` 快速对准 aim)。审计「转身率影响攻击时机/背刺窗口」前提在此**不成立**——逐英雄转身率仅是视觉旋转速度,无玩法/平衡价值。同 A6/B5,不改。
 - **[C5] 高地随机揭雾** `vision.ts:65`:低地对高台硬性 0 视野;经典有 ~25% 概率偷看高台格(上坡 miss 姊妹机制)。
 - **[C6] 关键物品主动**(进行中):✅ Shiva 被动减速光环(holderModifier aura,-30% 攻速 750 内)、✅ Heart 脱战 6 秒后 2%/s 回血(holderModifier onTick)——**附带修复 syncHolderModifiers 未初始化 nextTickAt 导致持有型 onTick 永不触发的潜在 bug**。✅ Power Treads 三属性切换 ✅ Diffusal 8 次充能 ✅ Bloodstone 血石(近敌阵亡积充能上限30 + 每充能 +回复 + 死亡按充能缩短重生并失30%充能;economy 死亡循环 + itemFold 特例;守卫测试)。✅ Silver Edge Break(新增 broken 状态 + foldModifiers 中 broken 时跳过 passive_/scepter_passive_ 数值;静默之刃主动挂 armed 蓄势,onAttack 命中消耗蓄势施加 broken 5s;守卫测试)。⬜ 待:Bloodstone 死亡爆炸/法术吸命(更复杂)。
 - **[C7] 瞬发攻击工具** `combat.ts`:`grantInstantAttack(u)` 供大招/分身重置普攻 CD。

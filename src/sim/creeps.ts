@@ -17,6 +17,12 @@ const LANES: Lane[] = ['top', 'mid', 'bot'];
 export function installCreeps(w: World): void {
   let nextWaveTime = FIRST_WAVE_TIME;
   let waveNumber = 0;
+  // 世界若在某波次边界之后起盘(测试常 mid-start),跳过已过边界:不一次性爆发补刷,
+  // 同时推进波号使攻城/超级兵/升级的「每 N 波」相位 = f(绝对时间),与真实对局(起 -75)一致。
+  while (nextWaveTime < w.time) {
+    nextWaveTime += WAVE_INTERVAL;
+    waveNumber++;
+  }
 
   const system: WorldSystem = (world) => {
     if (world.time >= nextWaveTime) {

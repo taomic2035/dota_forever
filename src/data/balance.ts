@@ -101,7 +101,7 @@ export function respawnTime(level: number): number {
 }
 
 // ---------- 兵线 ----------
-export const FIRST_WAVE_TIME = 90;       // 比赛开始(0:00)后 90s 第一波
+export const FIRST_WAVE_TIME = 0;        // 经典:开场号角 0:00 即出第一波兵线(先于 0:30 野怪)
 export const WAVE_INTERVAL = 30;
 export const MELEE_PER_WAVE = 3;
 export const RANGED_PER_WAVE = 1;
