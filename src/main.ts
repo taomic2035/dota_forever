@@ -8,7 +8,7 @@ import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { shuffledHeroPool } from './sim/draft';
 import { activateGlyph } from './sim/glyph';
-import { pickUnitAt } from './sim/pick';
+import { pickUnitAt, PICK_RADIUS } from './sim/pick';
 import { isVisibleTo } from './sim/vision';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
@@ -389,8 +389,8 @@ function startGame(mode: 'play' | 'spectate'): void {
     onRightClick(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
-      // 容差 120(覆盖 3D 俯视下点击模型躯干→地面投影偏移)+ 取离点击最近的敌方,更跟手
-      const cands = world.queryRadius(p, 120, (u) => u.alive && u.team !== hero!.team && !u.invulnerable);
+      // 统一容差 PICK_RADIUS(与左键/悬停一致,使悬停红圈准确预测右键目标)+ 迷雾门控(不可攻击雾中看不见的敌人)+ 取最近敌方
+      const cands = world.queryRadius(p, PICK_RADIUS, (u) => u.alive && u.team !== hero!.team && !u.invulnerable && isVisibleTo(world, hero!.team, u));
       cands.sort((a, b) => ((a.pos.x - p.x) ** 2 + (a.pos.y - p.y) ** 2) - ((b.pos.x - p.x) ** 2 + (b.pos.y - p.y) ** 2));
       const target = cands[0];
       if (target) {
@@ -407,7 +407,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     onLeftClick(p) {
       ux.clearCursorIntent();
       // 左键查看:选中点击处最近的可见单位(英雄优先);点空地则回到受控英雄,永不丢失自己。
-      const picked = pickUnitAt(world, hero?.team ?? null, p, 90);
+      const picked = pickUnitAt(world, hero?.team ?? null, p, PICK_RADIUS);
       if (picked) ux.selectUnit(picked.id);
       else if (hero) ux.selectUnit(hero.id);
       else ux.clearSelection();
@@ -564,11 +564,11 @@ function startGame(mode: 'play' | 'spectate'): void {
       return true;
     },
     onStop() {
-      if (hero) ux.addWorldPulse({ kind: 'stop', pos: hero.pos, time: world.time });
+      if (hero) { ux.addWorldPulse({ kind: 'stop', pos: hero.pos, time: world.time }); audio.command(false); }
       hero?.issueOrder({ type: 'stop' });
     },
     onHold() {
-      if (hero) ux.addWorldPulse({ kind: 'hold', pos: hero.pos, time: world.time });
+      if (hero) { ux.addWorldPulse({ kind: 'hold', pos: hero.pos, time: world.time }); audio.command(false); }
       hero?.issueOrder({ type: 'hold' });
     },
     onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
@@ -580,7 +580,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     onPointerMove(screen, worldPt) {
       ux.setCursorPosition(screen);
       // 悬停高亮:点取最近可见单位(排除自己),供渲染器画敌红/友绿轮廓 = 右键预期反馈
-      const hov = pickUnitAt(world, hero?.team ?? null, worldPt, 70);
+      const hov = pickUnitAt(world, hero?.team ?? null, worldPt, PICK_RADIUS);
       ux.hoverUnitId = hov && hov.id !== hero?.id ? hov.id : 0;
     },
     canSelfCast(i) {

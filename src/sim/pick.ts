@@ -9,11 +9,14 @@ import type { Unit } from './unit';
 import { Team } from './map';
 import { isVisibleTo } from './vision';
 
+/** 统一的世界选取容差(右键攻击/左键选中/悬停高亮共用,使悬停红圈准确预测右键目标)。3D 俯视点击模型→地面投影有偏移,取较宽松值。 */
+export const PICK_RADIUS = 110;
+
 export function pickUnitAt(
   world: World,
   viewerTeam: Team | null,
   point: Vec2,
-  radius = 90,
+  radius = PICK_RADIUS,
 ): Unit | null {
   const cands = world.queryRadius(
     point,

@@ -276,6 +276,7 @@ export class Hud {
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
+      ${onCd ? `<span style="position:absolute;inset:0;background:#000a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff">${Math.ceil(inst.cooldownUntil - world.time)}</span>` : ''}
     </div>`;
   }
 
