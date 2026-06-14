@@ -3,7 +3,7 @@ import type { Unit } from '../sim/unit';
 import type { AbilityDef } from '../data/heroes/types';
 import type { ItemInstance } from '../sim/items';
 import { heroAttributes, canBuyback } from '../sim/hero';
-import { buybackCost } from '../data/balance';
+import { buybackCost, RUNE_INTERVAL } from '../data/balance';
 import { canLearn, canLearnStatBonus, abilityReady, hasScepter } from '../sim/abilities';
 import { itemDef } from '../data/items';
 import type { UxFeedback } from './uxFeedback';
@@ -129,11 +129,16 @@ export class Hud {
       if (u.team === 0) dawnKills += u.heroMeta.kills;
       else if (u.team === 1) nightKills += u.heroMeta.kills;
     }
+    // 神符刷新倒计时(经典 0:00 起每 RUNE_INTERVAL 刷新;纯算,无需 sim 暴露)
+    const nextRune = t < 0 ? 0 : (Math.floor(t / RUNE_INTERVAL) + 1) * RUNE_INTERVAL;
+    const rLeft = Math.max(0, Math.ceil(nextRune - t));
+    const rune = `${Math.floor(rLeft / 60)}:${(rLeft % 60).toString().padStart(2, '0')}`;
     this.topbar.innerHTML =
       `<span style="color:#8fd17a;font-weight:700">${dawnKills}</span>` +
       `<span style="color:#8a9">Dawn</span>` +
       `<span>${world.isNight ? 'NIGHT' : 'DAY'}</span>` +
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
+      `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">Night</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
