@@ -301,6 +301,7 @@ export class Renderer3D {
       if (this.proj.z > 1) continue; // 相机背后
       const sx = (this.proj.x * 0.5 + 0.5) * W;
       const sy = (-this.proj.y * 0.5 + 0.5) * H - k * 34; // 上浮
+      if (sx < -40 || sx > W + 40 || sy < -40 || sy > H + 40) continue; // 屏外不画(队友远处补刀等)
       ctx.globalAlpha = 1 - k * k;
       ctx.font = `700 ${ft.size}px system-ui, sans-serif`;
       ctx.lineWidth = 3;

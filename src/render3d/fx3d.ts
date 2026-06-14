@@ -39,7 +39,7 @@ export class Fx3D {
   }
 
   /** 由 loop 在 step 钩子调用(与 2D fx 接口一致)。 */
-  consume(world: World, _team: number | null): void {
+  consume(world: World, team: number | null): void {
     const t = performance.now() / 1000;
     for (const e of world.events) {
       if (e.kind === 'fx') {
@@ -65,6 +65,16 @@ export class Fx3D {
         const v = world.getUnit(e.victimId);
         if (v && e.bounty > 0) {
           this.floatTexts.push({ text: `+${e.bounty}`, x: v.pos.x, y: v.pos.y, color: '#ffd24a', size: 18, bornMs: performance.now(), life: 1.3 });
+        }
+      } else if (e.kind === 'last_hit') {
+        // 补刀金币/反补(仅观察方队伍,避免敌方刷屏;核心农场反馈,与 2D 一致)
+        const killer = world.getUnit(e.unitId);
+        if (team === null || killer?.team === team) {
+          if (e.deny) {
+            this.floatTexts.push({ text: '拒绝', x: e.pos.x, y: e.pos.y, color: '#9fd0ff', size: 13, bornMs: performance.now(), life: 0.9 });
+          } else if (e.gold > 0) {
+            this.floatTexts.push({ text: `+${e.gold}`, x: e.pos.x, y: e.pos.y, color: '#ffd24a', size: 16, bornMs: performance.now(), life: 1.05 });
+          }
         }
       }
     }
