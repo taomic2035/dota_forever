@@ -119,6 +119,44 @@ describe('hero3d runtime presentation', () => {
     expect(root.userData.runtimeActionState).toBe('death');
     expect(root.rotation.x).toBeGreaterThan(0.7);
   });
+
+  it('adds V18 gameplay-camera model quality profiles instead of paper-box hero pieces', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const { root } = createHero3DModel(asset);
+      const runtimeParts = root.children.filter((child) => child.userData.heroRuntimePart);
+      const profiledParts = runtimeParts.filter((child) => child.userData.gameplayGeometryProfile);
+      const boxyProfiles = profiledParts.filter((child) => child.userData.gameplayGeometryProfile === 'box-placeholder');
+      const silhouetteWeights = new Set(profiledParts.map((child) => child.userData.gameplaySilhouetteWeight));
+
+      expect(root.userData.gameplayModelQuality, asset.key).toMatchObject({
+        tunedFor: 'play-3d-default-camera',
+        cameraFov: 40,
+        defaultZoom: 0.62,
+        heroModelScale: 1.5,
+        runtimeHelper: 'createHero3DModel',
+      });
+      expect(root.userData.gameplayModelQuality.pitchRadians, asset.key).toBeCloseTo(Math.PI * 0.31, 5);
+      expect(root.userData.gameplayModelQuality.roundedReadableParts, asset.key).toBeGreaterThanOrEqual(asset.model.parts.length);
+      expect(profiledParts.length, asset.key).toBeGreaterThanOrEqual(asset.model.parts.length);
+      expect(boxyProfiles, `${asset.key} should not ship paper-box gameplay pieces`).toHaveLength(0);
+      expect(silhouetteWeights.has('primary'), `${asset.key} needs primary gameplay-camera silhouette parts`).toBe(true);
+      expect(silhouetteWeights.has('secondary'), `${asset.key} needs secondary gameplay-camera silhouette parts`).toBe(true);
+    }
+  });
+
+  it('uses rounded or extruded geometry for Rein shield, cape, and body in gameplay camera', () => {
+    const { root } = createHero3DModel(CLASSIC_HERO3D_ASSETS.find((asset) => asset.key === 'rein')!);
+    const body = root.children.find((child) => child.userData.partName === 'heavy cuirass')!;
+    const shield = root.children.find((child) => child.userData.partName === 'tower shield')!;
+    const cape = root.children.find((child) => child.userData.partName === 'royal back banner')!;
+
+    expect(body.userData.gameplayGeometryProfile).toBe('tapered-rounded-body');
+    expect(shield.userData.gameplayGeometryProfile).toBe('extruded-beveled-plate');
+    expect(cape.userData.gameplayGeometryProfile).toBe('curved-cloth-panel');
+    expect(firstMeshGeometryType(body)).toMatch(/Capsule|Cylinder|Lathe/);
+    expect(firstMeshGeometryType(shield)).toMatch(/Extrude/);
+    expect(firstMeshGeometryType(cape)).toMatch(/Cylinder|Lathe/);
+  });
 });
 
 function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBasicMaterial)[] {
@@ -136,6 +174,14 @@ function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBa
     }
   });
   return materials;
+}
+
+function firstMeshGeometryType(root: Object3D): string {
+  let type = '';
+  root.traverse((obj) => {
+    if (!type && obj instanceof Mesh) type = obj.geometry.type;
+  });
+  return type;
 }
 
 function createCanvasStub(): HTMLCanvasElement {

@@ -1,10 +1,12 @@
 # Hero3D Preview Handoff for Opus
 
 Date: 2026-06-13
-Current update: 2026-06-14 V14 hero runtime action/surface presentation
+Current update: 2026-06-14 V18 hero gameplay-camera model quality
 Current branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
 Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
-Latest screenshot: `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`
+Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
+Latest screenshot: `docs/screenshots/ux-3d-v18-hero-gameplay-model-quality.png`
+Previous hero runtime screenshot: `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`
 Legacy screenshot: `docs/screenshots/ux-hero3d-preview.png`
 
 ## What
@@ -27,6 +29,13 @@ Changed files:
   - Builds low-poly meshes, generated canvas textures, emissive/glow shells, outlines, and animation clips.
   - V14 adds `root.userData.runtimeAction`, `root.userData.runtimeSurface`, and `updateHeroRuntimePresentation(root, actionName, elapsedMs)`.
   - V14 tags hero parts and materials with runtime metadata for action/surface response and future GLB/PBR replacement.
+  - V18 answers Opus model-quality feedback by improving the actual in-game `createHero3DModel(...)` path:
+    - body parts use rounded/capsule geometry instead of box-like placeholders;
+    - Rein-style shields/books/plates use bevel-enabled extruded plates;
+    - capes and banners use curved cloth panels;
+    - core materials use smooth shading for better play-camera volume;
+    - each runtime part is tagged with `gameplayGeometryProfile`, `gameplaySilhouetteWeight`, and `gameplayCameraRead`.
+  - V18 adds `root.userData.gameplayModelQuality` for the real play-camera contract: `fov=40`, `defaultZoom=0.62`, `pitch=Math.PI * 0.31`, `heroModelScale=1.5`.
 - `src/ui/hero3dPreview.ts`
   - New full-screen Three.js hero showcase.
   - Includes a hero-selection-stage layout, action buttons, nameplates, lighting, fog, ground stage, background columns, and per-hero pads/light columns.
@@ -36,6 +45,7 @@ Changed files:
   - Locks the first 10 hero keys, texture/action contract, unique silhouettes, and minimum art-detail thresholds.
 - `tests/hero3dFactory.test.ts`
   - Locks V14 runtime action/surface contracts, material tags, non-drifting cast pulses, invisible/stunned/death states, and surface profile terms.
+  - V18 adds red-to-green checks that classic heroes no longer ship paper-box gameplay geometry profiles, and that Rein's `heavy cuirass`, `tower shield`, and `royal back banner` use rounded/extruded/curved gameplay geometry.
 - `tests/hero3dPreview.test.ts`
   - Locks V14 preview smoke aggregation for runtime action/surface handoff checks.
 - `docs/screenshots/ux-hero3d-preview.png`
@@ -56,6 +66,8 @@ This implementation creates a working preview and an asset contract now, so Opus
 - action names,
 - preview route,
 - validation tests.
+
+V18 specifically responds to Opus feedback from `docs/ux/2026-06-14-opus-to-codex-feedback-model-quality.md`: the user judged the real 3D play route, not the hero preview route. The high-value fix is therefore the static base hero geometry in `hero3dFactory`, not another preview-only runtime helper.
 
 ## Tradeoff
 
@@ -111,7 +123,13 @@ npm test -- --pool=forks --maxWorkers=1
 http://127.0.0.1:<port>/?mode=hero3d-preview
 ```
 
-6. Review these integration points:
+6. Open the real gameplay verification route:
+
+```text
+http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
+```
+
+7. Review these integration points:
 
 - `CLASSIC_HERO3D_ASSETS.map(asset => asset.key)` matches the hero registry keys Opus wants to expose.
 - `REQUIRED_HERO3D_ACTIONS` stays compatible with future GLB animation clip names:
@@ -138,6 +156,11 @@ http://127.0.0.1:<port>/?mode=hero3d-preview
   - `obj.userData.heroRuntimePart`
   - `material.userData.heroRuntimeSurfaceMaterial`
   - `window.__hero3dPreview.runtimePresentation`
+- V18 gameplay-camera model-quality hooks for real play-route validation:
+  - `root.userData.gameplayModelQuality`
+  - `obj.userData.gameplayGeometryProfile`
+  - `obj.userData.gameplaySilhouetteWeight`
+  - `obj.userData.gameplayCameraRead`
 
 ## Verification Evidence
 
@@ -146,13 +169,40 @@ Latest verified commands in this worktree:
 ```text
 npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts
 3 files passed
-13 tests passed
+15 tests passed
 ```
 
 ```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB
+```
+
+```text
+npm test -- --run
+106 files passed
+925 tests passed
+```
+
+V18 red-to-green evidence:
+
+```text
+npm test -- tests/hero3dFactory.test.ts
+Before fix: 2 failed
+- missing root.userData.gameplayModelQuality
+- missing gameplayGeometryProfile on Rein body/shield/cape
+
+After fix:
+1 file passed
+6 tests passed
+```
+
+Real play-route evidence:
+
+```text
+URL: http://127.0.0.1:5216/?mode=play&hero=rein&renderer=3d
+Canvas: 1440 x 900, WebGL context present
+Screenshot: docs/screenshots/ux-3d-v18-hero-gameplay-model-quality.png
 ```
 
 ```text
@@ -193,5 +243,6 @@ Preview smoke evidence:
 - Main collision risk: `src/main.ts`.
 - Dependency collision risk: `package.json` / `package-lock.json`.
 - Bundle warning is expected because Three.js is currently statically imported.
-- V14 remains visual-only; no simulation combat/pathing/balance logic changed.
+- V18 remains visual-only; no simulation combat/pathing/balance logic changed.
+- Opus feedback also calls out `src/render3d/modelGen.ts` for the remaining 102 heroes plus small units/neutrals. Codex V18 covers the 10 classic `hero3dFactory` assets; Opus can apply the same rounded/extruded/profile pattern to `modelGen.buildHumanoid`.
 - The screenshot is intentional evidence and should stay under `docs/screenshots/`.

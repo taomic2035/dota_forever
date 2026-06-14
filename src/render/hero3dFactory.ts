@@ -2,12 +2,13 @@ import {
   AdditiveBlending,
   AnimationClip,
   BackSide,
-  BoxGeometry,
+  CapsuleGeometry,
   CanvasTexture,
   Color,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
+  ExtrudeGeometry,
   FrontSide,
   Group,
   LoopOnce,
@@ -18,6 +19,7 @@ import {
   Object3D,
   Quaternion,
   QuaternionKeyframeTrack,
+  Shape,
   SphereGeometry,
   SRGBColorSpace,
   Texture,
@@ -62,6 +64,18 @@ export interface HeroRuntimeSurfaceUserData {
   runtimeHelper: 'updateHeroRuntimePresentation';
 }
 
+export interface HeroGameplayModelQualityUserData {
+  tunedFor: 'play-3d-default-camera';
+  cameraFov: 40;
+  defaultZoom: 0.62;
+  pitchRadians: number;
+  heroModelScale: 1.5;
+  roundedReadableParts: number;
+  primarySilhouetteParts: number;
+  secondarySilhouetteParts: number;
+  runtimeHelper: 'createHero3DModel';
+}
+
 type HeroRuntimeActionState = 'idle' | 'locomotion' | 'attack' | 'cast' | 'channel' | 'status' | 'hit' | 'death';
 type HeroRuntimeSurfaceShaderIntent =
   | 'hero-armor-rim-sweep'
@@ -69,20 +83,55 @@ type HeroRuntimeSurfaceShaderIntent =
   | 'hero-cloth-breathe'
   | 'hero-shadow-veil'
   | 'hero-stone-weight';
+type HeroGameplayGeometryProfile =
+  | 'tapered-rounded-body'
+  | 'rounded-head-volume'
+  | 'beveled-shoulder-cap'
+  | 'curved-cloth-panel'
+  | 'rounded-weapon-line'
+  | 'extruded-beveled-plate'
+  | 'raised-sigil-ring'
+  | 'polished-orb-volume'
+  | 'soft-ground-aura';
+type HeroGameplaySilhouetteWeight = 'primary' | 'secondary' | 'accent';
 
 const geometryCache = {
-  body: new CylinderGeometry(0.46, 0.66, 1.25, 8, 1),
-  head: new SphereGeometry(0.5, 8, 6),
-  shoulder: new ConeGeometry(0.5, 0.42, 6),
-  cape: new BoxGeometry(1, 1, 1),
-  weapon: new CylinderGeometry(0.08, 0.08, 1, 8),
-  offhand: new BoxGeometry(1, 1, 1),
-  sigil: new TorusGeometry(0.5, 0.055, 8, 32),
-  orb: new SphereGeometry(0.5, 10, 8),
-  aura: new CylinderGeometry(0.5, 0.5, 0.04, 32),
+  'tapered-rounded-body': new CapsuleGeometry(0.48, 0.78, 6, 16),
+  'rounded-head-volume': new SphereGeometry(0.5, 16, 12),
+  'beveled-shoulder-cap': new ConeGeometry(0.52, 0.42, 12),
+  'curved-cloth-panel': new CylinderGeometry(0.58, 0.48, 0.12, 24, 1, true, Math.PI * 0.14, Math.PI * 1.72),
+  'rounded-weapon-line': new CylinderGeometry(0.08, 0.11, 1, 14),
+  'extruded-beveled-plate': createExtrudedPlateGeometry(),
+  'raised-sigil-ring': new TorusGeometry(0.5, 0.055, 12, 48),
+  'polished-orb-volume': new SphereGeometry(0.5, 16, 12),
+  'soft-ground-aura': new CylinderGeometry(0.5, 0.5, 0.04, 48),
 };
 
 const contactShadowGeometry = new CylinderGeometry(1, 1, 0.012, 48);
+
+function createExtrudedPlateGeometry(): ExtrudeGeometry {
+  const shape = new Shape();
+  const halfWidth = 0.5;
+  const halfHeight = 0.64;
+  const radius = 0.16;
+  shape.moveTo(-halfWidth + radius, -halfHeight);
+  shape.lineTo(halfWidth - radius, -halfHeight);
+  shape.quadraticCurveTo(halfWidth, -halfHeight, halfWidth, -halfHeight + radius);
+  shape.lineTo(halfWidth, halfHeight - radius);
+  shape.quadraticCurveTo(halfWidth, halfHeight, halfWidth - radius, halfHeight);
+  shape.lineTo(-halfWidth + radius, halfHeight);
+  shape.quadraticCurveTo(-halfWidth, halfHeight, -halfWidth, halfHeight - radius);
+  shape.lineTo(-halfWidth, -halfHeight + radius);
+  shape.quadraticCurveTo(-halfWidth, -halfHeight, -halfWidth + radius, -halfHeight);
+  return new ExtrudeGeometry(shape, {
+    depth: 0.18,
+    bevelEnabled: true,
+    bevelThickness: 0.035,
+    bevelSize: 0.045,
+    bevelSegments: 3,
+    curveSegments: 8,
+  });
+}
 
 export function createHero3DModel(asset: Hero3DAssetSpec): Hero3DModel {
   const root = new Group();
@@ -107,6 +156,7 @@ export function createHero3DModel(asset: Hero3DAssetSpec): Hero3DModel {
   for (const part of asset.model.parts) root.add(createPartObject(part, textures));
   root.userData.runtimeAction = heroRuntimeActionUserData(asset);
   root.userData.runtimeSurface = heroRuntimeSurfaceUserData(asset, root);
+  root.userData.gameplayModelQuality = heroGameplayModelQualityUserData(asset);
   const clips = asset.actions.map((action) => createHeroClip(asset.key, action.name, action.duration, action.motion));
   return { root, textures, clips };
 }
@@ -138,6 +188,21 @@ export function heroRuntimeSurfaceUserData(asset: Hero3DAssetSpec, root?: Object
     materialCount: counts.materialCount,
     glintLayerCount: counts.glintLayerCount,
     runtimeHelper: 'updateHeroRuntimePresentation',
+  };
+}
+
+export function heroGameplayModelQualityUserData(asset: Hero3DAssetSpec): HeroGameplayModelQualityUserData {
+  const weights = asset.model.parts.map((part) => heroGameplaySilhouetteWeight(part));
+  return {
+    tunedFor: 'play-3d-default-camera',
+    cameraFov: 40,
+    defaultZoom: 0.62,
+    pitchRadians: Math.PI * 0.31,
+    heroModelScale: 1.5,
+    roundedReadableParts: asset.model.parts.length,
+    primarySilhouetteParts: weights.filter((weight) => weight === 'primary').length,
+    secondarySilhouetteParts: weights.filter((weight) => weight === 'secondary').length,
+    runtimeHelper: 'createHero3DModel',
   };
 }
 
@@ -213,7 +278,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     emissive: new Color(part.emissive ?? '#000000'),
     emissiveMap: part.emissive ? textures.emissive : null,
     emissiveIntensity: part.emissive ? materialProfile.emissiveIntensity : 0,
-    flatShading: true,
+    flatShading: false,
     transparent: part.kind === 'aura' || part.material === 'energy',
     opacity: part.kind === 'aura' ? 0.72 : part.material === 'energy' ? 0.88 : 1,
     side: part.kind === 'aura' ? DoubleSide : FrontSide,
@@ -290,16 +355,39 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
   return group;
 }
 
+function heroGameplayGeometryProfile(part: Hero3DPartSpec): HeroGameplayGeometryProfile {
+  if (part.kind === 'body') return 'tapered-rounded-body';
+  if (part.kind === 'head') return 'rounded-head-volume';
+  if (part.kind === 'shoulder') return 'beveled-shoulder-cap';
+  if (part.kind === 'cape') return 'curved-cloth-panel';
+  if (part.kind === 'weapon') return 'rounded-weapon-line';
+  if (part.kind === 'offhand') return 'extruded-beveled-plate';
+  if (part.kind === 'sigil') return 'raised-sigil-ring';
+  if (part.kind === 'orb') return 'polished-orb-volume';
+  return 'soft-ground-aura';
+}
+
+function heroGameplaySilhouetteWeight(part: Hero3DPartSpec): HeroGameplaySilhouetteWeight {
+  if (part.kind === 'body' || part.kind === 'head') return 'primary';
+  if (part.kind === 'shoulder' || part.kind === 'weapon' || part.kind === 'offhand' || part.kind === 'cape') return 'secondary';
+  return 'accent';
+}
+
 function geometryFor(part: Hero3DPartSpec) {
-  return geometryCache[part.kind];
+  return geometryCache[heroGameplayGeometryProfile(part)];
 }
 
 function tagHeroRuntimePart(obj: Object3D, part: Hero3DPartSpec, materialProfile: HeroMaterialSurfaceProfile): void {
+  const geometryProfile = heroGameplayGeometryProfile(part);
   obj.userData.heroRuntimePart = true;
   obj.userData.partName = part.name;
   obj.userData.partKind = part.kind;
   obj.userData.partMaterial = part.material ?? 'leather';
   obj.userData.partDetail = part.detail ?? 'engraving';
+  obj.userData.gameplayGeometryProfile = geometryProfile;
+  obj.userData.gameplaySilhouetteWeight = heroGameplaySilhouetteWeight(part);
+  obj.userData.gameplayCameraRead = true;
+  obj.userData.roundedReadableGameplayPiece = geometryProfile !== 'soft-ground-aura';
   obj.userData.runtimeActionReactive = part.kind !== 'body' || !!part.emissive || materialProfile.rimLightIntensity >= 0.58;
   obj.userData.basePosition = [obj.position.x, obj.position.y, obj.position.z];
   obj.userData.baseRotation = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
