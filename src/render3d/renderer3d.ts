@@ -54,6 +54,8 @@ export class Renderer3D {
   private tLine!: THREE.Mesh;
   /** 选中高亮:跟随左键选中单位的贴地脉冲环(区别于每单位常驻队色环)。 */
   private selRing!: THREE.Mesh;
+  /** 悬停轮廓:跟随鼠标悬停单位的贴地环,敌红/友绿/中立黄(右键预期反馈)。 */
+  private hovRing!: THREE.Mesh;
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
   private readonly queueFx: CommandQueue3DObjects;
@@ -276,6 +278,7 @@ export class Renderer3D {
     this.fx.update(world, performance.now() / 1000);
     this.updateTargeting(world, ux);
     this.updateSelectionRing(world, selectedId, t);
+    this.updateHoverRing(world, ux?.hoverUnitId ?? 0, selectedId);
     this.updateCommandQueue(world, selectedId, t);
     updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
     this.s3d.setNight(world.isNight);
@@ -432,6 +435,34 @@ export class Renderer3D {
     this.selRing.renderOrder = 4;
     this.selRing.visible = false;
     this.s3d.scene.add(this.selRing);
+
+    // 悬停轮廓环:细环,颜色按关系在 update 时设置(敌红/友绿/中立黄)。
+    this.hovRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.9, 1.0, 36),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false, depthTest: false }),
+    );
+    this.hovRing.rotation.x = -Math.PI / 2;
+    this.hovRing.renderOrder = 4;
+    this.hovRing.visible = false;
+    this.s3d.scene.add(this.hovRing);
+  }
+
+  /** 悬停轮廓:贴地环跟随鼠标悬停单位,按与观察者的关系着色;选中单位/无悬停则隐藏。 */
+  private updateHoverRing(world: World, hoverId: number, selectedId: number): void {
+    const u = hoverId && hoverId !== selectedId ? world.getUnit(hoverId) : undefined;
+    if (!u || !u.alive) { this.hovRing.visible = false; return; }
+    const rel = this.viewerTeam === null ? 'n'
+      : u.team === this.viewerTeam ? 'a'
+        : u.team === 2 ? 'n' : 'e'; // Team.Neutral === 2
+    const color = rel === 'e' ? 0xff5648 : rel === 'a' ? 0x7ce47c : 0xe2d678;
+    const vx = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
+    const vz = u.prevPos.y + (u.pos.y - u.prevPos.y) * this.alpha;
+    const ey = terrainElevation(world.map, vx, vz);
+    const ringR = Math.max(24, u.base.collisionRadius * 1.55);
+    (this.hovRing.material as THREE.MeshBasicMaterial).color.setHex(color);
+    this.hovRing.position.set(vx, ey + 1.5, vz);
+    this.hovRing.scale.set(ringR, ringR, ringR);
+    this.hovRing.visible = true;
   }
 
   /** 选中高亮:贴地环跟随选中单位(插值位置),轻微脉冲;无有效选中则隐藏。 */

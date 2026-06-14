@@ -570,8 +570,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     onToggleShop() { shop.toggle(); },
     onGlyph() { if (hero) activateGlyph(world, hero.team); }, // 防御符文:己方建筑短时免疫
 
-    onPointerMove(screen) {
+    onPointerMove(screen, worldPt) {
       ux.setCursorPosition(screen);
+      // 悬停高亮:点取最近可见单位(排除自己),供渲染器画敌红/友绿轮廓 = 右键预期反馈
+      const hov = pickUnitAt(world, hero?.team ?? null, worldPt, 70);
+      ux.hoverUnitId = hov && hov.id !== hero?.id ? hov.id : 0;
     },
     canSelfCast(i) {
       const info = castInfo(i);

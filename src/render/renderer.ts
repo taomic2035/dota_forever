@@ -44,6 +44,8 @@ export class Renderer {
   private visibleScratch: Unit[] = [];
   /** 观察者阵营;null = 全图视野(观战) */
   viewerTeam: Team | null = null;
+  /** 本帧鼠标悬停单位 id(0 = 无),由 render() 从 ux 取,drawUnit 画敌红/友绿轮廓 */
+  private hoverId = 0;
   /** 渲染插值系数(0-1),由主循环每帧设置 */
   alpha = 1;
   showPaths = false;
@@ -210,6 +212,7 @@ export class Renderer {
       if (u.alive && (this.viewerTeam === null || isVisibleTo(world, this.viewerTeam, u))) units.push(u);
     }
     units.sort((a, b) => a.pos.y - b.pos.y);
+    this.hoverId = ux?.hoverUnitId ?? 0;
     for (const u of units) this.drawUnit(world, u, u.id === selectedId);
 
     // 弹道
@@ -680,6 +683,14 @@ export class Renderer {
       ctx.lineWidth = Math.max(2, this.s(4));
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + r * 0.55, r * 1.15, r * 0.55, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (u.id === this.hoverId) {
+      // 悬停轮廓:敌红(右键=攻击)/ 友绿 / 中立黄,提供 pre-click 反馈
+      const rel = this.viewerTeam === null ? 'n' : u.team === this.viewerTeam ? 'a' : u.team === Team.Neutral ? 'n' : 'e';
+      ctx.strokeStyle = rel === 'e' ? 'rgba(255,86,72,0.9)' : rel === 'a' ? 'rgba(124,228,124,0.75)' : 'rgba(226,214,120,0.8)';
+      ctx.lineWidth = Math.max(1.5, this.s(2.5));
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + r * 0.55, r * 1.12, r * 0.54, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
