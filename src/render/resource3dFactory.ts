@@ -24,8 +24,12 @@ import type {
   Resource3DMaterialKind,
   Resource3DPartKind,
   Resource3DPartSpec,
+  Resource3DPlacementLayer,
+  Resource3DPlacementSpec,
   Resource3DTextureChannel,
   Resource3DTextureSpec,
+  ResourceVfxAudioSpec,
+  ResourceVfxParticleLayerSpec,
 } from './resource3dAssets';
 
 export interface Resource3DModel {
@@ -37,6 +41,10 @@ export interface ResourceMaterialProfile {
   roughness: number;
   metalness: number;
   emissiveIntensity: number;
+  normalIntensity: number;
+  rimLightIntensity: number;
+  contactShadowOpacity: number;
+  wearIntensity: number;
 }
 
 export interface ResourcePartAnimationUserData {
@@ -45,6 +53,48 @@ export interface ResourcePartAnimationUserData {
   partKind: Resource3DPartKind;
   partDetail: Resource3DPartSpec['detail'];
   partMaterial: Resource3DPartSpec['material'];
+}
+
+export interface ResourceRuntimeIntegrationUserData {
+  resourceRuntime: true;
+  placementLayer: Resource3DPlacementLayer;
+  walkable: boolean;
+  blocker: boolean;
+  visionBlocker: boolean;
+  river: boolean;
+  heightLevel: Resource3DPlacementSpec['heightLevel'];
+  footprintRadius: number;
+  lodNear: number;
+  lodMid: number;
+  lodFar: number;
+  impostorAfter: number;
+  productionModelPath: string;
+}
+
+export interface ResourceRuntimeVfxAudioUserData {
+  resourceRuntimeVfxAudio: true;
+  family: ResourceVfxAudioSpec['family'];
+  dangerShape: ResourceVfxAudioSpec['dangerShape'];
+  particleLayers: number;
+  audioCues: number;
+  phaseCount: number;
+  firstAudioCue: string;
+  firstAudioPath: string;
+}
+
+export interface ResourceRuntimeVfxPlaybackUserData {
+  resourceRuntimeVfxPlayback: true;
+  family: ResourceVfxAudioSpec['family'];
+  dangerShape: ResourceVfxAudioSpec['dangerShape'];
+  visualLayers: number;
+  phaseNames: ResourceVfxAudioSpec['phaseSync'][number]['phase'][];
+  phaseTimelineMs: number[];
+  hasAudioTimeline: boolean;
+  lightColor: string;
+  lightRadius: number;
+  decalKind: ResourceVfxAudioSpec['decal']['kind'];
+  audioCueIds: string[];
+  textureAtlases: string[];
 }
 
 const geometryCache: Record<Resource3DPartKind, BoxGeometry | ConeGeometry | CylinderGeometry | RingGeometry | SphereGeometry | TorusGeometry> = {
@@ -60,19 +110,28 @@ const geometryCache: Record<Resource3DPartKind, BoxGeometry | ConeGeometry | Cyl
   prop: new ConeGeometry(0.48, 1, 7),
 };
 
+const contactShadowGeometry = new CylinderGeometry(1, 1, 0.012, 48);
+const runtimeFootprintGeometry = new RingGeometry(0.96, 1.08, 56);
+const runtimeLodAnchorGeometry = new SphereGeometry(0.055, 8, 6);
+const runtimeVfxParticleGeometry = new SphereGeometry(0.14, 10, 6);
+const runtimeVfxPathGeometry = new CylinderGeometry(0.035, 0.07, 1.4, 10, 1, true);
+const runtimeVfxRadiusGeometry = new RingGeometry(0.48, 0.58, 56);
+const runtimeVfxDecalGeometry = new RingGeometry(0.5, 0.68, 64);
+const runtimeVfxLightGeometry = new SphereGeometry(0.28, 12, 8);
+
 export function resourceMaterialProfile(material: Resource3DMaterialKind, hasEmissive: boolean): ResourceMaterialProfile {
   const base: Record<Resource3DMaterialKind, Omit<ResourceMaterialProfile, 'emissiveIntensity'>> = {
-    cloth: { roughness: 0.86, metalness: 0.02 },
-    leather: { roughness: 0.68, metalness: 0.04 },
-    wood: { roughness: 0.78, metalness: 0.03 },
-    stone: { roughness: 0.9, metalness: 0.01 },
-    metal: { roughness: 0.36, metalness: 0.62 },
-    crystal: { roughness: 0.28, metalness: 0.08 },
-    energy: { roughness: 0.2, metalness: 0 },
-    water: { roughness: 0.18, metalness: 0 },
-    foliage: { roughness: 0.82, metalness: 0.01 },
-    paper: { roughness: 0.92, metalness: 0 },
-    shadow: { roughness: 0.74, metalness: 0.04 },
+    cloth: { roughness: 0.86, metalness: 0.02, normalIntensity: 0.42, rimLightIntensity: 0.16, contactShadowOpacity: 0.28, wearIntensity: 0.14 },
+    leather: { roughness: 0.68, metalness: 0.04, normalIntensity: 0.48, rimLightIntensity: 0.2, contactShadowOpacity: 0.32, wearIntensity: 0.26 },
+    wood: { roughness: 0.78, metalness: 0.03, normalIntensity: 0.52, rimLightIntensity: 0.18, contactShadowOpacity: 0.34, wearIntensity: 0.32 },
+    stone: { roughness: 0.9, metalness: 0.01, normalIntensity: 0.68, rimLightIntensity: 0.12, contactShadowOpacity: 0.42, wearIntensity: 0.44 },
+    metal: { roughness: 0.36, metalness: 0.62, normalIntensity: 0.36, rimLightIntensity: 0.62, contactShadowOpacity: 0.3, wearIntensity: 0.34 },
+    crystal: { roughness: 0.28, metalness: 0.08, normalIntensity: 0.5, rimLightIntensity: 0.78, contactShadowOpacity: 0.24, wearIntensity: 0.18 },
+    energy: { roughness: 0.2, metalness: 0, normalIntensity: 0.28, rimLightIntensity: 0.92, contactShadowOpacity: 0.18, wearIntensity: 0.08 },
+    water: { roughness: 0.18, metalness: 0, normalIntensity: 0.4, rimLightIntensity: 0.74, contactShadowOpacity: 0.16, wearIntensity: 0.05 },
+    foliage: { roughness: 0.82, metalness: 0.01, normalIntensity: 0.56, rimLightIntensity: 0.18, contactShadowOpacity: 0.22, wearIntensity: 0.12 },
+    paper: { roughness: 0.92, metalness: 0, normalIntensity: 0.34, rimLightIntensity: 0.1, contactShadowOpacity: 0.2, wearIntensity: 0.12 },
+    shadow: { roughness: 0.74, metalness: 0.04, normalIntensity: 0.5, rimLightIntensity: 0.44, contactShadowOpacity: 0.38, wearIntensity: 0.22 },
   };
   const emissiveBoost: Record<Resource3DMaterialKind, number> = {
     cloth: 0.85,
@@ -106,11 +165,81 @@ export function createResource3DModel(asset: Resource3DAssetSpec): Resource3DMod
     laneReadability: asset.laneReadability,
     wildReadability: asset.wildReadability,
     supportReadability: asset.supportReadability,
+    placement: asset.placement,
+    lod: asset.lod,
+    production: asset.production,
+    vfxAudio: asset.vfxAudio,
+    runtimeIntegration: resourceRuntimeIntegrationUserData(asset),
+    runtimeVfxAudio: asset.vfxAudio ? resourceRuntimeVfxAudioUserData(asset.vfxAudio) : undefined,
+    runtimeVfxPlayback: asset.vfxAudio ? resourceRuntimeVfxPlaybackUserData(asset.vfxAudio) : undefined,
+    surfaceRealism: {
+      contactShadow: true,
+      contactShadowOpacity: resourceContactShadowOpacity(asset),
+      contactShadowRadius: resourceContactShadowRadius(asset),
+    },
   };
 
   const textures = createTextures(asset);
+  root.add(createResourceContactShadow(asset));
+  if (shouldCreateRuntimeFootprint(asset.placement.placementLayer)) {
+    root.add(createRuntimeFootprint(asset));
+  }
+  root.add(createRuntimeLODAnchor(asset));
+  if (asset.vfxAudio) {
+    root.add(createRuntimeVfxAudioSyncAnchor(asset));
+    root.add(createRuntimeVfxPlaybackGroup(asset));
+  }
   for (const part of asset.parts) root.add(createPartObject(part, textures));
   return { root, textures };
+}
+
+export function resourceRuntimeIntegrationUserData(asset: Resource3DAssetSpec): ResourceRuntimeIntegrationUserData {
+  return {
+    resourceRuntime: true,
+    placementLayer: asset.placement.placementLayer,
+    walkable: asset.placement.walkable,
+    blocker: asset.placement.blocker,
+    visionBlocker: asset.placement.visionBlocker,
+    river: asset.placement.river,
+    heightLevel: asset.placement.heightLevel,
+    footprintRadius: asset.placement.footprintRadius,
+    lodNear: asset.lod.near,
+    lodMid: asset.lod.mid,
+    lodFar: asset.lod.far,
+    impostorAfter: asset.lod.impostorAfter,
+    productionModelPath: asset.production.modelPath,
+  };
+}
+
+export function resourceRuntimeVfxAudioUserData(vfxAudio: ResourceVfxAudioSpec): ResourceRuntimeVfxAudioUserData {
+  const firstCue = vfxAudio.audioCues[0];
+  return {
+    resourceRuntimeVfxAudio: true,
+    family: vfxAudio.family,
+    dangerShape: vfxAudio.dangerShape,
+    particleLayers: vfxAudio.particleLayers.length,
+    audioCues: vfxAudio.audioCues.length,
+    phaseCount: vfxAudio.phaseSync.length,
+    firstAudioCue: firstCue?.cueId ?? '',
+    firstAudioPath: firstCue?.assetPath ?? '',
+  };
+}
+
+export function resourceRuntimeVfxPlaybackUserData(vfxAudio: ResourceVfxAudioSpec): ResourceRuntimeVfxPlaybackUserData {
+  return {
+    resourceRuntimeVfxPlayback: true,
+    family: vfxAudio.family,
+    dangerShape: vfxAudio.dangerShape,
+    visualLayers: vfxAudio.particleLayers.length,
+    phaseNames: vfxAudio.phaseSync.map((phase) => phase.phase),
+    phaseTimelineMs: vfxAudio.phaseSync.map((phase) => phase.atMs),
+    hasAudioTimeline: vfxAudio.audioCues.length > 0,
+    lightColor: vfxAudio.light.color,
+    lightRadius: vfxAudio.light.radius,
+    decalKind: vfxAudio.decal.kind,
+    audioCueIds: vfxAudio.audioCues.map((cue) => cue.cueId),
+    textureAtlases: vfxAudio.particleLayers.map((layer) => layer.textureAtlas),
+  };
 }
 
 function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DTextureChannel, Texture>): Object3D {
@@ -131,6 +260,9 @@ function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DT
     opacity: additive ? 0.58 : 1,
     side: additive ? DoubleSide : FrontSide,
   });
+  material.normalScale.setScalar(profile.normalIntensity);
+  material.envMapIntensity = profile.rimLightIntensity;
+  material.userData.surfaceProfile = profile;
 
   const mesh = new Mesh(geometryCache[part.kind], material);
   mesh.name = part.name;
@@ -175,8 +307,281 @@ function createPartObject(part: Resource3DPartSpec, textures: Record<Resource3DT
     glow.scale.copy(mesh.scale).multiplyScalar(part.kind === 'orb' ? 1.35 : 1.16);
     group.add(glow);
   }
+  if (profile.rimLightIntensity >= 0.58) {
+    const glint = new Mesh(geometryCache[part.kind], new MeshBasicMaterial({
+      color: part.emissive ?? part.color,
+      blending: AdditiveBlending,
+      transparent: true,
+      opacity: Math.min(0.26, 0.08 + profile.rimLightIntensity * 0.16),
+      depthWrite: false,
+    }));
+    glint.name = `v6-surface-glint:${part.name}`;
+    glint.position.copy(mesh.position);
+    glint.rotation.copy(mesh.rotation);
+    glint.scale.copy(mesh.scale).multiplyScalar(1.025);
+    group.add(glint);
+  }
 
   return group;
+}
+
+function createResourceContactShadow(asset: Resource3DAssetSpec): Mesh {
+  const shadow = new Mesh(contactShadowGeometry, new MeshBasicMaterial({
+    color: '#020403',
+    transparent: true,
+    opacity: resourceContactShadowOpacity(asset),
+    depthWrite: false,
+  }));
+  const radius = resourceContactShadowRadius(asset);
+  shadow.name = `resource3d:v6-contact-shadow:${asset.key}`;
+  shadow.position.y = 0.018;
+  shadow.scale.set(radius, 1, radius * 0.82);
+  shadow.receiveShadow = false;
+  shadow.castShadow = false;
+  shadow.renderOrder = -10;
+  return shadow;
+}
+
+function createRuntimeFootprint(asset: Resource3DAssetSpec): Mesh {
+  const color = asset.placement.blocker
+    ? '#ff8a5a'
+    : asset.placement.river
+      ? '#78dfff'
+      : asset.placement.walkable
+        ? '#9fd66f'
+        : '#d8bd7e';
+  const footprint = new Mesh(runtimeFootprintGeometry, new MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: asset.placement.blocker ? 0.18 : 0.11,
+    depthWrite: false,
+    side: DoubleSide,
+  }));
+  footprint.name = `resource3d:v8-footprint:${asset.key}`;
+  footprint.rotation.x = -Math.PI / 2;
+  footprint.position.y = 0.032;
+  footprint.scale.set(asset.placement.footprintRadius, asset.placement.footprintRadius, 1);
+  footprint.renderOrder = -8;
+  footprint.userData = {
+    resourceRuntimeFootprint: true,
+    ...asset.placement,
+    lodNear: asset.lod.near,
+    productionModelPath: asset.production.modelPath,
+  };
+  return footprint;
+}
+
+function createRuntimeLODAnchor(asset: Resource3DAssetSpec): Mesh {
+  const anchor = new Mesh(runtimeLodAnchorGeometry, new MeshBasicMaterial({
+    color: lodAnchorColor(asset.placement.placementLayer),
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+  }));
+  const radius = Math.max(0.28, asset.placement.footprintRadius);
+  anchor.name = `resource3d:v8-lod-anchor:${asset.key}`;
+  anchor.position.set(radius * 0.62, 0.11, radius * 0.62);
+  anchor.renderOrder = 12;
+  anchor.userData = {
+    resourceRuntimeLOD: true,
+    lodNear: asset.lod.near,
+    lodMid: asset.lod.mid,
+    lodFar: asset.lod.far,
+    impostorAfter: asset.lod.impostorAfter,
+    shadow: asset.lod.shadow,
+    productionModelPath: asset.production.modelPath,
+    productionTexturePaths: asset.production.texturePaths,
+    actionSlots: asset.production.actionSlots,
+  };
+  return anchor;
+}
+
+function createRuntimeVfxAudioSyncAnchor(asset: Resource3DAssetSpec): Mesh {
+  const vfxAudio = asset.vfxAudio!;
+  const anchor = new Mesh(runtimeLodAnchorGeometry, new MeshBasicMaterial({
+    color: asset.palette[3],
+    blending: AdditiveBlending,
+    transparent: true,
+    opacity: 0.34,
+    depthWrite: false,
+  }));
+  const radius = Math.max(0.36, asset.placement.footprintRadius);
+  anchor.name = `resource3d:v9-vfx-audio-sync:${asset.key}`;
+  anchor.position.set(-radius * 0.54, 0.16, radius * 0.54);
+  anchor.scale.setScalar(vfxAudio.dangerShape === 'radius' ? 1.25 : vfxAudio.dangerShape === 'ambient' ? 0.92 : 1);
+  anchor.renderOrder = 16;
+  anchor.userData = {
+    resourceRuntimeVfxAudioAnchor: true,
+    family: vfxAudio.family,
+    dangerShape: vfxAudio.dangerShape,
+    phaseCount: vfxAudio.phaseSync.length,
+    particleLayers: vfxAudio.particleLayers.length,
+    audioCues: vfxAudio.audioCues.length,
+    firstAudioCue: vfxAudio.audioCues[0]?.cueId ?? '',
+    productionAudioPath: vfxAudio.audioCues[0]?.assetPath ?? '',
+    particleAtlases: vfxAudio.particleLayers.map((layer) => layer.textureAtlas),
+  };
+  return anchor;
+}
+
+function createRuntimeVfxPlaybackGroup(asset: Resource3DAssetSpec): Group {
+  const vfxAudio = asset.vfxAudio!;
+  const playback = new Group();
+  playback.name = `resource3d:v10-vfx-playback:${asset.key}`;
+  playback.position.y = 0.08;
+  playback.userData = {
+    resourceRuntimeVfxPlaybackRoot: true,
+    ...resourceRuntimeVfxPlaybackUserData(vfxAudio),
+  };
+
+  vfxAudio.particleLayers.forEach((layer, index) => {
+    playback.add(createRuntimeVfxLayer(asset, layer, index));
+  });
+  playback.add(createRuntimeVfxLightHint(asset));
+  if (vfxAudio.decal.kind !== 'none') {
+    playback.add(createRuntimeVfxDecal(asset));
+  }
+  return playback;
+}
+
+function createRuntimeVfxLayer(asset: Resource3DAssetSpec, layer: ResourceVfxParticleLayerSpec, index: number): Mesh {
+  const vfxAudio = asset.vfxAudio!;
+  const geometry = layer.role === 'trail' || vfxAudio.dangerShape === 'path'
+    ? runtimeVfxPathGeometry
+    : layer.role === 'shockwave' || vfxAudio.dangerShape === 'radius'
+      ? runtimeVfxRadiusGeometry
+      : runtimeVfxParticleGeometry;
+  const material = new MeshBasicMaterial({
+    color: layer.role === 'smoke' ? asset.palette[1] : asset.palette[3],
+    transparent: true,
+    opacity: Math.min(0.82, Math.max(0.16, layer.opacity)),
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  if (layer.blendMode === 'additive') material.blending = AdditiveBlending;
+
+  const mesh = new Mesh(geometry, material);
+  mesh.name = `resource3d:v10-vfx-layer:${asset.key}:${layer.role}`;
+  const spread = (index - (vfxAudio.particleLayers.length - 1) / 2) * 0.18;
+  if (vfxAudio.dangerShape === 'path') {
+    mesh.rotation.z = Math.PI / 2;
+    mesh.position.set(0, 0.42 + index * 0.045, spread);
+    mesh.scale.set(layer.scale * 1.28, layer.scale, layer.scale);
+  } else if (vfxAudio.dangerShape === 'radius') {
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(0, 0.038 + index * 0.012, 0);
+    mesh.scale.setScalar(layer.scale * Math.max(1.1, asset.placement.footprintRadius * 1.35));
+  } else if (vfxAudio.dangerShape === 'ambient') {
+    mesh.position.set(spread * 1.5, 0.52 + index * 0.06, -spread);
+    mesh.scale.setScalar(layer.scale * 0.82);
+  } else {
+    mesh.position.set(spread, 0.5 + index * 0.05, 0);
+    mesh.scale.setScalar(layer.scale);
+  }
+  mesh.renderOrder = 24 + index;
+  mesh.userData = {
+    resourceRuntimeVfxLayer: true,
+    role: layer.role,
+    sprite: layer.sprite,
+    textureAtlas: layer.textureAtlas,
+    count: layer.count,
+    blendMode: layer.blendMode,
+    lifetimeMs: layer.lifetimeMs,
+    gravity: layer.gravity,
+    phaseNames: vfxAudio.phaseSync
+      .filter((phase) => phase.particleRoles.includes(layer.role))
+      .map((phase) => phase.phase),
+  };
+  return mesh;
+}
+
+function createRuntimeVfxLightHint(asset: Resource3DAssetSpec): Mesh {
+  const vfxAudio = asset.vfxAudio!;
+  const light = new Mesh(runtimeVfxLightGeometry, new MeshBasicMaterial({
+    color: vfxAudio.light.color,
+    blending: AdditiveBlending,
+    transparent: true,
+    opacity: Math.min(0.34, 0.1 + vfxAudio.light.intensity * 0.12),
+    depthWrite: false,
+  }));
+  light.name = `resource3d:v10-vfx-light:${asset.key}`;
+  light.position.y = vfxAudio.dangerShape === 'radius' ? 0.16 : 0.62;
+  light.scale.setScalar(Math.max(0.42, vfxAudio.light.radius * 0.18));
+  light.renderOrder = 32;
+  light.userData = {
+    resourceRuntimeVfxLight: true,
+    color: vfxAudio.light.color,
+    intensity: vfxAudio.light.intensity,
+    radius: vfxAudio.light.radius,
+    pulseHz: vfxAudio.light.pulseHz,
+  };
+  return light;
+}
+
+function createRuntimeVfxDecal(asset: Resource3DAssetSpec): Mesh {
+  const vfxAudio = asset.vfxAudio!;
+  const decal = new Mesh(runtimeVfxDecalGeometry, new MeshBasicMaterial({
+    color: decalColor(vfxAudio.decal.kind, asset.palette[3]),
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+    side: DoubleSide,
+  }));
+  decal.name = `resource3d:v10-vfx-decal:${asset.key}`;
+  decal.rotation.x = -Math.PI / 2;
+  decal.position.y = 0.024;
+  decal.scale.setScalar(Math.max(0.82, asset.placement.footprintRadius * 1.6));
+  decal.renderOrder = -6;
+  decal.userData = {
+    resourceRuntimeVfxDecal: true,
+    decalKind: vfxAudio.decal.kind,
+    lifetimeMs: vfxAudio.decal.lifetimeMs,
+    dangerShape: vfxAudio.dangerShape,
+  };
+  return decal;
+}
+
+function decalColor(kind: ResourceVfxAudioSpec['decal']['kind'], fallback: string): string {
+  switch (kind) {
+    case 'scorch': return '#ff6a3d';
+    case 'frost': return '#a8f4ff';
+    case 'rune': return '#d8c8ff';
+    case 'crack': return '#ffb35d';
+    case 'mist': return '#8defff';
+    case 'none':
+    default: return fallback;
+  }
+}
+
+function shouldCreateRuntimeFootprint(layer: Resource3DPlacementLayer): boolean {
+  return layer === 'unit' || layer === 'building' || layer === 'prop' || layer === 'terrain';
+}
+
+function lodAnchorColor(layer: Resource3DPlacementLayer): string {
+  switch (layer) {
+    case 'terrain': return '#9fd66f';
+    case 'prop': return '#d8bd7e';
+    case 'building': return '#ffcf75';
+    case 'unit': return '#b6d9ff';
+    case 'projectile': return '#ff8a5a';
+    case 'ui': return '#d4c8ff';
+    case 'marker': return '#8defff';
+    case 'fx':
+    default: return '#f4e8c2';
+  }
+}
+
+function resourceContactShadowOpacity(asset: Resource3DAssetSpec): number {
+  const strongest = Math.max(...asset.parts.map((part) => resourceMaterialProfile(part.material, !!part.emissive).contactShadowOpacity));
+  return Math.min(0.42, Math.max(0.16, strongest));
+}
+
+function resourceContactShadowRadius(asset: Resource3DAssetSpec): number {
+  return Math.max(0.62, ...asset.parts.map((part) => {
+    const x = Math.abs(part.position[0]) + part.scale[0] * 0.55;
+    const z = Math.abs(part.position[2]) + part.scale[2] * 0.55;
+    return Math.max(x, z);
+  }));
 }
 
 function tagMotionPart(object: Object3D, part: Resource3DPartSpec): void {

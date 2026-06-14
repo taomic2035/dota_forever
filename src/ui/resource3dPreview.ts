@@ -22,7 +22,7 @@ import {
   type Resource3DAssetSpec,
   type Resource3DCategory,
 } from '../render/resource3dAssets';
-import { createResource3DModel } from '../render/resource3dFactory';
+import { createResource3DModel, resourceMaterialProfile } from '../render/resource3dFactory';
 
 const CATEGORY_LABEL: Record<Resource3DCategory, string> = {
   lane_units: '兵线单位',
@@ -71,6 +71,26 @@ interface PreviewResource {
   model: Group;
   label: HTMLElement;
   phase: number;
+}
+
+export interface ResourceVfxAudioPreviewSmoke {
+  total: number;
+  byCategory: Record<string, number>;
+  families: Record<string, number>;
+  dangerShapes: Record<string, number>;
+  audioCueCount: number;
+  particleLayerCount: number;
+  phaseSynced: number;
+}
+
+export interface ResourceVfxPlaybackPreviewSmoke {
+  playbackGroups: number;
+  playbackLayers: number;
+  lightHints: number;
+  decals: number;
+  radiusPlaybackGroups: number;
+  pathPlaybackGroups: number;
+  ambientPlaybackGroups: number;
 }
 
 export function showResource3DPreview(parent: HTMLElement): void {
@@ -198,6 +218,9 @@ export function showResource3DPreview(parent: HTMLElement): void {
     });
     note.textContent = `${CATEGORY_LABEL[category]} · ${assets.length} 个样例 · 后续可逐类替换 GLB / PBR / 动作资源`;
     updateActiveTabs(tabs, category);
+    if (window.__resource3dPreview) {
+      window.__resource3dPreview.activeRuntime = runtimeSmokeFor(category, resources);
+    }
   }
 
   const clock = new Clock();
@@ -258,6 +281,105 @@ export function showResource3DPreview(parent: HTMLElement): void {
         visualPriority: asset.supportReadability?.visualPriority,
         anchors: asset.supportReadability?.silhouetteAnchors.length ?? 0,
       })),
+    surfaceRealism: RESOURCE3D_SAMPLE_ASSETS.map((asset) => ({
+      key: asset.key,
+      category: asset.category,
+      contactShadow: true,
+      glintEligibleParts: asset.parts.filter((part) => resourceMaterialProfile(part.material, !!part.emissive).rimLightIntensity >= 0.58).length,
+      strongestContactShadow: Math.max(...asset.parts.map((part) => resourceMaterialProfile(part.material, !!part.emissive).contactShadowOpacity)),
+    })),
+    integration: {
+      productionReady: RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.production.fallback === 'procedural').length,
+      lodReady: RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.lod.near > 0 && asset.lod.far > asset.lod.mid).length,
+      riverContracts: RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.placement.river).map((asset) => asset.key),
+      blockerContracts: RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.placement.blocker).map((asset) => asset.key),
+      placementLayers: RESOURCE3D_SAMPLE_ASSETS.reduce<Record<string, number>>((acc, asset) => {
+        acc[asset.placement.placementLayer] = (acc[asset.placement.placementLayer] ?? 0) + 1;
+        return acc;
+      }, {}),
+      tree3dRoots: RESOURCE3D_SAMPLE_ASSETS.slice(0, 12).map((asset) => asset.production.modelPath),
+    },
+    vfxAudio: resourceVfxAudioSmokeForAssets(RESOURCE3D_SAMPLE_ASSETS),
+    activeRuntime: runtimeSmokeFor(activeCategory, resources),
+  };
+}
+
+export function resourceVfxAudioSmokeForAssets(assets: Resource3DAssetSpec[]): ResourceVfxAudioPreviewSmoke {
+  const contracted = assets.filter((asset) => asset.vfxAudio);
+  return contracted.reduce<ResourceVfxAudioPreviewSmoke>((acc, asset) => {
+    const vfxAudio = asset.vfxAudio!;
+    acc.byCategory[asset.category] = (acc.byCategory[asset.category] ?? 0) + 1;
+    acc.families[vfxAudio.family] = (acc.families[vfxAudio.family] ?? 0) + 1;
+    acc.dangerShapes[vfxAudio.dangerShape] = (acc.dangerShapes[vfxAudio.dangerShape] ?? 0) + 1;
+    acc.audioCueCount += vfxAudio.audioCues.length;
+    acc.particleLayerCount += vfxAudio.particleLayers.length;
+    if (vfxAudio.phaseSync.length === 4) acc.phaseSynced += 1;
+    return acc;
+  }, {
+    total: contracted.length,
+    byCategory: {},
+    families: {},
+    dangerShapes: {},
+    audioCueCount: 0,
+    particleLayerCount: 0,
+    phaseSynced: 0,
+  });
+}
+
+export function resourceVfxPlaybackSmokeForModels(models: Group[]): ResourceVfxPlaybackPreviewSmoke {
+  const playbackGroups = models.flatMap((model) => model.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-playback:')));
+  return {
+    playbackGroups: playbackGroups.length,
+    playbackLayers: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-layer:')).length, 0),
+    lightHints: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-light:')).length, 0),
+    decals: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-decal:')).length, 0),
+    radiusPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'radius').length,
+    pathPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'path').length,
+    ambientPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'ambient').length,
+  };
+}
+
+function runtimeSmokeFor(category: Resource3DCategory, resources: PreviewResource[]): {
+  category: Resource3DCategory;
+  resourceCount: number;
+  runtimeRoots: number;
+  footprints: number;
+  lodAnchors: number;
+  blockers: number;
+  rivers: number;
+  vfxAudioRoots: number;
+  vfxAudioSyncAnchors: number;
+  audioCues: number;
+  particleLayers: number;
+  phaseSynced: number;
+  vfxPlaybackGroups: number;
+  vfxPlaybackLayers: number;
+  vfxPlaybackLights: number;
+  vfxPlaybackDecals: number;
+  productionModelPaths: string[];
+} {
+  const playbackSmoke = resourceVfxPlaybackSmokeForModels(resources.map((res) => res.model));
+  return {
+    category,
+    resourceCount: resources.length,
+    runtimeRoots: resources.filter((res) => res.model.userData.runtimeIntegration?.resourceRuntime).length,
+    footprints: resources.filter((res) => res.model.children.some((child) => child.name.startsWith('resource3d:v8-footprint:'))).length,
+    lodAnchors: resources.filter((res) => res.model.children.some((child) => child.name.startsWith('resource3d:v8-lod-anchor:'))).length,
+    blockers: resources.filter((res) => res.model.userData.runtimeIntegration?.blocker).length,
+    rivers: resources.filter((res) => res.model.userData.runtimeIntegration?.river).length,
+    vfxAudioRoots: resources.filter((res) => res.model.userData.runtimeVfxAudio?.resourceRuntimeVfxAudio).length,
+    vfxAudioSyncAnchors: resources.filter((res) => res.model.children.some((child) => child.name.startsWith('resource3d:v9-vfx-audio-sync:'))).length,
+    audioCues: resources.reduce((sum, res) => sum + (res.model.userData.runtimeVfxAudio?.audioCues ?? 0), 0),
+    particleLayers: resources.reduce((sum, res) => sum + (res.model.userData.runtimeVfxAudio?.particleLayers ?? 0), 0),
+    phaseSynced: resources.filter((res) => res.model.userData.runtimeVfxAudio?.phaseCount === 4).length,
+    vfxPlaybackGroups: playbackSmoke.playbackGroups,
+    vfxPlaybackLayers: playbackSmoke.playbackLayers,
+    vfxPlaybackLights: playbackSmoke.lightHints,
+    vfxPlaybackDecals: playbackSmoke.decals,
+    productionModelPaths: resources
+      .map((res) => res.model.userData.runtimeIntegration?.productionModelPath)
+      .filter((path): path is string => typeof path === 'string')
+      .slice(0, 8),
   };
 }
 
@@ -398,6 +520,41 @@ declare global {
         visualPriority?: number;
         anchors: number;
       }[];
+      surfaceRealism: {
+        key: string;
+        category: string;
+        contactShadow: boolean;
+        glintEligibleParts: number;
+        strongestContactShadow: number;
+      }[];
+      integration: {
+        productionReady: number;
+        lodReady: number;
+        riverContracts: string[];
+        blockerContracts: string[];
+        placementLayers: Record<string, number>;
+        tree3dRoots: string[];
+      };
+      vfxAudio: ResourceVfxAudioPreviewSmoke;
+      activeRuntime: {
+        category: string;
+        resourceCount: number;
+        runtimeRoots: number;
+        footprints: number;
+        lodAnchors: number;
+        blockers: number;
+        rivers: number;
+        vfxAudioRoots: number;
+        vfxAudioSyncAnchors: number;
+        audioCues: number;
+        particleLayers: number;
+        phaseSynced: number;
+        vfxPlaybackGroups: number;
+        vfxPlaybackLayers: number;
+        vfxPlaybackLights: number;
+        vfxPlaybackDecals: number;
+        productionModelPaths: string[];
+      };
     };
   }
 }

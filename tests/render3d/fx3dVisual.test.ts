@@ -52,4 +52,29 @@ describe('fx3DVisualState', () => {
     expect(state.layers.some((l) => l.role === 'glow')).toBe(true);
     expect(state.layers.every((l) => l.count > 0 && l.opacity > 0 && l.scale > 0)).toBe(true);
   });
+
+  it('adds V5 phase contracts for windup, impact, linger, and fade readability', () => {
+    const cases = [
+      ['fireblast', 'burst', 'point'],
+      ['lightning', 'beam', 'line'],
+      ['miasma', 'aoe', 'radius'],
+      ['arcanebolt', 'projectile', 'path'],
+    ] as const;
+
+    for (const [fx, geometry, dangerShape] of cases) {
+      const state = fx3DVisualState(fxStyle(fx), geometry);
+      expect(state.phaseContract.map((phase) => phase.phase)).toEqual(['windup', 'impact', 'linger', 'fade']);
+      expect(state.phaseContract.every((phase) => phase.duration > 0)).toBe(true);
+      expect(state.phaseContract.every((phase) => phase.opacity >= 0 && phase.opacity <= 1)).toBe(true);
+      expect(state.phaseContract.every((phase) => phase.scale > 0)).toBe(true);
+      expect(new Set(state.phaseContract.map((phase) => phase.dangerShape))).toEqual(new Set([dangerShape]));
+      expect(state.phaseContract.some((phase) => phase.layerRoles.includes('glow'))).toBe(true);
+    }
+
+    const aoe = fx3DVisualState(fxStyle('miasma'), 'aoe');
+    const burst = fx3DVisualState(fxStyle('fireblast'), 'burst');
+    expect(aoe.phaseContract.find((phase) => phase.phase === 'linger')!.duration).toBeGreaterThan(
+      burst.phaseContract.find((phase) => phase.phase === 'linger')!.duration,
+    );
+  });
 });

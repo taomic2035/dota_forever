@@ -3,6 +3,8 @@ import type { FxStyle } from '../render/fxStyle';
 export type Fx3DGeometry = 'burst' | 'beam' | 'aoe' | 'projectile';
 export type Fx3DShape = 'sphere' | 'ring' | 'beam' | 'shard' | 'spark' | 'rune' | 'cloud' | 'crack' | 'halo' | 'jagged';
 export type Fx3DRole = 'core' | 'glow' | 'accent' | 'particle' | 'trail';
+export type Fx3DPhaseName = 'windup' | 'impact' | 'linger' | 'fade';
+export type Fx3DDangerShape = 'point' | 'line' | 'radius' | 'path';
 
 export interface Fx3DLayer {
   role: Fx3DRole;
@@ -14,8 +16,18 @@ export interface Fx3DLayer {
   spin: number;
 }
 
+export interface Fx3DPhase {
+  phase: Fx3DPhaseName;
+  duration: number;
+  opacity: number;
+  scale: number;
+  dangerShape: Fx3DDangerShape;
+  layerRoles: Fx3DRole[];
+}
+
 export interface Fx3DVisualState {
   layers: Fx3DLayer[];
+  phaseContract: Fx3DPhase[];
   durationScale: number;
   verticalLift: number;
 }
@@ -117,9 +129,74 @@ function verticalLift(style: FxStyle, geometry: Fx3DGeometry): number {
   return base;
 }
 
+function dangerShape(geometry: Fx3DGeometry): Fx3DDangerShape {
+  switch (geometry) {
+    case 'beam':
+      return 'line';
+    case 'aoe':
+      return 'radius';
+    case 'projectile':
+      return 'path';
+    case 'burst':
+    default:
+      return 'point';
+  }
+}
+
+function phaseContract(style: FxStyle, geometry: Fx3DGeometry): Fx3DPhase[] {
+  const shape = dangerShape(geometry);
+  const patternLingerBoost = style.pattern === 'cloud' ? 0.16
+    : style.pattern === 'halo' || style.pattern === 'runes' ? 0.1
+      : style.pattern === 'cracks' ? 0.06
+        : 0;
+  const motionWindup = style.motion === 'flash' ? -0.03
+    : style.motion === 'crack' || style.motion === 'fall' ? 0.04
+      : 0;
+  const windup = Math.max(0.05, (geometry === 'aoe' ? 0.18 : geometry === 'beam' ? 0.08 : 0.1) + motionWindup);
+  const impact = geometry === 'beam' ? 0.08 : geometry === 'projectile' ? 0.1 : 0.12;
+  const lingerBase = geometry === 'aoe' ? 0.52 : geometry === 'projectile' ? 0.22 : geometry === 'beam' ? 0.18 : 0.16;
+  const linger = Math.max(0.12, lingerBase + patternLingerBoost);
+
+  return [
+    {
+      phase: 'windup',
+      duration: windup,
+      opacity: geometry === 'aoe' ? 0.46 : 0.38,
+      scale: geometry === 'beam' ? 0.9 : 0.68,
+      dangerShape: shape,
+      layerRoles: ['glow', 'accent'],
+    },
+    {
+      phase: 'impact',
+      duration: impact,
+      opacity: 1,
+      scale: geometry === 'projectile' ? 1.12 : 1.06,
+      dangerShape: shape,
+      layerRoles: ['core', 'accent', 'particle'],
+    },
+    {
+      phase: 'linger',
+      duration: linger,
+      opacity: geometry === 'aoe' ? 0.62 : 0.46,
+      scale: geometry === 'aoe' ? 1.02 : geometry === 'beam' ? 0.98 : 0.92,
+      dangerShape: shape,
+      layerRoles: ['glow', 'trail', 'particle', 'accent'],
+    },
+    {
+      phase: 'fade',
+      duration: 0.18,
+      opacity: 0,
+      scale: geometry === 'beam' ? 1.04 : 1.18,
+      dangerShape: shape,
+      layerRoles: ['glow', 'trail'],
+    },
+  ];
+}
+
 export function fx3DVisualState(style: FxStyle, geometry: Fx3DGeometry): Fx3DVisualState {
   return {
     layers: [...baseLayers(style, geometry), ...patternLayers(style, geometry)],
+    phaseContract: phaseContract(style, geometry),
     durationScale: durationScale(style, geometry),
     verticalLift: verticalLift(style, geometry),
   };

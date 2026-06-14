@@ -33,6 +33,16 @@ export interface Hero3DModel {
   clips: AnimationClip[];
 }
 
+export interface HeroMaterialSurfaceProfile {
+  roughness: number;
+  metalness: number;
+  emissiveIntensity: number;
+  normalIntensity: number;
+  rimLightIntensity: number;
+  contactShadowOpacity: number;
+  wearIntensity: number;
+}
+
 const geometryCache = {
   body: new CylinderGeometry(0.46, 0.66, 1.25, 8, 1),
   head: new SphereGeometry(0.5, 8, 6),
@@ -45,6 +55,8 @@ const geometryCache = {
   aura: new CylinderGeometry(0.5, 0.5, 0.04, 32),
 };
 
+const contactShadowGeometry = new CylinderGeometry(1, 1, 0.012, 48);
+
 export function createHero3DModel(asset: Hero3DAssetSpec): Hero3DModel {
   const root = new Group();
   root.name = `hero3d:${asset.key}`;
@@ -53,16 +65,22 @@ export function createHero3DModel(asset: Hero3DAssetSpec): Hero3DModel {
     heroKey: asset.key,
     silhouette: asset.model.silhouette,
     actions: asset.actions.map((action) => action.name),
+    surfaceRealism: {
+      contactShadow: true,
+      contactShadowOpacity: heroContactShadowOpacity(asset),
+      contactShadowRadius: asset.model.groundRadius,
+    },
   };
 
   const textures = createTextures(asset);
+  root.add(createHeroContactShadow(asset));
   for (const part of asset.model.parts) root.add(createPartObject(part, textures));
   const clips = asset.actions.map((action) => createHeroClip(asset.key, action.name, action.duration, action.motion));
   return { root, textures, clips };
 }
 
 function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureChannel, Texture>): Object3D {
-  const materialProfile = profileForMaterial(part.material);
+  const materialProfile = heroMaterialSurfaceProfile(part.material);
   const material = new MeshStandardMaterial({
     color: new Color(part.color),
     roughness: materialProfile.roughness,
@@ -78,6 +96,9 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     opacity: part.kind === 'aura' ? 0.72 : part.material === 'energy' ? 0.88 : 1,
     side: part.kind === 'aura' ? DoubleSide : FrontSide,
   });
+  material.normalScale.setScalar(materialProfile.normalIntensity);
+  material.envMapIntensity = materialProfile.rimLightIntensity;
+  material.userData.surfaceProfile = materialProfile;
   const mesh = new Mesh(geometryFor(part), material);
   mesh.name = part.name;
   mesh.userData.kind = part.kind;
@@ -117,6 +138,20 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     glow.rotation.copy(mesh.rotation);
     glow.scale.copy(mesh.scale).multiplyScalar(part.kind === 'orb' || part.kind === 'sigil' ? 1.32 : 1.14);
     group.add(glow);
+  }
+  if (materialProfile.rimLightIntensity >= 0.58) {
+    const glint = new Mesh(geometryFor(part), new MeshBasicMaterial({
+      color: part.emissive ?? part.color,
+      blending: AdditiveBlending,
+      transparent: true,
+      opacity: Math.min(0.28, 0.09 + materialProfile.rimLightIntensity * 0.17),
+      depthWrite: false,
+    }));
+    glint.name = `v6-surface-glint:${part.name}`;
+    glint.position.copy(mesh.position);
+    glint.rotation.copy(mesh.rotation);
+    glint.scale.copy(mesh.scale).multiplyScalar(1.024);
+    group.add(glint);
   }
 
   return group;
@@ -178,17 +213,38 @@ function drawTexture(spec: Hero3DTextureSpec): HTMLCanvasElement {
   return canvas;
 }
 
-function profileForMaterial(kind: Hero3DMaterialKind | undefined): { roughness: number; metalness: number; emissiveIntensity: number } {
+export function heroMaterialSurfaceProfile(kind: Hero3DMaterialKind | undefined): HeroMaterialSurfaceProfile {
   switch (kind) {
-    case 'metal': return { roughness: 0.32, metalness: 0.62, emissiveIntensity: 1.15 };
-    case 'crystal': return { roughness: 0.18, metalness: 0.08, emissiveIntensity: 1.75 };
-    case 'energy': return { roughness: 0.22, metalness: 0.02, emissiveIntensity: 1.95 };
-    case 'stone': return { roughness: 0.86, metalness: 0.02, emissiveIntensity: 0.9 };
-    case 'cloth': return { roughness: 0.82, metalness: 0.02, emissiveIntensity: 1.05 };
-    case 'shadow': return { roughness: 0.64, metalness: 0.12, emissiveIntensity: 1.5 };
+    case 'metal': return { roughness: 0.32, metalness: 0.62, emissiveIntensity: 1.15, normalIntensity: 0.36, rimLightIntensity: 0.64, contactShadowOpacity: 0.34, wearIntensity: 0.34 };
+    case 'crystal': return { roughness: 0.18, metalness: 0.08, emissiveIntensity: 1.75, normalIntensity: 0.5, rimLightIntensity: 0.8, contactShadowOpacity: 0.26, wearIntensity: 0.16 };
+    case 'energy': return { roughness: 0.22, metalness: 0.02, emissiveIntensity: 1.95, normalIntensity: 0.28, rimLightIntensity: 0.94, contactShadowOpacity: 0.18, wearIntensity: 0.08 };
+    case 'stone': return { roughness: 0.86, metalness: 0.02, emissiveIntensity: 0.9, normalIntensity: 0.66, rimLightIntensity: 0.14, contactShadowOpacity: 0.44, wearIntensity: 0.42 };
+    case 'cloth': return { roughness: 0.82, metalness: 0.02, emissiveIntensity: 1.05, normalIntensity: 0.42, rimLightIntensity: 0.18, contactShadowOpacity: 0.3, wearIntensity: 0.14 };
+    case 'shadow': return { roughness: 0.64, metalness: 0.12, emissiveIntensity: 1.5, normalIntensity: 0.5, rimLightIntensity: 0.48, contactShadowOpacity: 0.46, wearIntensity: 0.24 };
     case 'leather':
-    default: return { roughness: 0.68, metalness: 0.08, emissiveIntensity: 1.1 };
+    default: return { roughness: 0.68, metalness: 0.08, emissiveIntensity: 1.1, normalIntensity: 0.48, rimLightIntensity: 0.22, contactShadowOpacity: 0.34, wearIntensity: 0.26 };
   }
+}
+
+function createHeroContactShadow(asset: Hero3DAssetSpec): Mesh {
+  const shadow = new Mesh(contactShadowGeometry, new MeshBasicMaterial({
+    color: '#020403',
+    transparent: true,
+    opacity: heroContactShadowOpacity(asset),
+    depthWrite: false,
+  }));
+  shadow.name = `hero3d:v6-contact-shadow:${asset.key}`;
+  shadow.position.y = 0.018;
+  shadow.scale.set(asset.model.groundRadius, 1, asset.model.groundRadius * 0.84);
+  shadow.receiveShadow = false;
+  shadow.castShadow = false;
+  shadow.renderOrder = -10;
+  return shadow;
+}
+
+function heroContactShadowOpacity(asset: Hero3DAssetSpec): number {
+  const strongest = Math.max(...asset.model.parts.map((part) => heroMaterialSurfaceProfile(part.material).contactShadowOpacity));
+  return Math.min(0.46, Math.max(0.18, strongest));
 }
 
 function drawOverlays(

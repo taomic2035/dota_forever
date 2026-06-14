@@ -23,7 +23,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { CLASSIC_HERO3D_ASSETS, REQUIRED_HERO3D_ACTIONS, type Hero3DActionName } from '../render/hero3dAssets';
-import { createHero3DModel } from '../render/hero3dFactory';
+import { createHero3DModel, heroMaterialSurfaceProfile } from '../render/hero3dFactory';
 
 interface PreviewHero {
   anchor: Group;
@@ -177,7 +177,25 @@ export function showHero3DPreview(parent: HTMLElement): void {
       anchors: asset.readability.silhouetteAnchors.length,
       fxPriority: asset.readability.fxPriority,
     })),
+    surfaceRealism: heroes.map((hero, index) => {
+      const asset = CLASSIC_HERO3D_ASSETS[index];
+      return {
+        key: asset.key,
+        contactShadow: !!hero.model.getObjectByName(`hero3d:v6-contact-shadow:${asset.key}`),
+        contactShadowOpacity: hero.model.userData.surfaceRealism?.contactShadowOpacity ?? 0,
+        glints: countObjectsByPrefix(hero.model, 'v6-surface-glint:'),
+        rimEligibleParts: asset.model.parts.filter((part) => heroMaterialSurfaceProfile(part.material).rimLightIntensity >= 0.58).length,
+      };
+    }),
   };
+}
+
+function countObjectsByPrefix(root: Group, prefix: string): number {
+  let count = 0;
+  root.traverse((obj) => {
+    if (obj.name.startsWith(prefix)) count++;
+  });
+  return count;
 }
 
 function playAction(hero: PreviewHero, actionName: Hero3DActionName): void {
@@ -370,6 +388,13 @@ declare global {
         primaryRead: string;
         anchors: number;
         fxPriority: number;
+      }[];
+      surfaceRealism: {
+        key: string;
+        contactShadow: boolean;
+        contactShadowOpacity: number;
+        glints: number;
+        rimEligibleParts: number;
       }[];
     };
   }

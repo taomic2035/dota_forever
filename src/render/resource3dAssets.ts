@@ -115,6 +115,121 @@ export type ResourceWildBiome = 'forest' | 'stone' | 'river' | 'sky' | 'demonic'
 export type ResourceWildPackRole = 'fodder' | 'leader' | 'caster' | 'flying' | 'ancient' | 'boss-core' | 'objective-mechanic';
 export type ResourceSupportRoleClass = 'courier' | 'summon' | 'ward' | 'trap' | 'illusion' | 'totem';
 export type ResourceSupportPriorityBand = 'low' | 'medium';
+export type Resource3DPlacementLayer = 'unit' | 'building' | 'prop' | 'terrain' | 'fx' | 'ui' | 'projectile' | 'marker';
+export type Resource3DHeightLevel = 'lowground' | 'highground' | 'river' | 'sky' | 'ui';
+export type Resource3DShadowLOD = 'full' | 'blob' | 'none';
+export type ResourceVfxFamily =
+  | 'fire'
+  | 'frost'
+  | 'lightning'
+  | 'poison'
+  | 'holy'
+  | 'shadow'
+  | 'arcane'
+  | 'physical'
+  | 'earth'
+  | 'water'
+  | 'wind'
+  | 'nature'
+  | 'objective'
+  | 'ui'
+  | 'ambient';
+export type ResourceVfxDangerShape = 'point' | 'line' | 'radius' | 'path' | 'ambient' | 'ui';
+export type ResourceVfxParticleRole = 'core' | 'glow' | 'trail' | 'debris' | 'smoke' | 'rune' | 'shockwave' | 'ambient' | 'marker';
+export type ResourceVfxBlendMode = 'additive' | 'alpha' | 'multiply';
+export type ResourceVfxPhaseName = 'windup' | 'impact' | 'linger' | 'fade';
+export type ResourceVfxAudioEvent =
+  | 'attack'
+  | 'cast'
+  | 'hit'
+  | 'crit'
+  | 'heal'
+  | 'death'
+  | 'objective'
+  | 'shop'
+  | 'ping'
+  | 'warning'
+  | 'loop'
+  | 'impact'
+  | 'expire'
+  | 'ui';
+
+export interface ResourceVfxParticleLayerSpec {
+  role: ResourceVfxParticleRole;
+  textureAtlas: string;
+  sprite: string;
+  count: number;
+  blendMode: ResourceVfxBlendMode;
+  lifetimeMs: number;
+  gravity: number;
+  opacity: number;
+  scale: number;
+}
+
+export interface ResourceVfxAudioCueSpec {
+  event: ResourceVfxAudioEvent;
+  cueId: string;
+  assetPath: string;
+  startMs: number;
+  gain: number;
+  pitch: number;
+  spatial: boolean;
+  ducking: number;
+}
+
+export interface ResourceVfxPhaseSyncSpec {
+  phase: ResourceVfxPhaseName;
+  atMs: number;
+  particleRoles: ResourceVfxParticleRole[];
+  audioEvents: ResourceVfxAudioEvent[];
+}
+
+export interface ResourceVfxAudioSpec {
+  family: ResourceVfxFamily;
+  dangerShape: ResourceVfxDangerShape;
+  particleLayers: ResourceVfxParticleLayerSpec[];
+  audioCues: ResourceVfxAudioCueSpec[];
+  phaseSync: ResourceVfxPhaseSyncSpec[];
+  light: {
+    color: string;
+    intensity: number;
+    radius: number;
+    pulseHz: number;
+  };
+  decal: {
+    kind: 'none' | 'scorch' | 'frost' | 'rune' | 'crack' | 'mist';
+    lifetimeMs: number;
+  };
+}
+
+export interface Resource3DPlacementSpec {
+  placementLayer: Resource3DPlacementLayer;
+  walkable: boolean;
+  blocker: boolean;
+  visionBlocker: boolean;
+  river: boolean;
+  heightLevel: Resource3DHeightLevel;
+  footprintRadius: number;
+  selectable: boolean;
+  teamScoped: boolean;
+}
+
+export interface Resource3DLODSpec {
+  near: number;
+  mid: number;
+  far: number;
+  impostorAfter: number;
+  shadow: Resource3DShadowLOD;
+}
+
+export interface Resource3DProductionSpec {
+  fallback: 'procedural';
+  modelPath: string;
+  texturePaths: Record<Resource3DTextureChannel, string>;
+  materialPreset: Resource3DMaterialKind[];
+  actionSlots: string[];
+  notes: string[];
+}
 
 export interface ResourceLaneReadabilitySpec {
   teamRead: ResourceLaneTeamRead;
@@ -157,6 +272,10 @@ export interface Resource3DAssetSpec {
   laneReadability?: ResourceLaneReadabilitySpec;
   wildReadability?: ResourceWildReadabilitySpec;
   supportReadability?: ResourceSupportReadabilitySpec;
+  placement: Resource3DPlacementSpec;
+  lod: Resource3DLODSpec;
+  production: Resource3DProductionSpec;
+  vfxAudio?: ResourceVfxAudioSpec;
   parts: Resource3DPartSpec[];
 }
 
@@ -676,6 +795,7 @@ export const RESOURCE3D_SAMPLE_ASSETS: Resource3DAssetSpec[] = seeds.map((item, 
   const laneReadability = laneReadabilityFor(item);
   const wildReadability = wildReadabilityFor(item);
   const supportReadability = supportReadabilityFor(item);
+  const parts = makeParts(item, index, laneReadability, wildReadability, supportReadability);
   return {
     key: item.key,
     name: item.name,
@@ -691,7 +811,11 @@ export const RESOURCE3D_SAMPLE_ASSETS: Resource3DAssetSpec[] = seeds.map((item, 
     laneReadability,
     wildReadability,
     supportReadability,
-    parts: makeParts(item, index, laneReadability, wildReadability, supportReadability),
+    placement: placementSpecFor(item),
+    lod: lodSpecFor(item),
+    production: productionSpecFor(item, parts),
+    vfxAudio: vfxAudioSpecFor(item),
+    parts,
   };
 });
 
@@ -1004,6 +1128,416 @@ function textureSpecFor(category: Resource3DCategory): Resource3DTextureSpec {
   };
 }
 
+function placementSpecFor(item: ResourceSeed): Resource3DPlacementSpec {
+  const placementLayer = placementLayerFor(item.category);
+  const river = isRiverResource(item);
+  const heightLevel = heightLevelFor(item);
+  return {
+    placementLayer,
+    walkable: walkableFor(item, placementLayer),
+    blocker: blockerFor(item, placementLayer),
+    visionBlocker: visionBlockerFor(item, placementLayer),
+    river,
+    heightLevel,
+    footprintRadius: round2(footprintRadiusFor(item, placementLayer)),
+    selectable: selectableFor(item, placementLayer),
+    teamScoped: teamScopedFor(item),
+  };
+}
+
+function lodSpecFor(item: ResourceSeed): Resource3DLODSpec {
+  const placementLayer = placementLayerFor(item.category);
+  const scale = item.scale ?? 1;
+  const base = placementLayer === 'building'
+    ? 34
+    : placementLayer === 'terrain'
+      ? 24
+      : placementLayer === 'unit'
+        ? 20
+        : placementLayer === 'prop'
+          ? 18
+          : placementLayer === 'projectile'
+            ? 12
+            : placementLayer === 'fx'
+              ? 14
+              : 10;
+  const near = round2(base * Math.max(0.72, scale));
+  const mid = round2(near * (placementLayer === 'terrain' || placementLayer === 'building' ? 2.35 : 2.2));
+  const far = round2(mid * (placementLayer === 'ui' || placementLayer === 'marker' ? 2 : 2.05));
+  return {
+    near,
+    mid,
+    far,
+    impostorAfter: round2(far * (placementLayer === 'terrain' || placementLayer === 'building' ? 1.35 : 1.25)),
+    shadow: shadowLODFor(placementLayer),
+  };
+}
+
+function productionSpecFor(item: ResourceSeed, parts: Resource3DPartSpec[]): Resource3DProductionSpec {
+  const root = `public/assets/tree3d/resources/${item.category}/${item.key}`;
+  const texturePaths = Object.fromEntries(RESOURCE3D_TEXTURE_CHANNELS.map((channel) => [
+    channel,
+    `${root}/${channel}.png`,
+  ])) as Record<Resource3DTextureChannel, string>;
+  return {
+    fallback: 'procedural',
+    modelPath: `${root}/model.glb`,
+    texturePaths,
+    materialPreset: [...new Set(parts.map((part) => part.material))],
+    actionSlots: actionSlotsFor(item),
+    notes: [
+      'procedural preview contract; replace with authored GLB/PBR without changing gameplay keys',
+      `placement:${placementLayerFor(item.category)}`,
+      `height:${heightLevelFor(item)}`,
+    ],
+  };
+}
+
+function vfxAudioSpecFor(item: ResourceSeed): ResourceVfxAudioSpec | undefined {
+  if (!isVfxAudioCategory(item.category)) return undefined;
+  const family = vfxFamilyFor(item);
+  const dangerShape = vfxDangerShapeFor(item);
+  const primaryEvent = primaryAudioEventFor(item, dangerShape);
+  const particleLayers = particleLayersFor(item, family);
+  const audioCues = audioCuesFor(item, family, primaryEvent, dangerShape);
+  return {
+    family,
+    dangerShape,
+    particleLayers,
+    audioCues,
+    phaseSync: phaseSyncFor(dangerShape, particleLayers, audioCues),
+    light: {
+      color: item.palette[3],
+      intensity: round2(family === 'shadow' ? 0.75 : family === 'ambient' ? 0.62 : 1.08),
+      radius: round2((item.scale ?? 1) * (dangerShape === 'radius' ? 4.8 : dangerShape === 'path' ? 2.8 : 2.2)),
+      pulseHz: round2(item.motion === 'pulse' || item.motion === 'spin' ? 1.6 : item.motion === 'ambient' ? 0.55 : 1.1),
+    },
+    decal: decalFor(family, dangerShape),
+  };
+}
+
+function particleLayersFor(item: ResourceSeed, family: ResourceVfxFamily): ResourceVfxParticleLayerSpec[] {
+  const dangerShape = vfxDangerShapeFor(item);
+  if (item.category === 'sound_cue_markers') {
+    return [
+      particleLayer(family, 'marker', 1, 'alpha', 360, 0, 0.74, 0.62),
+    ];
+  }
+
+  const baseLifetime = dangerShape === 'radius' ? 850 : dangerShape === 'ambient' ? 1400 : dangerShape === 'path' ? 520 : 440;
+  const layers: ResourceVfxParticleLayerSpec[] = [
+    particleLayer(family, 'core', dangerShape === 'radius' ? 2 : 1, 'additive', baseLifetime, 0, 0.88, 1),
+    particleLayer(family, 'glow', 1, 'additive', baseLifetime + 180, 0, 0.34, 1.46),
+    particleLayer(family, dangerShape === 'path' ? 'trail' : dangerShape === 'ambient' ? 'ambient' : 'debris', dangerShape === 'radius' ? 10 : dangerShape === 'ambient' ? 14 : 7, familyBlendMode(family), baseLifetime + 260, gravityFor(family), 0.58, 0.72),
+  ];
+
+  if (family === 'arcane' || family === 'holy') layers.push(particleLayer(family, 'rune', dangerShape === 'path' ? 4 : 7, 'additive', baseLifetime + 220, 0, 0.62, 0.78));
+  if (family === 'earth' || dangerShape === 'radius') layers.push(particleLayer(family, 'shockwave', 2, 'alpha', baseLifetime + 120, 0, 0.36, 1.18));
+  if (family === 'poison' || family === 'shadow' || family === 'water') layers.push(particleLayer(family, 'smoke', dangerShape === 'ambient' ? 12 : 6, 'alpha', baseLifetime + 500, -0.05, 0.28, 0.94));
+  return layers;
+}
+
+function particleLayer(
+  family: ResourceVfxFamily,
+  role: ResourceVfxParticleRole,
+  count: number,
+  blendMode: ResourceVfxBlendMode,
+  lifetimeMs: number,
+  gravity: number,
+  opacity: number,
+  scale: number,
+): ResourceVfxParticleLayerSpec {
+  return {
+    role,
+    textureAtlas: `public/assets/tree3d/vfx/${family}/${role}.png`,
+    sprite: `${family}-${role}`,
+    count,
+    blendMode,
+    lifetimeMs,
+    gravity,
+    opacity,
+    scale,
+  };
+}
+
+function audioCuesFor(
+  item: ResourceSeed,
+  family: ResourceVfxFamily,
+  primaryEvent: ResourceVfxAudioEvent,
+  dangerShape: ResourceVfxDangerShape,
+): ResourceVfxAudioCueSpec[] {
+  if (item.category === 'environment_fx') {
+    return [
+      audioCue(item, family, 'loop', 0, 0.34, 0.96, false),
+      audioCue(item, family, 'expire', 900, 0.18, 1.02, false),
+    ];
+  }
+  if (item.category === 'sound_cue_markers') {
+    return [
+      audioCue(item, family, primaryEvent, 0, primaryEvent === 'warning' ? 0.72 : 0.58, 1, false),
+      audioCue(item, family, 'ui', 90, 0.26, 1.08, false),
+    ];
+  }
+  const startEvent: ResourceVfxAudioEvent = primaryEvent === 'warning' ? 'warning' : 'cast';
+  const impactMs = dangerShape === 'path' ? 260 : dangerShape === 'radius' ? 360 : 140;
+  const cues = [
+    audioCue(item, family, startEvent, 0, startEvent === 'warning' ? 0.62 : 0.48, 0.98, true),
+    audioCue(item, family, 'impact', impactMs, family === 'earth' || family === 'fire' ? 0.78 : 0.58, 1, true),
+  ];
+  if (dangerShape === 'radius' || family === 'poison' || family === 'shadow') {
+    cues.push(audioCue(item, family, 'loop', impactMs + 140, 0.26, 0.92, true));
+  }
+  return cues;
+}
+
+function audioCue(
+  item: ResourceSeed,
+  family: ResourceVfxFamily,
+  event: ResourceVfxAudioEvent,
+  startMs: number,
+  gain: number,
+  pitch: number,
+  spatial: boolean,
+): ResourceVfxAudioCueSpec {
+  const cueId = `${item.key}:${event}`;
+  return {
+    event,
+    cueId,
+    assetPath: `public/assets/tree3d/audio/${family}/${cueId}.ogg`,
+    startMs,
+    gain,
+    pitch,
+    spatial,
+    ducking: event === 'warning' || event === 'impact' ? 0.12 : 0.04,
+  };
+}
+
+function phaseSyncFor(
+  dangerShape: ResourceVfxDangerShape,
+  layers: ResourceVfxParticleLayerSpec[],
+  cues: ResourceVfxAudioCueSpec[],
+): ResourceVfxPhaseSyncSpec[] {
+  const roles = new Set(layers.map((layer) => layer.role));
+  const eventAt = (phase: ResourceVfxPhaseName): ResourceVfxAudioEvent[] => {
+    if (phase === 'windup') return cues.filter((cue) => cue.startMs <= 120).map((cue) => cue.event);
+    if (phase === 'impact') return cues.filter((cue) => cue.event === 'impact' || cue.event === 'hit' || cue.event === 'crit').map((cue) => cue.event);
+    if (phase === 'linger') return cues.filter((cue) => cue.event === 'loop').map((cue) => cue.event);
+    return cues.filter((cue) => cue.event === 'expire' || cue.event === 'ui').map((cue) => cue.event);
+  };
+  return [
+    {
+      phase: 'windup',
+      atMs: 0,
+      particleRoles: [...roles].filter((role) => role === 'glow' || role === 'marker' || role === 'rune'),
+      audioEvents: eventAt('windup'),
+    },
+    {
+      phase: 'impact',
+      atMs: dangerShape === 'path' ? 260 : dangerShape === 'radius' ? 360 : 140,
+      particleRoles: [...roles].filter((role) => role === 'core' || role === 'debris' || role === 'shockwave'),
+      audioEvents: eventAt('impact'),
+    },
+    {
+      phase: 'linger',
+      atMs: dangerShape === 'ambient' ? 420 : 520,
+      particleRoles: [...roles].filter((role) => role === 'trail' || role === 'smoke' || role === 'ambient'),
+      audioEvents: eventAt('linger'),
+    },
+    {
+      phase: 'fade',
+      atMs: dangerShape === 'ambient' ? 1260 : 840,
+      particleRoles: [...roles].filter((role) => role === 'glow' || role === 'trail' || role === 'smoke' || role === 'marker'),
+      audioEvents: eventAt('fade'),
+    },
+  ];
+}
+
+function vfxFamilyFor(item: ResourceSeed): ResourceVfxFamily {
+  if (item.category === 'sound_cue_markers') return 'ui';
+  const text = searchableText(item);
+  if (/(fire|ember|lava|火|熔岩|余烬)/i.test(text)) return 'fire';
+  if (/(frost|ice|霜|冰)/i.test(text)) return 'frost';
+  if (/(thunder|lightning|雷|电)/i.test(text)) return 'lightning';
+  if (/(poison|green-cloud|spit|毒)/i.test(text)) return 'poison';
+  if (/(heal|holy|sun|purification|治疗|晨光)/i.test(text)) return 'holy';
+  if (/(shadow|smoke|death|暗影|烟雾|死亡)/i.test(text)) return 'shadow';
+  if (/(arcane|magic|star|rune|tp|portal|奥术|魔法|星|神符|传送)/i.test(text)) return 'arcane';
+  if (/(quake|ground|crack|stone|dust|earth|裂地|地面|石|尘)/i.test(text)) return 'earth';
+  if (/(river|water|rain|mist|fountain|spray|河|水|雨|雾|泉)/i.test(text)) return 'water';
+  if (/(wind|cloud|sky|arrow|spear|slash|hook|chain|attack|crit|风|云|天空|箭|矛|挥砍|钩|链|攻击|暴击)/i.test(text)) {
+    if (/(wind|cloud|sky|风|云|天空)/i.test(text)) return 'wind';
+    return 'physical';
+  }
+  if (/(jungle|pollen|flower|nature|萤火|花粉|植被|野区)/i.test(text)) return 'nature';
+  if (/(boss|objective|roshan|ancient|tower|目标|Boss|基地|塔)/i.test(text)) return 'objective';
+  if (item.category === 'environment_fx') return 'ambient';
+  return 'physical';
+}
+
+function vfxDangerShapeFor(item: ResourceSeed): ResourceVfxDangerShape {
+  if (item.category === 'sound_cue_markers') return 'ui';
+  if (item.category === 'environment_fx') return 'ambient';
+  if (item.category === 'projectiles') return 'path';
+  if (item.category === 'aoe_indicators') return 'radius';
+  const text = searchableText(item);
+  if (/(chain|hook|lightning|arc|beam|链|钩|雷|电|光束)/i.test(text)) return 'line';
+  if (/(ring|cloud|quake|ground|field|portal|范围|区域|传送|雾)/i.test(text)) return 'radius';
+  return 'point';
+}
+
+function primaryAudioEventFor(item: ResourceSeed, dangerShape: ResourceVfxDangerShape): ResourceVfxAudioEvent {
+  const key = item.key;
+  if (key.includes('attack')) return 'attack';
+  if (key.includes('cast')) return 'cast';
+  if (key.includes('hit')) return 'hit';
+  if (key.includes('crit')) return 'crit';
+  if (key.includes('heal')) return 'heal';
+  if (key.includes('death')) return 'death';
+  if (key.includes('warning') || dangerShape === 'radius') return 'warning';
+  if (key.includes('objective') || key.includes('boss')) return 'objective';
+  if (key.includes('shop')) return 'shop';
+  if (key.includes('ping')) return 'ping';
+  if (dangerShape === 'ambient') return 'loop';
+  return 'cast';
+}
+
+function familyBlendMode(family: ResourceVfxFamily): ResourceVfxBlendMode {
+  if (family === 'shadow' || family === 'poison' || family === 'water' || family === 'ambient') return 'alpha';
+  if (family === 'earth' || family === 'physical') return 'multiply';
+  return 'additive';
+}
+
+function gravityFor(family: ResourceVfxFamily): number {
+  if (family === 'earth' || family === 'physical') return -0.32;
+  if (family === 'fire' || family === 'holy' || family === 'arcane') return 0.18;
+  if (family === 'water' || family === 'poison' || family === 'shadow') return -0.08;
+  return 0;
+}
+
+function decalFor(family: ResourceVfxFamily, dangerShape: ResourceVfxDangerShape): ResourceVfxAudioSpec['decal'] {
+  if (dangerShape === 'path' || dangerShape === 'ui') return { kind: 'none', lifetimeMs: 0 };
+  if (family === 'fire') return { kind: 'scorch', lifetimeMs: 1200 };
+  if (family === 'frost') return { kind: 'frost', lifetimeMs: 1100 };
+  if (family === 'arcane' || family === 'holy') return { kind: 'rune', lifetimeMs: 950 };
+  if (family === 'earth') return { kind: 'crack', lifetimeMs: 1500 };
+  if (family === 'water' || family === 'poison' || family === 'shadow') return { kind: 'mist', lifetimeMs: 1300 };
+  return { kind: 'none', lifetimeMs: 0 };
+}
+
+function placementLayerFor(category: Resource3DCategory): Resource3DPlacementLayer {
+  if (category === 'lane_units' || category === 'neutral_units' || category === 'couriers_summons' || category === 'shops_npcs') return 'unit';
+  if (category === 'buildings' || category === 'boss_objectives') return 'building';
+  if (category === 'map_props' || isItemCategory(category) || category === 'pickups_drops' || category === 'team_banners') return 'prop';
+  if (category === 'terrain_tiles') return 'terrain';
+  if (category === 'projectiles') return 'projectile';
+  if (category === 'minimap_markers' || category === 'sound_cue_markers') return 'marker';
+  if (isIconCategory(category)) return 'ui';
+  return 'fx';
+}
+
+function heightLevelFor(item: ResourceSeed): Resource3DHeightLevel {
+  const placementLayer = placementLayerFor(item.category);
+  if (placementLayer === 'ui' || placementLayer === 'marker') return 'ui';
+  if (isSkyResource(item)) return 'sky';
+  if (isRiverResource(item)) return 'river';
+  if (isHighgroundResource(item)) return 'highground';
+  return 'lowground';
+}
+
+function walkableFor(item: ResourceSeed, layer: Resource3DPlacementLayer): boolean {
+  if (layer === 'terrain') {
+    if (item.key === 'terrain_river_water') return false;
+    if (item.key.includes('cliff_shadow') || item.key.includes('roshan_pit') || item.key.includes('fence_foundation')) return false;
+    return true;
+  }
+  if (layer === 'prop') return item.key.includes('bridge');
+  return false;
+}
+
+function blockerFor(item: ResourceSeed, layer: Resource3DPlacementLayer): boolean {
+  if (layer === 'unit' || layer === 'building') return true;
+  if (layer !== 'prop') return false;
+  const text = searchableText(item);
+  if (/(tree|树|fence|栅栏|outpost|shop|crate|cliff|峭壁|高地)/i.test(text)) return true;
+  return false;
+}
+
+function visionBlockerFor(item: ResourceSeed, layer: Resource3DPlacementLayer): boolean {
+  if (layer === 'building') return item.category === 'buildings';
+  if (layer !== 'prop') return false;
+  const text = searchableText(item);
+  if (/(tree|树|pine|broadleaf|dead-tree|cliff|峭壁|高地|ward-cliff)/i.test(text)) return true;
+  return false;
+}
+
+function footprintRadiusFor(item: ResourceSeed, layer: Resource3DPlacementLayer): number {
+  const scale = item.scale ?? 1;
+  if (layer === 'building') return 1.35 * scale;
+  if (layer === 'terrain') return 1.1 * scale;
+  if (layer === 'unit') return 0.56 * scale;
+  if (layer === 'prop') return (blockerFor(item, layer) ? 0.68 : 0.42) * scale;
+  if (layer === 'projectile') return 0.22 * scale;
+  if (layer === 'marker' || layer === 'ui') return 0.3 * scale;
+  return 0.5 * scale;
+}
+
+function selectableFor(item: ResourceSeed, layer: Resource3DPlacementLayer): boolean {
+  if (layer === 'unit' || layer === 'building') return true;
+  if (layer === 'prop') return item.category === 'wards_traps'
+    || item.category === 'items'
+    || item.category === 'pickups_drops'
+    || item.key.includes('outpost')
+    || item.key.includes('rune');
+  if (layer === 'marker' || layer === 'ui') return true;
+  return false;
+}
+
+function teamScopedFor(item: ResourceSeed): boolean {
+  const text = searchableText(item);
+  return item.category === 'lane_units'
+    || item.category === 'buildings'
+    || item.category === 'team_banners'
+    || item.category === 'minimap_markers'
+    || /(dawn|night|ally|enemy|team|晨曦|永夜|友方|敌方|队伍)/i.test(text);
+}
+
+function shadowLODFor(layer: Resource3DPlacementLayer): Resource3DShadowLOD {
+  if (layer === 'building' || layer === 'terrain') return 'full';
+  if (layer === 'unit' || layer === 'prop') return 'blob';
+  return 'none';
+}
+
+function actionSlotsFor(item: ResourceSeed): string[] {
+  const layer = placementLayerFor(item.category);
+  if (layer === 'unit') return ['idle', 'move', 'attack', 'hit', 'death'];
+  if (layer === 'building') return ['idle', 'hit', 'destroyed'];
+  if (layer === 'projectile') return ['spawn', 'travel', 'impact'];
+  if (layer === 'fx') return ['windup', 'impact', 'linger', 'fade'];
+  if (layer === 'terrain') return ['idle', 'variant-a', 'variant-b'];
+  if (layer === 'ui' || layer === 'marker') return ['idle', 'hover', 'active'];
+  return ['idle', 'spawn', 'despawn'];
+}
+
+function isRiverResource(item: ResourceSeed): boolean {
+  return /(river|water|shallow|riverbank|lotus|河道|水面|浅水|河岸|莲)/i.test(searchableText(item));
+}
+
+function isSkyResource(item: ResourceSeed): boolean {
+  return /(sky|cloud|star|dome|wing|harpy|天空|云|星|飞行)/i.test(searchableText(item));
+}
+
+function isHighgroundResource(item: ResourceSeed): boolean {
+  return /(highground|cliff|ramp|plateau|slope|高地|峭壁|坡道|坡地|草坡|石坡)/i.test(searchableText(item));
+}
+
+function searchableText(item: ResourceSeed): string {
+  return `${item.key} ${item.name} ${item.role} ${item.silhouette} ${item.motif}`;
+}
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
 function materialForPart(name: string, kind: Resource3DPartKind): Resource3DMaterialKind {
   if (kind === 'ring') return 'metal';
   if (kind === 'orb') return 'crystal';
@@ -1093,6 +1627,14 @@ function isFxCategory(category: Resource3DCategory): boolean {
     || category === 'targeting_reticles'
     || category === 'screen_overlays'
     || category === 'cursor_commands';
+}
+
+function isVfxAudioCategory(category: Resource3DCategory): boolean {
+  return category === 'spell_fx'
+    || category === 'projectiles'
+    || category === 'aoe_indicators'
+    || category === 'environment_fx'
+    || category === 'sound_cue_markers';
 }
 
 function isMapCategory(category: Resource3DCategory): boolean {

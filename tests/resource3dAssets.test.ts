@@ -150,6 +150,117 @@ describe('non-hero 3D resource samples', () => {
     }
   });
 
+  it('adds V7 placement, LOD, and production metadata for tree3d integration', () => {
+    for (const asset of RESOURCE3D_SAMPLE_ASSETS) {
+      expect(asset.placement?.placementLayer, asset.key).toMatch(/^(unit|building|prop|terrain|fx|ui|projectile|marker)$/);
+      expect(typeof asset.placement?.walkable, asset.key).toBe('boolean');
+      expect(typeof asset.placement?.blocker, asset.key).toBe('boolean');
+      expect(typeof asset.placement?.visionBlocker, asset.key).toBe('boolean');
+      expect(typeof asset.placement?.river, asset.key).toBe('boolean');
+      expect(asset.placement?.heightLevel, asset.key).toMatch(/^(lowground|highground|river|sky|ui)$/);
+      expect(asset.placement?.footprintRadius, asset.key).toBeGreaterThan(0);
+      expect(asset.lod?.near, asset.key).toBeGreaterThan(0);
+      expect(asset.lod?.mid, asset.key).toBeGreaterThan(asset.lod?.near ?? 0);
+      expect(asset.lod?.far, asset.key).toBeGreaterThan(asset.lod?.mid ?? 0);
+      expect(asset.lod?.impostorAfter, asset.key).toBeGreaterThanOrEqual(asset.lod?.far ?? 0);
+      expect(asset.production?.fallback, asset.key).toBe('procedural');
+      expect(asset.production?.modelPath, asset.key).toContain(asset.key);
+      expect(Object.keys(asset.production?.texturePaths ?? {}), asset.key).toEqual([...RESOURCE3D_TEXTURE_CHANNELS]);
+    }
+  });
+
+  it('classifies terrain and map props with Dota-like placement semantics', () => {
+    const byKey = Object.fromEntries(RESOURCE3D_SAMPLE_ASSETS.map((asset) => [asset.key, asset]));
+
+    expect(byKey.terrain_river_water.placement).toMatchObject({
+      placementLayer: 'terrain',
+      walkable: false,
+      blocker: false,
+      river: true,
+      heightLevel: 'river',
+    });
+    expect(byKey.terrain_river_shallow.placement).toMatchObject({
+      placementLayer: 'terrain',
+      river: true,
+      heightLevel: 'river',
+    });
+    expect(byKey.terrain_highground_plateau.placement?.heightLevel).toBe('highground');
+    expect(byKey.terrain_ramp_highground.placement?.heightLevel).toBe('highground');
+    expect(byKey.prop_tree_green.placement).toMatchObject({
+      placementLayer: 'prop',
+      blocker: true,
+      visionBlocker: true,
+    });
+    expect(byKey.prop_wood_fence.placement).toMatchObject({
+      placementLayer: 'prop',
+      blocker: true,
+      visionBlocker: false,
+    });
+    expect(byKey.env_sky_day_dome.placement).toMatchObject({
+      placementLayer: 'fx',
+      heightLevel: 'sky',
+      walkable: false,
+    });
+    expect(byKey.projectile_fireball.placement).toMatchObject({
+      placementLayer: 'projectile',
+      walkable: false,
+      blocker: false,
+    });
+  });
+
+  it('adds V9 VFX and audio sync contracts for combat and environment effects', () => {
+    const vfxAudioAssets = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => [
+      'spell_fx',
+      'projectiles',
+      'aoe_indicators',
+      'environment_fx',
+      'sound_cue_markers',
+    ].includes(asset.category));
+
+    expect(vfxAudioAssets.length).toBe(55);
+    for (const asset of vfxAudioAssets) {
+      expect(asset.vfxAudio?.family, asset.key).toMatch(/^(fire|frost|lightning|poison|holy|shadow|arcane|physical|earth|water|wind|nature|objective|ui|ambient)$/);
+      expect(asset.vfxAudio?.particleLayers.length, asset.key).toBeGreaterThanOrEqual(asset.category === 'sound_cue_markers' ? 1 : 3);
+      expect(asset.vfxAudio?.audioCues.length, asset.key).toBeGreaterThanOrEqual(2);
+      expect(asset.vfxAudio?.phaseSync.map((phase) => phase.phase), asset.key).toEqual(['windup', 'impact', 'linger', 'fade']);
+      expect(asset.vfxAudio?.phaseSync.every((phase) => phase.atMs >= 0), asset.key).toBe(true);
+      expect(asset.vfxAudio?.phaseSync.some((phase) => phase.audioEvents.length > 0), asset.key).toBe(true);
+      expect(asset.vfxAudio?.particleLayers.every((layer) => layer.textureAtlas.includes(asset.vfxAudio!.family)), asset.key).toBe(true);
+      expect(asset.vfxAudio?.audioCues.every((cue) => cue.assetPath.endsWith('.ogg')), asset.key).toBe(true);
+    }
+  });
+
+  it('maps VFX danger shapes and cue roles to Dota-like readability semantics', () => {
+    const byKey = Object.fromEntries(RESOURCE3D_SAMPLE_ASSETS.map((asset) => [asset.key, asset]));
+
+    expect(byKey.projectile_fireball.vfxAudio).toMatchObject({
+      dangerShape: 'path',
+      audioCues: expect.arrayContaining([
+        expect.objectContaining({ event: 'cast' }),
+        expect.objectContaining({ event: 'impact' }),
+      ]),
+    });
+    expect(byKey.aoe_boss_warning.vfxAudio).toMatchObject({
+      dangerShape: 'radius',
+      audioCues: expect.arrayContaining([
+        expect.objectContaining({ event: 'warning' }),
+      ]),
+    });
+    expect(byKey.env_river_mist.vfxAudio).toMatchObject({
+      dangerShape: 'ambient',
+      audioCues: expect.arrayContaining([
+        expect.objectContaining({ event: 'loop', spatial: false }),
+      ]),
+    });
+    expect(byKey.sound_cast_cue.vfxAudio).toMatchObject({
+      family: 'ui',
+      dangerShape: 'ui',
+      audioCues: expect.arrayContaining([
+        expect.objectContaining({ event: 'cast', cueId: 'sound_cast_cue:cast' }),
+      ]),
+    });
+  });
+
   it('adds V5 lane-unit readability contracts for team, role, formation, and attack read', () => {
     const laneUnits = RESOURCE3D_SAMPLE_ASSETS.filter((asset) => asset.category === 'lane_units');
     const roleClasses = new Set(laneUnits.map((asset) => asset.laneReadability?.roleClass));

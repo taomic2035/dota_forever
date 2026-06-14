@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import type { World } from '../sim/world';
 import type { Vec2 } from '../core/vec2';
 import { fxStyle, type FxStyle } from '../render/fxStyle';
-import { fx3DVisualState, type Fx3DLayer } from './fx3dVisual';
+import { fx3DVisualState, type Fx3DGeometry, type Fx3DLayer, type Fx3DPhase } from './fx3dVisual';
 
 interface FxItem {
   obj: THREE.Group;
@@ -11,6 +11,7 @@ interface FxItem {
   ttl: number;
   kind: 'burst' | 'beam' | 'aoe';
   peak: number;
+  phaseContract: Fx3DPhase[];
 }
 
 const DAMAGE_STYLE: FxStyle = {
@@ -48,30 +49,33 @@ export class Fx3D {
   private burst(pos: Vec2, style: FxStyle, t: number, scale: number): void {
     const state = fx3DVisualState(style, 'burst');
     const g = new THREE.Group();
+    g.name = this.groupName('burst', style);
     g.position.set(pos.x, 24, pos.y);
     for (const l of state.layers) this.addBurstLayer(g, l, state.verticalLift, scale);
     this.scene.add(g);
-    this.items.push({ obj: g, born: t, ttl: 0.35 * state.durationScale, kind: 'burst', peak: 1 });
+    this.items.push({ obj: g, born: t, ttl: 0.35 * state.durationScale, kind: 'burst', peak: 1, phaseContract: state.phaseContract });
   }
 
   private beam(a: Vec2, b: Vec2, style: FxStyle, t: number): void {
     const state = fx3DVisualState(style, 'beam');
     const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
     const g = new THREE.Group();
+    g.name = this.groupName('beam', style);
     g.position.set((a.x + b.x) / 2, 52, (a.y + b.y) / 2);
     g.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
     for (const l of state.layers) this.addBeamLayer(g, l, len);
     this.scene.add(g);
-    this.items.push({ obj: g, born: t, ttl: 0.3 * state.durationScale, kind: 'beam', peak: 1 });
+    this.items.push({ obj: g, born: t, ttl: 0.3 * state.durationScale, kind: 'beam', peak: 1, phaseContract: state.phaseContract });
   }
 
   private aoe(pos: Vec2, radius: number, style: FxStyle, t: number, dur: number): void {
     const state = fx3DVisualState(style, 'aoe');
     const g = new THREE.Group();
+    g.name = this.groupName('aoe', style);
     g.position.set(pos.x, 5, pos.y);
     for (const l of state.layers) this.addAoeLayer(g, l, radius);
     this.scene.add(g);
-    this.items.push({ obj: g, born: t, ttl: Math.min(2.6, Math.max(0.4, dur) * state.durationScale), kind: 'aoe', peak: 1 });
+    this.items.push({ obj: g, born: t, ttl: Math.min(2.6, Math.max(0.4, dur) * state.durationScale), kind: 'aoe', peak: 1, phaseContract: state.phaseContract });
   }
 
   /** 由 renderer3d.render 每帧调用:衰减特效 + 同步弹道。 */
@@ -85,9 +89,14 @@ export class Fx3D {
         this.items.splice(i, 1);
         continue;
       }
-      this.fadeObject(it.obj, age, it.peak);
-      if (it.kind === 'burst') it.obj.scale.setScalar(1 + age * 2.2);
-      if (it.kind === 'aoe') it.obj.rotation.y += 0.004;
+      const phase = this.phaseAt(it.phaseContract, age);
+      this.fadeObject(it.obj, age, it.peak * phase.opacity);
+      if (it.kind === 'burst') it.obj.scale.setScalar((1 + age * 2.2) * phase.scale);
+      if (it.kind === 'beam') it.obj.scale.set(1, phase.scale, phase.scale);
+      if (it.kind === 'aoe') {
+        it.obj.scale.setScalar(phase.scale);
+        it.obj.rotation.y += 0.004 * Math.max(0.45, phase.opacity);
+      }
     }
 
     const ps = world.projectiles;
@@ -121,6 +130,7 @@ export class Fx3D {
   }
 
   private add(mesh: THREE.Mesh, l: Fx3DLayer, group: THREE.Group): void {
+    mesh.name = `fx3d-layer:${l.role}:${l.shape}`;
     mesh.userData.fxOpacity = l.opacity;
     mesh.userData.fxSpin = l.spin;
     group.add(mesh);
@@ -183,6 +193,7 @@ export class Fx3D {
 
   private createProjectileGroup(style: FxStyle): THREE.Group {
     const g = new THREE.Group();
+    g.name = this.groupName('projectile', style);
     const state = fx3DVisualState(style, 'projectile');
     for (const l of state.layers) {
       for (let i = 0; i < l.count; i++) {
@@ -198,6 +209,10 @@ export class Fx3D {
       }
     }
     return g;
+  }
+
+  private groupName(geometry: Fx3DGeometry, style: FxStyle): string {
+    return `fx3d:${geometry}:${style.family}:${style.pattern}`;
   }
 
   private restyleProjectile(g: THREE.Group, style: FxStyle): void {
@@ -218,6 +233,27 @@ export class Fx3D {
       const spin = mesh.userData.fxSpin ?? 0;
       if (spin) mesh.rotation.y += spin * 0.018;
     });
+  }
+
+  private phaseAt(phaseContract: Fx3DPhase[], age: number): { opacity: number; scale: number } {
+    const total = phaseContract.reduce((sum, phase) => sum + phase.duration, 0) || 1;
+    const cursor = Math.min(1, Math.max(0, age)) * total;
+    let elapsed = 0;
+    for (let i = 0; i < phaseContract.length; i++) {
+      const phase = phaseContract[i];
+      const start = elapsed;
+      elapsed += phase.duration;
+      if (cursor <= elapsed) {
+        const next = phaseContract[Math.min(i + 1, phaseContract.length - 1)];
+        const local = phase.duration > 0 ? Math.min(1, Math.max(0, (cursor - start) / phase.duration)) : 1;
+        return {
+          opacity: phase.opacity + (next.opacity - phase.opacity) * local,
+          scale: phase.scale + (next.scale - phase.scale) * local,
+        };
+      }
+    }
+    const last = phaseContract[phaseContract.length - 1];
+    return { opacity: last?.opacity ?? 1, scale: last?.scale ?? 1 };
   }
 
   private disposeObject(root: THREE.Object3D): void {
