@@ -22,10 +22,17 @@ const DAMAGE_STYLE: FxStyle = {
   pattern: 'spark',
 };
 
+/** 3D 浮动战斗文字(伤害数字/赏金):世界锚点,renderer3d 投影到 overlay 绘制。 */
+export interface FloatText3D {
+  text: string; x: number; y: number; color: string; size: number; bornMs: number; life: number;
+}
+
 export class Fx3D {
   private items: FxItem[] = [];
   private projGroup = new THREE.Group();
   private projPool: THREE.Group[] = [];
+  /** 浮动战斗文字队列(由 renderer3d 每帧投影绘制 + 老化清理)。 */
+  floatTexts: FloatText3D[] = [];
 
   constructor(private scene: THREE.Scene) {
     scene.add(this.projGroup);
@@ -42,8 +49,26 @@ export class Fx3D {
         else this.burst(e.pos, style, t, 1);
       } else if (e.kind === 'unit_damaged') {
         this.burst(e.pos, DAMAGE_STYLE, t, 0.55);
+        // 伤害数字飘字(英雄相关命中,与 2D 一致):目标英雄红、来源英雄金
+        const tgt = world.getUnit(e.unitId), src = world.getUnit(e.sourceId);
+        const tHero = !!tgt?.isHero?.(), sHero = !!src?.isHero?.();
+        if (e.amount >= 1 && (tHero || sHero)) {
+          const amt = Math.round(e.amount);
+          this.floatTexts.push({
+            text: String(amt), x: e.pos.x, y: e.pos.y,
+            color: tHero ? '#ff8f8f' : '#ffe7b0',
+            size: amt >= 200 ? 22 : amt >= 80 ? 18 : 14,
+            bornMs: performance.now(), life: 0.9,
+          });
+        }
+      } else if (e.kind === 'hero_kill') {
+        const v = world.getUnit(e.victimId);
+        if (v && e.bounty > 0) {
+          this.floatTexts.push({ text: `+${e.bounty}`, x: v.pos.x, y: v.pos.y, color: '#ffd24a', size: 18, bornMs: performance.now(), life: 1.3 });
+        }
       }
     }
+    if (this.floatTexts.length > 48) this.floatTexts.splice(0, this.floatTexts.length - 48);
   }
 
   private burst(pos: Vec2, style: FxStyle, t: number, scale: number): void {

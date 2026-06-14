@@ -280,6 +280,36 @@ export class Renderer3D {
     this.s3d.render();
     this.drawBars(world);
     this.drawUxPulses3D(world, ux);
+    this.drawFloatTexts3D(world);
+  }
+
+  /** 浮动战斗文字(伤害数字/赏金):投影世界锚点到 overlay,上浮淡出 + 描边(3D 战斗反馈,对齐 2D)。 */
+  private drawFloatTexts3D(world: World): void {
+    const texts = this.fx.floatTexts;
+    if (!texts.length) return;
+    const ctx = this.octx, W = this.overlay.width, H = this.overlay.height;
+    const cam = this.s3d.cam;
+    const now = performance.now();
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = texts.length - 1; i >= 0; i--) {
+      const ft = texts[i];
+      const k = (now - ft.bornMs) / 1000 / ft.life;
+      if (k >= 1) { texts.splice(i, 1); continue; }
+      this.proj.set(ft.x, terrainElevation(world.map, ft.x, ft.y) + 95, ft.y).project(cam);
+      if (this.proj.z > 1) continue; // 相机背后
+      const sx = (this.proj.x * 0.5 + 0.5) * W;
+      const sy = (-this.proj.y * 0.5 + 0.5) * H - k * 34; // 上浮
+      ctx.globalAlpha = 1 - k * k;
+      ctx.font = `700 ${ft.size}px system-ui, sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(ft.text, sx, sy);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, sx, sy);
+    }
+    ctx.restore();
   }
 
   /** 移动/攻击/施法落点脉冲:投影到 overlay 画透视正确的地面扩散环(3D 操作反馈,对齐 2D)。 */
