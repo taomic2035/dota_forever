@@ -23,14 +23,26 @@ import {
   WebGLRenderer,
 } from 'three';
 import { CLASSIC_HERO3D_ASSETS, REQUIRED_HERO3D_ACTIONS, type Hero3DActionName } from '../render/hero3dAssets';
-import { createHero3DModel, heroMaterialSurfaceProfile } from '../render/hero3dFactory';
+import { createHero3DModel, heroMaterialSurfaceProfile, updateHeroRuntimePresentation } from '../render/hero3dFactory';
 
 interface PreviewHero {
   anchor: Group;
   model: Group;
   mixer: AnimationMixer;
   actions: Map<Hero3DActionName, AnimationAction>;
+  activeAction: Hero3DActionName;
   label: HTMLElement;
+}
+
+export interface HeroRuntimePresentationPreviewSmoke {
+  runtimeActionRoots: number;
+  runtimeSurfaceRoots: number;
+  animatedRoots: number;
+  actionReactiveParts: number;
+  surfaceMaterials: number;
+  glintLayers: number;
+  actionStates: Record<string, number>;
+  shaderIntents: Record<string, number>;
 }
 
 export function showHero3DPreview(parent: HTMLElement): void {
@@ -135,7 +147,8 @@ export function showHero3DPreview(parent: HTMLElement): void {
     ].join(';');
     label.innerHTML = `<span style="color:${asset.textures[0].palette[1]}">${asset.name}</span><br><span style="font-weight:500;color:#d0d8c2">${asset.title}</span>`;
     labelsLayer.appendChild(label);
-    heroes.push({ anchor, model, mixer, actions, label });
+    updateHeroRuntimePresentation(model, 'idle', 420);
+    heroes.push({ anchor, model, mixer, actions, activeAction: 'idle', label });
   });
 
   const panel = createActionPanel((action) => {
@@ -160,8 +173,12 @@ export function showHero3DPreview(parent: HTMLElement): void {
     const dt = clock.getDelta();
     for (const hero of heroes) {
       hero.mixer.update(dt);
+      updateHeroRuntimePresentation(hero.model, hero.activeAction, clock.elapsedTime * 1000);
       hero.anchor.rotation.y += Math.sin(clock.elapsedTime * 0.75 + hero.anchor.position.x) * 0.0009;
       updateLabel(camera, hero);
+    }
+    if (window.__hero3dPreview) {
+      window.__hero3dPreview.runtimePresentation = heroRuntimePresentationSmokeForModels(heroes.map((hero) => hero.model));
     }
     renderer.render(scene, camera);
   });
@@ -187,6 +204,7 @@ export function showHero3DPreview(parent: HTMLElement): void {
         rimEligibleParts: asset.model.parts.filter((part) => heroMaterialSurfaceProfile(part.material).rimLightIntensity >= 0.58).length,
       };
     }),
+    runtimePresentation: heroRuntimePresentationSmokeForModels(heroes.map((hero) => hero.model)),
   };
 }
 
@@ -201,6 +219,8 @@ function countObjectsByPrefix(root: Group, prefix: string): number {
 function playAction(hero: PreviewHero, actionName: Hero3DActionName): void {
   const next = hero.actions.get(actionName);
   if (!next) return;
+  hero.activeAction = actionName;
+  updateHeroRuntimePresentation(hero.model, actionName, 0);
   for (const action of hero.actions.values()) {
     if (action !== next && actionName !== 'idle') action.fadeOut(0.12);
   }
@@ -210,8 +230,50 @@ function playAction(hero: PreviewHero, actionName: Hero3DActionName): void {
     setTimeout(() => {
       next.fadeOut(0.18);
       idle?.reset().fadeIn(0.18).play();
+      hero.activeAction = 'idle';
     }, Math.max(360, next.getClip().duration * 760));
   }
+}
+
+export function heroRuntimePresentationSmokeForModels(models: Group[]): HeroRuntimePresentationPreviewSmoke {
+  const smoke: HeroRuntimePresentationPreviewSmoke = {
+    runtimeActionRoots: 0,
+    runtimeSurfaceRoots: 0,
+    animatedRoots: 0,
+    actionReactiveParts: 0,
+    surfaceMaterials: 0,
+    glintLayers: 0,
+    actionStates: {},
+    shaderIntents: {},
+  };
+  for (const model of models) {
+    const runtimeAction = model.userData.runtimeAction;
+    const runtimeSurface = model.userData.runtimeSurface;
+    if (runtimeAction?.heroRuntimeAction) smoke.runtimeActionRoots++;
+    if (runtimeSurface?.heroRuntimeSurface) {
+      smoke.runtimeSurfaceRoots++;
+      const intent = runtimeSurface.shaderIntent ?? model.userData.runtimeSurfaceShaderIntent;
+      smoke.shaderIntents[intent] = (smoke.shaderIntents[intent] ?? 0) + 1;
+    }
+    if (model.userData.runtimeActionAnimated || model.userData.runtimeSurfaceAnimated) smoke.animatedRoots++;
+    const state = model.userData.runtimeActionState;
+    if (state) smoke.actionStates[state] = (smoke.actionStates[state] ?? 0) + 1;
+    model.traverse((obj) => {
+      if (obj.userData.heroRuntimePart && obj.userData.runtimeActionReactive) smoke.actionReactiveParts++;
+      if (!(obj instanceof Mesh)) return;
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const material of materials) {
+        if (
+          (material instanceof MeshStandardMaterial || material instanceof MeshBasicMaterial) &&
+          material.userData.heroRuntimeSurfaceMaterial
+        ) {
+          smoke.surfaceMaterials++;
+          if (material.userData.heroRuntimeGlintLayer) smoke.glintLayers++;
+        }
+      }
+    });
+  }
+  return smoke;
 }
 
 function createActionPanel(onAction: (action: Hero3DActionName) => void): HTMLElement {
@@ -396,6 +458,7 @@ declare global {
         glints: number;
         rimEligibleParts: number;
       }[];
+      runtimePresentation: HeroRuntimePresentationPreviewSmoke;
     };
   }
 }

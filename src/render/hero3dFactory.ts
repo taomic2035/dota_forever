@@ -43,6 +43,33 @@ export interface HeroMaterialSurfaceProfile {
   wearIntensity: number;
 }
 
+export interface HeroRuntimeActionUserData {
+  heroRuntimeAction: true;
+  heroKey: string;
+  actionNames: Hero3DActionName[];
+  actionDurations: Record<Hero3DActionName, number>;
+  actionStates: Record<Hero3DActionName, HeroRuntimeActionState>;
+  activeAction: Hero3DActionName;
+  runtimeHelper: 'updateHeroRuntimePresentation';
+}
+
+export interface HeroRuntimeSurfaceUserData {
+  heroRuntimeSurface: true;
+  heroKey: string;
+  shaderIntent: HeroRuntimeSurfaceShaderIntent;
+  materialCount: number;
+  glintLayerCount: number;
+  runtimeHelper: 'updateHeroRuntimePresentation';
+}
+
+type HeroRuntimeActionState = 'idle' | 'locomotion' | 'attack' | 'cast' | 'channel' | 'status' | 'hit' | 'death';
+type HeroRuntimeSurfaceShaderIntent =
+  | 'hero-armor-rim-sweep'
+  | 'hero-arcane-fresnel'
+  | 'hero-cloth-breathe'
+  | 'hero-shadow-veil'
+  | 'hero-stone-weight';
+
 const geometryCache = {
   body: new CylinderGeometry(0.46, 0.66, 1.25, 8, 1),
   head: new SphereGeometry(0.5, 8, 6),
@@ -70,13 +97,108 @@ export function createHero3DModel(asset: Hero3DAssetSpec): Hero3DModel {
       contactShadowOpacity: heroContactShadowOpacity(asset),
       contactShadowRadius: asset.model.groundRadius,
     },
+    basePosition: [0, 0, 0],
+    baseRotation: [0, 0, 0],
+    baseScale: [asset.model.scale, asset.model.scale, asset.model.scale],
   };
 
   const textures = createTextures(asset);
   root.add(createHeroContactShadow(asset));
   for (const part of asset.model.parts) root.add(createPartObject(part, textures));
+  root.userData.runtimeAction = heroRuntimeActionUserData(asset);
+  root.userData.runtimeSurface = heroRuntimeSurfaceUserData(asset, root);
   const clips = asset.actions.map((action) => createHeroClip(asset.key, action.name, action.duration, action.motion));
   return { root, textures, clips };
+}
+
+export function heroRuntimeActionUserData(asset: Hero3DAssetSpec): HeroRuntimeActionUserData {
+  const actionDurations = {} as Record<Hero3DActionName, number>;
+  const actionStates = {} as Record<Hero3DActionName, HeroRuntimeActionState>;
+  for (const action of asset.actions) {
+    actionDurations[action.name] = action.duration;
+    actionStates[action.name] = heroRuntimeActionState(action.name);
+  }
+  return {
+    heroRuntimeAction: true,
+    heroKey: asset.key,
+    actionNames: asset.actions.map((action) => action.name),
+    actionDurations,
+    actionStates,
+    activeAction: 'idle',
+    runtimeHelper: 'updateHeroRuntimePresentation',
+  };
+}
+
+export function heroRuntimeSurfaceUserData(asset: Hero3DAssetSpec, root?: Object3D): HeroRuntimeSurfaceUserData {
+  const counts = root ? countRuntimeHeroMaterials(root) : { materialCount: 0, glintLayerCount: 0 };
+  return {
+    heroRuntimeSurface: true,
+    heroKey: asset.key,
+    shaderIntent: heroRuntimeSurfaceShaderIntent(asset),
+    materialCount: counts.materialCount,
+    glintLayerCount: counts.glintLayerCount,
+    runtimeHelper: 'updateHeroRuntimePresentation',
+  };
+}
+
+export function updateHeroRuntimePresentation(root: Group, actionName: Hero3DActionName = 'idle', elapsedMs = 0): void {
+  const runtime = root.userData.runtimeAction as HeroRuntimeActionUserData | undefined;
+  const surface = root.userData.runtimeSurface as HeroRuntimeSurfaceUserData | undefined;
+  if (!runtime?.heroRuntimeAction || !surface?.heroRuntimeSurface) return;
+
+  const activeAction = runtime.actionNames.includes(actionName) ? actionName : 'idle';
+  const state = runtime.actionStates[activeAction] ?? heroRuntimeActionState(activeAction);
+  const duration = Math.max(0.1, runtime.actionDurations[activeAction] ?? 1);
+  const t = elapsedMs / 1000;
+  const progress = activeAction === 'death' ? clamp(elapsedMs / (duration * 1000), 0, 1) : (elapsedMs % (duration * 1000)) / (duration * 1000);
+  const wave = (Math.sin(t * Math.PI * 2.2) + 1) / 2;
+  const actionPulse = heroRuntimeActionPulse(state, progress, wave);
+
+  runtime.activeAction = activeAction;
+  root.userData.runtimeActionState = state;
+  root.userData.runtimeActionPulse = actionPulse;
+  root.userData.runtimeActionStatusJitter = state === 'status' ? 0.03 + Math.abs(Math.sin(t * 18)) * 0.08 : 0;
+
+  const basePosition = root.userData.basePosition ?? [0, 0, 0];
+  const baseRotation = root.userData.baseRotation ?? [0, 0, 0];
+  const baseScale = root.userData.baseScale ?? [root.scale.x, root.scale.y, root.scale.z];
+  root.position.set(basePosition[0], basePosition[1] + heroRuntimeYOffset(state, progress, wave), basePosition[2]);
+  root.rotation.set(
+    baseRotation[0] + (state === 'death' ? progress * 1.28 : 0),
+    baseRotation[1] + heroRuntimeYaw(state, progress, wave),
+    baseRotation[2] + heroRuntimeRoll(state, progress, wave),
+  );
+  const squash = heroRuntimeScale(state, progress, wave, actionPulse);
+  root.scale.set(baseScale[0] * squash.x, baseScale[1] * squash.y, baseScale[2] * squash.z);
+
+  let animatedParts = 0;
+  root.traverse((obj) => {
+    if (!obj.userData.heroRuntimePart) return;
+    updateHeroRuntimePart(obj, state, progress, wave, actionPulse);
+    animatedParts++;
+  });
+
+  let animatedMaterials = 0;
+  let glintLayers = 0;
+  root.traverse((obj) => {
+    if (!(obj instanceof Mesh)) return;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (material instanceof MeshStandardMaterial || material instanceof MeshBasicMaterial) {
+        if (updateHeroRuntimeMaterial(material, surface.shaderIntent, state, actionPulse, wave)) animatedMaterials++;
+        if (material.userData.heroRuntimeGlintLayer) glintLayers++;
+      }
+    }
+  });
+
+  root.userData.runtimeActionAnimated = true;
+  root.userData.runtimeActionClockMs = elapsedMs;
+  root.userData.runtimeActionAnimatedParts = animatedParts;
+  root.userData.runtimeSurfaceAnimated = true;
+  root.userData.runtimeSurfaceClockMs = elapsedMs;
+  root.userData.runtimeSurfaceAnimatedMaterials = animatedMaterials;
+  root.userData.runtimeSurfaceGlintLayers = glintLayers;
+  root.userData.runtimeSurfaceShaderIntent = surface.shaderIntent;
 }
 
 function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureChannel, Texture>): Object3D {
@@ -99,6 +221,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
   material.normalScale.setScalar(materialProfile.normalIntensity);
   material.envMapIntensity = materialProfile.rimLightIntensity;
   material.userData.surfaceProfile = materialProfile;
+  tagHeroRuntimeMaterial(material, part, materialProfile, 'core');
   const mesh = new Mesh(geometryFor(part), material);
   mesh.name = part.name;
   mesh.userData.kind = part.kind;
@@ -108,18 +231,23 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
   mesh.castShadow = true;
   mesh.receiveShadow = true;
 
-  if (part.kind === 'aura') return mesh;
+  if (part.kind === 'aura') {
+    tagHeroRuntimePart(mesh, part, materialProfile);
+    return mesh;
+  }
 
   const group = new Group();
   group.name = `polished:${part.name}`;
   group.add(mesh);
 
-  const outline = new Mesh(geometryFor(part), new MeshBasicMaterial({
+  const outlineMaterial = new MeshBasicMaterial({
     color: '#050607',
     side: BackSide,
     transparent: true,
     opacity: part.kind === 'orb' || part.kind === 'sigil' ? 0.32 : 0.46,
-  }));
+  });
+  tagHeroRuntimeMaterial(outlineMaterial, part, materialProfile, 'outline');
+  const outline = new Mesh(geometryFor(part), outlineMaterial);
   outline.position.copy(mesh.position);
   outline.rotation.copy(mesh.rotation);
   outline.scale.copy(mesh.scale).multiplyScalar(part.kind === 'weapon' || part.kind === 'offhand' ? 1.08 : 1.045);
@@ -127,26 +255,30 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
   group.add(outline);
 
   if (part.emissive) {
-    const glow = new Mesh(geometryFor(part), new MeshBasicMaterial({
+    const glowMaterial = new MeshBasicMaterial({
       color: part.emissive,
       blending: AdditiveBlending,
       transparent: true,
       opacity: part.kind === 'orb' || part.kind === 'sigil' ? 0.34 : 0.18,
       depthWrite: false,
-    }));
+    });
+    tagHeroRuntimeMaterial(glowMaterial, part, materialProfile, 'emissive-glow');
+    const glow = new Mesh(geometryFor(part), glowMaterial);
     glow.position.copy(mesh.position);
     glow.rotation.copy(mesh.rotation);
     glow.scale.copy(mesh.scale).multiplyScalar(part.kind === 'orb' || part.kind === 'sigil' ? 1.32 : 1.14);
     group.add(glow);
   }
   if (materialProfile.rimLightIntensity >= 0.58) {
-    const glint = new Mesh(geometryFor(part), new MeshBasicMaterial({
+    const glintMaterial = new MeshBasicMaterial({
       color: part.emissive ?? part.color,
       blending: AdditiveBlending,
       transparent: true,
       opacity: Math.min(0.28, 0.09 + materialProfile.rimLightIntensity * 0.17),
       depthWrite: false,
-    }));
+    });
+    tagHeroRuntimeMaterial(glintMaterial, part, materialProfile, 'rim-glint');
+    const glint = new Mesh(geometryFor(part), glintMaterial);
     glint.name = `v6-surface-glint:${part.name}`;
     glint.position.copy(mesh.position);
     glint.rotation.copy(mesh.rotation);
@@ -154,11 +286,206 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     group.add(glint);
   }
 
+  tagHeroRuntimePart(group, part, materialProfile);
   return group;
 }
 
 function geometryFor(part: Hero3DPartSpec) {
   return geometryCache[part.kind];
+}
+
+function tagHeroRuntimePart(obj: Object3D, part: Hero3DPartSpec, materialProfile: HeroMaterialSurfaceProfile): void {
+  obj.userData.heroRuntimePart = true;
+  obj.userData.partName = part.name;
+  obj.userData.partKind = part.kind;
+  obj.userData.partMaterial = part.material ?? 'leather';
+  obj.userData.partDetail = part.detail ?? 'engraving';
+  obj.userData.runtimeActionReactive = part.kind !== 'body' || !!part.emissive || materialProfile.rimLightIntensity >= 0.58;
+  obj.userData.basePosition = [obj.position.x, obj.position.y, obj.position.z];
+  obj.userData.baseRotation = [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+  obj.userData.baseScale = [obj.scale.x, obj.scale.y, obj.scale.z];
+}
+
+function tagHeroRuntimeMaterial(
+  material: MeshStandardMaterial | MeshBasicMaterial,
+  part: Hero3DPartSpec,
+  materialProfile: HeroMaterialSurfaceProfile,
+  surfaceRole: 'core' | 'outline' | 'emissive-glow' | 'rim-glint',
+): void {
+  material.userData.heroRuntimeSurfaceMaterial = true;
+  material.userData.surfaceRole = surfaceRole;
+  material.userData.partName = part.name;
+  material.userData.partKind = part.kind;
+  material.userData.partMaterial = part.material ?? 'leather';
+  material.userData.partDetail = part.detail ?? 'engraving';
+  material.userData.runtimeActionReactive = part.kind !== 'body' || !!part.emissive || materialProfile.rimLightIntensity >= 0.58;
+  material.userData.heroRuntimeGlintLayer = surfaceRole === 'rim-glint' || surfaceRole === 'emissive-glow';
+  material.userData.baseOpacity = material.opacity;
+  if (material instanceof MeshStandardMaterial) {
+    material.userData.baseRoughness = material.roughness;
+    material.userData.baseMetalness = material.metalness;
+    material.userData.baseEmissiveIntensity = material.emissiveIntensity;
+    material.userData.baseEnvMapIntensity = material.envMapIntensity;
+    material.userData.baseNormalIntensity = material.normalScale.x;
+  }
+}
+
+function countRuntimeHeroMaterials(root: Object3D): { materialCount: number; glintLayerCount: number } {
+  let materialCount = 0;
+  let glintLayerCount = 0;
+  root.traverse((obj) => {
+    if (!(obj instanceof Mesh)) return;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of materials) {
+      if (
+        (material instanceof MeshStandardMaterial || material instanceof MeshBasicMaterial) &&
+        material.userData.heroRuntimeSurfaceMaterial
+      ) {
+        materialCount++;
+        if (material.userData.heroRuntimeGlintLayer) glintLayerCount++;
+      }
+    }
+  });
+  return { materialCount, glintLayerCount };
+}
+
+function heroRuntimeSurfaceShaderIntent(asset: Hero3DAssetSpec): HeroRuntimeSurfaceShaderIntent {
+  const read = `${asset.classicArchetype} ${asset.model.silhouette} ${asset.readability.primaryRead}`.toLowerCase();
+  if (read.includes('shadow') || read.includes('stealth') || read.includes('warlock')) return 'hero-shadow-veil';
+  if (read.includes('stone') || read.includes('earthquake') || read.includes('totem')) return 'hero-stone-weight';
+  if (read.includes('shield') || read.includes('tank') || read.includes('hook') || read.includes('blade')) return 'hero-armor-rim-sweep';
+  if (read.includes('ice') || read.includes('lightning') || read.includes('mage') || read.includes('holy') || read.includes('healer')) return 'hero-arcane-fresnel';
+  return 'hero-cloth-breathe';
+}
+
+function heroRuntimeActionState(actionName: Hero3DActionName): HeroRuntimeActionState {
+  if (actionName === 'walk') return 'locomotion';
+  if (actionName === 'attack') return 'attack';
+  if (actionName === 'channel') return 'channel';
+  if (actionName === 'hit') return 'hit';
+  if (actionName === 'death') return 'death';
+  if (actionName === 'stunned' || actionName === 'invisible') return 'status';
+  if (actionName.startsWith('cast_')) return 'cast';
+  return 'idle';
+}
+
+function heroRuntimeActionPulse(state: HeroRuntimeActionState, progress: number, wave: number): number {
+  if (state === 'attack') return Math.sin(Math.PI * clamp(progress, 0, 1));
+  if (state === 'cast') return 0.58 + Math.sin(Math.PI * clamp(progress, 0, 1)) * 0.58;
+  if (state === 'channel') return 0.44 + wave * 0.52;
+  if (state === 'hit') return 0.72 + (1 - progress) * 0.4;
+  if (state === 'status') return 0.34 + wave * 0.36;
+  if (state === 'death') return 1 - progress * 0.45;
+  if (state === 'locomotion') return 0.28 + wave * 0.24;
+  return 0.16 + wave * 0.16;
+}
+
+function heroRuntimeYOffset(state: HeroRuntimeActionState, progress: number, wave: number): number {
+  if (state === 'cast') return 0.08 + Math.sin(Math.PI * progress) * 0.2;
+  if (state === 'channel') return 0.05 + wave * 0.12;
+  if (state === 'locomotion') return wave * 0.08;
+  if (state === 'hit') return -0.04 * (1 - progress);
+  if (state === 'death') return -0.55 * progress;
+  return wave * 0.035;
+}
+
+function heroRuntimeYaw(state: HeroRuntimeActionState, progress: number, wave: number): number {
+  if (state === 'cast') return Math.sin(Math.PI * progress) * 0.36;
+  if (state === 'attack') return -Math.sin(Math.PI * progress) * 0.24;
+  if (state === 'channel') return Math.sin(wave * Math.PI * 2) * 0.08;
+  if (state === 'status') return Math.sin(wave * Math.PI * 2) * 0.12;
+  return 0;
+}
+
+function heroRuntimeRoll(state: HeroRuntimeActionState, progress: number, wave: number): number {
+  if (state === 'hit') return -0.16 * (1 - progress);
+  if (state === 'attack') return -Math.sin(Math.PI * progress) * 0.18;
+  if (state === 'status') return Math.sin(wave * Math.PI * 2) * 0.045;
+  return 0;
+}
+
+function heroRuntimeScale(
+  state: HeroRuntimeActionState,
+  progress: number,
+  wave: number,
+  actionPulse: number,
+): { x: number; y: number; z: number } {
+  if (state === 'death') return { x: 1 + progress * 0.08, y: 1 - progress * 0.24, z: 1 + progress * 0.08 };
+  if (state === 'hit') return { x: 1.04, y: 0.96, z: 1.04 };
+  if (state === 'attack') return { x: 1 + actionPulse * 0.06, y: 1 - actionPulse * 0.035, z: 1 + actionPulse * 0.06 };
+  if (state === 'cast' || state === 'channel') return { x: 1 + actionPulse * 0.035, y: 1 + actionPulse * 0.07, z: 1 + actionPulse * 0.035 };
+  if (state === 'locomotion') return { x: 1 + wave * 0.02, y: 1 + wave * 0.04, z: 1 - wave * 0.015 };
+  return { x: 1, y: 1 + wave * 0.018, z: 1 };
+}
+
+function updateHeroRuntimePart(
+  obj: Object3D,
+  state: HeroRuntimeActionState,
+  progress: number,
+  wave: number,
+  actionPulse: number,
+): void {
+  const basePosition = obj.userData.basePosition ?? [obj.position.x, obj.position.y, obj.position.z];
+  const baseRotation = obj.userData.baseRotation ?? [obj.rotation.x, obj.rotation.y, obj.rotation.z];
+  const baseScale = obj.userData.baseScale ?? [obj.scale.x, obj.scale.y, obj.scale.z];
+  const kind = obj.userData.partKind as Hero3DPartSpec['kind'] | undefined;
+  const reactive = !!obj.userData.runtimeActionReactive;
+
+  obj.position.set(basePosition[0], basePosition[1], basePosition[2]);
+  obj.rotation.set(baseRotation[0], baseRotation[1], baseRotation[2]);
+  obj.scale.set(baseScale[0], baseScale[1], baseScale[2]);
+  if (!reactive) return;
+
+  if (state === 'attack' && (kind === 'weapon' || kind === 'offhand')) {
+    obj.rotation.z += -0.34 * actionPulse;
+    obj.position.x += (kind === 'weapon' ? 0.06 : -0.04) * actionPulse;
+  } else if ((state === 'cast' || state === 'channel') && (kind === 'orb' || kind === 'sigil' || kind === 'aura')) {
+    const lift = state === 'channel' ? 0.08 + wave * 0.08 : actionPulse * 0.12;
+    obj.position.y += lift;
+    obj.rotation.y += (0.16 + actionPulse * 0.22) * (kind === 'sigil' ? 1 : -1);
+    obj.scale.multiplyScalar(1 + actionPulse * 0.08);
+  } else if (state === 'status') {
+    obj.rotation.y += Math.sin(wave * Math.PI * 2) * 0.05;
+    if (kind === 'orb' || kind === 'sigil') obj.scale.multiplyScalar(1 + wave * 0.08);
+  } else if (state === 'death') {
+    obj.position.y -= progress * 0.08;
+    obj.rotation.x += progress * 0.12;
+  }
+}
+
+function updateHeroRuntimeMaterial(
+  material: MeshStandardMaterial | MeshBasicMaterial,
+  shaderIntent: HeroRuntimeSurfaceShaderIntent,
+  state: HeroRuntimeActionState,
+  actionPulse: number,
+  wave: number,
+): boolean {
+  if (!material.userData.heroRuntimeSurfaceMaterial) return false;
+  const baseOpacity = material.userData.baseOpacity ?? material.opacity;
+  const invisibleFactor = state === 'status' && material.userData.surfaceRole !== 'outline' ? 0.44 : 1;
+  const deathFactor = state === 'death' ? 0.72 : 1;
+  const glintBoost = material.userData.heroRuntimeGlintLayer ? 0.2 + wave * 0.22 + actionPulse * 0.16 : 0;
+  material.transparent = material.transparent || invisibleFactor < 1 || deathFactor < 1 || material.userData.heroRuntimeGlintLayer;
+  material.opacity = clamp(baseOpacity * invisibleFactor * deathFactor + glintBoost, 0.05, material.userData.heroRuntimeGlintLayer ? 0.86 : 1);
+
+  if (material instanceof MeshStandardMaterial) {
+    const baseRoughness = material.userData.baseRoughness ?? material.roughness;
+    const baseEmissive = material.userData.baseEmissiveIntensity ?? material.emissiveIntensity;
+    const baseEnv = material.userData.baseEnvMapIntensity ?? material.envMapIntensity;
+    const baseNormal = material.userData.baseNormalIntensity ?? material.normalScale.x;
+    const intentBoost = shaderIntent === 'hero-arcane-fresnel' ? 0.18 : shaderIntent === 'hero-armor-rim-sweep' ? 0.12 : 0.08;
+    material.roughness = clamp(baseRoughness - actionPulse * 0.08 - intentBoost * 0.12, 0.08, 0.95);
+    material.emissiveIntensity = baseEmissive * (1 + actionPulse * 0.62 + intentBoost + wave * 0.08);
+    material.envMapIntensity = baseEnv * (1 + actionPulse * 0.42 + intentBoost);
+    material.normalScale.setScalar(baseNormal * (1 + wave * 0.08 + actionPulse * 0.06));
+  }
+  material.userData.runtimeHeroSurfacePulse = actionPulse;
+  material.userData.runtimeHeroSurfaceShaderIntent = shaderIntent;
+  return true;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function createTextures(asset: Hero3DAssetSpec): Record<Hero3DTextureChannel, Texture> {

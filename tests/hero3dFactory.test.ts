@@ -1,5 +1,28 @@
-import { describe, expect, it } from 'vitest';
-import { heroMaterialSurfaceProfile } from '../src/render/hero3dFactory';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from 'three';
+import { CLASSIC_HERO3D_ASSETS, REQUIRED_HERO3D_ACTIONS } from '../src/render/hero3dAssets';
+import { createHero3DModel, heroMaterialSurfaceProfile, updateHeroRuntimePresentation } from '../src/render/hero3dFactory';
+
+const originalDocument = globalThis.document;
+
+beforeAll(() => {
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: {
+      createElement: (tag: string) => {
+        if (tag !== 'canvas') throw new Error(`unsupported test element: ${tag}`);
+        return createCanvasStub();
+      },
+    },
+  });
+});
+
+afterAll(() => {
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: originalDocument,
+  });
+});
 
 describe('heroMaterialSurfaceProfile', () => {
   it('adds V6 surface realism terms for hero grounding and material glints', () => {
@@ -17,3 +40,130 @@ describe('heroMaterialSurfaceProfile', () => {
     expect(stone.wearIntensity).toBeGreaterThan(cloth.wearIntensity);
   });
 });
+
+describe('hero3d runtime presentation', () => {
+  it('creates V14 runtime action and surface contracts for every hero root', () => {
+    for (const asset of CLASSIC_HERO3D_ASSETS) {
+      const { root } = createHero3DModel(asset);
+
+      expect(root.userData.runtimeAction).toMatchObject({
+        heroRuntimeAction: true,
+        heroKey: asset.key,
+        actionNames: [...REQUIRED_HERO3D_ACTIONS],
+        runtimeHelper: 'updateHeroRuntimePresentation',
+      });
+      expect(root.userData.runtimeSurface).toMatchObject({
+        heroRuntimeSurface: true,
+        heroKey: asset.key,
+        materialCount: expect.any(Number),
+        shaderIntent: expect.any(String),
+      });
+
+      const runtimeParts = root.children.filter((child) => child.userData.heroRuntimePart);
+      expect(runtimeParts.length).toBeGreaterThanOrEqual(asset.model.parts.length);
+
+      const taggedMaterials = runtimeSurfaceMaterials(root);
+      expect(taggedMaterials.length).toBeGreaterThan(asset.model.parts.length);
+      expect(taggedMaterials.every((material) => material.userData.heroRuntimeSurfaceMaterial)).toBe(true);
+      expect(taggedMaterials.some((material) => material.userData.heroRuntimeGlintLayer)).toBe(true);
+    }
+  });
+
+  it('animates hero action posture and material pulses without cumulative drift', () => {
+    const { root } = createHero3DModel(CLASSIC_HERO3D_ASSETS.find((asset) => asset.key === 'zola')!);
+    const emissiveMaterial = runtimeSurfaceMaterials(root).find(
+      (material): material is MeshStandardMaterial =>
+        material instanceof MeshStandardMaterial &&
+        material.userData.runtimeActionReactive &&
+        material.userData.baseEmissiveIntensity > 0,
+    );
+
+    expect(emissiveMaterial).toBeDefined();
+    const baseScaleY = root.scale.y;
+    const baseEmissive = emissiveMaterial!.emissiveIntensity;
+
+    updateHeroRuntimePresentation(root, 'cast_r', 480);
+    const firstPulse = root.userData.runtimeActionPulse;
+    const firstY = root.position.y;
+    const firstScaleY = root.scale.y;
+    const firstEmissive = emissiveMaterial!.emissiveIntensity;
+
+    updateHeroRuntimePresentation(root, 'cast_r', 480);
+
+    expect(root.userData.runtimeAction.activeAction).toBe('cast_r');
+    expect(root.userData.runtimeActionAnimated).toBe(true);
+    expect(root.userData.runtimeActionAnimatedParts).toBeGreaterThan(0);
+    expect(root.userData.runtimeSurfaceAnimatedMaterials).toBeGreaterThan(0);
+    expect(firstPulse).toBeGreaterThan(0.5);
+    expect(firstY).toBeGreaterThan(0);
+    expect(firstScaleY).toBeGreaterThan(baseScaleY);
+    expect(emissiveMaterial!.emissiveIntensity).toBeCloseTo(firstEmissive, 5);
+    expect(firstEmissive).toBeGreaterThan(baseEmissive);
+  });
+
+  it('combines invisible, stunned, and death states with readable runtime material changes', () => {
+    const { root } = createHero3DModel(CLASSIC_HERO3D_ASSETS.find((asset) => asset.key === 'morphis')!);
+    const materials = runtimeSurfaceMaterials(root);
+    const translucent = materials.find((material) => material.userData.baseOpacity >= 0.85);
+
+    updateHeroRuntimePresentation(root, 'invisible', 720);
+    expect(root.userData.runtimeAction.activeAction).toBe('invisible');
+    expect(root.userData.runtimeActionState).toBe('status');
+    expect(translucent?.opacity).toBeLessThan(translucent?.userData.baseOpacity ?? 1);
+
+    updateHeroRuntimePresentation(root, 'stunned', 360);
+    expect(root.userData.runtimeActionState).toBe('status');
+    expect(root.userData.runtimeActionStatusJitter).toBeGreaterThan(0);
+
+    updateHeroRuntimePresentation(root, 'death', 1100);
+    expect(root.userData.runtimeActionState).toBe('death');
+    expect(root.rotation.x).toBeGreaterThan(0.7);
+  });
+});
+
+function runtimeSurfaceMaterials(root: Object3D): (MeshStandardMaterial | MeshBasicMaterial)[] {
+  const materials: (MeshStandardMaterial | MeshBasicMaterial)[] = [];
+  root.traverse((obj) => {
+    if (!(obj instanceof Mesh)) return;
+    const list = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const material of list) {
+      if (
+        (material instanceof MeshStandardMaterial || material instanceof MeshBasicMaterial) &&
+        material.userData.heroRuntimeSurfaceMaterial
+      ) {
+        materials.push(material);
+      }
+    }
+  });
+  return materials;
+}
+
+function createCanvasStub(): HTMLCanvasElement {
+  const gradient = { addColorStop: () => undefined };
+  const context = {
+    globalAlpha: 1,
+    fillStyle: '#000000',
+    strokeStyle: '#000000',
+    lineWidth: 1,
+    lineCap: 'butt',
+    createLinearGradient: () => gradient,
+    fillRect: () => undefined,
+    strokeRect: () => undefined,
+    beginPath: () => undefined,
+    arc: () => undefined,
+    moveTo: () => undefined,
+    lineTo: () => undefined,
+    quadraticCurveTo: () => undefined,
+    ellipse: () => undefined,
+    save: () => undefined,
+    restore: () => undefined,
+    translate: () => undefined,
+    rotate: () => undefined,
+    stroke: () => undefined,
+  };
+  return {
+    width: 0,
+    height: 0,
+    getContext: () => context,
+  } as unknown as HTMLCanvasElement;
+}

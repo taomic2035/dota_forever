@@ -1,9 +1,11 @@
 # Hero3D Preview Handoff for Opus
 
-Date: 2026-06-13  
-Branch/worktree: `codex/hero-ingame-art` at `/Users/taomic/vibecoding/dota_forever-hero-ingame-art`  
-Preview URL: `http://127.0.0.1:5182/?mode=hero3d-preview`  
-Screenshot: `docs/screenshots/ux-hero3d-preview.png`
+Date: 2026-06-13
+Current update: 2026-06-14 V14 hero runtime action/surface presentation
+Current branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
+Latest screenshot: `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`
+Legacy screenshot: `docs/screenshots/ux-hero3d-preview.png`
 
 ## What
 
@@ -23,14 +25,23 @@ Changed files:
 - `src/render/hero3dFactory.ts`
   - New procedural Three.js model factory.
   - Builds low-poly meshes, generated canvas textures, emissive/glow shells, outlines, and animation clips.
+  - V14 adds `root.userData.runtimeAction`, `root.userData.runtimeSurface`, and `updateHeroRuntimePresentation(root, actionName, elapsedMs)`.
+  - V14 tags hero parts and materials with runtime metadata for action/surface response and future GLB/PBR replacement.
 - `src/ui/hero3dPreview.ts`
   - New full-screen Three.js hero showcase.
   - Includes a hero-selection-stage layout, action buttons, nameplates, lighting, fog, ground stage, background columns, and per-hero pads/light columns.
+  - V14 calls `updateHeroRuntimePresentation(...)` every frame and exposes `window.__hero3dPreview.runtimePresentation`.
 - `tests/hero3dAssets.test.ts`
   - New asset contract tests.
   - Locks the first 10 hero keys, texture/action contract, unique silhouettes, and minimum art-detail thresholds.
+- `tests/hero3dFactory.test.ts`
+  - Locks V14 runtime action/surface contracts, material tags, non-drifting cast pulses, invisible/stunned/death states, and surface profile terms.
+- `tests/hero3dPreview.test.ts`
+  - Locks V14 preview smoke aggregation for runtime action/surface handoff checks.
 - `docs/screenshots/ux-hero3d-preview.png`
   - Current visual evidence screenshot for review.
+- `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`
+  - Latest V14 runtime presentation evidence for review.
 
 No `src/sim/**` files were changed.
 
@@ -89,15 +100,15 @@ Suggested Opus merge flow:
 4. Run:
 
 ```bash
-npm test -- tests/hero3dAssets.test.ts
+npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts
 npm run build
-npm test -- --run
+npm test -- --pool=forks --maxWorkers=1
 ```
 
 5. Open the preview:
 
 ```text
-http://127.0.0.1:5182/?mode=hero3d-preview
+http://127.0.0.1:<port>/?mode=hero3d-preview
 ```
 
 6. Review these integration points:
@@ -112,20 +123,30 @@ http://127.0.0.1:5182/?mode=hero3d-preview
   - `cast_e`
   - `cast_r`
   - `hit`
+  - `stunned`
+  - `invisible`
   - `death`
 - `REQUIRED_HERO3D_TEXTURES` stays compatible with future material pipeline:
   - `albedo`
   - `normal`
   - `orm`
   - `emissive`
+- V14 runtime hooks stay compatible with future animation/material integration:
+  - `root.userData.runtimeAction`
+  - `root.userData.runtimeSurface`
+  - `updateHeroRuntimePresentation(root, actionName, elapsedMs)`
+  - `obj.userData.heroRuntimePart`
+  - `material.userData.heroRuntimeSurfaceMaterial`
+  - `window.__hero3dPreview.runtimePresentation`
 
 ## Verification Evidence
 
 Latest verified commands in this worktree:
 
 ```text
-npm test -- tests/hero3dAssets.test.ts
-5 tests passed
+npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts
+3 files passed
+13 tests passed
 ```
 
 ```text
@@ -135,9 +156,9 @@ warning: Three.js keeps the output chunk above 500 kB
 ```
 
 ```text
-npm test -- --run
-80 test files passed
-727 tests passed
+npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/resource3dFactory.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+12 files passed
+76 tests passed
 ```
 
 Preview smoke evidence:
@@ -146,8 +167,24 @@ Preview smoke evidence:
 {
   "count": 10,
   "keys": ["rein", "liya", "zola", "aili", "gorm", "grosh", "kai", "chenblade", "olan", "morphis"],
-  "actions": ["idle", "walk", "attack", "cast_q", "cast_w", "cast_e", "cast_r", "hit", "death"],
-  "textureChannels": ["albedo", "normal", "orm", "emissive"]
+  "actions": ["idle", "walk", "attack", "cast_q", "cast_w", "cast_e", "cast_r", "channel", "hit", "stunned", "invisible", "death"],
+  "textureChannels": ["albedo", "normal", "orm", "emissive"],
+  "runtimePresentation": {
+    "runtimeActionRoots": 10,
+    "runtimeSurfaceRoots": 10,
+    "animatedRoots": 10,
+    "actionReactiveParts": 232,
+    "surfaceMaterials": 819,
+    "glintLayers": 347,
+    "actionStates": { "cast": 10 },
+    "shaderIntents": {
+      "hero-armor-rim-sweep": 3,
+      "hero-arcane-fresnel": 3,
+      "hero-cloth-breathe": 1,
+      "hero-stone-weight": 1,
+      "hero-shadow-veil": 2
+    }
+  }
 }
 ```
 
@@ -156,6 +193,5 @@ Preview smoke evidence:
 - Main collision risk: `src/main.ts`.
 - Dependency collision risk: `package.json` / `package-lock.json`.
 - Bundle warning is expected because Three.js is currently statically imported.
-- No simulation logic changed.
+- V14 remains visual-only; no simulation combat/pathing/balance logic changed.
 - The screenshot is intentional evidence and should stay under `docs/screenshots/`.
-

@@ -22,7 +22,7 @@ import {
   type Resource3DAssetSpec,
   type Resource3DCategory,
 } from '../render/resource3dAssets';
-import { createResource3DModel, resourceMaterialProfile } from '../render/resource3dFactory';
+import { createResource3DModel, resourceMaterialProfile, updateResourceRuntimeFxReadability, updateResourceRuntimeMapPresentation, updateResourceRuntimeMotion, updateResourceRuntimeSurface, updateResourceRuntimeUnitPresentation, updateResourceVfxPlayback } from '../render/resource3dFactory';
 
 const CATEGORY_LABEL: Record<Resource3DCategory, string> = {
   lane_units: '兵线单位',
@@ -88,9 +88,59 @@ export interface ResourceVfxPlaybackPreviewSmoke {
   playbackLayers: number;
   lightHints: number;
   decals: number;
+  animatedPlaybackGroups: number;
+  animatedLayers: number;
   radiusPlaybackGroups: number;
   pathPlaybackGroups: number;
   ambientPlaybackGroups: number;
+}
+
+export interface ResourceRuntimeMotionPreviewSmoke {
+  runtimeMotionRoots: number;
+  animatedRoots: number;
+  animatedParts: number;
+  surfaceReactiveParts: number;
+  motionIntents: Record<string, number>;
+}
+
+export interface ResourceRuntimeSurfacePreviewSmoke {
+  runtimeSurfaceRoots: number;
+  animatedRoots: number;
+  animatedMaterials: number;
+  reactiveMaterials: number;
+  glintLayers: number;
+  shaderIntents: Record<string, number>;
+}
+
+export interface ResourceRuntimeUnitPresentationPreviewSmoke {
+  runtimeUnitRoots: number;
+  animatedRoots: number;
+  animatedParts: number;
+  animatedMaterials: number;
+  actionCues: number;
+  unitClasses: Record<string, number>;
+  actionStates: Record<string, number>;
+  threatBands: Record<string, number>;
+}
+
+export interface ResourceRuntimeMapPresentationPreviewSmoke {
+  runtimeMapRoots: number;
+  animatedRoots: number;
+  animatedMaterials: number;
+  ambienceCues: number;
+  mapClasses: Record<string, number>;
+  ambienceIntents: Record<string, number>;
+  biomeIntents: Record<string, number>;
+}
+
+export interface ResourceRuntimeFxReadabilityPreviewSmoke {
+  runtimeFxRoots: number;
+  animatedRoots: number;
+  animatedMaterials: number;
+  readabilityCues: number;
+  fxClasses: Record<string, number>;
+  timingIntents: Record<string, number>;
+  dangerReads: Record<string, number>;
 }
 
 export function showResource3DPreview(parent: HTMLElement): void {
@@ -237,10 +287,21 @@ export function showResource3DPreview(parent: HTMLElement): void {
       animateResource(res, t);
       updateLabel(camera, res);
     }
+    if (window.__resource3dPreview) {
+      window.__resource3dPreview.activeRuntime = runtimeSmokeFor(activeCategory, resources);
+    }
     renderer.render(scene, camera);
   });
 
   showCategory(activeCategory);
+  const globalRuntimeModels = RESOURCE3D_SAMPLE_ASSETS.map((asset) => createResource3DModel(asset).root);
+  for (const model of globalRuntimeModels) {
+    updateResourceRuntimeMotion(model, 420);
+    updateResourceRuntimeSurface(model, 420);
+    updateResourceRuntimeUnitPresentation(model, 'attack', 420);
+    updateResourceRuntimeMapPresentation(model, 720);
+    updateResourceRuntimeFxReadability(model, 760);
+  }
   window.__resource3dPreview = {
     categories: [...RESOURCE3D_CATEGORIES],
     total: RESOURCE3D_SAMPLE_ASSETS.length,
@@ -300,6 +361,11 @@ export function showResource3DPreview(parent: HTMLElement): void {
       tree3dRoots: RESOURCE3D_SAMPLE_ASSETS.slice(0, 12).map((asset) => asset.production.modelPath),
     },
     vfxAudio: resourceVfxAudioSmokeForAssets(RESOURCE3D_SAMPLE_ASSETS),
+    runtimeMotion: resourceRuntimeMotionSmokeForModels(globalRuntimeModels),
+    runtimeSurface: resourceRuntimeSurfaceSmokeForModels(globalRuntimeModels),
+    runtimeUnitPresentation: resourceRuntimeUnitPresentationSmokeForModels(globalRuntimeModels),
+    runtimeMapPresentation: resourceRuntimeMapPresentationSmokeForModels(globalRuntimeModels),
+    runtimeFxReadability: resourceRuntimeFxReadabilitySmokeForModels(globalRuntimeModels),
     activeRuntime: runtimeSmokeFor(activeCategory, resources),
   };
 }
@@ -333,10 +399,164 @@ export function resourceVfxPlaybackSmokeForModels(models: Group[]): ResourceVfxP
     playbackLayers: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-layer:')).length, 0),
     lightHints: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-light:')).length, 0),
     decals: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-decal:')).length, 0),
+    animatedPlaybackGroups: playbackGroups.filter((group) => group.userData.resourceRuntimeVfxPlaybackAnimated).length,
+    animatedLayers: playbackGroups.reduce((sum, group) => sum + group.children.filter((child) => child.name.startsWith('resource3d:v10-vfx-layer:') && child.userData.activePhase).length, 0),
     radiusPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'radius').length,
     pathPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'path').length,
     ambientPlaybackGroups: playbackGroups.filter((group) => group.userData.dangerShape === 'ambient').length,
   };
+}
+
+export function resourceRuntimeMotionSmokeForModels(models: Group[]): ResourceRuntimeMotionPreviewSmoke {
+  return models.reduce<ResourceRuntimeMotionPreviewSmoke>((acc, model) => {
+    const runtimeMotion = model.userData.runtimeMotion;
+    if (runtimeMotion?.resourceRuntimeMotion) {
+      acc.runtimeMotionRoots += 1;
+      acc.motionIntents[runtimeMotion.motionIntent] = (acc.motionIntents[runtimeMotion.motionIntent] ?? 0) + 1;
+    }
+    if (model.userData.runtimeMotionAnimated) acc.animatedRoots += 1;
+    model.traverse((object) => {
+      if (object.userData.runtimeMotionAnimated) acc.animatedParts += 1;
+      if (object.userData.runtimeMotionSurfaceReactive || object.userData.runtimeSurfacePulse !== undefined) {
+        acc.surfaceReactiveParts += 1;
+      }
+    });
+    return acc;
+  }, {
+    runtimeMotionRoots: 0,
+    animatedRoots: 0,
+    animatedParts: 0,
+    surfaceReactiveParts: 0,
+    motionIntents: {},
+  });
+}
+
+export function resourceRuntimeSurfaceSmokeForModels(models: Group[]): ResourceRuntimeSurfacePreviewSmoke {
+  return models.reduce<ResourceRuntimeSurfacePreviewSmoke>((acc, model) => {
+    const runtimeSurface = model.userData.runtimeSurface;
+    if (runtimeSurface?.resourceRuntimeSurface) {
+      acc.runtimeSurfaceRoots += 1;
+      acc.shaderIntents[runtimeSurface.shaderIntent] = (acc.shaderIntents[runtimeSurface.shaderIntent] ?? 0) + 1;
+    }
+    if (model.userData.runtimeSurfaceAnimated) acc.animatedRoots += 1;
+    model.traverse((object) => {
+      const material = (object as { material?: unknown }).material;
+      forEachRuntimeSurfaceMaterialUserData(material, (userData) => {
+        if (userData.runtimeSurfaceAnimated) acc.animatedMaterials += 1;
+        if (userData.runtimeSurfaceReactive) acc.reactiveMaterials += 1;
+        if (userData.runtimeSurfaceGlintLayer) acc.glintLayers += 1;
+      });
+    });
+    return acc;
+  }, {
+    runtimeSurfaceRoots: 0,
+    animatedRoots: 0,
+    animatedMaterials: 0,
+    reactiveMaterials: 0,
+    glintLayers: 0,
+    shaderIntents: {},
+  });
+}
+
+export function resourceRuntimeUnitPresentationSmokeForModels(models: Group[]): ResourceRuntimeUnitPresentationPreviewSmoke {
+  return models.reduce<ResourceRuntimeUnitPresentationPreviewSmoke>((acc, model) => {
+    const runtimeUnit = model.userData.runtimeUnitPresentation;
+    if (runtimeUnit?.resourceRuntimeUnitPresentation) {
+      acc.runtimeUnitRoots += 1;
+      acc.unitClasses[runtimeUnit.unitClass] = (acc.unitClasses[runtimeUnit.unitClass] ?? 0) + 1;
+      acc.threatBands[runtimeUnit.threatBand] = (acc.threatBands[runtimeUnit.threatBand] ?? 0) + 1;
+    }
+    if (model.userData.runtimeUnitAnimated) {
+      acc.animatedRoots += 1;
+      const state = String(model.userData.runtimeUnitState ?? 'idle');
+      acc.actionStates[state] = (acc.actionStates[state] ?? 0) + 1;
+    }
+    model.traverse((object) => {
+      if (object.userData.resourceRuntimeUnitActionCue) acc.actionCues += 1;
+      if (object.userData.runtimeUnitAnimated && object.userData.resourcePart) acc.animatedParts += 1;
+      const material = (object as { material?: unknown }).material;
+      forEachRuntimeSurfaceMaterialUserData(material, (userData) => {
+        if (userData.runtimeUnitAnimated) acc.animatedMaterials += 1;
+      });
+    });
+    return acc;
+  }, {
+    runtimeUnitRoots: 0,
+    animatedRoots: 0,
+    animatedParts: 0,
+    animatedMaterials: 0,
+    actionCues: 0,
+    unitClasses: {},
+    actionStates: {},
+    threatBands: {},
+  });
+}
+
+export function resourceRuntimeMapPresentationSmokeForModels(models: Group[]): ResourceRuntimeMapPresentationPreviewSmoke {
+  return models.reduce<ResourceRuntimeMapPresentationPreviewSmoke>((acc, model) => {
+    const runtimeMap = model.userData.runtimeMapPresentation;
+    if (runtimeMap?.resourceRuntimeMapPresentation) {
+      acc.runtimeMapRoots += 1;
+      acc.mapClasses[runtimeMap.mapClass] = (acc.mapClasses[runtimeMap.mapClass] ?? 0) + 1;
+      acc.ambienceIntents[runtimeMap.ambienceIntent] = (acc.ambienceIntents[runtimeMap.ambienceIntent] ?? 0) + 1;
+      acc.biomeIntents[runtimeMap.biomeIntent] = (acc.biomeIntents[runtimeMap.biomeIntent] ?? 0) + 1;
+    }
+    if (model.userData.runtimeMapAnimated) acc.animatedRoots += 1;
+    model.traverse((object) => {
+      if (object.userData.resourceRuntimeMapAmbienceCue) acc.ambienceCues += 1;
+      const material = (object as { material?: unknown }).material;
+      forEachRuntimeSurfaceMaterialUserData(material, (userData) => {
+        if (userData.runtimeMapAnimated) acc.animatedMaterials += 1;
+      });
+    });
+    return acc;
+  }, {
+    runtimeMapRoots: 0,
+    animatedRoots: 0,
+    animatedMaterials: 0,
+    ambienceCues: 0,
+    mapClasses: {},
+    ambienceIntents: {},
+    biomeIntents: {},
+  });
+}
+
+export function resourceRuntimeFxReadabilitySmokeForModels(models: Group[]): ResourceRuntimeFxReadabilityPreviewSmoke {
+  return models.reduce<ResourceRuntimeFxReadabilityPreviewSmoke>((acc, model) => {
+    const runtimeFx = model.userData.runtimeFxReadability;
+    if (runtimeFx?.resourceRuntimeFxReadability) {
+      acc.runtimeFxRoots += 1;
+      acc.fxClasses[runtimeFx.fxClass] = (acc.fxClasses[runtimeFx.fxClass] ?? 0) + 1;
+      acc.timingIntents[runtimeFx.timingIntent] = (acc.timingIntents[runtimeFx.timingIntent] ?? 0) + 1;
+      acc.dangerReads[runtimeFx.dangerRead] = (acc.dangerReads[runtimeFx.dangerRead] ?? 0) + 1;
+    }
+    if (model.userData.runtimeFxAnimated) acc.animatedRoots += 1;
+    model.traverse((object) => {
+      if (object.userData.resourceRuntimeFxReadabilityCue) acc.readabilityCues += 1;
+      const material = (object as { material?: unknown }).material;
+      forEachRuntimeSurfaceMaterialUserData(material, (userData) => {
+        if (userData.runtimeFxAnimated) acc.animatedMaterials += 1;
+      });
+    });
+    return acc;
+  }, {
+    runtimeFxRoots: 0,
+    animatedRoots: 0,
+    animatedMaterials: 0,
+    readabilityCues: 0,
+    fxClasses: {},
+    timingIntents: {},
+    dangerReads: {},
+  });
+}
+
+function forEachRuntimeSurfaceMaterialUserData(material: unknown, visit: (userData: Record<string, unknown>) => void): void {
+  if (Array.isArray(material)) {
+    material.forEach((item) => forEachRuntimeSurfaceMaterialUserData(item, visit));
+    return;
+  }
+  const userData = (material as { userData?: Record<string, unknown> } | undefined)?.userData;
+  if (userData?.resourceRuntimeSurfaceMaterial) visit(userData);
 }
 
 function runtimeSmokeFor(category: Resource3DCategory, resources: PreviewResource[]): {
@@ -356,9 +576,38 @@ function runtimeSmokeFor(category: Resource3DCategory, resources: PreviewResourc
   vfxPlaybackLayers: number;
   vfxPlaybackLights: number;
   vfxPlaybackDecals: number;
+  vfxPlaybackAnimated: number;
+  vfxAnimatedLayers: number;
+  runtimeMotionRoots: number;
+  runtimeMotionAnimated: number;
+  runtimeMotionParts: number;
+  runtimeMotionSurfaceReactive: number;
+  runtimeSurfaceRoots: number;
+  runtimeSurfaceAnimated: number;
+  runtimeSurfaceMaterials: number;
+  runtimeSurfaceReactive: number;
+  runtimeSurfaceGlints: number;
+  runtimeUnitRoots: number;
+  runtimeUnitAnimated: number;
+  runtimeUnitParts: number;
+  runtimeUnitMaterials: number;
+  runtimeUnitActionCues: number;
+  runtimeMapRoots: number;
+  runtimeMapAnimated: number;
+  runtimeMapMaterials: number;
+  runtimeMapAmbienceCues: number;
+  runtimeFxRoots: number;
+  runtimeFxAnimated: number;
+  runtimeFxMaterials: number;
+  runtimeFxReadabilityCues: number;
   productionModelPaths: string[];
 } {
   const playbackSmoke = resourceVfxPlaybackSmokeForModels(resources.map((res) => res.model));
+  const motionSmoke = resourceRuntimeMotionSmokeForModels(resources.map((res) => res.model));
+  const surfaceSmoke = resourceRuntimeSurfaceSmokeForModels(resources.map((res) => res.model));
+  const unitSmoke = resourceRuntimeUnitPresentationSmokeForModels(resources.map((res) => res.model));
+  const mapSmoke = resourceRuntimeMapPresentationSmokeForModels(resources.map((res) => res.model));
+  const fxSmoke = resourceRuntimeFxReadabilitySmokeForModels(resources.map((res) => res.model));
   return {
     category,
     resourceCount: resources.length,
@@ -376,6 +625,30 @@ function runtimeSmokeFor(category: Resource3DCategory, resources: PreviewResourc
     vfxPlaybackLayers: playbackSmoke.playbackLayers,
     vfxPlaybackLights: playbackSmoke.lightHints,
     vfxPlaybackDecals: playbackSmoke.decals,
+    vfxPlaybackAnimated: playbackSmoke.animatedPlaybackGroups,
+    vfxAnimatedLayers: playbackSmoke.animatedLayers,
+    runtimeMotionRoots: motionSmoke.runtimeMotionRoots,
+    runtimeMotionAnimated: motionSmoke.animatedRoots,
+    runtimeMotionParts: motionSmoke.animatedParts,
+    runtimeMotionSurfaceReactive: motionSmoke.surfaceReactiveParts,
+    runtimeSurfaceRoots: surfaceSmoke.runtimeSurfaceRoots,
+    runtimeSurfaceAnimated: surfaceSmoke.animatedRoots,
+    runtimeSurfaceMaterials: surfaceSmoke.animatedMaterials,
+    runtimeSurfaceReactive: surfaceSmoke.reactiveMaterials,
+    runtimeSurfaceGlints: surfaceSmoke.glintLayers,
+    runtimeUnitRoots: unitSmoke.runtimeUnitRoots,
+    runtimeUnitAnimated: unitSmoke.animatedRoots,
+    runtimeUnitParts: unitSmoke.animatedParts,
+    runtimeUnitMaterials: unitSmoke.animatedMaterials,
+    runtimeUnitActionCues: unitSmoke.actionCues,
+    runtimeMapRoots: mapSmoke.runtimeMapRoots,
+    runtimeMapAnimated: mapSmoke.animatedRoots,
+    runtimeMapMaterials: mapSmoke.animatedMaterials,
+    runtimeMapAmbienceCues: mapSmoke.ambienceCues,
+    runtimeFxRoots: fxSmoke.runtimeFxRoots,
+    runtimeFxAnimated: fxSmoke.animatedRoots,
+    runtimeFxMaterials: fxSmoke.animatedMaterials,
+    runtimeFxReadabilityCues: fxSmoke.readabilityCues,
     productionModelPaths: resources
       .map((res) => res.model.userData.runtimeIntegration?.productionModelPath)
       .filter((path): path is string => typeof path === 'string')
@@ -435,20 +708,12 @@ function updateActiveTabs(tabs: HTMLElement, active: Resource3DCategory): void {
 function animateResource(res: PreviewResource, t: number): void {
   const phase = t + res.phase;
   res.anchor.rotation.y += 0.0008 + Math.sin(phase * 0.5) * 0.00045;
-  if (res.asset.previewMotion === 'spin') {
-    res.model.rotation.y += 0.015;
-  } else if (res.asset.previewMotion === 'float') {
-    res.model.position.y = Math.sin(phase * 1.8) * 0.08;
-  } else if (res.asset.previewMotion === 'pulse') {
-    const s = 1 + Math.sin(phase * 2.2) * 0.045;
-    res.model.scale.setScalar(s);
-  } else if (res.asset.previewMotion === 'impact') {
-    const hit = Math.max(0, Math.sin(phase * 2.8));
-    res.model.scale.set(1 + hit * 0.035, 1 - hit * 0.03, 1 + hit * 0.035);
-  } else if (res.asset.previewMotion === 'ambient') {
-    res.model.rotation.y += 0.003;
-    res.model.position.y = Math.sin(phase * 1.15) * 0.025;
-  }
+  updateResourceRuntimeMotion(res.model, phase * 1000);
+  updateResourceRuntimeSurface(res.model, phase * 1000);
+  updateResourceRuntimeUnitPresentation(res.model, phase % 3.4 > 2.72 ? 'hit' : phase % 3.4 > 1.62 ? 'attack' : 'idle', phase * 1000);
+  updateResourceRuntimeMapPresentation(res.model, phase * 1000);
+  updateResourceRuntimeFxReadability(res.model, phase * 1000);
+  updateResourceVfxPlayback(res.model, (phase * 1000) % 2000);
 }
 
 function updateLabel(camera: PerspectiveCamera, res: PreviewResource): void {
@@ -536,6 +801,11 @@ declare global {
         tree3dRoots: string[];
       };
       vfxAudio: ResourceVfxAudioPreviewSmoke;
+      runtimeMotion: ResourceRuntimeMotionPreviewSmoke;
+      runtimeSurface: ResourceRuntimeSurfacePreviewSmoke;
+      runtimeUnitPresentation: ResourceRuntimeUnitPresentationPreviewSmoke;
+      runtimeMapPresentation: ResourceRuntimeMapPresentationPreviewSmoke;
+      runtimeFxReadability: ResourceRuntimeFxReadabilityPreviewSmoke;
       activeRuntime: {
         category: string;
         resourceCount: number;
@@ -553,6 +823,30 @@ declare global {
         vfxPlaybackLayers: number;
         vfxPlaybackLights: number;
         vfxPlaybackDecals: number;
+        vfxPlaybackAnimated: number;
+        vfxAnimatedLayers: number;
+        runtimeMotionRoots: number;
+        runtimeMotionAnimated: number;
+        runtimeMotionParts: number;
+        runtimeMotionSurfaceReactive: number;
+        runtimeSurfaceRoots: number;
+        runtimeSurfaceAnimated: number;
+        runtimeSurfaceMaterials: number;
+        runtimeSurfaceReactive: number;
+        runtimeSurfaceGlints: number;
+        runtimeUnitRoots: number;
+        runtimeUnitAnimated: number;
+        runtimeUnitParts: number;
+        runtimeUnitMaterials: number;
+        runtimeUnitActionCues: number;
+        runtimeMapRoots: number;
+        runtimeMapAnimated: number;
+        runtimeMapMaterials: number;
+        runtimeMapAmbienceCues: number;
+        runtimeFxRoots: number;
+        runtimeFxAnimated: number;
+        runtimeFxMaterials: number;
+        runtimeFxReadabilityCues: number;
         productionModelPaths: string[];
       };
     };

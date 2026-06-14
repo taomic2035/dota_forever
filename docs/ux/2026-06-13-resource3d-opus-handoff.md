@@ -5,7 +5,7 @@ Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_fore
 Primary preview routes: `?mode=resource3d-preview`, `?mode=hero3d-preview`, `?mode=play&renderer=3d`
 Legacy phase-1 screenshot: `docs/screenshots/ux-resource3d-preview.png`
 
-Current V3 update for Opus merge:
+Current V17 update for Opus merge:
 
 - Worktree/branch: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`.
 - V3 summary: `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`.
@@ -48,7 +48,21 @@ Current V3 update for Opus merge:
 - V9 VFX/audio sync contract screenshot: `docs/screenshots/ux-3d-v9-vfx-audio-contract.png`.
 - V10 VFX playback layers summary: `docs/ux/2026-06-14-3d-v10-vfx-playback-layers-summary.md`.
 - V10 VFX playback layers screenshot: `docs/screenshots/ux-3d-v10-vfx-playback-layers.png`.
-- Adds material/detail metadata, high-detail procedural texture overlays, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, V9 VFX/audio sync contracts, V10 visible VFX playback layers, and shift-queued command UX.
+- V11 VFX phase animation summary: `docs/ux/2026-06-14-3d-v11-vfx-phase-animation-summary.md`.
+- V11 VFX phase animation screenshot: `docs/screenshots/ux-3d-v11-vfx-phase-animation.png`.
+- V12 runtime motion summary: `docs/ux/2026-06-14-3d-v12-runtime-motion-summary.md`.
+- V12 runtime motion screenshot: `docs/screenshots/ux-3d-v12-runtime-motion.png`.
+- V13 runtime surface summary: `docs/ux/2026-06-14-3d-v13-runtime-surface-summary.md`.
+- V13 runtime surface screenshot: `docs/screenshots/ux-3d-v13-runtime-surface.png`.
+- V14 hero runtime presentation summary: `docs/ux/2026-06-14-3d-v14-hero-runtime-presentation-summary.md`.
+- V14 hero runtime presentation screenshot: `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`.
+- V15 unit runtime presentation summary: `docs/ux/2026-06-14-3d-v15-unit-runtime-presentation-summary.md`.
+- V15 unit runtime presentation screenshot: `docs/screenshots/ux-3d-v15-unit-runtime-presentation.png`.
+- V16 map runtime ambience summary: `docs/ux/2026-06-14-3d-v16-map-runtime-ambience-summary.md`.
+- V16 map runtime ambience screenshot: `docs/screenshots/ux-3d-v16-map-runtime-ambience.png`.
+- V17 combat FX readability summary: `docs/ux/2026-06-14-3d-v17-combat-fx-readability-summary.md`.
+- V17 combat FX readability screenshot: `docs/screenshots/ux-3d-v17-combat-fx-readability.png`.
+- Adds material/detail metadata, high-detail procedural texture overlays, runtime hero action/surface presentation, runtime non-hero unit presentation, runtime map/terrain ambience presentation, combat FX readability presentation, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, V9 VFX/audio sync contracts, V10 visible VFX playback layers, V11 VFX phase animation, V12 all-resource runtime motion, V13 runtime material/surface animation, and shift-queued command UX.
 - Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
 
 Terrain screenshots:
@@ -195,6 +209,51 @@ Total: 408 samples.
   - `createResource3DModel(asset)` now writes `root.userData.runtimeVfxPlayback`.
   - Resource preview exposes current-category V10 playback smoke data through `window.__resource3dPreview.activeRuntime`.
   - Evidence: `docs/screenshots/ux-3d-v10-vfx-playback-layers.png`.
+- [x] V11 runtime VFX phase animation exists for V10 playback layers.
+  - `updateResourceVfxPlayback(root, elapsedMs)` drives windup / impact / linger / fade state from `phaseTimelineMs`.
+  - VFX layer meshes animate opacity and scale by phase role.
+  - Light hints pulse by active phase and configured pulse rate.
+  - Ground-residue decals rise/fade through impact, linger, and cleanup.
+  - Resource preview calls the V11 helper every frame and exposes animated smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v11-vfx-phase-animation.png`.
+- [x] V12 all-resource runtime motion exists for Resource3D samples.
+  - All 408 Resource3D samples expose `root.userData.runtimeMotion`.
+  - `updateResourceRuntimeMotion(root, elapsedMs)` drives deterministic idle / pulse / spin / float / impact / ambient motion from base transforms.
+  - Resource parts now carry `basePosition`, `baseRotation`, `baseScale`, `runtimeMotionWeight`, and `runtimeMotionSurfaceReactive`.
+  - Resource preview calls the V12 helper every frame and exposes current-category runtime motion smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v12-runtime-motion.png`.
+- [x] V13 runtime surface-material animation exists for Resource3D samples.
+  - All 408 Resource3D samples expose `root.userData.runtimeSurface`.
+  - `updateResourceRuntimeSurface(root, elapsedMs)` drives deterministic emissive / roughness / opacity / rim / normal pulses from cached base material values.
+  - Runtime shader intents split resources into `energy-fresnel-pulse`, `metal-rim-sweep`, `cloth-dye-breathe`, `water-caustic-flow`, `foliage-leaf-sheen`, `stone-wear-shadow`, and `shadow-ink-bloom`.
+  - Resource preview calls the V13 helper every frame and exposes current-category runtime surface smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v13-runtime-surface.png`.
+- [x] V14 hero runtime action/surface presentation exists for the first 10 classic heroes.
+  - All 10 Hero3D roots expose `root.userData.runtimeAction` and `root.userData.runtimeSurface`.
+  - `updateHeroRuntimePresentation(root, actionName, elapsedMs)` drives deterministic posture, action pulse, status jitter, opacity, emissive, roughness, rim, and normal changes from cached base values.
+  - Runtime action states split hero actions into `idle`, `locomotion`, `attack`, `cast`, `channel`, `status`, `hit`, and `death`.
+  - Runtime shader intents split heroes into `hero-armor-rim-sweep`, `hero-arcane-fresnel`, `hero-cloth-breathe`, `hero-shadow-veil`, and `hero-stone-weight`.
+  - Hero preview calls the V14 helper every frame and exposes `window.__hero3dPreview.runtimePresentation`.
+  - Evidence: `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`.
+- [x] V15 non-hero unit runtime presentation exists for 50 unit-like Resource3D samples.
+  - Lane units, neutral units, boss/objectives, couriers/summons, and wards/traps expose `root.userData.runtimeUnitPresentation`.
+  - `updateResourceRuntimeUnitPresentation(root, actionState, elapsedMs)` drives deterministic action posture, threat pulse, support expiration fade, action-cue opacity/scale, and material response from cached base values.
+  - Unit runtime states split presentation into `idle`, `move`, `attack`, `cast`, `hit`, `death`, and `expire`.
+  - Unit runtime classes split assets into lane, wild, boss/objective, and support families.
+  - Resource preview calls the V15 helper every frame and exposes global and current-category runtime unit smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v15-unit-runtime-presentation.png`.
+- [x] V16 map runtime ambience exists for 58 terrain/map/environment Resource3D samples.
+  - `terrain_tiles`, `map_props`, and `environment_fx` expose `root.userData.runtimeMapPresentation`.
+  - `updateResourceRuntimeMapPresentation(root, elapsedMs)` drives deterministic river flow, sky haze, tree-wall occlusion, highground depth, grass/flower bloom, fence depth, and ground-dust ambience from cached base values.
+  - Runtime map classes split assets into `river-corridor`, `sky-atmosphere`, `tree-wall`, `highground-edge`, `grass-flower`, `fence-blocker`, `flat-ground`, `ambient-fx`, and map-prop families.
+  - Resource preview calls the V16 helper every frame and exposes global and current-category runtime map smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v16-map-runtime-ambience.png`.
+- [x] V17 combat FX readability exists for 50 spell/projectile/AoE/status/reticle Resource3D samples.
+  - `spell_fx`, `projectiles`, `aoe_indicators`, `status_effects`, and `targeting_reticles` expose `root.userData.runtimeFxReadability`.
+  - `updateResourceRuntimeFxReadability(root, elapsedMs)` drives deterministic projectile path pulse, AoE radius pulse, status aura pulse, target confirmation pulse, invalid-target emphasis, and material response from cached base values.
+  - Runtime FX classes split assets into `spell-burst`, `projectile-path`, `area-telegraph`, `status-aura`, and `targeting-reticle`.
+  - Resource preview calls the V17 helper every frame and exposes global and current-category runtime FX readability smoke counts.
+  - Evidence: `docs/screenshots/ux-3d-v17-combat-fx-readability.png`.
 - [x] Combat readability and VFX categories are covered.
   - Spell FX, projectiles, AoE indicators, status effects, targeting reticles.
   - Combat numbers, health/mana UI, screen overlays, announcements.
@@ -249,29 +308,31 @@ Total: 408 samples.
   - Final GLB/FBX models, hand-authored PBR textures, authored particles, rigging, and final animation clips still need a production pipeline.
 - [ ] Full `tree3d.js` production-asset pipeline is not done.
   - This branch provides in-project Three.js procedural assets and runtime visual contracts.
-  - Final external model import, skeleton retargeting, PBR texture file loading, LOD, and asset bundle packaging still need a formal production pipeline.
+  - Final external model import, skeleton retargeting, PBR texture file loading, authored animation clips, LOD, and asset bundle packaging still need a formal production pipeline.
 - [ ] Authoritative map/pathing consumption of placement/collision/LOD metadata is not wired.
   - V8 makes generated resource roots consume and expose the metadata, but the map renderer/pathing layer does not yet use it as authoritative collision.
   - Runtime LOD anchors exist, but distance-based LOD switching is not implemented yet.
 - [ ] Final authored VFX/audio assets and playback runtime are not done.
   - V9 now defines and consumes `vfxAudio` contracts for `spell_fx`, `projectiles`, `aoe_indicators`, `environment_fx`, and `sound_cue_markers`.
   - V10 now makes those contracts visible through generated playback roots, layer meshes, light hints, and ground-residue decals.
+  - V11 now animates those visible playback layers through phase timing.
   - No real `.wav`/`.ogg` sound files are included.
   - No GPU particles, authored atlas textures, sprite flipbooks, final particle sequences, real dynamic light-volume playback, decal projection, or audio mixer sync are implemented yet.
-  - V9 sync anchors and V10 playback layers are inspection hooks for Opus and the future `tree3d.js` production loader, not final authored playback.
+  - V9 sync anchors, V10 playback layers, and V11 phase animation are inspection hooks for Opus and the future `tree3d.js` production loader, not final authored playback.
 - [ ] UI categories are sample style guides, not final UI implementation.
   - Ability icons, combat numbers, screen overlays, announcements, roster, scoreboard, death recap, and tutorial guides are sample 3D/style assets.
   - They are not yet wired into HUD/state screens.
 - [ ] Per-hero and per-item depth is not complete.
   - The first 10 heroes now have V5 first-read contracts and visible identity anchors, but not every hero in the eventual roster.
   - The first 10 heroes still need authored GLB/PBR models, authored rigs, and per-hero final animation clips before production-art completion.
-  - Items/components/abilities have representative samples, not one final unique asset per final gameplay entry.
+  - V12 gives items/components/abilities deterministic procedural runtime motion, but they are still representative samples, not one final authored asset per final gameplay entry.
 - [ ] Code splitting is not done.
   - Three.js is still statically imported through preview paths, so Vite reports a large chunk warning.
   - Recommended before production merge: lazy-load `hero3dPreview.ts` and `resource3dPreview.ts` behind query routes.
 - [x] Full-suite timing has fresh merge evidence.
-  - `npm test -- --run --pool=forks` passed in this worktree after the V9 VFX/audio sync pass.
-  - 105 test files passed, 894 tests passed.
+  - `npm test -- --pool=forks --maxWorkers=1` passed in this worktree after the V13 runtime surface-material pass.
+  - 105 test files passed, 907 tests passed.
+  - Note: an earlier parallel fork run from a previous pass reported all files passed, then exited non-zero from Vitest worker RPC shutdown (`Timeout calling "onTaskUpdate"`). Use `--maxWorkers=1` if Opus sees the same Vitest worker shutdown issue during merge validation.
 - [x] V5 resource/terrain/FX focused suite has fresh evidence.
   - `npm test -- tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
   - 8 test files passed, 46 tests passed.
@@ -308,6 +369,60 @@ Total: 408 samples.
   - `npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
   - 11 test files passed, 62 tests passed.
   - Playwright smoke at `http://127.0.0.1:5208/?mode=resource3d-preview`: `activeRuntime={category:aoe_indicators, vfxPlaybackGroups:10, vfxPlaybackLayers:42, vfxPlaybackLights:10, vfxPlaybackDecals:3}`.
+- [x] V11 runtime VFX phase animation has fresh evidence.
+  - `npm test -- tests/resource3dFactory.test.ts`
+  - 1 test file passed, 11 tests passed.
+  - `npm test -- tests/resource3dPreview.test.ts`
+  - 1 test file passed, 2 tests passed.
+  - `npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts`
+  - 3 test files passed, 26 tests passed.
+  - `npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
+  - 11 test files passed, 64 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5209/?mode=resource3d-preview`: `activeRuntime={category:aoe_indicators, vfxPlaybackAnimated:10, vfxAnimatedLayers:42}`.
+- [x] V13 runtime surface-material animation has focused evidence.
+  - `npm test -- tests/resource3dFactory.test.ts`
+  - 1 test file passed, 17 tests passed.
+  - `npm test -- tests/resource3dPreview.test.ts`
+  - 1 test file passed, 4 tests passed.
+  - `npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
+  - 11 test files passed, 72 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5211/?mode=resource3d-preview`: `activeRuntime={category:items, runtimeSurfaceAnimated:10, runtimeSurfaceMaterials:190, runtimeSurfaceGlints:180}`, global `runtimeSurface={runtimeSurfaceRoots:408, animatedRoots:408, animatedMaterials:9649, glintLayers:8889}`.
+- [x] V14 hero runtime action/surface presentation has focused evidence.
+  - `npm test -- tests/hero3dFactory.test.ts`
+  - 1 test file passed, 4 tests passed.
+  - `npm test -- tests/hero3dPreview.test.ts`
+  - 1 test file passed, 1 test passed.
+  - `npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts`
+  - 3 test files passed, 13 tests passed.
+  - `npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/resource3dFactory.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
+  - 12 test files passed, 76 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5212/?mode=hero3d-preview`: `runtimePresentation={runtimeActionRoots:10, runtimeSurfaceRoots:10, animatedRoots:10, actionReactiveParts:232, surfaceMaterials:819, glintLayers:347, actionStates:{cast:10}}`.
+- [x] V15 non-hero unit runtime presentation has focused evidence.
+  - `npm test -- tests/resource3dFactory.test.ts`
+  - 1 test file passed, 20 tests passed.
+  - `npm test -- tests/resource3dPreview.test.ts`
+  - 1 test file passed, 5 tests passed.
+  - `npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/resource3dFactory.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts`
+  - 12 test files passed, 80 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5213/?mode=resource3d-preview`: `runtimeUnitPresentation={runtimeUnitRoots:50, animatedRoots:50, animatedParts:620, animatedMaterials:1693, actionCues:50, actionStates:{attack:50}}`; active categories show lane `runtimeUnitMaterials=339`, neutral `runtimeUnitMaterials=384`, summon `runtimeUnitMaterials=320`.
+- [x] V16 map runtime ambience has focused evidence.
+  - `npm test -- tests/resource3dFactory.test.ts`
+  - 1 test file passed, 23 tests passed.
+  - `npm test -- tests/resource3dPreview.test.ts`
+  - 1 test file passed, 6 tests passed.
+  - `npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/heroPreview.test.ts tests/tree3d.test.ts tests/resourceAssets.test.ts tests/resourceCatalog.test.ts tests/terrain3d.test.ts tests/vfx3d.test.ts`
+  - 5 existing test files matched and passed, 47 tests passed.
+  - `npm test -- tests/render3d`
+  - 10 test files passed, 53 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5214/?mode=resource3d-preview`: `runtimeMapPresentation={runtimeMapRoots:58, animatedRoots:58, animatedMaterials:1156, ambienceCues:58, mapClasses:{river-corridor:9, tree-wall:9, ambient-fx:4, sky-atmosphere:6, highground-edge:10, grass-flower:7, map-prop:4, fence-blocker:2, flat-ground:7}}`; active `environment_fx` shows `runtimeMapRoots=15`, `runtimeMapMaterials=210`, `runtimeMapAmbienceCues=15`.
+- [x] V17 combat FX readability has focused evidence.
+  - `npm test -- tests/resource3dFactory.test.ts`
+  - 1 test file passed, 26 tests passed.
+  - `npm test -- tests/resource3dPreview.test.ts`
+  - 1 test file passed, 7 tests passed.
+  - `npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts`
+  - 6 test files passed, 60 tests passed.
+  - Playwright smoke at `http://127.0.0.1:5215/?mode=resource3d-preview`: `runtimeFxReadability={runtimeFxRoots:50, animatedRoots:50, animatedMaterials:810, readabilityCues:50, fxClasses:{spell-burst:10, projectile-path:10, area-telegraph:10, status-aura:10, targeting-reticle:10}}`; active `aoe_indicators` shows `runtimeFxRoots=10`, `runtimeFxMaterials=140`, `runtimeFxReadabilityCues=10`.
 - [x] Build has fresh evidence.
   - `npm run build` passed.
   - Vite still reports the existing large chunk warning.
@@ -321,6 +436,13 @@ Total: 408 samples.
    - Recommended: `lane_units`, `buildings`, `terrain_tiles`, `projectiles`, `aoe_indicators`, then `ability_icons`.
 5. Consume the V8 runtime hooks before replacing samples with GLB/PBR:
    - `gameEntityKey -> hero/resource asset key`
+   - `hero asset -> root.userData.runtimeAction`
+   - `hero asset -> root.userData.runtimeSurface`
+   - `hero asset -> updateHeroRuntimePresentation(root, actionName, elapsedMs)`
+   - `hero part -> obj.userData.heroRuntimePart`
+   - `hero material -> material.userData.heroRuntimeSurfaceMaterial`
+   - `hero material -> material.userData.runtimeHeroSurfaceShaderIntent`
+   - `hero preview -> window.__hero3dPreview.runtimePresentation`
    - `resource category -> renderer layer`
    - `terrain/map prop -> root.userData.runtimeIntegration`
    - `terrain/map prop -> resource3d:v8-footprint:<assetKey>`
@@ -332,6 +454,31 @@ Total: 408 samples.
   - `resource asset -> resource3d:v10-vfx-layer:<assetKey>:<role>`
   - `resource asset -> resource3d:v10-vfx-light:<assetKey>`
   - `resource asset -> resource3d:v10-vfx-decal:<assetKey>`
+  - `resource asset -> updateResourceVfxPlayback(root, elapsedMs)`
+  - `resource asset -> root.userData.runtimeMotion`
+  - `resource asset -> updateResourceRuntimeMotion(root, elapsedMs)`
+  - `resource asset -> root.userData.runtimeSurface`
+  - `resource asset -> updateResourceRuntimeSurface(root, elapsedMs)`
+  - `resource material -> material.userData.runtimeSurfaceGlintLayer`
+  - `resource material -> material.userData.runtimeSurfaceShaderIntent`
+  - `resource unit asset -> root.userData.runtimeUnitPresentation`
+  - `resource unit asset -> updateResourceRuntimeUnitPresentation(root, actionState, elapsedMs)`
+  - `resource unit cue -> resource3d:v15-unit-action-cue:<assetKey>`
+  - `resource unit cue -> object.userData.resourceRuntimeUnitActionCue`
+  - `resource unit preview -> window.__resource3dPreview.runtimeUnitPresentation`
+  - `resource unit active category -> window.__resource3dPreview.activeRuntime.runtimeUnit*`
+  - `resource map asset -> root.userData.runtimeMapPresentation`
+  - `resource map asset -> updateResourceRuntimeMapPresentation(root, elapsedMs)`
+  - `resource map cue -> resource3d:v16-map-ambience-cue:<assetKey>`
+  - `resource map cue -> object.userData.resourceRuntimeMapAmbienceCue`
+  - `resource map preview -> window.__resource3dPreview.runtimeMapPresentation`
+  - `resource map active category -> window.__resource3dPreview.activeRuntime.runtimeMap*`
+  - `resource combat FX asset -> root.userData.runtimeFxReadability`
+  - `resource combat FX asset -> updateResourceRuntimeFxReadability(root, elapsedMs)`
+  - `resource combat FX cue -> resource3d:v17-fx-readability-cue:<assetKey>`
+  - `resource combat FX cue -> object.userData.resourceRuntimeFxReadabilityCue`
+  - `resource combat FX preview -> window.__resource3dPreview.runtimeFxReadability`
+  - `resource combat FX active category -> window.__resource3dPreview.activeRuntime.runtimeFx*`
   - `sound cue marker -> final audio event id`
 
 Changed files:
@@ -354,14 +501,23 @@ Changed files:
   - Adds named runtime footprint and LOD-anchor hooks for Opus inspection.
   - Adds V9 runtime consumption of `vfxAudio` metadata and named VFX/audio sync anchors.
   - Adds V10 visible VFX playback roots, particle-layer meshes, light hints, and decal hooks.
+  - Adds V11 `updateResourceVfxPlayback(root, elapsedMs)` for phase-timed layer/light/decal animation.
+  - Adds V12 `runtimeMotion` contracts plus `updateResourceRuntimeMotion(root, elapsedMs)` for deterministic all-resource motion.
+  - Adds V13 `runtimeSurface` contracts plus `updateResourceRuntimeSurface(root, elapsedMs)` for deterministic runtime material animation.
+  - Adds V15 `runtimeUnitPresentation` contracts plus `updateResourceRuntimeUnitPresentation(root, actionState, elapsedMs)` for non-hero unit action posture, threat cues, support expiration, and material response.
+  - Adds V16 `runtimeMapPresentation` contracts plus `updateResourceRuntimeMapPresentation(root, elapsedMs)` for terrain/map/environment ambience, river flow, sky haze, tree-wall occlusion, highground depth, and material response.
+  - Adds V17 `runtimeFxReadability` contracts plus `updateResourceRuntimeFxReadability(root, elapsedMs)` for combat FX readability, projectile paths, AoE telegraphs, status auras, target reticles, and material response.
 - `src/render/hero3dAssets.ts`
   - Adds V5 hero readability contracts and visible identity-anchor part generation for the first 10 classic heroes.
 - `src/render/hero3dFactory.ts`
   - Uses explicit `FrontSide` for non-aura materials, removing the previous Three.js `side: undefined` warning.
   - Adds V6 hero surface realism: contact shadows, material glints, and exported `heroMaterialSurfaceProfile(...)`.
+  - Adds V14 `runtimeAction` / `runtimeSurface` contracts plus `updateHeroRuntimePresentation(root, actionName, elapsedMs)` for deterministic hero action posture and material response.
+  - Tags hero parts and materials with runtime metadata for Opus inspection and future GLB/PBR replacement.
 - `src/ui/hero3dPreview.ts`
   - Exposes V5 readability smoke data through `window.__hero3dPreview.readability`.
   - Exposes V6 surface realism smoke data through `window.__hero3dPreview.surfaceRealism`.
+  - Calls V14 `updateHeroRuntimePresentation(...)` each frame and refreshes `window.__hero3dPreview.runtimePresentation`.
 - `src/ui/resource3dPreview.ts`
   - Category-tabbed preview page.
   - Exposes lane-unit V5 readability smoke data through `window.__resource3dPreview.laneReadability`.
@@ -372,6 +528,12 @@ Changed files:
   - Exposes V9 VFX/audio aggregate smoke data through `window.__resource3dPreview.vfxAudio`.
   - Extends `activeRuntime` with current-category VFX/audio root, sync-anchor, audio-cue, particle-layer, and phase-sync counts.
   - Extends `activeRuntime` with V10 playback group, layer, light-hint, and decal counts.
+  - Calls V11 `updateResourceVfxPlayback(...)` each frame and refreshes animated playback smoke counts.
+  - Calls V12 `updateResourceRuntimeMotion(...)` each frame and refreshes runtime motion smoke counts.
+  - Calls V13 `updateResourceRuntimeSurface(...)` each frame and refreshes runtime surface smoke counts.
+  - Calls V15 `updateResourceRuntimeUnitPresentation(...)` each frame and refreshes runtime unit smoke counts.
+  - Calls V16 `updateResourceRuntimeMapPresentation(...)` each frame and refreshes runtime map ambience smoke counts.
+  - Calls V17 `updateResourceRuntimeFxReadability(...)` each frame and refreshes runtime FX readability smoke counts.
 - `src/main.ts`
   - Adds route-gated previews and renderer/UX wiring.
 - `src/render3d/fx3dVisual.ts`
@@ -400,9 +562,26 @@ Changed files:
   - Locks resource surface realism profile terms, runtime part-motion tags, and V8 runtime consumption of placement/LOD/production metadata.
   - Locks V9 generated-root `vfxAudio` consumption and sync-anchor metadata.
   - Locks V10 visible playback roots, particle layers, phase timelines, light hints, and radius decals.
+  - Locks V11 windup / impact / fade animation behavior for layers, lights, and decals.
+  - Locks V12 runtime motion contracts, non-drifting part motion, and distinct impact/spin reads.
+  - Locks V13 runtime surface contracts, non-drifting material animation, and V12/V13 pulse composition.
+  - Locks V15 runtime unit presentation contracts, action-cue metadata, non-drifting lane attacks, support expiration, and boss threat pulses.
+  - Locks V16 runtime map ambience contracts, cue metadata, non-drifting river/sky ambience, tree-wall occlusion, and highground depth pulses.
+  - Locks V17 runtime combat FX readability contracts, cue metadata, non-drifting projectile/AoE pulses, status pulse, and invalid-target emphasis.
 - `tests/resource3dPreview.test.ts`
   - Locks V9 preview smoke aggregation for browser and Opus handoff checks.
   - Locks V10 preview smoke aggregation from generated runtime models.
+  - Locks V11 animated playback smoke aggregation.
+  - Locks V12 runtime motion smoke aggregation.
+  - Locks V13 runtime surface smoke aggregation.
+  - Locks V15 runtime unit presentation smoke aggregation.
+  - Locks V16 runtime map ambience smoke aggregation.
+  - Locks V17 runtime combat FX readability smoke aggregation.
+- `tests/hero3dFactory.test.ts`
+  - Locks V6 hero surface profile terms.
+  - Locks V14 hero root action/surface contracts, runtime material tags, non-drifting cast pulses, invisible opacity, stunned jitter, and death posture.
+- `tests/hero3dPreview.test.ts`
+  - Locks V14 hero runtime action/surface smoke aggregation for browser and Opus handoff checks.
 - `docs/screenshots/ux-resource3d-preview.png`
   - Current preview screenshot evidence.
 - `docs/screenshots/ux-resource3d-terrain-preview.png`
@@ -419,6 +598,20 @@ Changed files:
   - V9 VFX/audio contract preview evidence for projectiles and runtime sync anchors.
 - `docs/screenshots/ux-3d-v10-vfx-playback-layers.png`
   - V10 VFX playback evidence for AoE indicators, visible playback layers, light hints, and decals.
+- `docs/screenshots/ux-3d-v11-vfx-phase-animation.png`
+  - V11 VFX phase-animation evidence for AoE indicators and animated playback smoke.
+- `docs/screenshots/ux-3d-v12-runtime-motion.png`
+  - V12 runtime motion evidence for map props and animated resource-part smoke.
+- `docs/screenshots/ux-3d-v13-runtime-surface.png`
+  - V13 runtime surface evidence for items, animated material smoke, and glint layers.
+- `docs/screenshots/ux-3d-v14-hero-runtime-presentation.png`
+  - V14 hero runtime presentation evidence for cast state, action-reactive parts, surface materials, and glint layers.
+- `docs/screenshots/ux-3d-v15-unit-runtime-presentation.png`
+  - V15 non-hero unit runtime presentation evidence for lane/neutral/summon categories, action cues, runtime unit parts, and material response.
+- `docs/screenshots/ux-3d-v16-map-runtime-ambience.png`
+  - V16 map runtime ambience evidence for terrain/map/environment categories, ambience cues, runtime map materials, and environment FX preview.
+- `docs/screenshots/ux-3d-v17-combat-fx-readability.png`
+  - V17 combat FX readability evidence for AoE indicators, readable warning rings, direction cues, runtime FX materials, and readability cues.
 - `docs/ux/2026-06-13-resource3d-phase1-summary.md`
   - Phase summary and future production-asset plan.
 - `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`
@@ -441,8 +634,22 @@ Changed files:
   - V9 VFX/audio sync contract summary, runtime screenshot evidence, and Opus handoff.
 - `docs/ux/2026-06-14-3d-v10-vfx-playback-layers-summary.md`
   - V10 visible VFX playback layers summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v11-vfx-phase-animation-summary.md`
+  - V11 runtime VFX phase-animation summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v12-runtime-motion-summary.md`
+  - V12 all-resource runtime motion summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v13-runtime-surface-summary.md`
+  - V13 runtime surface-material animation summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v14-hero-runtime-presentation-summary.md`
+  - V14 hero runtime action/surface presentation summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v15-unit-runtime-presentation-summary.md`
+  - V15 non-hero unit runtime presentation summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v16-map-runtime-ambience-summary.md`
+  - V16 map runtime ambience summary, runtime screenshot evidence, and Opus handoff.
+- `docs/ux/2026-06-14-3d-v17-combat-fx-readability-summary.md`
+  - V17 combat FX readability summary, runtime screenshot evidence, and Opus handoff.
 - `tests/hero3dFactory.test.ts`
-  - Locks hero surface realism profile terms.
+  - Locks hero surface realism profile terms and V14 runtime presentation contracts.
 - `tests/render3d/fx3dRuntime.test.ts`
   - Locks runtime FX group/layer naming for Opus smoke checks.
 
@@ -506,15 +713,16 @@ Suggested Opus integration flow:
 3. Run:
 
 ```bash
-npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts tests/render3d/fx3dVisual.test.ts tests/queuedOrders.test.ts
+npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/resource3dFactory.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
 npm run build
-npm test -- --run
+npm test -- --pool=forks --maxWorkers=1
 ```
 
 4. Open:
 
 ```text
-http://127.0.0.1:5182/?mode=resource3d-preview
+http://127.0.0.1:<port>/?mode=hero3d-preview
+http://127.0.0.1:<port>/?mode=resource3d-preview
 ```
 
 5. Use the category tabs to review all 38 resource groups.
@@ -533,21 +741,57 @@ After V4 terrain merge review, recommended next UX/art sequence:
 8. V8 resource runtime consumption: completed as generated-root userData, footprint-ring, and LOD-anchor hooks.
 9. V9 VFX/audio sync contracts: completed as asset metadata, generated-root userData, sync anchors, and preview smoke hooks.
 10. V10 visible VFX playback layers: completed as generated playback roots, layer meshes, light hints, decals, and preview smoke hooks.
+11. V11 runtime VFX phase animation: completed as centralized windup / impact / linger / fade updates for playback layers, lights, decals, and preview smoke hooks.
+12. V12 all-resource runtime motion: completed as deterministic root/part motion, surface-reactive motion metadata, and preview smoke hooks.
+13. V13 runtime surface-material animation: completed as deterministic material pulses, cached base material values, shader-intent contracts, and preview smoke hooks.
+14. V14 hero runtime action/surface presentation: completed as deterministic hero posture/material response, action-state contracts, shader-intent contracts, and preview smoke hooks.
+15. V15 non-hero unit runtime presentation: completed as deterministic lane/wild/boss/support action posture, threat/expiration cue contracts, and preview smoke hooks.
+16. V16 map runtime ambience: completed as deterministic terrain/map/environment ambience, river/sky/tree/highground class contracts, visible ambience cues, and preview smoke hooks.
+17. V17 combat FX readability: completed as deterministic spell/projectile/AoE/status/reticle readability, danger-read contracts, visible FX cues, and preview smoke hooks.
 
 ## Verification Evidence
 
 Latest verified commands in this worktree:
 
 ```text
-npm test -- tests/resource3dAssets.test.ts tests/hero3dAssets.test.ts
-2 files passed
-10 tests passed
+npm test -- tests/resource3dFactory.test.ts
+1 file passed
+26 tests passed
 ```
 
 ```text
-npm test -- tests/hero3dAssets.test.ts
+npm test -- tests/resource3dPreview.test.ts
 1 file passed
-8 tests passed
+7 tests passed
+```
+
+```text
+npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts
+6 files passed
+60 tests passed
+```
+
+```text
+npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts tests/heroPreview.test.ts tests/tree3d.test.ts tests/resourceAssets.test.ts tests/resourceCatalog.test.ts tests/terrain3d.test.ts tests/vfx3d.test.ts
+5 existing files matched and passed
+47 tests passed
+```
+
+```text
+npm run build
+build passed
+warning: Three.js keeps the output chunk above 500 kB
+```
+
+```text
+Playwright smoke at http://127.0.0.1:5215/?mode=resource3d-preview
+runtimeFxReadability={runtimeFxRoots:50, animatedRoots:50, animatedMaterials:810, readabilityCues:50}
+active aoe_indicators={runtimeFxRoots:10, runtimeFxMaterials:140, runtimeFxReadabilityCues:10}
+```
+
+```text
+Screenshot evidence
+docs/screenshots/ux-3d-v17-combat-fx-readability.png
 ```
 
 ```text
@@ -598,9 +842,13 @@ warning: Three.js keeps the output chunk above 500 kB
 ```
 
 ```text
-npm test -- --run --pool=forks
+npm test -- --pool=forks --maxWorkers=1
 105 files passed
-894 tests passed
+907 tests passed
+```
+
+```text
+Note: `npm test -- --run --pool=forks` previously reported all files passed in this worktree, but exited non-zero from a Vitest worker RPC shutdown timeout (`Timeout calling "onTaskUpdate"`). The single-worker fork command above is the clean full-suite evidence.
 ```
 
 Preview smoke evidence:
@@ -846,6 +1094,163 @@ Console/page errors: none
 Screenshot: docs/screenshots/ux-3d-v10-vfx-playback-layers.png
 ```
 
+V11 runtime VFX phase-animation evidence:
+
+```text
+npm test -- tests/resource3dFactory.test.ts
+1 file passed
+11 tests passed
+```
+
+```text
+npm test -- tests/resource3dPreview.test.ts
+1 file passed
+2 tests passed
+```
+
+```text
+npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts
+3 files passed
+26 tests passed
+```
+
+```text
+npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+11 files passed
+64 tests passed
+```
+
+```text
+npm test -- --pool=forks --maxWorkers=1
+105 files passed
+899 tests passed
+```
+
+```text
+Playwright @ http://127.0.0.1:5209/?mode=resource3d-preview
+Active category: aoe_indicators
+Resource count: 10
+VFX/audio roots: 10
+VFX/audio sync anchors: 10
+VFX playback groups: 10
+VFX playback layers: 42
+VFX playback light hints: 10
+VFX playback decals: 3
+Animated playback groups: 10
+Animated layers: 42
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v11-vfx-phase-animation.png
+```
+
+V12 all-resource runtime motion evidence:
+
+```text
+npm test -- tests/resource3dFactory.test.ts
+1 file passed
+14 tests passed
+```
+
+```text
+npm test -- tests/resource3dPreview.test.ts
+1 file passed
+3 tests passed
+```
+
+```text
+npm test -- tests/resource3dFactory.test.ts tests/resource3dPreview.test.ts tests/resource3dAssets.test.ts
+3 files passed
+30 tests passed
+```
+
+```text
+npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+11 files passed
+68 tests passed
+```
+
+```text
+npm run build
+build passed
+warning: Three.js keeps the output chunk above 500 kB
+```
+
+```text
+npm test -- --pool=forks --maxWorkers=1
+105 files passed
+903 tests passed
+```
+
+```text
+Playwright @ http://127.0.0.1:5210/?mode=resource3d-preview
+Active category: map_props
+Resource count: 21
+Runtime motion roots: 21
+Runtime motion animated roots: 21
+Runtime motion animated parts: 189
+Runtime motion surface-reactive parts: 147
+Global runtime motion roots: 408
+Global motion intents: idle-breathe=32, pulse-energy=115, ambient-sway=94, float-hover=68, impact-hit=65, spin-showcase=34
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v12-runtime-motion.png
+```
+
+V13 runtime surface-material evidence:
+
+```text
+npm test -- tests/resource3dFactory.test.ts
+1 file passed
+17 tests passed
+```
+
+```text
+npm test -- tests/resource3dPreview.test.ts
+1 file passed
+4 tests passed
+```
+
+```text
+npm test -- tests/resource3dPreview.test.ts tests/resource3dFactory.test.ts
+2 files passed
+21 tests passed
+```
+
+```text
+npm test -- tests/hero3dFactory.test.ts tests/resource3dFactory.test.ts tests/hero3dAssets.test.ts tests/resource3dAssets.test.ts tests/resource3dPreview.test.ts tests/render3d/terrainDressing.test.ts tests/render3d/fx3dVisual.test.ts tests/render3d/fx3dRuntime.test.ts tests/render3d/resourceMotion.test.ts tests/render3d/commandQueue3d.test.ts tests/queuedOrders.test.ts
+11 files passed
+72 tests passed
+```
+
+```text
+npm run build
+build passed
+warning: Three.js keeps the output chunk above 500 kB
+```
+
+```text
+Playwright @ http://127.0.0.1:5211/?mode=resource3d-preview
+Active category: items
+Resource count: 10
+Runtime surface roots: 10
+Runtime surface animated roots: 10
+Runtime surface animated materials: 190
+Runtime surface reactive materials: 190
+Runtime surface glints: 180
+Global runtime surface roots: 408
+Global animated roots: 408
+Global animated materials: 9649
+Global reactive materials: 9649
+Global glint layers: 8889
+Shader intents: cloth-dye-breathe=108, water-caustic-flow=9, metal-rim-sweep=196, energy-fresnel-pulse=95
+Console/page errors: none
+Screenshot: docs/screenshots/ux-3d-v13-runtime-surface.png
+```
+
+```text
+npm test -- --pool=forks --maxWorkers=1
+105 files passed
+907 tests passed
+```
+
 V4 3D map terrain runtime evidence:
 
 ```text
@@ -952,4 +1357,7 @@ docs/screenshots/ux-3d-v4-map-cliff-biome-dire-polish.png
 - V8 generated resource roots now expose `root.userData.runtimeIntegration`, `resource3d:v8-footprint:*`, and `resource3d:v8-lod-anchor:*`; use these as the next bridge into map/pathing collision and runtime LOD work.
 - V9 VFX/audio contracts are active in `?mode=resource3d-preview` through `window.__resource3dPreview.vfxAudio` and generated roots expose `root.userData.runtimeVfxAudio` plus `resource3d:v9-vfx-audio-sync:*`; use these as the bridge into particle atlas/audio mixer/timeline work.
 - V10 visible VFX playback layers are active in `?mode=resource3d-preview` through `window.__resource3dPreview.activeRuntime` and generated roots expose `root.userData.runtimeVfxPlayback`, `resource3d:v10-vfx-playback:*`, `resource3d:v10-vfx-layer:*`, `resource3d:v10-vfx-light:*`, and `resource3d:v10-vfx-decal:*`; use these as the bridge into real particle atlas/timeline/light/decal playback.
+- V11 phase animation is active in `?mode=resource3d-preview` through `updateResourceVfxPlayback(root, elapsedMs)` and `window.__resource3dPreview.activeRuntime.vfxPlaybackAnimated`; replace its procedural opacity/scale updates with production particle/audio timeline playback when the real asset stack lands.
+- V12 runtime motion is active in `?mode=resource3d-preview` through `updateResourceRuntimeMotion(root, elapsedMs)` and `window.__resource3dPreview.activeRuntime.runtimeMotionAnimated`; replace its procedural root/part transforms with authored animation clips, material animation, and production asset motion when the real `tree3d.js` asset stack lands.
+- V13 runtime surface animation is active in `?mode=resource3d-preview` through `updateResourceRuntimeSurface(root, elapsedMs)` and `window.__resource3dPreview.activeRuntime.runtimeSurfaceAnimated`; replace its procedural emissive/roughness/opacity/rim updates with production shader graphs, texture atlas animation, and material animation clips when the real `tree3d.js` asset stack lands.
 - Screenshots are intentional evidence under `docs/screenshots/`.
