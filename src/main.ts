@@ -8,6 +8,8 @@ import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { shuffledHeroPool } from './sim/draft';
 import { activateGlyph } from './sim/glyph';
+import { pickUnitAt } from './sim/pick';
+import { isVisibleTo } from './sim/vision';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { Renderer3D } from './render3d/renderer3d';
@@ -19,6 +21,7 @@ import { KillFeed } from './ui/killfeed';
 import { ShopPanel } from './ui/shop';
 import { EndScreen } from './ui/endscreen';
 import { Scoreboard } from './ui/scoreboard';
+import { InspectPanel } from './ui/inspectPanel';
 import { showMenu, createPauseMenu } from './ui/menu';
 import { showOnboarding } from './ui/onboarding';
 import { showHero3DPreview } from './ui/hero3dPreview';
@@ -166,6 +169,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
+  if (hero) ux.selectUnit(hero.id); // 开局默认选中受控英雄(选中环 + 默认信息)
+  const inspectPanel = new InspectPanel(app);
   const commandCursor = new CommandCursor(app);
   // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
   const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
@@ -395,9 +400,13 @@ function startGame(mode: 'play' | 'spectate'): void {
         issueHeroOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
       }
     },
-    onLeftClick() {
-      if (!hero?.alive) return;
+    onLeftClick(p) {
       ux.clearCursorIntent();
+      // 左键查看:选中点击处最近的可见单位(英雄优先);点空地则回到受控英雄,永不丢失自己。
+      const picked = pickUnitAt(world, hero?.team ?? null, p, 90);
+      if (picked) ux.selectUnit(picked.id);
+      else if (hero) ux.selectUnit(hero.id);
+      else ux.clearSelection();
     },
     onAttackMove(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
@@ -630,8 +639,15 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.alpha = alpha;
       input!.update(16.7);
       if (camera.follow && hero) camera.centerOn(hero.pos); // 镜头跟随英雄(平移会暂停)
-      renderer.render(world, hero?.id ?? -1, ux);
+      // 选择校正:选中目标已死/进雾(且非受控英雄)→ 回到英雄,避免信息面板停留在失效目标
+      if (ux.selectedUnitId && (!hero || ux.selectedUnitId !== hero.id)) {
+        const sel = world.getUnit(ux.selectedUnitId);
+        const visible = !!sel && sel.alive && (hero == null || isVisibleTo(world, hero.team, sel));
+        if (!visible) ux.selectUnit(hero?.id ?? 0);
+      }
+      renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
       hud.update(world, hero, ux);
+      inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       commandCursor.update(world.time, ux);
       shop.update(world, hero);
       minimap?.render(world, renderer.viewerTeam, ux);

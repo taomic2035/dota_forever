@@ -61,6 +61,8 @@ export class UxFeedback {
   private commandMessage: CommandMessage | null = null;
   targeting: TargetingState | null = null;
   cursorPosition: Vec2 | null = null;
+  /** 左键选中的单位 id(0 = 无)。纯信息查看,不改变指令目标——右键/技能始终作用于受控英雄。 */
+  selectedUnitId = 0;
 
   addWorldPulse(pulse: WorldPulse): void {
     this.pulses.push(pulse);
@@ -82,6 +84,14 @@ export class UxFeedback {
 
   setCursorPosition(pos: Vec2): void {
     this.cursorPosition = { x: pos.x, y: pos.y };
+  }
+
+  selectUnit(id: number): void {
+    this.selectedUnitId = id;
+  }
+
+  clearSelection(): void {
+    this.selectedUnitId = 0;
   }
 
   setCursorIntent(intent: CursorIntent): void {

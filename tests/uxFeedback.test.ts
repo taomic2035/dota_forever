@@ -90,4 +90,15 @@ describe('UxFeedback', () => {
     ux.clearCommandMessage();
     expect(ux.commandMessageAt(5.3)).toBeNull();
   });
+
+  it('tracks the left-click selected unit and clears it', () => {
+    const ux = new UxFeedback();
+    expect(ux.selectedUnitId).toBe(0);
+    ux.selectUnit(42);
+    expect(ux.selectedUnitId).toBe(42);
+    ux.selectUnit(7);
+    expect(ux.selectedUnitId).toBe(7);
+    ux.clearSelection();
+    expect(ux.selectedUnitId).toBe(0);
+  });
 });

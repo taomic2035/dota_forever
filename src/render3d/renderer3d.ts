@@ -52,6 +52,8 @@ export class Renderer3D {
   private tAoe!: THREE.Mesh;
   private tAoeRing!: THREE.Mesh;
   private tLine!: THREE.Mesh;
+  /** 选中高亮:跟随左键选中单位的贴地脉冲环(区别于每单位常驻队色环)。 */
+  private selRing!: THREE.Mesh;
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
   private readonly queueFx: CommandQueue3DObjects;
@@ -273,6 +275,7 @@ export class Renderer3D {
 
     this.fx.update(world, performance.now() / 1000);
     this.updateTargeting(world, ux);
+    this.updateSelectionRing(world, selectedId, t);
     this.updateCommandQueue(world, selectedId, t);
     updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
     this.s3d.setNight(world.isNight);
@@ -419,6 +422,31 @@ export class Renderer3D {
     this.tGroup.add(this.tRing, this.tAoe, this.tAoeRing, this.tLine);
     this.tGroup.visible = false;
     this.s3d.scene.add(this.tGroup);
+
+    // 选中高亮环:亮黄,贴地,渲染于模型之上,render() 中跟随选中单位并轻微脉冲。
+    this.selRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.82, 1.0, 40),
+      new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, depthTest: false }),
+    );
+    this.selRing.rotation.x = -Math.PI / 2;
+    this.selRing.renderOrder = 4;
+    this.selRing.visible = false;
+    this.s3d.scene.add(this.selRing);
+  }
+
+  /** 选中高亮:贴地环跟随选中单位(插值位置),轻微脉冲;无有效选中则隐藏。 */
+  private updateSelectionRing(world: World, selectedId: number, t: number): void {
+    const u = selectedId ? world.getUnit(selectedId) : undefined;
+    if (!u || !u.alive) { this.selRing.visible = false; return; }
+    const vx = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
+    const vz = u.prevPos.y + (u.pos.y - u.prevPos.y) * this.alpha;
+    const ey = terrainElevation(world.map, vx, vz);
+    const baseR = Math.max(26, u.base.collisionRadius * 1.7);
+    const pulse = baseR * (1 + 0.06 * Math.sin(t * 5));
+    this.selRing.position.set(vx, ey + 2, vz);
+    this.selRing.scale.set(pulse, pulse, pulse);
+    (this.selRing.material as THREE.MeshBasicMaterial).opacity = 0.7 + 0.2 * (0.5 + 0.5 * Math.sin(t * 5));
+    this.selRing.visible = true;
   }
 
   /** 施法指示器:读 ux.targeting,贴地绘制距离环 / AoE 范围 / 线形(队色合法蓝、非法红)。 */
