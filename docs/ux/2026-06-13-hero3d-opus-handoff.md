@@ -256,6 +256,12 @@ npm test -- tests/render3d/renderer3dReadability.test.ts tests/render3d/hero3dMo
 ```
 
 ```text
+npm test -- --pool=forks --maxWorkers=1
+132 files passed
+1267 tests passed
+```
+
+```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB

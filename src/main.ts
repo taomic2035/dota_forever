@@ -126,7 +126,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   // 默认种子取一次熵源后即固定;外显出来,以便复现一局(?seed=<值>)。
   const seed = Number(params.get('seed') ?? Math.floor(Math.random() * 1e9));
   console.info(`[dota-forever] seed=${seed} (replay with ?seed=${seed})`);
-  const speed = Number(params.get('speed') ?? 1);
+  const speedRaw = Number(params.get('speed') ?? 1);
+  const speed = Number.isFinite(speedRaw) && speedRaw > 0 ? speedRaw : 1; // 防 ?speed=NaN/负数 冻结模拟
   const heroKey = params.get('hero') ?? 'rein';
 
   const map = new GameMap();

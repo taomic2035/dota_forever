@@ -18,6 +18,7 @@ import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './terrain3d';
+import { isVisibleTo } from '../sim/vision';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { unitStatusPips } from '../render/statusPips';
@@ -285,7 +286,10 @@ export class Renderer3D {
       const ey = terrainElevation(world.map, vx, vz);
       m.root.position.set(vx, ey - sink * 26, vz);
       m.root.rotation.y = -u.facing + Math.PI / 2;
-      m.root.visible = u.alive || (now - u.diedAt) < 2;
+      // 战争迷雾门控:敌方单位仅在视野内可见(对齐 2D;否则雾中敌人/眼全透明可见=作弊级泄露)
+      const visible = this.viewerTeam === null || u.team === this.viewerTeam || isVisibleTo(world, this.viewerTeam, u);
+      m.root.visible = visible && (u.alive || (now - u.diedAt) < 2);
+      if (!visible) continue; // 雾中:不渲染、不耗动画/染色 CPU
 
       // 视锥外:跳过动画/染色(纯 CPU 省,画面不变;渲染剔除由 three 自动处理)
       this.proj.set(vx, ey + 70, vz).project(this.s3d.cam);
@@ -500,6 +504,8 @@ export class Renderer3D {
       if (!u.alive || u.kind === 'ward') continue;
       const isHero = u.isHero();
       const isBuild = u.kind === 'tower' || u.kind === 'building';
+      // 迷雾门控(建筑为已知地标不门控):雾中敌方单位不画血条/状态点
+      if (!isBuild && this.viewerTeam !== null && u.team !== this.viewerTeam && !isVisibleTo(world, this.viewerTeam, u)) continue;
       const readability = gameplay3DUnitReadabilityProfile({ isHero, isBuilding: isBuild, collisionRadius: u.base.collisionRadius });
       if (!isHero && !isBuild && u.hp >= u.calc.maxHp) continue; // 满血小兵/野怪不画,减杂乱
       const topY = readability.healthAnchorY;

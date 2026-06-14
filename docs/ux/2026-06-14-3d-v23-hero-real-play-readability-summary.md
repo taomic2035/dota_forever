@@ -37,6 +37,14 @@ npm test -- tests/render3d/renderer3dReadability.test.ts tests/render3d/hero3dMo
 24 tests passed
 ```
 
+Full regression:
+
+```text
+npm test -- --pool=forks --maxWorkers=1
+132 files passed
+1267 tests passed
+```
+
 Build:
 
 ```text
