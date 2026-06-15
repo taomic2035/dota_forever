@@ -24,6 +24,7 @@ import type { UxFeedback } from '../ui/uxFeedback';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { unitStatusPips } from '../render/statusPips';
 import { castBarInfo, type CastTrackEntry } from '../render/castBar';
+import { healthBarTicks } from '../render/healthBar';
 import { visualStateFor3D } from './visualState';
 import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
 import { stackedUnitVisualOffset } from './stackOffset';
@@ -532,13 +533,20 @@ export class Renderer3D {
       ctx.fillRect(sx - bw / 2 - 1, sy - 1, bw + 2, bh + 2);
       ctx.fillStyle = this.TEAM[u.team] ?? '#bdbdbd';
       ctx.fillRect(sx - bw / 2, sy, bw * frac, bh);
+      // 血条 250/1000 刻度(英雄/Boss),与 2D 共用 healthBarTicks
+      if (isHero || u.kind === 'boss') {
+        for (const tk of healthBarTicks(u.calc.maxHp)) {
+          ctx.fillStyle = tk.major ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.45)';
+          ctx.fillRect(sx - bw / 2 + bw * tk.at, sy, tk.major ? 1.5 : 1, bh);
+        }
+      }
       if (isHero && u.calc.maxMp > 0) {
         const mf = Math.max(0, Math.min(1, u.mp / u.calc.maxMp));
         ctx.fillStyle = '#1565c0';
         ctx.fillRect(sx - bw / 2, sy + bh + 1, bw * mf, 3);
       }
-      // 状态色点(控制红/敌方减益橙/增益绿):英雄头顶,与 2D 共用 unitStatusPips
-      if (isHero) {
+      // 状态色点(控制红/敌方减益橙/增益绿):所有单位头顶(与 2D drawStatusStrip 一致,补 3D 非英雄缺口)
+      {
         const pips = unitStatusPips(world, u, world.time, 6);
         if (pips.length) {
           const psz = 7, pgap = 2;

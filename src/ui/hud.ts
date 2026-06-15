@@ -274,6 +274,8 @@ export class Hud {
     const onCd = world.time < inst.cooldownUntil;
     const cdLeft = Math.ceil(inst.cooldownUntil - world.time);
     const manaIdx = Math.max(0, lvl - 1);
+    const cdTotal = def.cooldown?.[manaIdx] ?? 0;
+    const cdFrac = cdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / cdTotal)) : 1;
     const mana = def.manaCost?.[manaIdx] ?? 0;
     const passive = def.targetMode === 'passive';
     const learnable = canLearn(hero, i);
@@ -299,7 +301,7 @@ export class Hud {
       <div style="opacity:${lvl > 0 || learnable ? 1 : 0.45}">${abilityIconSvg(def)}</div>
       <div style="display:flex;gap:2px;margin-top:5px">${pips}</div>
       ${mana > 0 && lvl > 0 ? `<span style="position:absolute;bottom:2px;right:4px;font-size:9px;color:#5aa2ff">${mana}</span>` : ''}
-      ${onCd ? `<span style="position:absolute;inset:0;background:#000a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff">${cdLeft}</span>` : ''}
+      ${onCd ? `<span style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${(cdFrac * 360).toFixed(0)}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000">${cdLeft}</span>` : ''}
       ${learnable ? `<span data-learn="${i}" style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);background:#ffd54f;color:#1a1a0a;font-size:12px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 8px #ffd54f">+</span>` : ''}
     </div>`;
   }
@@ -345,6 +347,8 @@ export class Hud {
     }
     const def = itemDef(inst.itemKey);
     const onCd = world.time < inst.cooldownUntil;
+    const itemCdTotal = def.active?.cooldown ?? 0;
+    const itemCdFrac = itemCdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / itemCdTotal)) : 1;
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
     const tip = canBag ? `${def.name}: ${def.description}(左键移入背包栏 · 右键出售)` : `${def.name}: ${def.description}`;
@@ -354,7 +358,7 @@ export class Hud {
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
-      ${onCd ? `<span style="position:absolute;inset:0;background:#000a;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff">${Math.ceil(inst.cooldownUntil - world.time)}</span>` : ''}
+      ${onCd ? `<span style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${(itemCdFrac * 360).toFixed(0)}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000">${Math.ceil(inst.cooldownUntil - world.time)}</span>` : ''}
     </div>`;
   }
 

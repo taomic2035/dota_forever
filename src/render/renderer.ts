@@ -12,6 +12,7 @@ import { unitArt, darken, type UnitArt, type ArtInput } from './unitArt';
 import { isVisibleTo } from '../sim/vision';
 import { unitStatusPips } from './statusPips';
 import { castBarInfo, type CastTrackEntry } from './castBar';
+import { healthBarTicks } from './healthBar';
 import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
@@ -1085,6 +1086,13 @@ export class Renderer {
     ctx.fillRect(p.x - w / 2 - 1, y - 1, w + 2, h + 2);
     ctx.fillStyle = u.team === Team.Dawn ? '#52d869' : u.team === Team.Night ? '#ef5350' : '#bdbdbd';
     ctx.fillRect(p.x - w / 2, y, w * frac, h);
+    // 血条 250/1000 刻度(英雄/Boss):凭几何估算绝对血量与击杀线
+    if (u.isHero() || u.kind === 'boss') {
+      for (const tk of healthBarTicks(u.calc.maxHp)) {
+        ctx.fillStyle = tk.major ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.45)';
+        ctx.fillRect(p.x - w / 2 + w * tk.at, y, tk.major ? 1.5 : 1, h);
+      }
+    }
     let by = y + h + 1;
     if (u.isHero() && u.calc.maxMp > 0) {
       const mfrac = u.mp / u.calc.maxMp;
