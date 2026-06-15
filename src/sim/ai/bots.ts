@@ -11,9 +11,10 @@ import type { Unit, EntityId } from '../unit';
 import { isVisibleTo } from '../vision';
 import { abilityReady, learnAbility, learnStatBonus, canLearn, canLearnStatBonus } from '../abilities';
 import { inAttackRange } from '../combat';
-import { buyItem, shopAt, useItem, takeFromStash, TP_SLOT } from '../items';
+import { buyItem, shopAt, useItem, itemUseReason, takeFromStash, TP_SLOT } from '../items';
 import { purchaseKeyFor } from '../recipes';
 import { itemDef } from '../../data/items';
+import { targetMatchesFilter } from '../targeting';
 
 export interface BotState {
   lane: Lane;
@@ -198,6 +199,7 @@ function think(w: World, u: Unit, st: BotState): void {
     // 塔下危险规避:除非目标残血,否则不追进敌塔射程
     const danger = enemyTowerNear(w, u.team, t.pos, 850);
     if (hpFrac > 0.45 && (tFrac < hpFrac + 0.12 || tFrac < 0.35) && (!danger || tFrac < 0.2)) {
+      if (tryUseOffensiveItems(w, u, t)) return; // 攻击性主动物品(妖术/orchid/dagon 等)
       orderAttack(u, t);
       return;
     }
@@ -317,6 +319,31 @@ function castBest(w: World, u: Unit): boolean {
   if (!best) return false;
   u.issueOrder({ type: 'cast', abilityIndex: best.index, pos: best.pos, targetId: best.targetId });
   return true;
+}
+
+/**
+ * 战斗中对目标使用攻击性主动物品(敌方指向:妖术/orchid/原力/dagon 等)。
+ * v1 仅用「敌方指向」物品(active.targetTeam==='enemy'),在射程内、对敌方英雄施放——零浪费,
+ * 平衡影响可预测(bot 在团战里多打控制/爆发)。每 tick 至多一件(像施法一样占用本 tick)。
+ * 自用 'none' 物品(BKB 等)的启发式有浪费风险(误用治疗/显影),留作后续。
+ */
+export function tryUseOffensiveItems(w: World, u: Unit, target: Unit): boolean {
+  for (let slot = 0; slot < u.inventory.length; slot++) {
+    const inst = u.inventory[slot];
+    if (!inst) continue;
+    if (itemUseReason(w, u, slot) !== null) continue; // 不可用(冷却/蓝/无主动)
+    const act = itemDef(inst.itemKey).active;
+    if (!act || act.targetTeam !== 'enemy') continue; // 仅敌方指向的攻击性物品
+    const range = act.castRange ?? 0;
+    if (range > 0 && range < 90000 && V.dist(u.pos, target.pos) > range) continue; // 超距
+    if (act.targetMode === 'unit') {
+      if (!targetMatchesFilter(u, target, act.targetTeam, act.targetKind)) continue;
+      if (useItem(w, u, slot, undefined, target)) return true;
+    } else if (act.targetMode === 'point' || act.targetMode === 'line') {
+      if (useItem(w, u, slot, target.pos)) return true;
+    }
+  }
+  return false;
 }
 
 /** 兵线前沿:本方该路最前小兵;无兵则取本方最前塔;再无则基地。 */
