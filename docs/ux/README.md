@@ -14,6 +14,7 @@ This index groups the current UX workstream by player-facing problem area.
 - [UX consolidated roadmap](2026-06-15-ux-consolidated-roadmap.md)
 - [UX master recap and next stage plan](2026-06-15-ux-master-recap-next-stage.md)
 - [P0-A selection, command, inspect, and courier HUD summary](2026-06-15-p0a-selection-command-courier-hud-summary.md)
+- [HUD XP progress summary](2026-06-15-hud-xp-progress-summary.md)
 - [Opus to Codex UX handoff status](2026-06-15-opus-to-codex-handoff-next.md)
 
 ## DotA UX Gap Analysis And Opus↔Codex Collaboration (2026-06-15)

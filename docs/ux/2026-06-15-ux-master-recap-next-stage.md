@@ -363,6 +363,10 @@ Completed after the Opus handoff:
   - active search scans across categories.
   - item key, name, category, and description all participate in matching.
   - no-result state displays a clear empty message.
+- HUD XP progress is now visible in the bottom hero panel:
+  - `src/ui/heroXpHudModel.ts` maps hero level + cumulative XP to current-level progress.
+  - `tests/heroXpHudModel.test.ts` covers early level, cumulative threshold, and max-level states.
+  - `src/ui/hud.ts` renders a thin gold XP bar under HP/MP with remaining-XP tooltip.
 
 Next UI/control tasks:
 

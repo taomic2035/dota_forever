@@ -14,6 +14,7 @@ import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../engine/contro
 import { commandCardActionFromValue, type CommandCardAction } from '../engine/commandCardActions';
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
+import { buildHeroXpHudModel, type HeroXpHudModel } from './heroXpHudModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -103,6 +104,7 @@ export class Hud {
     const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
     const tpHtml = this.itemSlot(world, hero.tpSlot, 6, ux); // 专属回城卷轴槽
     const bagHtml = hero.backpack.map((inst, j) => this.backpackSlot(inst, j)).join(''); // 背包栏(3 格)
+    const xpModel = buildHeroXpHudModel({ level: hero.level, xp: meta.xp });
     const commandHtml = this.commandCard(controlSettings);
     const selectionSummary = this.selectionSummary(world, hero, ux);
     const courierSummary = this.courierSummary(world, hero, ux);
@@ -120,7 +122,7 @@ export class Hud {
               <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${hero.name}</b>
               <span style="color:#d9b44a;white-space:nowrap">${meta.kills}/${meta.deaths}/${meta.assists}</span>
             </div>
-            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b', '生命')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a', '法力')}`}
+            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b', '生命')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a', '法力')}${this.xpBar(xpModel)}`}
             ${dead ? '' : `<div style="display:flex;gap:8px;margin-top:4px;font-size:12px;font-weight:700;">
               <span title="护甲(物理减伤)" style="flex:1;text-align:center;background:#1c2230;border:1px solid #3a4a6a;border-radius:3px;padding:2px 0;color:#9ec1ff">🛡 ${hero.calc.armor.toFixed(1)}</span>
               <span title="魔法抗性" style="flex:1;text-align:center;background:#241c30;border:1px solid #4a3a6a;border-radius:3px;padding:2px 0;color:#c6a0ff">✨ ${Math.round((hero.calc.magicResist ?? 0) * 100)}%</span>
@@ -313,6 +315,13 @@ export class Hud {
       <div style="background:linear-gradient(${top},${bottom});height:100%;width:${frac * 100}%"></div>
       ${label ? `<span style="position:absolute;left:5px;top:0;line-height:21px;font-size:11px;color:#fff;opacity:.85;text-shadow:0 1px 2px #000">${label}</span>` : ''}
       <span style="position:absolute;inset:0;text-align:center;font-size:12px;font-weight:700;line-height:21px;color:#fff;text-shadow:0 1px 2px #000">${Math.ceil(value)} / ${Math.round(max)}</span>
+    </div>`;
+  }
+
+  private xpBar(model: HeroXpHudModel): string {
+    return `<div title="${model.detail}" style="height:8px;margin:2px 0 3px;border:1px solid #4b3f1f;border-radius:2px;background:#080906;position:relative;overflow:hidden;">
+      <div style="height:100%;width:${model.percent}%;background:linear-gradient(90deg,#b88a1d,#ffd76a);box-shadow:0 0 6px #d9b44a66;"></div>
+      <span style="position:absolute;right:3px;top:-1px;line-height:8px;font-size:8px;color:#1a1405;font-weight:800;text-shadow:0 1px 1px #ffd76a99;">${model.label}</span>
     </div>`;
   }
 
