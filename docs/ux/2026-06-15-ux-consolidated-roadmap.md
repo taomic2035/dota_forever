@@ -287,5 +287,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/courierHudModel.ts`
   - focused tests: `tests/courierHudModel.test.ts`
   - HUD integration: a compact clickable courier strip above the command card, reusing `selectCourier`.
+- Shop destination preview first pass is implemented as preview-only UI:
+  - pure model: `src/ui/shopDestinationModel.ts`
+  - focused tests: `tests/shopDestinationModel.test.ts`
+  - shop rows now show Hero / Backpack / Stash / TP / blocked reason before the player clicks buy.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview only mirrors current `buyItem` behavior; it does not change item placement.

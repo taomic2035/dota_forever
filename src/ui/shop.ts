@@ -7,6 +7,7 @@ import type { Unit } from '../sim/unit';
 import { ITEMS, itemDef, type ItemDef, type ItemCategory } from '../data/items';
 import { buyItem, takeFromStash, sellItem, shopAt } from '../sim/items';
 import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
+import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -87,7 +88,26 @@ export class ShopPanel {
     const list = this.root.querySelector('#shop-list')!;
     for (const def of items) {
       const row = document.createElement('div');
-      const afford = gold >= effectiveCost(def);
+      const destination = buildShopDestinationModel({
+        item: {
+          key: def.key,
+          cost: effectiveCost(def),
+          secretShop: def.secretShop,
+          stackCharges: def.stackCharges,
+        },
+        hero: {
+          alive: hero.alive,
+          gold,
+          shop: at,
+          inventoryFreeSlots: freeCount(hero.inventory),
+          backpackFreeSlots: freeCount(hero.backpack),
+          stashFreeSlots: freeCount(hero.stash),
+          tpSlotOccupied: !!hero.tpSlot,
+          stackInInventory: hero.inventory.some((slot) => slot?.itemKey === def.key),
+          stackInStash: hero.stash.some((slot) => slot?.itemKey === def.key),
+        },
+      });
+      const afford = destination.canBuy;
       row.style.cssText = `display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:5px;cursor:pointer;
         ${afford ? '' : 'opacity:.45;'}`;
       row.onmouseenter = () => { row.style.background = '#222b18'; };
@@ -99,6 +119,7 @@ export class ShopPanel {
             <span style="color:#ffd54f;font-size:12px;flex:none">${effectiveCost(def)}</span>
           </span>
           <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
+          ${destinationBadge(destination)}
         </span>`;
       row.title = tooltip(def);
       // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
@@ -147,6 +168,23 @@ export class ShopPanel {
 
 function effectiveCost(def: ItemDef): number {
   return def.recipe && def.recipe.recipeCost > 0 ? def.recipe.recipeCost : def.cost;
+}
+
+function freeCount(slots: Array<unknown | null>): number {
+  return slots.filter((slot) => slot === null).length;
+}
+
+function destinationBadge(model: ShopDestinationModel): string {
+  const palette: Record<ShopDestinationModel['tone'], { border: string; bg: string; fg: string }> = {
+    ready: { border: '#5f8d43', bg: '#12210f', fg: '#9cff74' },
+    busy: { border: '#7b6a36', bg: '#211b0d', fg: '#ffd76a' },
+    blocked: { border: '#5f3832', bg: '#1c1010', fg: '#ff9f8f' },
+  };
+  const p = palette[model.tone];
+  return `<span title="${model.detail}" style="display:flex;align-items:center;gap:5px;margin-top:3px;min-width:0;">
+    <b style="flex:none;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};font-size:9px;line-height:14px;padding:0 4px;">${model.label}</b>
+    <span style="min-width:0;color:#b8ad88;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+  </span>`;
 }
 
 /** 物品类别程序化 SVG 图标(与 HUD 一致:药瓶/宝石/剑/盾/法球/合成星)。 */

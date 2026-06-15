@@ -29,15 +29,23 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - HUD reads allied courier state from `world.units` and hero stash count only.
   - States covered: `missing`, `dead`, `ready`, `delivering`, `returning`.
   - The courier strip is clickable and reuses the existing `selectCourier` command-card action.
+- Shop destination preview first pass:
+  - New pure `buildShopDestinationModel` contract.
+  - Shop rows now preview whether a purchase will go to hero inventory, backpack, stash, or TP slot.
+  - Blocked rows explain the leading reason first: wrong shop, not enough gold, or full storage.
+  - This is preview-only UI and does not change `buyItem`.
 
 ## Files Added Or Updated
 
 - `src/ui/inspectPanelModel.ts`
 - `src/ui/courierHudModel.ts`
+- `src/ui/shopDestinationModel.ts`
 - `src/ui/inspectPanel.ts`
 - `src/ui/hud.ts`
+- `src/ui/shop.ts`
 - `tests/inspectPanelModel.test.ts`
 - `tests/courierHudModel.test.ts`
+- `tests/shopDestinationModel.test.ts`
 - UX roadmap and recap docs
 
 ## Current UX Contract
@@ -52,6 +60,12 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - moving while stash has items: `Delivering stash xN`
   - moving without stash cargo: `Returning to base`
   - idle at fountain: `Ready at base` or `Ready / stash xN`
+- Shop list rows expose purchase destination before click:
+  - `Hero`: item goes to inventory or adds inventory charge.
+  - `Backpack`: inventory is full and backpack can receive it.
+  - `Stash`: dead purchase or overflow goes to stash.
+  - `TP`: scroll goes to the dedicated TP slot or adds a TP charge.
+  - `Secret`, `Shop`, `Gold`, `Full`: purchase is blocked with the first actionable reason.
 
 ## Verification
 
@@ -59,6 +73,7 @@ Focused automated coverage added:
 
 - `tests/inspectPanelModel.test.ts`
 - `tests/courierHudModel.test.ts`
+- `tests/shopDestinationModel.test.ts`
 - existing selection, routing, command-card, input, and UX feedback tests remain the regression net.
 
 Required before closing this stage:

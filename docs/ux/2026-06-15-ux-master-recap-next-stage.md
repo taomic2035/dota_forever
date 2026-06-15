@@ -354,9 +354,13 @@ Completed after the Opus handoff:
   - `returning`
 - The courier strip is clickable and routes through the existing `selectCourier` command-card action.
 - Implementation is deliberately UI-read-only: it consumes existing `world.units`, courier order state, courier HP/alive state, fountain proximity, and hero stash count.
+- Shop destination preview now appears directly in item rows:
+  - `Hero`, `Backpack`, `Stash`, and `TP` indicate where the purchase will land.
+  - `Secret`, `Shop`, `Gold`, and `Full` indicate the first actionable blocked reason.
+  - The implementation is preview-only and does not mutate or fork `buyItem`.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Add shop destination feedback: hero, backpack, stash, courier, and failure reason.
+2. Expand shop destination feedback into full quickbuy/component lanes: owned, backpack, stash, courier, missing, affordable.
 3. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.
