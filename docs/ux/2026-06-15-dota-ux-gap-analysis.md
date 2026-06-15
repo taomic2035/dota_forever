@@ -154,6 +154,18 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
   的目标时拦截——会与现有 per-modifier 穿透约定冲突、误挡本应穿透的技能。若要补 UX 余量,应在 UI 层
   (`main.ts` 预拒绝)读 `stateOf(target).magicImmune` 给提示,留待与并行 input 线协调后做。
 
+## 6.9 四大根因簇收敛状态(2026-06-15 末)
+
+| 簇 | 内容 | 状态 |
+|---|---|---|
+| **A 渲染器奇偶** | 2D 施法条 / 3D 迷雾 / 血条 250-1000 刻度 / 3D 非英雄状态点 / 技能径向冷却扫描 | ✅ **基本完成**(Opus:`2d2bb66`/`5d34132`,均抽共享纯函数双渲染器同源) |
+| **B AbilityDef 数据契约** | `aoeRadius`/`lineWidth`/`activeAoeRadius` + `abilityPreviewShape`/`itemPreviewShape` + main 接通 + 26 技能填充 | ✅ **完成**(Opus 铺契约 `e1ef0c9`+填充 `1f2566a`,Codex 接通 `d3f52f4`) |
+| **C 多单位选择** | 选择 Set / 框选 / 控制组 / F1-F3 / command card / numberRowMode | ✅ **完成**(Codex Batch 4,Opus 评审 + 集成 `d3f52f4`) |
+| **D 沟通(单机贬值)** | 聊天/MIA/危险 ping/状态广播 | ⏸ 正确推迟(指向不存在的人类队友) |
+
+> 另:旋风打断施法(`5554149`)、Roshan/Boss 计时(`d47df46`)两个 P1 dota1-core 缺口已修。
+> 剩余为长尾单项(世界内 ping、自动攻击开关、死亡回顾、信使交物、观战变速等),多在 input/main 线,按需协调推进。
+
 ## 7. 收敛检查
 
 - 否决理由 → ADR?无。本文件为研究 + 审计清单。
