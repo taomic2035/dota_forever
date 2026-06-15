@@ -371,9 +371,14 @@ Completed after the Opus handoff:
   - `inspectInventorySummary()` in `src/ui/inspectPanelModel.ts` converts current inventory + TP slot to compact item chips.
   - `tests/inspectPanelModel.test.ts` covers populated and empty item states.
   - `src/ui/inspectPanel.ts` renders compact item chips without changing item effects or visibility rules.
+- Scoreboard net worth is now visible in the Tab scoreboard:
+  - `src/ui/scoreboardModel.ts` computes read-only gold + item value summaries.
+  - `tests/scoreboardModel.test.ts` covers inventory, backpack, stash, TP charges, and non-stack item handling.
+  - `src/ui/scoreboard.ts` adds an `NW` column and includes backpack/stash/TP items in the scoreboard item row.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
 2. Expand shop v2 into quickbuy/component lanes: owned, backpack, stash, courier, missing, affordable.
-3. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.
+3. Add scoreboard icon polish, buyback/death detail, respawn state, and team objective rows.
+4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.

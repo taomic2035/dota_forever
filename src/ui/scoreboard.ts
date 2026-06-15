@@ -1,7 +1,7 @@
-/** Tab 记分板:双方英雄 等级/KDA/补刀/金币/装备。 */
+/** Tab 记分板:双方英雄 等级/KDA/补刀/金币/净值/装备。 */
 import type { World } from '../sim/world';
 import { Team } from '../sim/map';
-import { itemDef } from '../data/items';
+import { scoreboardHeroSummary } from './scoreboardModel';
 
 export class Scoreboard {
   private root: HTMLElement;
@@ -28,11 +28,16 @@ export class Scoreboard {
       const rows = heroes
         .map((h) => {
           const m = h.heroMeta!;
-          const items = h.inventory
-            .filter(Boolean)
-            .map((i) => `<span title="${itemDef(i!.itemKey).name}">${itemDef(i!.itemKey).name.slice(0, 3)}</span>`)
-            .join('·');
-          // 死亡:行内复活倒计时(+红点标记),取代仅 opacity 变暗
+          const summary = scoreboardHeroSummary({
+            gold: m.gold,
+            inventory: h.inventory,
+            backpack: h.backpack,
+            stash: h.stash,
+            tpSlot: h.tpSlot,
+          });
+          const items = summary.items
+            .map((i) => `<span title="${i.tooltip}">${i.label}${i.charges > 1 ? `x${i.charges}` : ''}</span>`)
+            .join(' / ');
           const respawnIn = !h.alive ? Math.max(0, Math.ceil((m.respawnAt ?? world.time) - world.time)) : 0;
           const nameCell = h.alive
             ? `${h.heroDef?.glyph ?? ''} ${h.name}`
@@ -42,14 +47,15 @@ export class Scoreboard {
             <td style="padding:2px 10px">${h.level}</td>
             <td style="padding:2px 10px">${m.kills}/${m.deaths}/${m.assists}</td>
             <td style="padding:2px 10px">${m.lastHits}/${m.denies}</td>
-            <td style="padding:2px 10px;color:#ffd54f">${m.gold}</td>
+            <td style="padding:2px 10px;color:#ffd54f">${summary.gold}</td>
+            <td style="padding:2px 10px;color:#ffd76a;font-weight:700">${summary.netWorth}</td>
             <td style="padding:2px 10px;font-size:11px;color:#aab">${items}</td>
           </tr>`;
         })
         .join('');
       return `<div style="color:${color};font-weight:700;margin:6px 0 2px">${name} — ${kills} 击杀</div>
         <table style="border-collapse:collapse">
-          <tr style="color:#9a8;font-size:11px"><th style="padding:0 10px">英雄</th><th>级</th><th>杀/死/助</th><th>补/反</th><th>金</th><th>装备</th></tr>
+          <tr style="color:#9a8;font-size:11px"><th style="padding:0 10px">英雄</th><th>级</th><th>杀/死/助</th><th>补/反</th><th>金</th><th>净值</th><th>装备</th></tr>
           ${rows}
         </table>`;
     };
