@@ -8,6 +8,7 @@ import { Camera } from '../render/camera';
 import { CommandMode } from './commandMode';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  buildKeyTranslation,
   cameraPanSpeedMultiplier,
   normalizeControlSettings,
   resolveAbilityCastMode,
@@ -51,6 +52,17 @@ export class InputManager {
   /** 待目标确认的技能编号(按 QWER 后等待点击),-1 = 无;-2 = A 移动待确认 */
   private commandMode = new CommandMode();
   private controlSettings: ControlSettings;
+  /** 物理键→规范键翻译(改键用;默认恒等)。switch/smartHold 用规范键,arrows/alt 用物理键。 */
+  private keyTranslation: Record<string, string> = {};
+  /** switch 处理的系统键(不可改键,透传):空格回中/P 暂停/Tab 记分板/Esc。 */
+  private static readonly SYSTEM_KEYS = new Set([' ', 'p', 'tab', 'escape']);
+
+  /** 物理键→switch 键:绑定键→规范键;系统键透传;其他(含被改走的规范键)→ '\0'(不触发任何 case)。 */
+  private translateKey(k: string): string {
+    const t = this.keyTranslation[k];
+    if (t !== undefined) return t;
+    return InputManager.SYSTEM_KEYS.has(k) ? k : '\0';
+  }
   private smartHold:
     | { kind: 'cast'; index: number; key: string; options: CastInputOptions }
     | { kind: 'item'; index: number; key: string; options: CastInputOptions }
@@ -72,6 +84,7 @@ export class InputManager {
   ) {
     this.controlSettings = normalizeControlSettings(controlSettings);
     this.edgePan = this.controlSettings.cameraEdgePan;
+    this.keyTranslation = buildKeyTranslation(this.controlSettings.keyBinds);
     this.pointToWorld = pointToWorld ?? ((p) => this.camera.screenToWorld(p));
     canvas.addEventListener('mousemove', (e) => {
       this.mouse = { x: e.offsetX, y: e.offsetY };
@@ -135,9 +148,10 @@ export class InputManager {
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
-      this.keys.add(e.key.toLowerCase());
+      this.keys.add(e.key.toLowerCase()); // 物理键(arrows/alt 等系统键按物理追踪)
       const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
-      switch (e.key.toLowerCase()) {
+      // 改键:物理键→规范键喂 switch(默认恒等);case 体不变(仍传规范键给 handleCastHotkey,smartHold 一致)
+      switch (this.translateKey(e.key.toLowerCase())) {
         case 'q': this.handleCastHotkey(0, 'q', world, { selfCast: e.altKey && this.cb.canSelfCast?.(0) === true, queued: e.shiftKey }); break;
         case 'w': this.handleCastHotkey(1, 'w', world, { selfCast: e.altKey && this.cb.canSelfCast?.(1) === true, queued: e.shiftKey }); break;
         case 'e': this.handleCastHotkey(2, 'e', world, { selfCast: e.altKey && this.cb.canSelfCast?.(2) === true, queued: e.shiftKey }); break;
@@ -185,11 +199,12 @@ export class InputManager {
       }
     });
     window.addEventListener('keyup', (e) => {
-      const key = e.key.toLowerCase();
-      this.keys.delete(key);
-      if (key === 'tab') this.cb.onToggleScoreboard(false);
+      const physical = e.key.toLowerCase();
+      this.keys.delete(physical);
+      if (physical === 'tab') this.cb.onToggleScoreboard(false);
       const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
-      this.finishSmartHold(key, world);
+      // smartHold 用规范键(与 keydown 一致),故 keyup 也翻译
+      this.finishSmartHold(this.translateKey(physical), world);
     });
   }
 
@@ -203,6 +218,7 @@ export class InputManager {
   setControlSettings(settings: ControlSettings): void {
     this.controlSettings = normalizeControlSettings(settings);
     this.edgePan = this.controlSettings.cameraEdgePan;
+    this.keyTranslation = buildKeyTranslation(this.controlSettings.keyBinds);
   }
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */

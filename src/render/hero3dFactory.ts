@@ -77,11 +77,20 @@ export interface HeroGameplayModelQualityUserData {
   anatomyReadableParts: number;
   playCameraDepthLayers: number;
   materialFinishLayers: number;
+  emissiveBudget: HeroPlayCameraEmissiveBudget;
   coreMaterialContrastBands: number;
   roundedReadableParts: number;
   primarySilhouetteParts: number;
   secondarySilhouetteParts: number;
   runtimeHelper: 'createHero3DModel';
+}
+
+export interface HeroPlayCameraEmissiveBudget {
+  pass: 'v25-play-camera-emissive-budget';
+  maxIdleGlowOpacity: 0.22;
+  maxRuntimeGlowOpacity: 0.46;
+  maxEnergyCoreOpacity: 0.62;
+  maxRuntimeEmissiveIntensity: 2.35;
 }
 
 type HeroRuntimeActionState = 'idle' | 'locomotion' | 'attack' | 'cast' | 'channel' | 'status' | 'hit' | 'death';
@@ -116,6 +125,13 @@ const geometryCache = {
 };
 
 const contactShadowGeometry = new CylinderGeometry(1, 1, 0.012, 48);
+const heroPlayCameraEmissiveBudget: HeroPlayCameraEmissiveBudget = {
+  pass: 'v25-play-camera-emissive-budget',
+  maxIdleGlowOpacity: 0.22,
+  maxRuntimeGlowOpacity: 0.46,
+  maxEnergyCoreOpacity: 0.62,
+  maxRuntimeEmissiveIntensity: 2.35,
+};
 
 function createExtrudedPlateGeometry(): ExtrudeGeometry {
   const shape = new Shape();
@@ -220,6 +236,7 @@ export function heroGameplayModelQualityUserData(asset: Hero3DAssetSpec): HeroGa
     anatomyReadableParts: anatomyParts.length,
     playCameraDepthLayers: finishingDepthLayers.size,
     materialFinishLayers: finishingMaterials.size,
+    emissiveBudget: heroPlayCameraEmissiveBudget,
     coreMaterialContrastBands: materialBands.size,
     roundedReadableParts: asset.model.parts.length,
     primarySilhouetteParts: weights.filter((weight) => weight === 'primary').length,
@@ -302,7 +319,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
     emissiveIntensity: part.emissive ? materialProfile.emissiveIntensity : 0,
     flatShading: false,
     transparent: part.kind === 'aura' || part.material === 'energy',
-    opacity: part.kind === 'aura' ? 0.72 : part.material === 'energy' ? 0.88 : 1,
+    opacity: coreOpacityForPart(part),
     side: part.kind === 'aura' ? DoubleSide : FrontSide,
   });
   material.normalScale.setScalar(materialProfile.normalIntensity);
@@ -346,7 +363,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
       color: part.emissive,
       blending: AdditiveBlending,
       transparent: true,
-      opacity: part.kind === 'orb' || part.kind === 'sigil' ? 0.34 : 0.18,
+      opacity: idleGlowOpacityForPart(part, 'emissive-glow'),
       depthWrite: false,
     });
     tagHeroRuntimeMaterial(glowMaterial, part, materialProfile, 'emissive-glow');
@@ -361,7 +378,7 @@ function createPartObject(part: Hero3DPartSpec, textures: Record<Hero3DTextureCh
       color: part.emissive ?? part.color,
       blending: AdditiveBlending,
       transparent: true,
-      opacity: Math.min(0.28, 0.09 + materialProfile.rimLightIntensity * 0.17),
+      opacity: idleGlowOpacityForPart(part, 'rim-glint', materialProfile),
       depthWrite: false,
     });
     tagHeroRuntimeMaterial(glintMaterial, part, materialProfile, 'rim-glint');
@@ -397,6 +414,25 @@ function heroGameplaySilhouetteWeight(part: Hero3DPartSpec): HeroGameplaySilhoue
 
 function geometryFor(part: Hero3DPartSpec) {
   return geometryCache[heroGameplayGeometryProfile(part)];
+}
+
+function coreOpacityForPart(part: Hero3DPartSpec): number {
+  if (part.kind === 'aura') return 0.5;
+  if (part.material === 'energy') return 0.58;
+  return 1;
+}
+
+function idleGlowOpacityForPart(
+  part: Hero3DPartSpec,
+  role: 'emissive-glow' | 'rim-glint',
+  materialProfile?: HeroMaterialSurfaceProfile,
+): number {
+  if (role === 'emissive-glow') {
+    const base = part.kind === 'orb' || part.kind === 'sigil' ? 0.2 : 0.14;
+    return Math.min(heroPlayCameraEmissiveBudget.maxIdleGlowOpacity, base);
+  }
+  const rim = materialProfile?.rimLightIntensity ?? heroMaterialSurfaceProfile(part.material).rimLightIntensity;
+  return Math.min(heroPlayCameraEmissiveBudget.maxIdleGlowOpacity, 0.055 + rim * 0.12);
 }
 
 function tagHeroRuntimePart(obj: Object3D, part: Hero3DPartSpec, materialProfile: HeroMaterialSurfaceProfile): void {
@@ -576,9 +612,13 @@ function updateHeroRuntimeMaterial(
   const baseOpacity = material.userData.baseOpacity ?? material.opacity;
   const invisibleFactor = state === 'status' && material.userData.surfaceRole !== 'outline' ? 0.44 : 1;
   const deathFactor = state === 'death' ? 0.72 : 1;
-  const glintBoost = material.userData.heroRuntimeGlintLayer ? 0.2 + wave * 0.22 + actionPulse * 0.16 : 0;
+  const glintBoost = material.userData.heroRuntimeGlintLayer ? 0.07 + wave * 0.09 + actionPulse * 0.08 : 0;
   material.transparent = material.transparent || invisibleFactor < 1 || deathFactor < 1 || material.userData.heroRuntimeGlintLayer;
-  material.opacity = clamp(baseOpacity * invisibleFactor * deathFactor + glintBoost, 0.05, material.userData.heroRuntimeGlintLayer ? 0.86 : 1);
+  material.opacity = clamp(
+    baseOpacity * invisibleFactor * deathFactor + glintBoost,
+    0.05,
+    material.userData.heroRuntimeGlintLayer ? heroPlayCameraEmissiveBudget.maxRuntimeGlowOpacity : 1,
+  );
 
   if (material instanceof MeshStandardMaterial) {
     const baseRoughness = material.userData.baseRoughness ?? material.roughness;
@@ -587,7 +627,10 @@ function updateHeroRuntimeMaterial(
     const baseNormal = material.userData.baseNormalIntensity ?? material.normalScale.x;
     const intentBoost = shaderIntent === 'hero-arcane-fresnel' ? 0.18 : shaderIntent === 'hero-armor-rim-sweep' ? 0.12 : 0.08;
     material.roughness = clamp(baseRoughness - actionPulse * 0.08 - intentBoost * 0.12, 0.08, 0.95);
-    material.emissiveIntensity = baseEmissive * (1 + actionPulse * 0.62 + intentBoost + wave * 0.08);
+    material.emissiveIntensity = Math.min(
+      heroPlayCameraEmissiveBudget.maxRuntimeEmissiveIntensity,
+      baseEmissive * (1 + actionPulse * 0.42 + intentBoost + wave * 0.06),
+    );
     material.envMapIntensity = baseEnv * (1 + actionPulse * 0.42 + intentBoost);
     material.normalScale.setScalar(baseNormal * (1 + wave * 0.08 + actionPulse * 0.06));
   }

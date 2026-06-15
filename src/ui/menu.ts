@@ -4,12 +4,16 @@ import { abilityIconSvg } from './abilityIconSvg';
 import {
   ABILITY_CAST_SLOT_COUNT,
   ITEM_CAST_SLOT_COUNT,
+  REBINDABLE_ACTIONS,
+  ACTION_LABEL,
+  DEFAULT_KEY_BINDS,
   cameraPanSpeedLabel,
   castInputModeLabel,
   cycleCameraPanSpeed,
   cycleCastInputMode,
   cycleCastInputOverride,
   type ControlSettings,
+  type RebindAction,
 } from '../engine/controlSettings';
 
 const ROLE_NAME: Record<string, string> = {
@@ -148,6 +152,10 @@ export function createPauseMenu(
   const itemButtons = Array.from({ length: ITEM_CAST_SLOT_COUNT }, (_, index) =>
     `<button id="pm-item-cast-slot-${index}" data-item-cast-slot="${index}" style="${slotBtnCss('#272314', '#d9b44a')}"></button>`,
   ).join('');
+  const rebindButtons = REBINDABLE_ACTIONS.map((action) =>
+    `<button id="pm-rebind-${action}" data-rebind="${action}" style="${compactBtnCss('#241d12', '#e0c98a')}font-size:11px;"></button>`,
+  ).join('');
+  let capturing: RebindAction | null = null; // 正在捕获改键的动作
   const root = document.createElement('div');
   root.style.cssText =
     'position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;' +
@@ -168,6 +176,8 @@ export function createPauseMenu(
       <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">${abilityButtons}</div>
       <div style="${sectionLabelCss('#d9b44a')}">物品施放</div>
       <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:6px">${itemButtons}</div>
+      <div style="${sectionLabelCss('#e0c98a')}">改键(点按钮后按新键)</div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:5px">${rebindButtons}</div>
     </div>` : ''}
     <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
     <button id="pm-restart" style="${btnCss('#3a3422', '#ffd54f')}">重新开始</button>
@@ -200,6 +210,12 @@ export function createPauseMenu(
     root.querySelectorAll<HTMLButtonElement>('[data-item-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.itemCastSlot);
       button.textContent = `${slot + 1} ${slotOverrideLabel(settings.itemCasts[slot])}`;
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach((button) => {
+      const action = button.dataset.rebind as RebindAction;
+      const k = (settings.keyBinds?.[action] ?? DEFAULT_KEY_BINDS[action]).toUpperCase();
+      button.textContent = capturing === action ? `${ACTION_LABEL[action]} …` : `${ACTION_LABEL[action]} ${k === ' ' ? '␣' : k}`;
+      button.style.outline = capturing === action ? '2px solid #ffd54f' : 'none';
     });
   };
   root.querySelector('#pm-ability-cast')?.addEventListener('click', () => {
@@ -235,6 +251,31 @@ export function createPauseMenu(
     controls.setVolume(VOLUME_STEPS[(idx + 1) % VOLUME_STEPS.length]);
     syncControls();
   });
+  // 改键:点按钮进入捕获,下一次 keydown(capture 阶段 + 阻止冒泡,抑制游戏输入)设为新键
+  root.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!controls) return;
+      capturing = button.dataset.rebind as RebindAction;
+      syncControls();
+    });
+  });
+  window.addEventListener('keydown', (e) => {
+    if (!capturing || !controls) return;
+    e.preventDefault();
+    e.stopImmediatePropagation(); // 抑制 input.ts 把此键当游戏操作
+    const action = capturing;
+    capturing = null;
+    const k = e.key.toLowerCase();
+    if (k !== 'escape') { // Esc 取消捕获
+      const settings = controls.getSettings();
+      const binds = { ...settings.keyBinds };
+      const old = binds[action] ?? DEFAULT_KEY_BINDS[action];
+      for (const a of REBINDABLE_ACTIONS) if (a !== action && binds[a] === k) binds[a] = old; // 冲突互换,保持双射
+      binds[action] = k;
+      controls.onChange({ ...settings, keyBinds: binds });
+    }
+    syncControls();
+  }, { capture: true });
   root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
     button.addEventListener('click', () => {
       if (!controls) return;
