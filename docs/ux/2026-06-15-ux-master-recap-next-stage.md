@@ -358,9 +358,14 @@ Completed after the Opus handoff:
   - `Hero`, `Backpack`, `Stash`, and `TP` indicate where the purchase will land.
   - `Secret`, `Shop`, `Gold`, and `Full` indicate the first actionable blocked reason.
   - The implementation is preview-only and does not mutate or fork `buyItem`.
+- Shop search now has a first-pass keyboard-friendly input:
+  - empty search respects the selected category tab.
+  - active search scans across categories.
+  - item key, name, category, and description all participate in matching.
+  - no-result state displays a clear empty message.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Expand shop destination feedback into full quickbuy/component lanes: owned, backpack, stash, courier, missing, affordable.
+2. Expand shop v2 into quickbuy/component lanes: owned, backpack, stash, courier, missing, affordable.
 3. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.

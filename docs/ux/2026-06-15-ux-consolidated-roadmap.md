@@ -291,5 +291,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/shopDestinationModel.ts`
   - focused tests: `tests/shopDestinationModel.test.ts`
   - shop rows now show Hero / Backpack / Stash / TP / blocked reason before the player clicks buy.
+- Shop search first pass is implemented:
+  - pure model: `src/ui/shopListModel.ts`
+  - focused tests: `tests/shopListModel.test.ts`
+  - active search scans across categories while empty search preserves the selected category tab.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview only mirrors current `buyItem` behavior; it does not change item placement.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy.

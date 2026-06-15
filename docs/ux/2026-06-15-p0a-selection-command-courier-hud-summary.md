@@ -34,18 +34,25 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - Shop rows now preview whether a purchase will go to hero inventory, backpack, stash, or TP slot.
   - Blocked rows explain the leading reason first: wrong shop, not enough gold, or full storage.
   - This is preview-only UI and does not change `buyItem`.
+- Shop search first pass:
+  - New pure `buildShopVisibleItems` contract.
+  - The shop panel now has a keyboard-friendly search box.
+  - Search scans item key, name, category, and description.
+  - Empty search keeps the selected tab; active search searches across categories.
 
 ## Files Added Or Updated
 
 - `src/ui/inspectPanelModel.ts`
 - `src/ui/courierHudModel.ts`
 - `src/ui/shopDestinationModel.ts`
+- `src/ui/shopListModel.ts`
 - `src/ui/inspectPanel.ts`
 - `src/ui/hud.ts`
 - `src/ui/shop.ts`
 - `tests/inspectPanelModel.test.ts`
 - `tests/courierHudModel.test.ts`
 - `tests/shopDestinationModel.test.ts`
+- `tests/shopListModel.test.ts`
 - UX roadmap and recap docs
 
 ## Current UX Contract
@@ -66,6 +73,11 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - `Stash`: dead purchase or overflow goes to stash.
   - `TP`: scroll goes to the dedicated TP slot or adds a TP charge.
   - `Secret`, `Shop`, `Gold`, `Full`: purchase is blocked with the first actionable reason.
+- Shop search behavior:
+  - no query: current category tab determines visible rows.
+  - with query: matching rows can come from any category.
+  - every query token must match item key, name, category, or description text.
+  - recipes and zero-cost utility entries stay hidden.
 
 ## Verification
 
@@ -74,6 +86,7 @@ Focused automated coverage added:
 - `tests/inspectPanelModel.test.ts`
 - `tests/courierHudModel.test.ts`
 - `tests/shopDestinationModel.test.ts`
+- `tests/shopListModel.test.ts`
 - existing selection, routing, command-card, input, and UX feedback tests remain the regression net.
 
 Required before closing this stage:

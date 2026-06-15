@@ -8,6 +8,7 @@ import { ITEMS, itemDef, type ItemDef, type ItemCategory } from '../data/items';
 import { buyItem, takeFromStash, sellItem, shopAt } from '../sim/items';
 import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
+import { buildShopVisibleItems } from './shopListModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -22,6 +23,7 @@ export class ShopPanel {
   root: HTMLElement;
   open = false;
   private cat: ItemCategory | 'all' = 'consumable';
+  private query = '';
   private lastRender = 0;
   private toast: HTMLElement;
 
@@ -63,17 +65,31 @@ export class ShopPanel {
   private render(w: World, hero: Unit): void {
     const gold = hero.heroMeta?.gold ?? 0;
     const at = shopAt(w, hero);
-    const items = ITEMS.filter(
-      (i) => i.category === this.cat && !i.key.startsWith(RECIPE_PREFIX) && i.cost > 0,
-    );
+    const items = buildShopVisibleItems(ITEMS, {
+      category: this.cat,
+      query: this.query,
+      recipePrefix: RECIPE_PREFIX,
+    });
     this.root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <b>商店 ${at === 'secret' ? '· 秘密商店' : at === 'home' ? '· 基地' : '· <span style="color:#ef9a9a">不在商店范围</span>'}</b>
         <span style="color:#ffd54f">⛁ ${gold}</span>
       </div>
+      <input id="shop-search" value="${escapeAttr(this.query)}" placeholder="Search items" spellcheck="false"
+        style="width:100%;box-sizing:border-box;margin-bottom:6px;border:1px solid #3a4428;border-radius:5px;background:#0b0e08;color:#e8e2c8;padding:5px 7px;font-size:12px;outline:none;" />
       <div id="shop-tabs" style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;"></div>
       <div id="shop-list" style="flex:1;overflow-y:auto;"></div>
       <div id="shop-stash" style="border-top:1px solid #3a4428;padding-top:6px;margin-top:6px;"></div>`;
+
+    const search = this.root.querySelector('#shop-search') as HTMLInputElement;
+    search.oninput = () => {
+      this.query = search.value;
+      this.lastRender = 0;
+      this.render(w, hero);
+      const next = this.root.querySelector('#shop-search') as HTMLInputElement | null;
+      next?.focus();
+      next?.setSelectionRange(next.value.length, next.value.length);
+    };
 
     const tabs = this.root.querySelector('#shop-tabs')!;
     for (const c of CATS) {
@@ -86,6 +102,9 @@ export class ShopPanel {
     }
 
     const list = this.root.querySelector('#shop-list')!;
+    if (items.length === 0) {
+      list.innerHTML = '<div style="padding:12px 6px;color:#9a9277;font-size:12px;text-align:center;">No matching items</div>';
+    }
     for (const def of items) {
       const row = document.createElement('div');
       const destination = buildShopDestinationModel({
@@ -168,6 +187,10 @@ export class ShopPanel {
 
 function effectiveCost(def: ItemDef): number {
   return def.recipe && def.recipe.recipeCost > 0 ? def.recipe.recipeCost : def.cost;
+}
+
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 function freeCount(slots: Array<unknown | null>): number {
