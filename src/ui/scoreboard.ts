@@ -1,4 +1,4 @@
-/** Tab 记分板:双方英雄 等级/KDA/补刀/金币/净值/装备。 */
+/** Tab 记分板:双方英雄 等级/状态/KDA/补刀/金币/净值/装备。 */
 import type { World } from '../sim/world';
 import { Team } from '../sim/map';
 import { scoreboardHeroSummary } from './scoreboardModel';
@@ -30,6 +30,11 @@ export class Scoreboard {
           const m = h.heroMeta!;
           const summary = scoreboardHeroSummary({
             gold: m.gold,
+            level: h.level,
+            alive: h.alive,
+            now: world.time,
+            respawnAt: m.respawnAt,
+            buybackCooldownUntil: m.buybackCooldownUntil,
             inventory: h.inventory,
             backpack: h.backpack,
             stash: h.stash,
@@ -45,6 +50,7 @@ export class Scoreboard {
           return `<tr style="opacity:${h.alive ? 1 : 0.55}">
             <td style="padding:2px 10px;color:${h.heroDef?.color ?? '#ccc'}">${nameCell}</td>
             <td style="padding:2px 10px">${h.level}</td>
+            <td title="${summary.status.detail}" style="padding:2px 10px;color:${summary.status.color};font-size:11px;font-weight:700;white-space:nowrap">${summary.status.label}${summary.status.detail ? ` <span style="font-weight:400;color:#b7ad91">${summary.status.detail}</span>` : ''}</td>
             <td style="padding:2px 10px">${m.kills}/${m.deaths}/${m.assists}</td>
             <td style="padding:2px 10px">${m.lastHits}/${m.denies}</td>
             <td style="padding:2px 10px;color:#ffd54f">${summary.gold}</td>
@@ -55,7 +61,7 @@ export class Scoreboard {
         .join('');
       return `<div style="color:${color};font-weight:700;margin:6px 0 2px">${name} — ${kills} 击杀</div>
         <table style="border-collapse:collapse">
-          <tr style="color:#9a8;font-size:11px"><th style="padding:0 10px">英雄</th><th>级</th><th>杀/死/助</th><th>补/反</th><th>金</th><th>净值</th><th>装备</th></tr>
+          <tr style="color:#9a8;font-size:11px"><th style="padding:0 10px">英雄</th><th>级</th><th>状态</th><th>杀/死/助</th><th>补/反</th><th>金</th><th>净值</th><th>装备</th></tr>
           ${rows}
         </table>`;
     };

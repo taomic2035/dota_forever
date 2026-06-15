@@ -1,4 +1,5 @@
 import { itemDef } from '../data/items';
+import { buybackCost } from '../data/balance';
 
 export interface ScoreboardItemInput {
   itemKey: string;
@@ -7,6 +8,11 @@ export interface ScoreboardItemInput {
 
 export interface ScoreboardHeroSummaryInput {
   gold: number;
+  level?: number;
+  alive?: boolean;
+  now?: number;
+  respawnAt?: number;
+  buybackCooldownUntil?: number;
   inventory: Array<ScoreboardItemInput | null>;
   backpack?: Array<ScoreboardItemInput | null>;
   stash?: Array<ScoreboardItemInput | null>;
@@ -28,6 +34,16 @@ export interface ScoreboardHeroSummary {
   gold: number;
   netWorth: number;
   items: ScoreboardItemSummary[];
+  status: ScoreboardHeroStatus;
+}
+
+export type ScoreboardHeroStatusKind = 'alive' | 'buybackReady' | 'buybackCooldown' | 'noBuybackGold';
+
+export interface ScoreboardHeroStatus {
+  kind: ScoreboardHeroStatusKind;
+  label: string;
+  detail: string;
+  color: string;
 }
 
 export function scoreboardHeroSummary(input: ScoreboardHeroSummaryInput): ScoreboardHeroSummary {
@@ -42,6 +58,44 @@ export function scoreboardHeroSummary(input: ScoreboardHeroSummaryInput): Scoreb
     gold,
     netWorth: gold + items.reduce((sum, item) => sum + item.value, 0),
     items,
+    status: heroStatus(input, gold),
+  };
+}
+
+function heroStatus(input: ScoreboardHeroSummaryInput, gold: number): ScoreboardHeroStatus {
+  if (input.alive !== false) {
+    return { kind: 'alive', label: 'LIVE', detail: '', color: '#9cff74' };
+  }
+
+  const now = input.now ?? 0;
+  const level = input.level ?? 1;
+  const respawnIn = Math.max(0, Math.ceil((input.respawnAt ?? now) - now));
+  const cooldownIn = Math.max(0, Math.ceil((input.buybackCooldownUntil ?? -Infinity) - now));
+  const cost = buybackCost(level);
+
+  if (cooldownIn > 0) {
+    return {
+      kind: 'buybackCooldown',
+      label: 'BB CD',
+      detail: `${cooldownIn}s / respawn ${respawnIn}s`,
+      color: '#ef9a9a',
+    };
+  }
+
+  if (gold >= cost) {
+    return {
+      kind: 'buybackReady',
+      label: 'BUYBACK',
+      detail: `${respawnIn}s / ${cost}g`,
+      color: '#9fe87a',
+    };
+  }
+
+  return {
+    kind: 'noBuybackGold',
+    label: 'NO GOLD',
+    detail: `${respawnIn}s / need ${cost - gold}g`,
+    color: '#d8a84c',
   };
 }
 

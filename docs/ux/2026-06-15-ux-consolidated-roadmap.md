@@ -307,5 +307,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/scoreboardModel.ts`
   - focused tests: `tests/scoreboardModel.test.ts`
   - Tab scoreboard now shows an `NW` column and includes inventory, backpack, stash, and TP slot value in the hero summary.
+- Scoreboard death/buyback status first pass is implemented:
+  - model extension: `scoreboardHeroSummary().status`
+  - focused tests: `tests/scoreboardModel.test.ts`
+  - Tab scoreboard now shows alive, buyback-ready, buyback-cooldown, and not-enough-gold states with respawn/cost details.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy. The XP bar, inspect inventory summary, and scoreboard net worth are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, or balance.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.
