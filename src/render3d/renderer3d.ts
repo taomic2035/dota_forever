@@ -28,6 +28,7 @@ import { visualStateFor3D } from './visualState';
 import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
 import { stackedUnitVisualOffset } from './stackOffset';
 import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
+import { selection3DMarkerIds } from './selection3d';
 
 interface Gameplay3DReadabilityInput {
   isHero: boolean;
@@ -127,6 +128,7 @@ export class Renderer3D {
   private tLine!: THREE.Mesh;
   /** 选中高亮:跟随左键选中单位的贴地脉冲环(区别于每单位常驻队色环)。 */
   private selRing!: THREE.Mesh;
+  private secondarySelRings: THREE.Mesh[] = [];
   /** 悬停轮廓:跟随鼠标悬停单位的贴地环,敌红/友绿/中立黄(右键预期反馈)。 */
   private hovRing!: THREE.Mesh;
   /** 施法/引导进度条:渲染侧捕获每单位本次施法的起始时刻(sim 只存结束时刻),算进度。 */
@@ -359,7 +361,7 @@ export class Renderer3D {
 
     this.fx.update(world, performance.now() / 1000);
     this.updateTargeting(world, ux);
-    this.updateSelectionRing(world, selectedId, t);
+    this.updateSelectionRing(world, selectedId, t, ux);
     this.updateHoverRing(world, ux?.hoverUnitId ?? 0, selectedId);
     this.updateCommandQueue(world, selectedId, t);
     updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
@@ -620,7 +622,13 @@ export class Renderer3D {
   }
 
   /** 选中高亮:贴地环跟随选中单位(插值位置),轻微脉冲;无有效选中则隐藏。 */
-  private updateSelectionRing(world: World, selectedId: number, t: number): void {
+  private updateSelectionRing(world: World, selectedId: number, t: number, ux?: UxFeedback): void {
+    const markers = selection3DMarkerIds(selectedId, ux);
+    this.updatePrimarySelectionRing(world, markers.primaryId, t);
+    this.updateSecondarySelectionRings(world, markers.secondaryIds, t);
+  }
+
+  private updatePrimarySelectionRing(world: World, selectedId: number, t: number): void {
     const u = selectedId ? world.getUnit(selectedId) : undefined;
     if (!u || !u.alive) { this.selRing.visible = false; return; }
     const vx = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
@@ -634,6 +642,45 @@ export class Renderer3D {
     const wave = 0.5 + 0.5 * Math.sin(t * 5);
     (this.selRing.material as THREE.MeshBasicMaterial).opacity = readability.selectedRingOpacityMin + (readability.selectedRingOpacityMax - readability.selectedRingOpacityMin) * wave;
     this.selRing.visible = true;
+  }
+
+  private updateSecondarySelectionRings(world: World, selectedIds: number[], t: number): void {
+    let visibleCount = 0;
+    for (const id of selectedIds) {
+      const u = world.getUnit(id);
+      if (!u || !u.alive) continue;
+      const ring = this.secondarySelectionRingAt(visibleCount);
+      const vx = u.prevPos.x + (u.pos.x - u.prevPos.x) * this.alpha;
+      const vz = u.prevPos.y + (u.pos.y - u.prevPos.y) * this.alpha;
+      const ey = terrainElevation(world.map, vx, vz);
+      const readability = gameplay3DUnitReadabilityProfile({ isHero: u.isHero(), isBuilding: u.kind === 'tower' || u.kind === 'building', collisionRadius: u.base.collisionRadius });
+      const baseR = readability.selectedRingBaseRadius * 0.86;
+      const pulse = baseR * (1 + 0.035 * Math.sin(t * 4 + id));
+      ring.position.set(vx, ey + 1.8, vz);
+      ring.scale.set(pulse, pulse, pulse);
+      (ring.material as THREE.MeshBasicMaterial).opacity = 0.32 + 0.1 * (0.5 + 0.5 * Math.sin(t * 4 + id));
+      ring.visible = true;
+      visibleCount++;
+    }
+    for (let i = visibleCount; i < this.secondarySelRings.length; i++) {
+      this.secondarySelRings[i].visible = false;
+    }
+  }
+
+  private secondarySelectionRingAt(index: number): THREE.Mesh {
+    let ring = this.secondarySelRings[index];
+    if (!ring) {
+      ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.86, 1.0, 36),
+        new THREE.MeshBasicMaterial({ color: 0x9cff74, transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false, depthTest: false }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.renderOrder = 4;
+      ring.visible = false;
+      this.s3d.scene.add(ring);
+      this.secondarySelRings[index] = ring;
+    }
+    return ring;
   }
 
   /** 施法指示器:读 ux.targeting,贴地绘制距离环 / AoE 范围 / 线形(队色合法蓝、非法红)。 */

@@ -1,4 +1,5 @@
 import type { Vec2 } from '../core/vec2';
+import type { SelectionSnapshot } from '../engine/selection';
 
 export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'queued' | 'reject' | 'stop' | 'hold' | 'ping';
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
@@ -25,6 +26,11 @@ export interface TargetingState {
   valid?: boolean;
   radius?: number;
   width?: number;
+}
+
+export interface SelectionBox {
+  start: Vec2;
+  end: Vec2;
 }
 
 interface HudFlash {
@@ -61,8 +67,15 @@ export class UxFeedback {
   private commandMessage: CommandMessage | null = null;
   targeting: TargetingState | null = null;
   cursorPosition: Vec2 | null = null;
-  /** 左键选中的单位 id(0 = 无)。纯信息查看,不改变指令目标——右键/技能始终作用于受控英雄。 */
+  selectionBox: SelectionBox | null = null;
+  /** 当前主选单位 id(0 = 无)。保留兼容旧 HUD/渲染入口。 */
   selectedUnitId = 0;
+  /** 当前选择集。包含可命令单位或 inspect-only 单位。 */
+  selectedUnitIds: number[] = [];
+  /** 当前可接收命令的选择集。敌方/不可控友军不会进入这里。 */
+  commandableSelectedIds: number[] = [];
+  /** 当前仅查看单位 id(0 = 无)。 */
+  inspectUnitId = 0;
   /** 鼠标悬停的单位 id(0 = 无)。敌/友/中立轮廓高亮,提供右键预期(pre-click)反馈。 */
   hoverUnitId = 0;
   /** 按住 Alt 的信息层开关:显示防御塔攻击范围等战术信息(纯渲染)。 */
@@ -92,10 +105,31 @@ export class UxFeedback {
 
   selectUnit(id: number): void {
     this.selectedUnitId = id;
+    this.selectedUnitIds = id ? [id] : [];
+    this.commandableSelectedIds = [];
+    this.inspectUnitId = 0;
   }
 
   clearSelection(): void {
     this.selectedUnitId = 0;
+    this.selectedUnitIds = [];
+    this.commandableSelectedIds = [];
+    this.inspectUnitId = 0;
+  }
+
+  setSelectionSnapshot(snapshot: SelectionSnapshot): void {
+    this.selectedUnitId = snapshot.primaryId;
+    this.selectedUnitIds = [...snapshot.selectedIds];
+    this.commandableSelectedIds = [...snapshot.commandableIds];
+    this.inspectUnitId = snapshot.inspectId;
+  }
+
+  setSelectionBox(start: Vec2, end: Vec2): void {
+    this.selectionBox = { start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+  }
+
+  clearSelectionBox(): void {
+    this.selectionBox = null;
   }
 
   setCursorIntent(intent: CursorIntent): void {

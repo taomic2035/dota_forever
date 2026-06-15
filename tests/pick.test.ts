@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
-import { pickUnitAt } from '../src/sim/pick';
+import { pickUnitAt, pickUnitsInWorldRect } from '../src/sim/pick';
 import type { UnitStats } from '../src/sim/unit';
 
 const HERO_STATS: UnitStats = {
@@ -44,5 +44,23 @@ describe('pickUnitAt', () => {
     expect(pickUnitAt(w, Team.Dawn, pos, 90)).toBeNull();          // 晨方看不见
     expect(pickUnitAt(w, Team.Night, pos, 90)?.id).toBe(night.id); // 己方始终可见
     expect(pickUnitAt(w, null, pos, 90)?.id).toBe(night.id);       // 全图可见
+  });
+
+  it('box-selects visible units with commandable units first', () => {
+    const w = createWorld(new GameMap(), { seed: 1 });
+    const hero = w.spawnUnit({ kind: 'hero', team: Team.Dawn, pos: { x: 7000, y: 7000 }, name: 'hero', stats: HERO_STATS });
+    const summon = w.spawnUnit({ kind: 'creep', team: Team.Dawn, pos: { x: 7080, y: 7040 }, name: 'summon', stats: CREEP_STATS });
+    summon.summonOwnerId = hero.id;
+    const enemyHero = w.spawnUnit({ kind: 'hero', team: Team.Night, pos: { x: 7160, y: 7080 }, name: 'enemy', stats: HERO_STATS });
+    const laneCreep = w.spawnUnit({ kind: 'creep', team: Team.Dawn, pos: { x: 7120, y: 7120 }, name: 'lane', stats: CREEP_STATS });
+
+    const picked = pickUnitsInWorldRect(
+      w,
+      null,
+      { minX: 6900, minY: 6900, maxX: 7250, maxY: 7250 },
+      { playerTeam: Team.Dawn, playerHeroId: hero.id },
+    );
+
+    expect(picked.map((u) => u.id)).toEqual([hero.id, summon.id, enemyHero.id, laneCreep.id]);
   });
 });

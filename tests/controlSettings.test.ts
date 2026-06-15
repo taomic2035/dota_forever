@@ -6,8 +6,10 @@ import {
   castInputModeOverrideLabel,
   cycleCastInputOverride,
   cycleCameraPanSpeed,
+  cycleNumberRowMode,
   castInputModeLabel,
   cycleCastInputMode,
+  numberRowModeLabel,
   normalizeControlSettings,
   parseCameraPanSpeed,
   parseCastInputMode,
@@ -96,6 +98,13 @@ describe('control settings', () => {
     expect(cycleCameraPanSpeed('slow')).toBe('normal');
     expect(cycleCameraPanSpeed('normal')).toBe('fast');
     expect(cycleCameraPanSpeed('fast')).toBe('slow');
+  });
+
+  it('cycles number-row mode between items and control groups', () => {
+    expect(cycleNumberRowMode('items')).toBe('controlGroups');
+    expect(cycleNumberRowMode('controlGroups')).toBe('items');
+    expect(numberRowModeLabel('items')).toBe('物品');
+    expect(numberRowModeLabel('controlGroups')).toBe('控制组');
   });
 
   it('provides short display labels', () => {

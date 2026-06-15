@@ -15,15 +15,27 @@ import {
   resolveItemCastMode,
   type ControlSettings,
 } from './controlSettings';
+import type { ControlGroupSlot } from './selection';
 
 export interface CastInputOptions {
   selfCast?: boolean;
   queued?: boolean;
 }
 
+export interface SelectInputOptions {
+  additive?: boolean;
+}
+
+export interface ControlGroupInputOptions {
+  center?: boolean;
+}
+
 export interface InputCallbacks {
   onRightClick(world: Vec2, options?: CastInputOptions): void;
-  onLeftClick(world: Vec2): void;
+  onLeftClick(world: Vec2, options?: SelectInputOptions): void;
+  onSelectBox(startWorld: Vec2, endWorld: Vec2, options?: SelectInputOptions): void;
+  onSelectionBoxPreview(startScreen: Vec2, endScreen: Vec2): void;
+  onSelectionBoxClear(): void;
   onAttackMove(world: Vec2, options?: CastInputOptions): void;
   onPrepareCast(index: number, world: Vec2, options?: CastInputOptions): boolean;
   onPreviewCast(index: number, world: Vec2, options?: CastInputOptions): void;
@@ -40,6 +52,11 @@ export interface InputCallbacks {
   onToggleScoreboard(show: boolean): void;
   onToggleShop(): void;
   onGlyph(): void;
+  onSelectHero(): void;
+  onSelectCourier(): void;
+  onSelectAllControlled(): void;
+  onBindControlGroup(slot: ControlGroupSlot): void;
+  onSelectControlGroup(slot: ControlGroupSlot, options?: ControlGroupInputOptions): void;
   onPointerMove(screen: Vec2, world: Vec2): void;
   onPendingAttackMove(active: boolean, options?: CastInputOptions): void;
   onPendingCast(index: number | null, options?: CastInputOptions): void;
@@ -74,6 +91,9 @@ export class InputManager {
   private keys = new Set<string>();
   /** 屏幕点→世界点换算(2D 用相机平面投影;3D 用渲染器 raycast 到地面)。平移/缩放仍用相机。 */
   private pointToWorld: (p: Vec2) => Vec2;
+  private leftSelectionStart: { screen: Vec2; world: Vec2; options?: SelectInputOptions } | null = null;
+  private leftSelectionDragging = false;
+  private lastControlGroupSelect: { slot: ControlGroupSlot; time: number } | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -97,10 +117,22 @@ export class InputManager {
       if (this.dragging) {
         this.camera.pan(-(e.movementX), -(e.movementY));
       }
+      if (this.leftSelectionStart && !this.leftSelectionDragging) {
+        const dx = this.mouse.x - this.leftSelectionStart.screen.x;
+        const dy = this.mouse.y - this.leftSelectionStart.screen.y;
+        this.leftSelectionDragging = dx * dx + dy * dy >= 36;
+      }
+      if (this.leftSelectionStart && this.leftSelectionDragging) {
+        this.cb.onSelectionBoxPreview(this.leftSelectionStart.screen, this.mouse);
+      }
     });
     canvas.addEventListener('mousedown', (e) => {
-      const world = this.pointToWorld({ x: e.offsetX, y: e.offsetY });
+      const screen = { x: e.offsetX, y: e.offsetY };
+      const world = this.pointToWorld(screen);
       if (e.button === 2) {
+        this.leftSelectionStart = null;
+        this.leftSelectionDragging = false;
+        this.cb.onSelectionBoxClear();
         this.commandMode.cancel();
         this.smartHold = null;
         this.cb.onPendingCast(null);
@@ -130,7 +162,8 @@ export class InputManager {
           this.cb.onAttackMove(world, { queued: result.kind === 'attackmove' && result.queued === true });
           this.cb.onPendingAttackMove(false);
         } else {
-          this.cb.onLeftClick(world);
+          this.leftSelectionStart = { screen, world, options: selectOptions(e.shiftKey) };
+          this.leftSelectionDragging = false;
         }
       } else if (e.button === 1) {
         this.dragging = true;
@@ -139,6 +172,15 @@ export class InputManager {
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 1) this.dragging = false;
+      if (e.button === 0 && this.leftSelectionStart) {
+        const endScreen = screenFromMouseEvent(e, this.mouse ?? this.leftSelectionStart.screen);
+        const endWorld = this.pointToWorld(endScreen);
+        if (this.leftSelectionDragging) this.cb.onSelectBox(this.leftSelectionStart.world, endWorld, this.leftSelectionStart.options);
+        else this.cb.onLeftClick(this.leftSelectionStart.world, this.leftSelectionStart.options);
+        this.leftSelectionStart = null;
+        this.leftSelectionDragging = false;
+        this.cb.onSelectionBoxClear();
+      }
     });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
@@ -148,10 +190,22 @@ export class InputManager {
 
     window.addEventListener('keydown', (e) => {
       if (e.repeat) return;
-      this.keys.add(e.key.toLowerCase()); // 物理键(arrows/alt 等系统键按物理追踪)
+      const physicalKey = e.key.toLowerCase();
+      this.keys.add(physicalKey); // 物理键(arrows/alt 等系统键按物理追踪)
       const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
+      const groupSlot = numberRowControlGroupSlot(physicalKey);
+      if (groupSlot && (e.ctrlKey || e.metaKey)) {
+        this.cb.onBindControlGroup(groupSlot);
+        e.preventDefault();
+        return;
+      }
+      if (groupSlot && this.controlSettings.numberRowMode === 'controlGroups') {
+        this.cb.onSelectControlGroup(groupSlot, { center: this.isControlGroupDoubleTap(groupSlot, e.timeStamp) });
+        e.preventDefault();
+        return;
+      }
       // 改键:物理键→规范键喂 switch(默认恒等);case 体不变(仍传规范键给 handleCastHotkey,smartHold 一致)
-      switch (this.translateKey(e.key.toLowerCase())) {
+      switch (this.translateKey(physicalKey)) {
         case 'q': this.handleCastHotkey(0, 'q', world, { selfCast: e.altKey && this.cb.canSelfCast?.(0) === true, queued: e.shiftKey }); break;
         case 'w': this.handleCastHotkey(1, 'w', world, { selfCast: e.altKey && this.cb.canSelfCast?.(1) === true, queued: e.shiftKey }); break;
         case 'e': this.handleCastHotkey(2, 'e', world, { selfCast: e.altKey && this.cb.canSelfCast?.(2) === true, queued: e.shiftKey }); break;
@@ -186,6 +240,9 @@ export class InputManager {
         case 'h': this.cb.onHold(); break;
         case 'f': this.cb.onToggleShop(); break;
         case 'g': this.cb.onGlyph(); break; // 防御符文 Glyph(己方建筑短时免疫)
+        case 'f1': this.cb.onSelectHero(); e.preventDefault(); break;
+        case 'f2': this.cb.onSelectCourier(); e.preventDefault(); break;
+        case 'f3': this.cb.onSelectAllControlled(); e.preventDefault(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
@@ -313,6 +370,13 @@ export class InputManager {
     }
   }
 
+  private isControlGroupDoubleTap(slot: ControlGroupSlot, eventTime: number): boolean {
+    const now = Number.isFinite(eventTime) && eventTime > 0 ? eventTime : Date.now();
+    const center = this.lastControlGroupSelect?.slot === slot && now - this.lastControlGroupSelect.time <= 500;
+    this.lastControlGroupSelect = { slot, time: now };
+    return center;
+  }
+
   /** 每帧:镜头边缘平移 + 方向键。 */
   update(dtMs: number) {
     const m = this.mouse;
@@ -333,4 +397,21 @@ export class InputManager {
 
 function mergeQueued(options: CastInputOptions, shiftKey: boolean): CastInputOptions {
   return options.queued || shiftKey ? { ...options, queued: true } : options;
+}
+
+function selectOptions(shiftKey: boolean): SelectInputOptions | undefined {
+  return shiftKey ? { additive: true } : undefined;
+}
+
+function numberRowControlGroupSlot(key: string): ControlGroupSlot | null {
+  if (key < '1' || key > '6') return null;
+  return Number(key) as ControlGroupSlot;
+}
+
+function screenFromMouseEvent(e: MouseEvent, fallback: Vec2): Vec2 {
+  const maybeOffset = e as MouseEvent & { offsetX?: number; offsetY?: number };
+  if (typeof maybeOffset.offsetX === 'number' && typeof maybeOffset.offsetY === 'number') {
+    return { x: maybeOffset.offsetX, y: maybeOffset.offsetY };
+  }
+  return fallback;
 }

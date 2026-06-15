@@ -8,14 +8,16 @@ import { HEROES, heroByKey } from './data/heroes';
 import type { Unit } from './sim/unit';
 import { shuffledHeroPool } from './sim/draft';
 import { activateGlyph } from './sim/glyph';
-import { pickUnitAt, PICK_RADIUS } from './sim/pick';
+import { pickUnitAt, pickUnitsInWorldRect, PICK_RADIUS } from './sim/pick';
 import { isVisibleTo } from './sim/vision';
 import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { Renderer3D } from './render3d/renderer3d';
 import { MiniMap } from './render/minimap';
 import { GameLoop } from './engine/loop';
-import { InputManager, type CastInputOptions } from './engine/input';
+import { InputManager, type CastInputOptions, type ControlGroupInputOptions, type SelectInputOptions } from './engine/input';
+import { SelectionState, type ControlGroupSlot } from './engine/selection';
+import { issueSelectionOrder } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
 import { KillFeed } from './ui/killfeed';
 import { Announce } from './ui/announce';
@@ -48,6 +50,7 @@ import {
 } from './engine/targetFilters';
 import { resolveSelfCastTarget, targetTeamAllowsSelfCast } from './engine/selfCast';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
+import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -173,7 +176,15 @@ function startGame(mode: 'play' | 'spectate'): void {
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
-  if (hero) ux.selectUnit(hero.id); // 开局默认选中受控英雄(选中环 + 默认信息)
+  const selection = hero ? new SelectionState(hero.team, hero.id) : null;
+  const syncSelection = () => {
+    if (selection) ux.setSelectionSnapshot(selection.snapshot());
+    else ux.clearSelection();
+  };
+  if (hero && selection) {
+    selection.clearToHero(hero);
+    syncSelection();
+  }
   const inspectPanel = new InspectPanel(app);
   const commandCursor = new CommandCursor(app);
   // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
@@ -250,12 +261,26 @@ function startGame(mode: 'play' | 'spectate'): void {
     // 指令确认音(移动/攻击);cast 用 'ping',其施法音由 cast_done 事件给出,此处不重复
     if (pulse.kind !== 'ping') audio.command(pulse.kind === 'attack');
   };
-  // 多单位操控:选中"己方可控单位"(英雄/其召唤物/信使)时,移动/攻击/停/守路由到它;否则回落英雄(常规游玩零改变)。
-  const isControllable = (u: Unit | undefined): u is Unit =>
-    !!u && u.alive && u.team === hero?.team && (u.id === hero?.id || u.summonOwnerId === hero?.id || u.kind === 'courier');
-  const commandUnit = (): Unit | undefined => {
-    const sel = ux.selectedUnitId ? world.getUnit(ux.selectedUnitId) : undefined;
-    return isControllable(sel) ? sel : hero;
+  const issueSelectedOrder = (
+    order: Parameters<Unit['issueOrder']>[0],
+    pulse: { kind: 'move' | 'attack' | 'attackmove' | 'ping'; pos: { x: number; y: number }; targetId?: number },
+    options?: CastInputOptions,
+  ): Unit[] => {
+    if (!hero) return [];
+    const snapshot = selection?.snapshot() ?? { primaryId: 0, selectedIds: [], commandableIds: [], inspectId: 0 };
+    const recipients = issueSelectionOrder(order, snapshot, world.units, hero, options);
+    if (recipients.length === 0) return recipients;
+    ux.addWorldPulse({ kind: orderPulseKind(pulse.kind, options), pos: pulse.pos, targetId: pulse.targetId, time: world.time });
+    if (pulse.kind !== 'ping') audio.command(pulse.kind === 'attack');
+    return recipients;
+  };
+  const issueSelectedImmediateOrder = (order: Parameters<Unit['issueOrder']>[0], kind: 'stop' | 'hold'): Unit[] => {
+    if (!hero) return [];
+    const snapshot = selection?.snapshot() ?? { primaryId: 0, selectedIds: [], commandableIds: [], inspectId: 0 };
+    const recipients = issueSelectionOrder(order, snapshot, world.units, hero);
+    for (const unit of recipients) ux.addWorldPulse({ kind, pos: unit.pos, time: world.time });
+    if (recipients.length > 0) audio.command(false);
+    return recipients;
   };
 
   // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
@@ -332,16 +357,17 @@ function startGame(mode: 'play' | 'spectate'): void {
   const previewCast = (i: number, p: { x: number; y: number }) => {
     const info = castInfo(i);
     if (!hero || !info) return false;
-    const mode = info.def.targetMode === 'unit' ? 'unit' : 'area';
-    const target = mode === 'unit' ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
-    const valid = mode === 'unit' ? !!target : true;
+    const geometry = previewTargetingGeometry(abilityPreviewShape(info.def, info.inst.level), info.range);
+    const target = geometry.mode === 'unit' ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
+    const valid = geometry.mode === 'unit' ? !!target : true;
     ux.setTargeting({
       abilityIndex: i,
-      mode,
+      mode: geometry.mode,
       origin: hero.pos,
       cursor: p,
-      range: info.range,
-      radius: mode === 'area' ? 220 : undefined,
+      range: geometry.range,
+      radius: geometry.radius,
+      width: geometry.width,
       valid,
     });
     return valid;
@@ -376,18 +402,19 @@ function startGame(mode: 'play' | 'spectate'): void {
   const previewItem = (slot: number, p: { x: number; y: number }) => {
     const info = itemInfo(slot);
     if (!hero || !info) return false;
-    const mode = info.active.targetMode === 'unit' ? 'unit' : 'area';
-    const target = mode === 'unit' ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
-    const valid = mode === 'unit' ? !!target : true;
+    const geometry = previewTargetingGeometry(itemPreviewShape(info.active), info.range);
+    const target = geometry.mode === 'unit' ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
+    const valid = geometry.mode === 'unit' ? !!target : true;
     ux.setTargeting({
       abilityIndex: -1,
       source: 'item',
       itemSlot: slot,
-      mode,
+      mode: geometry.mode,
       origin: hero.pos,
       cursor: p,
-      range: info.range,
-      radius: mode === 'area' ? 180 : undefined,
+      range: geometry.range,
+      radius: geometry.radius,
+      width: geometry.width,
       valid,
     });
     return valid;
@@ -402,43 +429,64 @@ function startGame(mode: 'play' | 'spectate'): void {
     onRightClick(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
-      const u = commandUnit(); // 选中己方召唤物/信使时指令归它,否则英雄
       // 统一容差 PICK_RADIUS(与左键/悬停一致,使悬停红圈准确预测右键目标)+ 迷雾门控(不可攻击雾中看不见的敌人)+ 取最近敌方
       const cands = world.queryRadius(p, PICK_RADIUS, (uu) => uu.alive && uu.team !== hero!.team && !uu.invulnerable && isVisibleTo(world, hero!.team, uu));
       cands.sort((a, b) => ((a.pos.x - p.x) ** 2 + (a.pos.y - p.y) ** 2) - ((b.pos.x - p.x) ** 2 + (b.pos.y - p.y) ** 2));
       const target = cands[0];
       if (target) {
-        issueHeroOrder(
+        issueSelectedOrder(
           { type: 'attack', targetId: target.id },
           { kind: 'attack', pos: target.pos, targetId: target.id },
-          options, u,
+          options,
         );
       } else {
         const pos = map.nearestWalkable(p);
-        issueHeroOrder({ type: 'move', pos }, { kind: 'move', pos }, options, u);
+        issueSelectedOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
       }
     },
-    onLeftClick(p) {
+    onLeftClick(p, options?: SelectInputOptions) {
       ux.clearCursorIntent();
       // 左键查看:选中点击处最近的可见单位(英雄优先);点空地则回到受控英雄,永不丢失自己。
       const picked = pickUnitAt(world, hero?.team ?? null, p, PICK_RADIUS);
-      if (picked) ux.selectUnit(picked.id);
-      else if (hero) ux.selectUnit(hero.id);
-      else ux.clearSelection();
+      if (selection) {
+        if (picked) selection.select(picked, options);
+        else selection.clearToHero(hero);
+        syncSelection();
+      } else {
+        ux.clearSelection();
+      }
+    },
+    onSelectBox(start, end, options?: SelectInputOptions) {
+      if (!hero || !selection) return;
+      ux.clearCursorIntent();
+      const pickedUnits = pickUnitsInWorldRect(
+        world,
+        hero.team,
+        { minX: start.x, minY: start.y, maxX: end.x, maxY: end.y },
+        { playerTeam: hero.team, playerHeroId: hero.id },
+      );
+      if (pickedUnits.length > 0) selection.selectMany(pickedUnits, options);
+      else selection.clearToHero(hero);
+      syncSelection();
+    },
+    onSelectionBoxPreview(start, end) {
+      ux.setSelectionBox(start, end);
+    },
+    onSelectionBoxClear() {
+      ux.clearSelectionBox();
     },
     onAttackMove(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
-      const u = commandUnit();
       const denyTarget = world.queryRadius(p, 60, (uu) => uu.team === hero!.team && uu.kind === 'creep' && uu.hp / uu.calc.maxHp < 0.5)[0];
       if (denyTarget) {
-        issueHeroOrder(
+        issueSelectedOrder(
           { type: 'attack', targetId: denyTarget.id },
           { kind: 'attack', pos: denyTarget.pos, targetId: denyTarget.id },
-          options, u,
+          options,
         );
       } else {
         const pos = map.nearestWalkable(p);
-        issueHeroOrder({ type: 'attackmove', pos }, { kind: 'attackmove', pos }, options, u);
+        issueSelectedOrder({ type: 'attackmove', pos }, { kind: 'attackmove', pos }, options);
       }
     },
     onPrepareCast(i, p, options?: CastInputOptions) {
@@ -467,7 +515,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
         return false;
       }
-      if (info.def.targetMode === 'point') {
+      if (info.def.targetMode === 'point' || info.def.targetMode === 'line') {
         const pos = map.nearestWalkable(p);
         issueHeroOrder({ type: 'cast', abilityIndex: i, pos }, { kind: 'ping', pos }, options);
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
@@ -534,7 +582,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
         return false;
       }
-      if (info.active.targetMode === 'point') {
+      if (info.active.targetMode === 'point' || info.active.targetMode === 'line') {
         const pos = map.nearestWalkable(p);
         const ok = useItem(world, hero, slot, pos);
         ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
@@ -579,14 +627,10 @@ function startGame(mode: 'play' | 'spectate'): void {
       return true;
     },
     onStop() {
-      const u = commandUnit();
-      if (u) { ux.addWorldPulse({ kind: 'stop', pos: u.pos, time: world.time }); audio.command(false); }
-      u?.issueOrder({ type: 'stop' });
+      issueSelectedImmediateOrder({ type: 'stop' }, 'stop');
     },
     onHold() {
-      const u = commandUnit();
-      if (u) { ux.addWorldPulse({ kind: 'hold', pos: u.pos, time: world.time }); audio.command(false); }
-      u?.issueOrder({ type: 'hold' });
+      issueSelectedImmediateOrder({ type: 'hold' }, 'hold');
     },
     onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
     onTogglePause() { loop.paused = !loop.paused; },
@@ -596,6 +640,57 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (!hero) return;
       if (activateGlyph(world, hero.team)) audio.command(false);
       else { ux.setCommandMessage({ kind: 'reject', label: '守护冷却中', time: world.time, color: '#ff3040' }); audio.reject(); }
+    },
+    onSelectHero() {
+      if (!hero || !selection) return;
+      selection.clearToHero(hero);
+      syncSelection();
+    },
+    onSelectCourier() {
+      if (!hero || !selection) return;
+      const courier = [...world.units.values()].find((u) => u.alive && u.team === hero!.team && u.kind === 'courier');
+      if (courier) {
+        selection.select(courier);
+        syncSelection();
+      } else {
+        ux.setCommandMessage({ kind: 'reject', label: '无可用信使', time: world.time, color: '#ff3040' });
+        audio.reject();
+      }
+    },
+    onSelectAllControlled() {
+      if (!hero || !selection) return;
+      selection.selectMany([...world.units.values()]);
+      syncSelection();
+    },
+    onBindControlGroup(slot: ControlGroupSlot) {
+      if (!hero || !selection) return;
+      selection.bindGroup(slot);
+      const count = selection.group(slot).length;
+      if (count > 0) {
+        audio.command(false);
+      } else {
+        ux.setCommandMessage({ kind: 'reject', label: `控制组 ${slot} 为空`, time: world.time, color: '#ff3040' });
+        audio.reject();
+      }
+    },
+    onSelectControlGroup(slot: ControlGroupSlot, options?: ControlGroupInputOptions) {
+      if (!hero || !selection) return;
+      const available = selection.group(slot).some((id) => {
+        const unit = world.getUnit(id);
+        return !!unit && unit.alive;
+      });
+      if (!available) {
+        ux.setCommandMessage({ kind: 'reject', label: `控制组 ${slot} 无可用单位`, time: world.time, color: '#ff3040' });
+        audio.reject();
+        return;
+      }
+      selection.selectGroup(slot, world.units);
+      syncSelection();
+      const primary = world.getUnit(selection.snapshot().primaryId);
+      if (options?.center && primary) {
+        camera.centerOn(primary.pos);
+        camera.follow = primary.id === hero.id;
+      }
     },
 
     onPointerMove(screen, worldPt) {
@@ -688,13 +783,18 @@ function startGame(mode: 'play' | 'spectate'): void {
       ux.altInfo = input?.altDown ?? false; // 按住 Alt:信息层(塔攻击范围)
       if (camera.follow && hero) camera.centerOn(hero.pos); // 镜头跟随英雄(平移会暂停)
       // 选择校正:选中目标已死/进雾(且非受控英雄)→ 回到英雄,避免信息面板停留在失效目标
-      if (ux.selectedUnitId && (!hero || ux.selectedUnitId !== hero.id)) {
-        const sel = world.getUnit(ux.selectedUnitId);
-        const visible = !!sel && sel.alive && (hero == null || isVisibleTo(world, hero.team, sel));
-        if (!visible) ux.selectUnit(hero?.id ?? 0);
+      if (selection && ux.selectedUnitId && (!hero || ux.selectedUnitId !== hero.id)) {
+        const selectedVisible = selection.snapshot().selectedIds.every((id) => {
+          const sel = world.getUnit(id);
+          return !!sel && sel.alive && (hero == null || isVisibleTo(world, hero.team, sel));
+        });
+        if (!selectedVisible) {
+          selection.clearToHero(hero);
+          syncSelection();
+        }
       }
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
-      hud.update(world, hero, ux);
+      hud.update(world, hero, ux, controlSettings);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);

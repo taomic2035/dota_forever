@@ -212,7 +212,7 @@ export function useItem(w: World, hero: Unit, slot: number, pos?: { x: number; y
   if (def.active.manaCost && hero.mp < def.active.manaCost) return false;
   // 可再充能物品(魔棒/药瓶)由 onUse 自管充能;一次性消耗品需有充能
   if (def.charges !== undefined && !def.rechargeable && inst.charges <= 0) return false;
-  if (def.active.targetMode === 'point' && !pos) return false;
+  if ((def.active.targetMode === 'point' || def.active.targetMode === 'line') && !pos) return false;
   if (def.active.targetMode === 'unit' && !target) return false;
   // 权威目标校验:单位目标须满足声明的队伍/种类过滤
   if (def.active.targetMode === 'unit' && target &&

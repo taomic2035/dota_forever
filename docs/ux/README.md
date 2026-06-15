@@ -7,6 +7,11 @@ This index groups the current UX workstream by player-facing problem area.
 - [Core UX design](2026-06-12-core-ux-design.md)
 - [Mainline retro](2026-06-12-ux-mainline-retro.md)
 - [Core UX readability summary](2026-06-12-core-ux-readability-summary.md)
+- [Real Dota UX gap audit](2026-06-15-real-dota-ux-gap-audit.md)
+- [Next stage UX summary](2026-06-15-next-stage-ux-summary.md)
+- [UX consolidated roadmap](2026-06-15-ux-consolidated-roadmap.md)
+- [UX master recap and next stage plan](2026-06-15-ux-master-recap-next-stage.md)
+- [Opus to Codex UX handoff status](2026-06-15-opus-to-codex-handoff-next.md)
 
 ## World And Visual Readability
 

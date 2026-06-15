@@ -5,7 +5,7 @@ import type { Unit } from '../../sim/unit';
 import type { ModifierDef } from '../../sim/modifiers';
 import type { TargetKindFilter, TargetTeamFilter } from '../../sim/targeting';
 
-export type TargetMode = 'none' | 'point' | 'unit' | 'passive';
+export type TargetMode = 'none' | 'point' | 'unit' | 'line' | 'passive';
 
 export type AbilityTag =
   | 'nuke' | 'stun' | 'slow' | 'heal' | 'escape' | 'buff' | 'aoe' | 'channel' | 'orb' | 'ultimate';

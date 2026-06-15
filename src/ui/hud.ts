@@ -10,6 +10,8 @@ import type { UxFeedback } from './uxFeedback';
 import { fxStyle } from '../render/fxStyle';
 import { statusChips, statusChipTime } from '../render/statusChips';
 import { abilityIconSvg } from './abilityIconSvg';
+import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../engine/controlSettings';
+import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -72,7 +74,7 @@ export class Hud {
     });
   }
 
-  update(world: World, hero: Unit | undefined, ux?: UxFeedback): void {
+  update(world: World, hero: Unit | undefined, ux?: UxFeedback, controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS): void {
     this.renderTopbar(world, hero);
     if (!hero) {
       this.bottom.innerHTML = '';
@@ -96,6 +98,8 @@ export class Hud {
     const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
     const tpHtml = this.itemSlot(world, hero.tpSlot, 6, ux); // 专属回城卷轴槽
     const bagHtml = hero.backpack.map((inst, j) => this.backpackSlot(inst, j)).join(''); // 背包栏(3 格)
+    const commandHtml = this.commandCard(controlSettings);
+    const selectionSummary = this.selectionSummary(world, hero, ux);
 
     this.bottom.innerHTML = `
       <div style="display:grid;grid-template-columns:260px 1fr 392px;gap:10px;height:100%;">
@@ -125,9 +129,15 @@ export class Hud {
             ${dead ? '' : this.buffBar(world, hero)}
           </div>
         </div>
-        <div style="display:flex;align-items:end;justify-content:center;gap:5px;min-width:0;">
-          ${abilityHtml}
-          ${this.statBonusSlot(hero)}
+        <div style="display:grid;grid-template-rows:auto 1fr;gap:6px;min-width:0;align-items:end;">
+          <div style="align-self:start;justify-self:center;width:min(246px,100%);">
+            ${selectionSummary.visible ? this.selectionSummaryHtml(selectionSummary) : ''}
+            ${commandHtml}
+          </div>
+          <div style="display:flex;align-items:end;justify-content:center;gap:5px;min-width:0;">
+            ${abilityHtml}
+            ${this.statBonusSlot(hero)}
+          </div>
         </div>
         <div style="display:flex;gap:6px;align-items:flex-end;justify-content:end;">
           <div style="align-self:flex-end">${tpHtml}</div>
@@ -139,6 +149,36 @@ export class Hud {
           </div>
         </div>
       </div>`;
+  }
+
+  private commandCard(settings: ControlSettings): string {
+    const buttons = buildCommandCard(settings);
+    return `<div title="Command card" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">${buttons.map((button) => this.commandButton(button)).join('')}</div>`;
+  }
+
+  private commandButton(button: CommandCardButton): string {
+    return `<div title="${button.tooltip}" data-command-card="${button.action}" style="height:24px;border:1px solid #425331;border-radius:3px;background:#11180d;color:#d8d0ae;display:grid;grid-template-columns:1fr auto;align-items:center;gap:3px;padding:0 4px;box-sizing:border-box;opacity:${button.enabled ? 1 : 0.45};">
+      <span style="font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${button.label}</span>
+      <span style="min-width:20px;text-align:center;border:1px solid #6a5a2a;border-radius:2px;background:#211b0d;color:#ffd76a;font-size:9px;font-weight:800;line-height:14px;">${button.hotkey}</span>
+    </div>`;
+  }
+
+  private selectionSummary(world: World, hero: Unit, ux?: UxFeedback): SelectionSummary {
+    const commandableUnits = (ux?.commandableSelectedIds ?? [])
+      .map((id) => world.getUnit(id))
+      .filter((unit): unit is Unit => !!unit && unit.alive);
+    const primary = ux?.selectedUnitId ? world.getUnit(ux.selectedUnitId) : undefined;
+    return buildSelectionSummary({
+      primaryName: primary?.name ?? hero.name,
+      commandableUnits,
+    });
+  }
+
+  private selectionSummaryHtml(summary: SelectionSummary): string {
+    return `<div title="${summary.detail}" style="height:18px;margin-bottom:3px;border:1px solid #4b6a37;border-radius:3px;background:#13200f;color:#9cff74;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 5px;box-sizing:border-box;">
+      <b style="font-size:10px;white-space:nowrap;">${summary.title}</b>
+      <span style="font-size:9px;color:#cfe8bd;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${summary.detail}</span>
+    </div>`;
   }
 
   private renderTopbar(world: World, hero: Unit | undefined): void {

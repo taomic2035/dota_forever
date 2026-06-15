@@ -19,6 +19,8 @@ import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
 import { terrainVisualAt } from './mapReadability';
 import { projectileVisualFor, type ProjectileSourceKind } from './projectileReadability';
 import { buildCommandQueuePath, type CommandQueueLeg } from './commandQueuePath';
+import { selectionVisualState, type SelectionVisualState } from './selectionVisual';
+import { selectionBoxRect } from './selectionBox';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -217,7 +219,7 @@ export class Renderer {
     }
     units.sort((a, b) => a.pos.y - b.pos.y);
     this.hoverId = ux?.hoverUnitId ?? 0;
-    for (const u of units) this.drawUnit(world, u, u.id === selectedId);
+    for (const u of units) this.drawUnit(world, u, selectionVisualState(u.id, selectedId, ux));
 
     // 弹道
     this.drawProjectiles(world);
@@ -236,6 +238,22 @@ export class Renderer {
       this.fog.update(world, this.viewerTeam);
       this.fog.draw(ctx, this.camera, world.map.CELL);
     }
+    this.drawSelectionBox(ux);
+  }
+
+  private drawSelectionBox(ux?: UxFeedback): void {
+    if (!ux?.selectionBox) return;
+    const rect = selectionBoxRect(ux.selectionBox.start, ux.selectionBox.end);
+    if (rect.width < 3 || rect.height < 3) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.fillStyle = 'rgba(156,255,116,0.08)';
+    ctx.strokeStyle = 'rgba(156,255,116,0.82)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 3]);
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.restore();
   }
 
   private drawCommandQueuePath(world: World, selectedId: number): void {
@@ -611,13 +629,13 @@ export class Renderer {
     return a;
   }
 
-  drawUnit(world: World, u: Unit, selected: boolean) {
+  drawUnit(world: World, u: Unit, selection: SelectionVisualState) {
     const { ctx } = this;
     const p = this.camera.worldToScreen(this.lerpPos(u));
     if (p.x < -80 || p.y < -80 || p.x > this.canvas.width + 80 || p.y > this.canvas.height + 80) return;
 
     if (u.isBuilding()) {
-      this.drawBuilding(u, p, selected);
+      this.drawBuilding(u, p, selection.selected);
       return;
     }
 
@@ -705,11 +723,12 @@ export class Renderer {
       ctx.stroke();
     }
 
-    if (selected) {
-      ctx.strokeStyle = '#9cff74';
-      ctx.lineWidth = Math.max(2, this.s(4));
+    if (selection.selected) {
+      ctx.strokeStyle = selection.primary ? '#9cff74' : 'rgba(156,255,116,0.68)';
+      ctx.lineWidth = selection.primary ? Math.max(2, this.s(4)) : Math.max(1.5, this.s(2.5));
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y + r * 0.55, r * 1.15, r * 0.55, 0, 0, Math.PI * 2);
+      const scale = selection.primary ? 1.15 : 1.04;
+      ctx.ellipse(p.x, p.y + r * 0.55, r * scale, r * (scale * 0.48), 0, 0, Math.PI * 2);
       ctx.stroke();
     } else if (u.id === this.hoverId) {
       // 悬停轮廓:敌红(右键=攻击)/ 友绿 / 中立黄,提供 pre-click 反馈

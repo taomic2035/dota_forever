@@ -28,10 +28,12 @@ export interface ItemDef {
     name: string;
     manaCost?: number;
     cooldown: number;
-    targetMode: 'none' | 'point' | 'unit';
+    targetMode: 'none' | 'point' | 'unit' | 'line';
     targetTeam?: TargetTeamFilter;
     targetKind?: TargetKindFilter;
     castRange?: number;
+    /** Preview-only area radius for point-target active items. */
+    activeAoeRadius?: number;
     /** 穿魔免:对魔免敌方单体仍可施(否则 useItem 预筛拒绝,见 M11)。无敌仍一律拦。 */
     piercesSpellImmunity?: boolean;
     /** 返回 false 表示未生效(不消耗) */

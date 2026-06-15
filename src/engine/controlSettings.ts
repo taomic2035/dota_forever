@@ -3,6 +3,8 @@ export type CastInputMode = (typeof CAST_INPUT_MODES)[number];
 export type CastInputOverride = CastInputMode | undefined;
 export const CAMERA_PAN_SPEEDS = ['slow', 'normal', 'fast'] as const;
 export type CameraPanSpeed = (typeof CAMERA_PAN_SPEEDS)[number];
+export const NUMBER_ROW_MODES = ['items', 'controlGroups'] as const;
+export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
 
 export const ABILITY_CAST_SLOT_COUNT = 4;
 export const ITEM_CAST_SLOT_COUNT = 6;
@@ -12,6 +14,7 @@ export const REBINDABLE_ACTIONS = [
   'ability0', 'ability1', 'ability2', 'ability3',
   'item0', 'item1', 'item2', 'item3', 'item4', 'item5',
   'tp', 'attackMove', 'stop', 'hold', 'shop', 'glyph',
+  'selectHero', 'selectCourier', 'selectAllControlled',
 ] as const;
 export type RebindAction = (typeof REBINDABLE_ACTIONS)[number];
 
@@ -20,6 +23,7 @@ export const DEFAULT_KEY_BINDS: Record<RebindAction, string> = {
   ability0: 'q', ability1: 'w', ability2: 'e', ability3: 'r',
   item0: '1', item1: '2', item2: '3', item3: '4', item4: '5', item5: '6',
   tp: 't', attackMove: 'a', stop: 's', hold: 'h', shop: 'f', glyph: 'g',
+  selectHero: 'f1', selectCourier: 'f2', selectAllControlled: 'f3',
 };
 
 /** 改键友好名(UI 显示)。 */
@@ -27,6 +31,7 @@ export const ACTION_LABEL: Record<RebindAction, string> = {
   ability0: '技能 Q', ability1: '技能 W', ability2: '技能 E', ability3: '技能 R',
   item0: '物品 1', item1: '物品 2', item2: '物品 3', item3: '物品 4', item4: '物品 5', item5: '物品 6',
   tp: '回城', attackMove: '攻击移动', stop: '停止', hold: '守住', shop: '商店', glyph: '守护符',
+  selectHero: '选择英雄', selectCourier: '选择信使', selectAllControlled: '全选可控',
 };
 
 export interface ControlSettings {
@@ -36,6 +41,7 @@ export interface ControlSettings {
   itemCasts: CastInputOverride[];
   cameraEdgePan: boolean;
   cameraPanSpeed: CameraPanSpeed;
+  numberRowMode: NumberRowMode;
   /** 动作→物理键(默认 DEFAULT_KEY_BINDS)。 */
   keyBinds: Record<string, string>;
 }
@@ -47,6 +53,7 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   itemCasts: emptyOverrideList(ITEM_CAST_SLOT_COUNT),
   cameraEdgePan: true,
   cameraPanSpeed: 'normal',
+  numberRowMode: 'items',
   keyBinds: { ...DEFAULT_KEY_BINDS },
 };
 
@@ -81,6 +88,11 @@ export function parseCameraPanSpeed(value: unknown): CameraPanSpeed | undefined 
   return CAMERA_PAN_SPEEDS.includes(value as CameraPanSpeed) ? value as CameraPanSpeed : undefined;
 }
 
+export function parseNumberRowMode(value: unknown): NumberRowMode | undefined {
+  if (typeof value !== 'string') return undefined;
+  return NUMBER_ROW_MODES.includes(value as NumberRowMode) ? value as NumberRowMode : undefined;
+}
+
 export function normalizeControlSettings(input: unknown): ControlSettings {
   const raw = typeof input === 'object' && input !== null ? input as Record<string, unknown> : {};
   return {
@@ -92,6 +104,7 @@ export function normalizeControlSettings(input: unknown): ControlSettings {
       ? raw.cameraEdgePan
       : DEFAULT_CONTROL_SETTINGS.cameraEdgePan,
     cameraPanSpeed: parseCameraPanSpeed(raw.cameraPanSpeed) ?? DEFAULT_CONTROL_SETTINGS.cameraPanSpeed,
+    numberRowMode: parseNumberRowMode(raw.numberRowMode) ?? DEFAULT_CONTROL_SETTINGS.numberRowMode,
     keyBinds: normalizeKeyBinds(raw.keyBinds),
   };
 }
@@ -110,6 +123,14 @@ export function castInputModeLabel(mode: CastInputMode): string {
 export function cycleCameraPanSpeed(speed: CameraPanSpeed): CameraPanSpeed {
   const index = CAMERA_PAN_SPEEDS.indexOf(speed);
   return CAMERA_PAN_SPEEDS[(index + 1) % CAMERA_PAN_SPEEDS.length];
+}
+
+export function cycleNumberRowMode(mode: NumberRowMode): NumberRowMode {
+  return mode === 'items' ? 'controlGroups' : 'items';
+}
+
+export function numberRowModeLabel(mode: NumberRowMode): string {
+  return mode === 'controlGroups' ? '控制组' : '物品';
 }
 
 export function cameraPanSpeedLabel(speed: CameraPanSpeed): string {

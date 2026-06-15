@@ -12,6 +12,8 @@ import {
   cycleCameraPanSpeed,
   cycleCastInputMode,
   cycleCastInputOverride,
+  cycleNumberRowMode,
+  numberRowModeLabel,
   type ControlSettings,
   type RebindAction,
 } from '../engine/controlSettings';
@@ -171,6 +173,9 @@ export function createPauseMenu(
       <button id="pm-edge-pan" style="${compactBtnCss('#221a2c', '#c39cff')}"></button>
       <button id="pm-volume" style="${compactBtnCss('#2c2218', '#ffb86b')}"></button>
     </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px;width:360px">
+      <button id="pm-number-row-mode" style="${compactBtnCss('#1f252f', '#9fc8ff')}"></button>
+    </div>
     <div style="width:430px;display:flex;flex-direction:column;gap:7px">
       <div style="${sectionLabelCss('#7ec8e3')}">技能施法</div>
       <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:6px">${abilityButtons}</div>
@@ -197,11 +202,13 @@ export function createPauseMenu(
     const camera = root.querySelector('#pm-camera-speed') as HTMLButtonElement | null;
     const edgePan = root.querySelector('#pm-edge-pan') as HTMLButtonElement | null;
     const volume = root.querySelector('#pm-volume') as HTMLButtonElement | null;
+    const numberRow = root.querySelector('#pm-number-row-mode') as HTMLButtonElement | null;
     if (ability) ability.textContent = `技能 ${castInputModeLabel(settings.abilityCast)}`;
     if (item) item.textContent = `物品 ${castInputModeLabel(settings.itemCast)}`;
     if (camera) camera.textContent = `镜头 ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
     if (edgePan) edgePan.textContent = `边缘平移 ${settings.cameraEdgePan ? '开' : '关'}`;
     if (volume) volume.textContent = controls.getVolume ? `音量 ${volumeLabel(controls.getVolume())}` : '音量 —';
+    if (numberRow) numberRow.textContent = `数字行 ${numberRowModeLabel(settings.numberRowMode)}`;
     root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.abilityCastSlot);
       const hotkey = abilityHotkeys[slot] ?? '?';
@@ -249,6 +256,12 @@ export function createPauseMenu(
     let idx = VOLUME_STEPS.findIndex((v) => Math.abs(v - cur) < 0.13);
     if (idx < 0) idx = 2;
     controls.setVolume(VOLUME_STEPS[(idx + 1) % VOLUME_STEPS.length]);
+    syncControls();
+  });
+  root.querySelector('#pm-number-row-mode')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, numberRowMode: cycleNumberRowMode(settings.numberRowMode) });
     syncControls();
   });
   // 改键:点按钮进入捕获,下一次 keydown(capture 阶段 + 阻止冒泡,抑制游戏输入)设为新键

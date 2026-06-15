@@ -38,3 +38,55 @@ export function pickUnitAt(
   }
   return best;
 }
+
+export interface WorldRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+export interface BoxPickOptions {
+  playerTeam: Team;
+  playerHeroId: number;
+}
+
+export function pickUnitsInWorldRect(
+  world: World,
+  viewerTeam: Team | null,
+  rect: WorldRect,
+  options?: BoxPickOptions,
+): Unit[] {
+  const minX = Math.min(rect.minX, rect.maxX);
+  const maxX = Math.max(rect.minX, rect.maxX);
+  const minY = Math.min(rect.minY, rect.maxY);
+  const maxY = Math.max(rect.minY, rect.maxY);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const picked = [...world.units.values()].filter((u) =>
+    u.alive &&
+    u.pos.x >= minX && u.pos.x <= maxX &&
+    u.pos.y >= minY && u.pos.y <= maxY &&
+    (viewerTeam === null || isVisibleTo(world, viewerTeam, u)),
+  );
+  picked.sort((a, b) => {
+    const ac = options ? boxPickCommandable(a, options) : false;
+    const bc = options ? boxPickCommandable(b, options) : false;
+    if (ac !== bc) return ac ? -1 : 1;
+    const ah = a.kind === 'hero' ? 0 : 1;
+    const bh = b.kind === 'hero' ? 0 : 1;
+    if (ah !== bh) return ah - bh;
+    const ad = (a.pos.x - cx) ** 2 + (a.pos.y - cy) ** 2;
+    const bd = (b.pos.x - cx) ** 2 + (b.pos.y - cy) ** 2;
+    if (ad !== bd) return ad - bd;
+    return a.id - b.id;
+  });
+  return picked;
+}
+
+function boxPickCommandable(unit: Unit, options: BoxPickOptions): boolean {
+  if (!unit.alive || unit.team !== options.playerTeam) return false;
+  if (unit.id === options.playerHeroId) return true;
+  if (unit.kind === 'courier') return true;
+  return unit.summonOwnerId === options.playerHeroId;
+}

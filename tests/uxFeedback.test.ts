@@ -96,9 +96,56 @@ describe('UxFeedback', () => {
     expect(ux.selectedUnitId).toBe(0);
     ux.selectUnit(42);
     expect(ux.selectedUnitId).toBe(42);
+    expect(ux.selectedUnitIds).toEqual([42]);
     ux.selectUnit(7);
     expect(ux.selectedUnitId).toBe(7);
+    expect(ux.selectedUnitIds).toEqual([7]);
     ux.clearSelection();
     expect(ux.selectedUnitId).toBe(0);
+    expect(ux.selectedUnitIds).toEqual([]);
+    expect(ux.commandableSelectedIds).toEqual([]);
+    expect(ux.inspectUnitId).toBe(0);
+  });
+
+  it('syncs a full selection snapshot for multi-unit command UI', () => {
+    const ux = new UxFeedback();
+
+    ux.setSelectionSnapshot({
+      primaryId: 10,
+      selectedIds: [10, 12, 14],
+      commandableIds: [10, 12],
+      inspectId: 0,
+    });
+
+    expect(ux.selectedUnitId).toBe(10);
+    expect(ux.selectedUnitIds).toEqual([10, 12, 14]);
+    expect(ux.commandableSelectedIds).toEqual([10, 12]);
+    expect(ux.inspectUnitId).toBe(0);
+  });
+
+  it('syncs inspect-only selection without command authority', () => {
+    const ux = new UxFeedback();
+
+    ux.setSelectionSnapshot({
+      primaryId: 99,
+      selectedIds: [99],
+      commandableIds: [],
+      inspectId: 99,
+    });
+
+    expect(ux.selectedUnitId).toBe(99);
+    expect(ux.selectedUnitIds).toEqual([99]);
+    expect(ux.commandableSelectedIds).toEqual([]);
+    expect(ux.inspectUnitId).toBe(99);
+  });
+
+  it('tracks and clears the drag selection box in screen space', () => {
+    const ux = new UxFeedback();
+
+    ux.setSelectionBox({ x: 10, y: 20 }, { x: 80, y: 100 });
+
+    expect(ux.selectionBox).toEqual({ start: { x: 10, y: 20 }, end: { x: 80, y: 100 } });
+    ux.clearSelectionBox();
+    expect(ux.selectionBox).toBeNull();
   });
 });
