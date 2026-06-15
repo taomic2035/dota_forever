@@ -296,9 +296,11 @@ export function ordersSystem(w: World): void {
       continue;
     }
     const st = stateOf(u);
-    if (st.stunned) {
-      u.windupTargetId = 0; // 眩晕打断前摇
-      u.casting = null; // 眩晕打断施法(蓝未付,不进 CD)
+    // 硬控打断:眩晕,以及被举起/放逐(untargetable,如旋风/euls、星体禁锢)——
+    // 均打断进行中的前摇与引导(蓝未付,不进 CD)。沉默只禁新施法,不打断进行中的。
+    if (st.stunned || st.untargetable) {
+      u.windupTargetId = 0;
+      u.casting = null;
       if (u.channeling) castHooks.breakChannel?.(w, u);
       continue;
     }
