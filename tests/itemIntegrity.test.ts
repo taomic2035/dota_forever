@@ -41,4 +41,15 @@ describe('物品内容完整性', () => {
       expect(it.cost, `${it.key} 成本应=组件和(${sum})`).toBe(sum);
     }
   });
+
+  // 休眠 parity 护栏:商店购买去向预览(shopDestinationModel)用 def.key 判断 stackCharges 堆叠合并,
+  // 但真实购买 buyItem 走 purchaseKeyFor(def.key)——合成品会被改写为 recipe_<key> 卷轴(卷轴无 stackCharges)。
+  // 两者仅在「没有任何合成品声明 stackCharges」时保持一致。若有人破坏此前提,预览将与实际落点分叉,
+  // 须同步修正 shop.ts 的堆叠键派生与 shopDestinationModel。此处大声锁死该前提。
+  it('stackCharges 物品不得带 recipe(否则商店去向预览会与实际分叉)', () => {
+    for (const it of ITEMS) {
+      if (!it.stackCharges) continue;
+      expect(it.recipe, `${it.key} 既可堆叠又是合成品——破坏购买去向预览的 parity 前提`).toBeUndefined();
+    }
+  });
 });

@@ -97,4 +97,52 @@ describe('buildShopDestinationModel', () => {
     expect(model.destination).toBe('stash');
     expect(model.detail).toBe('Dead: goes to stash');
   });
+
+  it('blocks when inventory, backpack, and stash are all full (final fallback)', () => {
+    // 可达兜底:存活、基地、非秘密物品,三处皆满 → buyItem 也返回 'full'(items.ts)。预览须一致。
+    const model = buildShopDestinationModel({
+      item: { key: 'broadsword', cost: 1000 },
+      hero: { ...baseHero, inventoryFreeSlots: 0, backpackFreeSlots: 0, stashFreeSlots: 0 },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: false,
+      destination: 'blocked',
+      label: 'Full',
+      detail: 'Inventory, backpack, and stash full',
+      tone: 'blocked',
+    });
+  });
+
+  it('blocks secret items when inventory is full (secret shop never stashes)', () => {
+    // 秘密商店物品无背包/暂存回退:满物品栏即拒(与 buyItem 的 `secretShop && alive → full` 对齐)。
+    const model = buildShopDestinationModel({
+      item: { key: 'demon_edge', cost: 2400, secretShop: true },
+      hero: { ...baseHero, gold: 3000, shop: 'secret', inventoryFreeSlots: 0, backpackFreeSlots: 1, stashFreeSlots: 1 },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: false,
+      destination: 'blocked',
+      label: 'Full',
+      detail: 'Secret shop cannot stash',
+      tone: 'blocked',
+    });
+  });
+
+  it('previews stacking into inventory when already holding the item', () => {
+    // 堆叠合并预览(stackInInventory):与 buyItem 的充能合并分支对齐,即使物品栏已满也并入现有堆叠。
+    // 用非 tp 的可堆叠消耗品(dust),避免先命中 TP 专属槽分支。
+    const model = buildShopDestinationModel({
+      item: { key: 'dust', cost: 80, stackCharges: true },
+      hero: { ...baseHero, inventoryFreeSlots: 0, stackInInventory: true },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: true,
+      destination: 'hero',
+      detail: 'Adds inventory charge',
+      tone: 'ready',
+    });
+  });
 });
