@@ -5,6 +5,7 @@
 import { GameMap } from './map';
 import { World } from './world';
 import { recalcSystem, ordersSystem, projectileSystem, cleanupSystem } from './combat';
+import { collisionSystem } from './collision';
 import { spawnBuildings, buildingsSystem } from './buildings';
 import { installCreeps } from './creeps';
 import { installEconomy } from './economy';
@@ -34,6 +35,7 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installModifiers(w); // 紧随重算
   // installXxx 系列用 splice(1) 插在重算之后、指令之前
   w.systems.push(ordersSystem);
+  w.systems.push(collisionSystem); // 移动后:单位间碰撞分离(body-block)
   w.systems.push(projectileSystem);
   w.systems.push(buildingsSystem);
   w.systems.push(cleanupSystem);
