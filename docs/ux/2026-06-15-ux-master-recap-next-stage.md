@@ -379,10 +379,14 @@ Completed after the Opus handoff:
   - `scoreboardHeroSummary().status` mirrors existing respawn and buyback fields.
   - `tests/scoreboardModel.test.ts` covers alive, buyback-ready, buyback-cooldown, and not-enough-gold states.
   - `src/ui/scoreboard.ts` adds a status column with respawn/cost/cooldown details.
+- Shop owned-location badges are now visible in item rows:
+  - `src/ui/shopOwnershipModel.ts` summarizes matching owned items across inventory, backpack, stash, and TP slot.
+  - `tests/shopOwnershipModel.test.ts` covers hidden, lane-count, TP-charge, and stackable-charge states.
+  - `src/ui/shop.ts` renders compact `Owned` badges below the purchase destination preview.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Expand shop v2 into quickbuy/component lanes: owned, backpack, stash, courier, missing, affordable.
+2. Expand shop v2 into quickbuy/component lanes: recipe tree, missing, affordable, and keyboard purchase flow.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
 4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.

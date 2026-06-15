@@ -311,5 +311,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - model extension: `scoreboardHeroSummary().status`
   - focused tests: `tests/scoreboardModel.test.ts`
   - Tab scoreboard now shows alive, buyback-ready, buyback-cooldown, and not-enough-gold states with respawn/cost details.
+- Shop owned-location badges first pass is implemented:
+  - pure model: `src/ui/shopOwnershipModel.ts`
+  - focused tests: `tests/shopOwnershipModel.test.ts`
+  - shop rows now show where matching items already exist: Hero, Backpack, Stash, and TP.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, and owned-location badges only mirror/filter current item data; they do not change item placement, item movement, recipes, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.

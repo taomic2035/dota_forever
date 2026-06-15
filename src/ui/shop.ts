@@ -9,6 +9,7 @@ import { buyItem, takeFromStash, sellItem, shopAt } from '../sim/items';
 import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
 import { buildShopVisibleItems } from './shopListModel';
+import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -126,6 +127,13 @@ export class ShopPanel {
           stackInStash: hero.stash.some((slot) => slot?.itemKey === def.key),
         },
       });
+      const ownership = buildShopOwnershipModel({
+        itemKey: def.key,
+        inventory: hero.inventory,
+        backpack: hero.backpack,
+        stash: hero.stash,
+        tpSlot: hero.tpSlot,
+      });
       const afford = destination.canBuy;
       row.style.cssText = `display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:5px;cursor:pointer;
         ${afford ? '' : 'opacity:.45;'}`;
@@ -139,6 +147,7 @@ export class ShopPanel {
           </span>
           <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
           ${destinationBadge(destination)}
+          ${ownershipBadges(ownership)}
         </span>`;
       row.title = tooltip(def);
       // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
@@ -211,6 +220,14 @@ function destinationBadge(model: ShopDestinationModel): string {
 }
 
 /** 物品类别程序化 SVG 图标(与 HUD 一致:药瓶/宝石/剑/盾/法球/合成星)。 */
+function ownershipBadges(model: ShopOwnershipModel): string {
+  if (!model.visible) return '';
+  return `<span title="${model.detail}" style="display:flex;align-items:center;gap:4px;margin-top:3px;min-width:0;">
+    <span style="flex:none;color:#8f9b75;font-size:10px;">Owned</span>
+    ${model.badges.map((badge) => `<b style="flex:none;border:1px solid #3a4428;border-radius:3px;background:#12170e;color:#cfd8a0;font-size:9px;line-height:14px;padding:0 4px;">${badge.label} x${badge.count}</b>`).join('')}
+  </span>`;
+}
+
 function iconSvg(category: ItemCategory): string {
   const M: Record<string, { c: string; p: string }> = {
     consumable: { c: '#6fcf5a', p: '<path d="M10 3 H14 M11 3 V8 L7 19 H17 L13 8 V3"/>' },

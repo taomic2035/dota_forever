@@ -18,6 +18,7 @@ This index groups the current UX workstream by player-facing problem area.
 - [Inspect inventory summary](2026-06-15-inspect-inventory-summary.md)
 - [Scoreboard net worth summary](2026-06-15-scoreboard-networth-summary.md)
 - [Scoreboard death and buyback status summary](2026-06-15-scoreboard-death-buyback-status-summary.md)
+- [Shop owned locations summary](2026-06-15-shop-owned-locations-summary.md)
 - [Opus to Codex UX handoff status](2026-06-15-opus-to-codex-handoff-next.md)
 
 ## DotA UX Gap Analysis And Opus↔Codex Collaboration (2026-06-15)
