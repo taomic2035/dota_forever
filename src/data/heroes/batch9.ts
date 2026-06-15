@@ -99,6 +99,7 @@ const OVER_PER = [16, 24, 32, 40];
 
 const LEON_Q: AbilityDef = {
   key: 'leon_odds', name: '强压', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [400], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '震慑一片敌人:敌人越多每个所受伤害越高,并提升自身攻速。',
@@ -347,6 +348,7 @@ const ROCKET_DMG = [120, 190, 260, 330];
 
 const KOG_E: AbilityDef = {
   key: 'kog_rocket', name: '火箭信标', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [450], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [99999, 99999, 99999, 99999], manaCost: [50, 50, 50, 50], cooldown: [20, 17, 14, 11],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '向全图任意位置发射火箭,造成范围伤害并短暂照亮该处。',

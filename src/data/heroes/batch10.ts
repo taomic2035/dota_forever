@@ -464,6 +464,7 @@ const COIL_TICK = [40, 60, 80];
 
 const PUK_R: AbilityDef = {
   key: 'puk_coil', name: '梦缠', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [400], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800], manaCost: [100, 150, 200], cooldown: [80, 70, 60],
   scepter: { cooldown: [55, 48, 40], desc: '神杖:冷却降低;梦缠锁链对受缚目标施加沉默,令其无法在梦魇中施法。' },
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke', 'ultimate'],
@@ -504,6 +505,7 @@ const BOLT_DMG = [120, 180, 240, 300];
 
 const SVE_Q: AbilityDef = {
   key: 'sve_bolt', name: '风暴之锤', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [250], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [600, 600, 600, 600], manaCost: [110, 120, 130, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['stun', 'nuke', 'aoe'],
   description: '掷出风暴之锤,击晕并伤害落点处的敌人。',

@@ -117,6 +117,7 @@ const SPIRITS_DMG = [60, 100, 140, 180];
 
 const PHX_Q: AbilityDef = {
   key: 'phx_spirits', name: '烈焰精魂', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [900, 900, 900, 900], manaCost: [90, 100, 110, 120], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '放出烈焰精魂冲向目标区域,灼烧并降低敌人攻速。',
@@ -340,6 +341,7 @@ const SHARDS_DMG = [80, 120, 160, 200];
 
 const TUS_Q: AbilityDef = {
   key: 'tus_shards', name: '寒冰碎片', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [13, 12, 11, 10],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '抛射寒冰碎片在目标处炸开,伤害并冻缓范围内敌人。',

@@ -14,6 +14,7 @@ const AVAL_DMG = [100, 160, 220, 280];
 
 const TIN_Q: AbilityDef = {
   key: 'tin_avalanche', name: '山崩', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [600, 600, 600, 600], manaCost: [110, 120, 130, 140], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '召落山崩,砸晕并重创目标区域的敌人。',

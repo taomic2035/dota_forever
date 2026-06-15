@@ -411,6 +411,7 @@ const NOVA_DMG = [100, 160, 220, 280];
 
 const CRY_W: AbilityDef = {
   key: 'cry_nova', name: '极寒新星', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [400], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [100, 110, 120, 130], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '在目标处炸开极寒新星,伤害并冻缓范围内敌人。',

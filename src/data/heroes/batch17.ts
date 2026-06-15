@@ -97,6 +97,7 @@ const NBLAST_DMG = [90, 150, 210, 270];
 
 const PUG_Q: AbilityDef = {
   key: 'pug_blast', name: '虚无爆轰', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [6, 6, 6, 6],
   castPoint: 0.45, tags: ['nuke', 'aoe'],
   description: '蓄力片刻后在目标处引爆虚无能量,炸伤范围内敌人。',
@@ -308,6 +309,7 @@ const MAZE_DPS = [40, 60, 80, 100];
 
 const DWL_Q: AbilityDef = {
   key: 'dwl_maze', name: '荆棘迷宫', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [16, 14, 12, 10],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '在目标区域生出荆棘,定身并持续伤害其中敌人。',

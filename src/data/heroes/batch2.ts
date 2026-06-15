@@ -273,6 +273,7 @@ const SMOKE_SLOW = [-0.15, -0.2, -0.25, -0.3];
 
 const KAI_Q: AbilityDef = {
   key: 'kai_smoke', name: '烟尘弥障', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [330], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [80, 90, 100, 110], cooldown: [16, 15, 14, 13],
   castPoint: 0.2, tags: ['aoe', 'slow'],
   description: '掷出烟雾,沉默并减速区域内敌人 4 秒。',
@@ -643,6 +644,7 @@ const CURSE_DMG_PCT = [-0.16, -0.22, -0.28, -0.34];
 
 const MORPHIS_E: AbilityDef = {
   key: 'morphis_curse', name: '恐惧诅咒', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [85, 95, 105, 115], cooldown: [15, 14, 13, 12],
   castPoint: 0.35, tags: ['aoe', 'slow'],
   description: '诅咒区域内敌人,削弱攻击与移速 6 秒。',

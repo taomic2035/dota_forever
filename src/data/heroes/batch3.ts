@@ -114,6 +114,7 @@ const MULTI_DMG = [60, 100, 140, 180];
 
 const SELAS_Q: AbilityDef = {
   key: 'selas_multi', name: '多重箭', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [280], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 105, 120, 135], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '扇形射出箭雨,伤害并短暂束缚命中的敌人。',
@@ -436,6 +437,7 @@ const VOS_Q: AbilityDef = {
 
 const VOS_W: AbilityDef = {
   key: 'vos_curse', name: '衰老诅咒', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [325], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [80, 90, 100, 110], cooldown: [13, 12, 11, 10],
   castPoint: 0.35, tags: ['slow', 'aoe'],
   description: '诅咒区域,大幅减缓敌人移速与攻速。',
@@ -544,6 +546,7 @@ const SILENCE_DUR = [3, 4, 5, 6];
 
 const VIRA_W: AbilityDef = {
   key: 'vira_silence', name: '魔咒沉默', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [325], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [17, 15, 13, 11],
   castPoint: 0.3, tags: ['aoe'],
   description: '令区域内敌人陷入沉默,无法施法。',

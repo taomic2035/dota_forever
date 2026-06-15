@@ -15,6 +15,7 @@ const SMOKE_DUR = [4, 5, 6, 7];
 
 const RIK_Q: AbilityDef = {
   key: 'rik_smoke', name: '烟幕', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [550, 550, 550, 550], manaCost: [80, 90, 100, 110], cooldown: [16, 14, 12, 10],
   castPoint: 0.3, tags: ['slow', 'aoe'],
   description: '抛出烟幕弹:范围内敌人被沉默并减速。',
@@ -214,6 +215,7 @@ const DPR_Q: AbilityDef = {
 
 const DPR_W: AbilityDef = {
   key: 'dpr_silence', name: '沉默', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [425], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [900, 900, 900, 900], manaCost: [90, 100, 110, 120], cooldown: [15, 14, 13, 12],
   castPoint: 0.3, tags: ['aoe'],
   description: '在目标区域施放沉默,封禁其中敌人的施法。',
@@ -346,6 +348,7 @@ const WALL_ILLU = [2, 3, 4];
 
 const DSR_R: AbilityDef = {
   key: 'dsr_wall', name: '复制之墙', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [450], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800], manaCost: [125, 150, 175], cooldown: [100, 90, 80],
   scepter: { cooldown: [70, 62, 55], desc: '神杖:冷却降低;幻象数量额外增加 2 只,减速加深至 60%。' },
   castPoint: 0.3, tags: ['aoe', 'slow', 'ultimate'],

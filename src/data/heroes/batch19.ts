@@ -139,6 +139,7 @@ const FBREAK_DMG = [100, 160, 220, 280];
 
 const BAT_W: AbilityDef = {
   key: 'bat_flamebreak', name: '烈焰爆', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [300], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [13, 12, 11, 10],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '掷出爆裂火球,炸伤并击退落点处的敌人。',
@@ -393,6 +394,7 @@ const BIND_DMG = [150, 225, 300];
 
 const GRM_R: AbilityDef = {
   key: 'grm_soulbind', name: '灵魂链结', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [400], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800], manaCost: [125, 150, 175], cooldown: [70, 60, 50],
   scepter: { cooldown: [50, 42, 35], desc: '神杖:冷却降低;墨链初始爆发附加 1.2 秒眩晕,彻底锁死目标区域。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],

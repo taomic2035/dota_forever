@@ -43,6 +43,7 @@ const NOVA_DMG = [100, 160, 220, 280];
 
 const LAIN_W: AbilityDef = {
   key: 'lain_nova', name: '奥术新星', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [100, 115, 130, 145], cooldown: [10, 9, 8, 7],
   castPoint: 0.4, tags: ['nuke', 'aoe'],
   description: '引爆奥术新星,伤害范围内敌人。',

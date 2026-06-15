@@ -104,6 +104,7 @@ const SHARD_DMG = [110, 175, 240, 305];
 
 const AURORA_Q: AbilityDef = {
   key: 'aurora_shard', name: '寒霜碎片', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [250], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [95, 110, 125, 140], cooldown: [7, 6.5, 6, 5.5],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '掷出寒霜碎片,炸裂伤害并减速一小片区域。',
@@ -213,6 +214,7 @@ const BLAST_DMG = [110, 170, 230, 290];
 
 const BAL_Q: AbilityDef = {
   key: 'bal_blast', name: '烈焰冲击', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [260], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [100, 115, 130, 145], cooldown: [10, 9, 8, 7],
   castPoint: 0.4, tags: ['nuke', 'stun', 'aoe'],
   description: '引爆烈焰,伤害并眩晕落点区域的敌人。',

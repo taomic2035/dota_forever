@@ -15,6 +15,7 @@ const FIST_DMG = [60, 100, 140, 180];
 
 const EMB_Q: AbilityDef = {
   key: 'emb_fist', name: '拳拳到肉', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [400], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [60, 70, 80, 90], cooldown: [8, 7, 6, 5],
   castPoint: 0.1, tags: ['nuke', 'aoe'],
   description: '瞬身突进到目标区域,迅疾打击其中所有敌人后归位。',
@@ -239,6 +240,7 @@ const VORTEX_DMG = [60, 100, 140, 180];
 
 const AA_W: AbilityDef = {
   key: 'aa_vortex', name: '急冻领域', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [70, 80, 90, 100], cooldown: [8, 7, 6, 5],
   castPoint: 0.2, tags: ['slow', 'aoe', 'nuke'],
   description: '制造急冻漩涡:减速并放大区域内敌人所受的魔法伤害。',
@@ -272,6 +274,7 @@ const BLAST_DMG = [200, 300, 400];
 
 const AA_R: AbilityDef = {
   key: 'aa_iceblast', name: '极寒之触', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [3000, 3500, 4000], manaCost: [150, 200, 250], cooldown: [60, 50, 40],
   scepter: { cooldown: [45, 38, 30], desc: '神杖:冷却降低;冰封区域内的敌人额外被眩晕 1.5 秒并无法回春(驱散冻创效果)。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow', 'ultimate'],
