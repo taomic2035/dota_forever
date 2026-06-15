@@ -143,6 +143,17 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 > 注:Batch 4(多单位选择/控制组/command card)由并行 Codex 线推进中(`engine/selection.ts` 等),本线不重叠。
 > 为避免与并行线冲突,本线优先做落在 `sim`/`hud`/`render` 等他们不碰的文件里的项。
 
+**Sub-batch C — 战斗/施法忠实度(纯 sim)进度(2026-06-15)**
+- ✅ **旋风/放逐(untargetable)打断进行中的施法**(`combat.ts`,P1 dota1-core):此前仅 `stunned` 打断前摇,
+  旋风(`rooted+silenced+disarmed+untargetable`,无 stun)敌方读条放不掉。改为 `stunned || untargetable` 打断。
+  测试 `castInterrupt.test.ts`。提交 `5554149`。
+- ⚠️ **魔免(BKB)挡单体指向 — 经深读判定「核心已实现,不再贸然改」**:差距分析据 `combat.ts:163` 注释判断
+  「魔免从不挡」,但深读发现 `applyModifier` 已有 **M1 拦截**:魔免/无敌单位**免疫敌方控制/减益 modifier**
+  的施加,穿透由 **per-modifier `data.piercesSpellImmunity`** 表达(见 `spellImmunity.test.ts`)。故技能的
+  **效果已被正确拦截**;仅余「不浪费蓝/CD + 光标拒绝文案」的 UX 余量。**不做**在 ability 层加 `piercesImmunity`
+  的目标时拦截——会与现有 per-modifier 穿透约定冲突、误挡本应穿透的技能。若要补 UX 余量,应在 UI 层
+  (`main.ts` 预拒绝)读 `stateOf(target).magicImmune` 给提示,留待与并行 input 线协调后做。
+
 ## 7. 收敛检查
 
 - 否决理由 → ADR?无。本文件为研究 + 审计清单。
