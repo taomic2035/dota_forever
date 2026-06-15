@@ -146,12 +146,14 @@ export function installEconomy(w: World): void {
           }
           killer.heroMeta!.kills++;
           killer.heroMeta!.streak++;
+          const assists: number[] = [];
           for (const a of enemyHeroesNear(world, victim.pos, victim.team, ASSIST_RADIUS)) {
-            if (a.id !== killer.id) a.heroMeta!.assists++;
+            if (a.id !== killer.id) { a.heroMeta!.assists++; assists.push(a.id); }
           }
           world.emit({
             kind: 'hero_kill', killerId: killer.id, victimId: victim.id, bounty,
             streakText: streakText(killer.heroMeta!.streak, killer.name, victim.name),
+            assists,
           });
         } else {
           world.emit({ kind: 'hero_kill', killerId: e.killerId, victimId: victim.id, bounty: 0 });

@@ -15,7 +15,7 @@ export type GameEvent =
   | { kind: 'attack_launched'; unitId: EntityId; targetId: EntityId }
   | { kind: 'projectile_hit'; pos: Vec2 }
   | { kind: 'hero_level'; unitId: EntityId; level: number }
-  | { kind: 'hero_kill'; killerId: EntityId; victimId: EntityId; bounty: number; streakText?: string }
+  | { kind: 'hero_kill'; killerId: EntityId; victimId: EntityId; bounty: number; streakText?: string; assists?: EntityId[] }
   | { kind: 'first_blood'; killerId: EntityId; victimId: EntityId }
   | { kind: 'last_hit'; unitId: EntityId; gold: number; pos: Vec2; deny?: boolean }
   | { kind: 'tower_fell'; unitId: EntityId; team: Team; byTeam: Team }

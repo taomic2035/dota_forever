@@ -17,9 +17,13 @@ export class KillFeed {
       if (e.kind === 'hero_kill') {
         const killer = world.getUnit(e.killerId);
         const victim = world.getUnit(e.victimId);
-        const text = e.streakText ?? (killer && killer.id !== victim?.id
+        const base = e.streakText ?? (killer && killer.id !== victim?.id
           ? `${killer.name} 击杀 ${victim?.name ?? '英雄'}`
           : `${victim?.name ?? '英雄'} 阵亡`);
+        const assistNames = (e.assists ?? [])
+          .map((id) => world.getUnit(id)?.name)
+          .filter((n): n is string => !!n);
+        const text = assistNames.length ? `${base}(协助 ${assistNames.join('、')})` : base;
         this.push(text, killer ? (killer.team === 0 ? '#8fd17a' : '#ef9a9a') : '#bbb', e.bounty);
       } else if (e.kind === 'tower_fell') {
         this.push(`${world.getUnit(e.unitId)?.name ?? '防御塔'} 被摧毁`, '#ffd54f');
