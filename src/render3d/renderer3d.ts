@@ -18,10 +18,12 @@ import { buildBuilding, type BuildingModel } from './buildingGen';
 import { Fx3D } from './fx3d';
 import { Scene3D } from './scene';
 import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './terrain3d';
+import { Fog3D } from './fog3d';
 import { isVisibleTo } from '../sim/vision';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { unitStatusPips } from '../render/statusPips';
+import { castBarInfo, type CastTrackEntry } from '../render/castBar';
 import { visualStateFor3D } from './visualState';
 import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
 import { stackedUnitVisualOffset } from './stackOffset';
@@ -128,10 +130,12 @@ export class Renderer3D {
   /** 悬停轮廓:跟随鼠标悬停单位的贴地环,敌红/友绿/中立黄(右键预期反馈)。 */
   private hovRing!: THREE.Mesh;
   /** 施法/引导进度条:渲染侧捕获每单位本次施法的起始时刻(sim 只存结束时刻),算进度。 */
-  private castTrack = new Map<number, { start: number; end: number }>();
+  private castTrack = new Map<number, CastTrackEntry>();
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
   private readonly queueFx: CommandQueue3DObjects;
+  /** 3D 战争迷雾纱罩(贴地半透明层,补「地面永远全亮」漏洞)。 */
+  private readonly fog3d: Fog3D;
 
   constructor(parent: HTMLElement, world: World, private camera: Camera) {
     this.s3d = new Scene3D(parent);
@@ -142,6 +146,8 @@ export class Renderer3D {
     // 旧值 1.4 过近(仅 ~470 宽,英雄占满屏看不到战场);改 0.62 配合更俯的视角与放大的模型。
     if (camera.zoom < 1.0) camera.zoom = 0.62;
     this.s3d.scene.add(buildTerrain3D(world.map));
+    this.fog3d = new Fog3D(world.map);
+    this.s3d.scene.add(this.fog3d.mesh);
     this.s3d.scene.add(this.queueFx.root);
     this.buildTargeting();
     this.terrainThumb = bakeMiniTerrain(world.map);
@@ -359,6 +365,7 @@ export class Renderer3D {
     updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
+    this.fog3d.update(world, this.viewerTeam, world.time);
     this.s3d.render();
     this.drawBars(world);
     if (ux?.altInfo) this.drawTowerRanges3D(world);
@@ -549,20 +556,14 @@ export class Renderer3D {
           }
         }
       }
-      // 施法/引导进度条(自己/敌方均显示,可看敌方施法进度以打断;渲染侧捕获起始算进度)
-      const castEnd = u.casting ? u.casting.pointUntil : u.channeling ? u.channeling.until : null;
-      if (castEnd !== null) {
-        const tr = this.castTrack.get(u.id);
-        if (!tr || Math.abs(tr.end - castEnd) > 0.02) this.castTrack.set(u.id, { start: world.time, end: castEnd });
-        const t2 = this.castTrack.get(u.id)!;
-        const cf = Math.max(0, Math.min(1, (world.time - t2.start) / Math.max(0.05, t2.end - t2.start)));
+      // 施法/引导进度条(自己/敌方均显示,可读条打断;与 2D 渲染器共用 castBarInfo)
+      const cb = castBarInfo(this.castTrack, u, world.time);
+      if (cb) {
         const cby = sy + bh + (isHero && u.calc.maxMp > 0 ? 5 : 2);
         ctx.fillStyle = 'rgba(8,8,8,0.85)';
         ctx.fillRect(sx - bw / 2 - 1, cby - 1, bw + 2, 5);
-        ctx.fillStyle = u.channeling ? '#ffc23a' : '#46d0ff'; // 引导金 / 施法青
-        ctx.fillRect(sx - bw / 2, cby, bw * cf, 3);
-      } else if (this.castTrack.has(u.id)) {
-        this.castTrack.delete(u.id);
+        ctx.fillStyle = cb.color;
+        ctx.fillRect(sx - bw / 2, cby, bw * cb.frac, 3);
       }
     }
   }

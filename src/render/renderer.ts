@@ -11,6 +11,7 @@ import { FxLayer } from './fx';
 import { unitArt, darken, type UnitArt, type ArtInput } from './unitArt';
 import { isVisibleTo } from '../sim/vision';
 import { unitStatusPips } from './statusPips';
+import { castBarInfo, type CastTrackEntry } from './castBar';
 import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
@@ -41,6 +42,7 @@ export class Renderer {
   fx = new FxLayer();
   /** 单位美术描述符缓存(静态属性,按 id 缓存) */
   private artCache = new Map<number, UnitArt>();
+  private castTrack = new Map<number, CastTrackEntry>();
   /** 每帧可见单位 scratch(复用以免重复分配) */
   private visibleScratch: Unit[] = [];
   /** 观察者阵营;null = 全图视野(观战) */
@@ -719,7 +721,7 @@ export class Renderer {
       ctx.stroke();
     }
 
-    this.drawBars(u, p, r);
+    this.drawBars(u, p, r, t);
     if (u.isHero() && r > 13) this.drawStatusStrip(world, u, p, r);
 
     if (this.showPaths && u.path.length) {
@@ -1050,8 +1052,11 @@ export class Renderer {
     }
   }
 
-  private drawBars(u: Unit, p: Vec2, r: number): void {
-    if (u.hp >= u.calc.maxHp && !u.isHero()) return;
+  private drawBars(u: Unit, p: Vec2, r: number, now: number): void {
+    if (u.hp >= u.calc.maxHp && !u.isHero()) {
+      castBarInfo(this.castTrack, u, now); // 满血非英雄不画条,但仍维护轨迹(清理离场)
+      return;
+    }
     const ctx = this.ctx;
     const w = Math.max(16, r * 2.2);
     const h = Math.max(2.5, this.s(7));
@@ -1061,10 +1066,21 @@ export class Renderer {
     ctx.fillRect(p.x - w / 2 - 1, y - 1, w + 2, h + 2);
     ctx.fillStyle = u.team === Team.Dawn ? '#52d869' : u.team === Team.Night ? '#ef5350' : '#bdbdbd';
     ctx.fillRect(p.x - w / 2, y, w * frac, h);
+    let by = y + h + 1;
     if (u.isHero() && u.calc.maxMp > 0) {
       const mfrac = u.mp / u.calc.maxMp;
+      const mh = Math.max(2, h * 0.55);
       ctx.fillStyle = '#1565c0';
-      ctx.fillRect(p.x - w / 2, y + h + 1, w * mfrac, Math.max(2, h * 0.55));
+      ctx.fillRect(p.x - w / 2, by, w * mfrac, mh);
+      by += mh + 1;
+    }
+    // 施法/引导进度条(自己/敌方均显示,可读条打断;与 3D 渲染器共用 castBarInfo)
+    const cb = castBarInfo(this.castTrack, u, now);
+    if (cb) {
+      ctx.fillStyle = 'rgba(8,8,8,0.85)';
+      ctx.fillRect(p.x - w / 2 - 1, by - 1, w + 2, 5);
+      ctx.fillStyle = cb.color;
+      ctx.fillRect(p.x - w / 2, by, w * cb.frac, 3);
     }
   }
 

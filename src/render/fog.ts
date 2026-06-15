@@ -4,6 +4,7 @@
 import type { World } from '../sim/world';
 import type { Camera } from './camera';
 import { Team } from '../sim/map';
+import { writeFogRGBA } from './fogShared';
 
 export class FogRenderer {
   private canvas: HTMLCanvasElement;
@@ -18,17 +19,9 @@ export class FogRenderer {
     this.img = this.ctx.createImageData(gw, gh);
   }
 
-  /** 更新迷雾位图(每渲染帧调用,数据本身 0.25s 一变)。 */
+  /** 更新迷雾位图(每渲染帧调用,数据本身 0.25s 一变)。与 3D Fog3D 共用 writeFogRGBA。 */
   update(world: World, team: Team): void {
-    if (!world.vision) return;
-    const grid = world.vision.grids[team as 0 | 1];
-    const explored = world.vision.explored[team as 0 | 1];
-    const d = this.img.data;
-    for (let i = 0; i < grid.length; i++) {
-      const o = i * 4;
-      d[o] = 4; d[o + 1] = 6; d[o + 2] = 3;
-      d[o + 3] = grid[i] ? 0 : explored[i] ? 150 : 235;
-    }
+    if (!writeFogRGBA(world, team, this.img.data)) return;
     this.ctx.putImageData(this.img, 0, 0);
   }
 
