@@ -201,6 +201,7 @@ const TORRENT_STUN = [1.4, 1.6, 1.8, 2.0];
 
 const KUN_Q: AbilityDef = {
   key: 'kun_torrent', name: '激流', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [300], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [750, 750, 750, 750], manaCost: [90, 100, 110, 120], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '在目标处蓄起激流,1.5 秒后喷发:击晕、减速并伤害其中敌人。',

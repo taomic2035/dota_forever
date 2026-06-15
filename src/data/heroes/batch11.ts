@@ -164,6 +164,7 @@ const STORM_TICK = [60, 90, 120];
 
 const DIS_R: AbilityDef = {
   key: 'dis_storm', name: '静电风暴', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [450], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [600, 600, 600], manaCost: [125, 175, 225], cooldown: [80, 70, 60],
   scepter: { cooldown: [55, 48, 42], desc: '神杖:冷却降低;风暴持续时间延长至 6/7/8 秒,覆盖更持久的战场控制。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],

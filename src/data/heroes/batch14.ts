@@ -34,6 +34,7 @@ const TOSS_DMG = [110, 170, 230, 290];
 
 const TIN_W: AbilityDef = {
   key: 'tin_toss', name: '投掷', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [275], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [10, 9, 8, 7],
   castPoint: 0.2, tags: ['stun', 'nuke'],
   description: '抓起身边一个单位猛掷向目标点,落点处造成伤害与眩晕。',

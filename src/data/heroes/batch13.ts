@@ -167,6 +167,7 @@ const FLARE_DMG = [400, 600, 800];
 
 const SKY_R: AbilityDef = {
   key: 'sky_flare', name: '神秘之耀', maxLevel: 3, ultimate: true, targetMode: 'point',
+  aoeRadius: [220], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [1600, 1600, 1600], manaCost: [175, 275, 375], cooldown: [40, 30, 20],
   scepter: { cooldown: [28, 21, 14], desc: '神杖:冷却大幅降低;爆炸范围从 220 扩展至 350,爆炸后留下 2 秒魔法减速光晕(敌人法抗降低 20%)。' },
   castPoint: 0.3, tags: ['nuke', 'aoe', 'ultimate'],

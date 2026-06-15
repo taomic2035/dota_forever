@@ -202,6 +202,7 @@ const SPLIT_DMG = [100, 160, 220, 280];
 
 const LES_Q: AbilityDef = {
   key: 'les_split', name: '裂地', maxLevel: 4, targetMode: 'point',
+  aoeRadius: [350], // 预览半径(=onCast 实际 AoE 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '撕裂大地,短暂延迟后震晕并重创目标区域的敌人。',
