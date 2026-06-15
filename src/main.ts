@@ -241,13 +241,21 @@ function startGame(mode: 'play' | 'spectate'): void {
     order: Parameters<Unit['issueOrder']>[0],
     pulse: { kind: 'move' | 'attack' | 'attackmove' | 'ping'; pos: { x: number; y: number }; targetId?: number },
     options?: CastInputOptions,
+    unit: Unit | undefined = hero, // 移动/攻击可路由到选中的己方可控单位(召唤物/信使);技能/物品仍用 hero
   ) => {
-    if (!hero) return;
-    if (options?.queued) hero.queueOrder(order);
-    else hero.issueOrder(order);
+    if (!unit) return;
+    if (options?.queued) unit.queueOrder(order);
+    else unit.issueOrder(order);
     ux.addWorldPulse({ kind: orderPulseKind(pulse.kind, options), pos: pulse.pos, targetId: pulse.targetId, time: world.time });
     // 指令确认音(移动/攻击);cast 用 'ping',其施法音由 cast_done 事件给出,此处不重复
     if (pulse.kind !== 'ping') audio.command(pulse.kind === 'attack');
+  };
+  // 多单位操控:选中"己方可控单位"(英雄/其召唤物/信使)时,移动/攻击/停/守路由到它;否则回落英雄(常规游玩零改变)。
+  const isControllable = (u: Unit | undefined): u is Unit =>
+    !!u && u.alive && u.team === hero?.team && (u.id === hero?.id || u.summonOwnerId === hero?.id || u.kind === 'courier');
+  const commandUnit = (): Unit | undefined => {
+    const sel = ux.selectedUnitId ? world.getUnit(ux.selectedUnitId) : undefined;
+    return isControllable(sel) ? sel : hero;
   };
 
   // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
@@ -394,19 +402,20 @@ function startGame(mode: 'play' | 'spectate'): void {
     onRightClick(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
       ux.clearCursorIntent();
+      const u = commandUnit(); // 选中己方召唤物/信使时指令归它,否则英雄
       // 统一容差 PICK_RADIUS(与左键/悬停一致,使悬停红圈准确预测右键目标)+ 迷雾门控(不可攻击雾中看不见的敌人)+ 取最近敌方
-      const cands = world.queryRadius(p, PICK_RADIUS, (u) => u.alive && u.team !== hero!.team && !u.invulnerable && isVisibleTo(world, hero!.team, u));
+      const cands = world.queryRadius(p, PICK_RADIUS, (uu) => uu.alive && uu.team !== hero!.team && !uu.invulnerable && isVisibleTo(world, hero!.team, uu));
       cands.sort((a, b) => ((a.pos.x - p.x) ** 2 + (a.pos.y - p.y) ** 2) - ((b.pos.x - p.x) ** 2 + (b.pos.y - p.y) ** 2));
       const target = cands[0];
       if (target) {
         issueHeroOrder(
           { type: 'attack', targetId: target.id },
           { kind: 'attack', pos: target.pos, targetId: target.id },
-          options,
+          options, u,
         );
       } else {
         const pos = map.nearestWalkable(p);
-        issueHeroOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
+        issueHeroOrder({ type: 'move', pos }, { kind: 'move', pos }, options, u);
       }
     },
     onLeftClick(p) {
@@ -419,16 +428,17 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     onAttackMove(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
-      const denyTarget = world.queryRadius(p, 60, (u) => u.team === hero!.team && u.kind === 'creep' && u.hp / u.calc.maxHp < 0.5)[0];
+      const u = commandUnit();
+      const denyTarget = world.queryRadius(p, 60, (uu) => uu.team === hero!.team && uu.kind === 'creep' && uu.hp / uu.calc.maxHp < 0.5)[0];
       if (denyTarget) {
         issueHeroOrder(
           { type: 'attack', targetId: denyTarget.id },
           { kind: 'attack', pos: denyTarget.pos, targetId: denyTarget.id },
-          options,
+          options, u,
         );
       } else {
         const pos = map.nearestWalkable(p);
-        issueHeroOrder({ type: 'attackmove', pos }, { kind: 'attackmove', pos }, options);
+        issueHeroOrder({ type: 'attackmove', pos }, { kind: 'attackmove', pos }, options, u);
       }
     },
     onPrepareCast(i, p, options?: CastInputOptions) {
@@ -569,12 +579,14 @@ function startGame(mode: 'play' | 'spectate'): void {
       return true;
     },
     onStop() {
-      if (hero) { ux.addWorldPulse({ kind: 'stop', pos: hero.pos, time: world.time }); audio.command(false); }
-      hero?.issueOrder({ type: 'stop' });
+      const u = commandUnit();
+      if (u) { ux.addWorldPulse({ kind: 'stop', pos: u.pos, time: world.time }); audio.command(false); }
+      u?.issueOrder({ type: 'stop' });
     },
     onHold() {
-      if (hero) { ux.addWorldPulse({ kind: 'hold', pos: hero.pos, time: world.time }); audio.command(false); }
-      hero?.issueOrder({ type: 'hold' });
+      const u = commandUnit();
+      if (u) { ux.addWorldPulse({ kind: 'hold', pos: u.pos, time: world.time }); audio.command(false); }
+      u?.issueOrder({ type: 'hold' });
     },
     onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
     onTogglePause() { loop.paused = !loop.paused; },
