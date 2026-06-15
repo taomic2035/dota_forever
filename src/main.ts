@@ -14,7 +14,7 @@ import { Camera } from './render/camera';
 import { Renderer } from './render/renderer';
 import { Renderer3D } from './render3d/renderer3d';
 import { MiniMap } from './render/minimap';
-import { GameLoop } from './engine/loop';
+import { GameLoop, steppedSpeed } from './engine/loop';
 import { InputManager, type CastInputOptions, type ControlGroupInputOptions, type SelectInputOptions } from './engine/input';
 import { SelectionState, type ControlGroupSlot } from './engine/selection';
 import { issueSelectionOrder } from './engine/selectionCommandRouting';
@@ -643,6 +643,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
     onTogglePause() { loop.paused = !loop.paused; },
+    onSpeedDelta(dir) { loop.speed = steppedSpeed(loop.speed, dir); }, // 观战/对局变速(=/-)
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleShop() { shop.toggle(); },
     onGlyph() { // 防御符文:己方建筑短时免疫;反馈激活/冷却(此前静默)

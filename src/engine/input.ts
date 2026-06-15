@@ -54,6 +54,8 @@ export interface InputCallbacks {
   onToggleScoreboard(show: boolean): void;
   onToggleShop(): void;
   onGlyph(): void;
+  /** 调速:+1 加速 / -1 减速(主要供观战快进/慢放团战)。可选,旧调用方不受影响。 */
+  onSpeedDelta?(dir: 1 | -1): void;
   onSelectHero(): void;
   onSelectCourier(): void;
   onSelectAllControlled(): void;
@@ -75,7 +77,7 @@ export class InputManager {
   /** 物理键→规范键翻译(改键用;默认恒等)。switch/smartHold 用规范键,arrows/alt 用物理键。 */
   private keyTranslation: Record<string, string> = {};
   /** switch 处理的系统键(不可改键,透传):空格回中/P 暂停/Tab 记分板/Esc。 */
-  private static readonly SYSTEM_KEYS = new Set([' ', 'p', 'tab', 'escape']);
+  private static readonly SYSTEM_KEYS = new Set([' ', 'p', 'tab', 'escape', '=', '-']);
 
   /** 物理键→switch 键:绑定键→规范键;系统键透传;其他(含被改走的规范键)→ '\0'(不触发任何 case)。 */
   private translateKey(k: string): string {
@@ -256,6 +258,8 @@ export class InputManager {
         case 'f3': this.cb.onSelectAllControlled(); e.preventDefault(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
+        case '=': this.cb.onSpeedDelta?.(1); break;  // 加速(= 即 + 键,免 Shift)
+        case '-': this.cb.onSpeedDelta?.(-1); break; // 减速
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;
         case 'escape':
           this.commandMode.cancel();

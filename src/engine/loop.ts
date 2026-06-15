@@ -6,6 +6,16 @@ export interface LoopHooks {
   render(alpha: number): void;
 }
 
+/** 观战变速档位。 */
+export const SPEED_STEPS = [0.5, 1, 2, 4, 8] as const;
+
+/** 在固定速度档位间步进:返回 current 按 dir(+1 加速/-1 减速)移动一档后的速度(就近吸附 + 钳制端点)。 */
+export function steppedSpeed(current: number, dir: 1 | -1, steps: readonly number[] = SPEED_STEPS): number {
+  let i = steps.findIndex((s) => s >= current - 1e-6);
+  if (i < 0) i = steps.length - 1;
+  return steps[Math.max(0, Math.min(steps.length - 1, i + dir))];
+}
+
 export class GameLoop {
   speed = 1;
   paused = false;
