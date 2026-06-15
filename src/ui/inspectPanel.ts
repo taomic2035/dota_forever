@@ -8,6 +8,7 @@ import type { Unit, UnitKind } from '../sim/unit';
 import type { UxFeedback } from './uxFeedback';
 import { TEAM_COLOR } from '../render/renderer';
 import { statusChips, statusChipTime } from '../render/statusChips';
+import { inspectPanelAuthority } from './inspectPanelModel';
 
 const KIND_LABEL: Record<UnitKind, string> = {
   hero: '英雄',
@@ -47,10 +48,10 @@ export class InspectPanel {
     }
     this.root.style.display = 'block';
     // 每帧重绘(面板小、仅选中非受控单位时显示),让状态条倒计时实时跳动,与 HUD 同策略
-    this.root.innerHTML = this.markup(world, hero, sel);
+    this.root.innerHTML = this.markup(world, hero, sel, ux);
   }
 
-  private markup(world: World, hero: Unit | undefined, u: Unit): string {
+  private markup(world: World, hero: Unit | undefined, u: Unit, ux: UxFeedback): string {
     const accent = TEAM_COLOR[u.team] ?? '#bdbdbd';
     const rel = hero ? (u.team === hero.team ? '友军' : '敌方') : '';
     const kind = KIND_LABEL[u.kind] ?? '单位';
@@ -72,7 +73,19 @@ export class InspectPanel {
           `<span title="${cp.key}" style="display:inline-flex;align-items:center;height:15px;padding:0 3px;border:1px solid ${cp.color};border-radius:2px;background:${cp.color}22;color:${cp.color};font-size:9px;font-weight:700">${cp.tag}${statusChipTime(cp.remaining)}</span>`,
         ).join('')}</div>`
       : '';
+    const authority = inspectPanelAuthority({
+      unitId: u.id,
+      commandableSelectedIds: ux.commandableSelectedIds,
+      inspectUnitId: ux.inspectUnitId,
+    });
+    const authorityRow = authority
+      ? `<div title="${esc(authority.detail)}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;height:20px;margin:0 0 7px 0;padding:0 6px;border:1px solid ${authority.color};border-radius:3px;background:${authority.background};color:${authority.color};box-sizing:border-box;">
+          <b style="font-size:10px;letter-spacing:0;">${authority.label}</b>
+          <span style="font-size:9px;color:#d9d1aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(authority.detail)}</span>
+        </div>`
+      : '';
     return [
+      authorityRow,
       `<div style="font-weight:600;font-size:13px;border-left:3px solid ${accent};padding-left:6px;margin-bottom:2px">${esc(u.name)}</div>`,
       `<div style="color:#9aa07e;font-size:11px;padding-left:9px;margin-bottom:6px">${sub}</div>`,
       this.meter(u.hp, hpMax, '#4caf50', '#1f6b2b', `${Math.round(u.hp)} / ${Math.round(hpMax)}`),

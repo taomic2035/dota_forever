@@ -95,9 +95,10 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 - `src/ui/commandCard.ts`: 命令卡按钮数据、多单位选择摘要数据。
 - `src/ui/hud.ts`: 3x3 命令卡、多选摘要、热键跟随当前 `ControlSettings`,并将按钮点击接入命令路径。
 - `src/engine/commandMode.ts` / `src/engine/input.ts`: 命令卡 Move 进入 forced move pending,Attack 进入 attack-move pending,Stop/Hold/Hero/Courier/All/Glyph/Shop 复用热键回调。
-- 覆盖测试: `selection`, `selectionCommandRouting`, `inputSelectionHotkeys`, `commandMode`, `pick`, `uxFeedback`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `controlKeyBinds`。
+- `src/ui/inspectPanelModel.ts` / `src/ui/inspectPanel.ts`: inspect 面板新增 `COMMANDABLE` / `VIEW ONLY` 状态条,明确当前单位是否吃命令。
+- 覆盖测试: `selection`, `selectionCommandRouting`, `inputSelectionHotkeys`, `commandMode`, `pick`, `uxFeedback`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `inspectPanelModel`, `controlKeyBinds`。
 
-这说明 P0-A 已经完成了约 90%。剩余是 inspect panel 区分、P0-A summary 截图/smoke 收口。
+这说明 P0-A 已经完成了约 95%。剩余是 P0-A summary 截图/smoke 收口。
 
 ## 当前已完成的预览契约接入
 
@@ -114,7 +115,7 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 
 ### P0 缺口
 
-1. inspect-only 和 commandable selection 的 HUD/inspect panel 语义还不够清晰。
+1. P0-A summary 和固定 smoke 截图还未收口。
 2. 命令卡已经可见,但按钮点击动作还需要接入。
 3. 信使仍未形成可见、可选、可命令、可配送、可失败解释的完整闭环。
 4. 施法预览 V1 已接入真实 area/line/point/unit 几何;V2 仍缺 cone/vector、走近施法、不可达路径、fog/immune/dead 等更完整状态表达。
@@ -161,7 +162,7 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 - `src/engine/input.ts`: 接入控制组 bind/select、双击组键居中。
 - `src/main.ts`: 组绑定、组选择、镜头居中、命令卡点击回调。
 - `src/ui/hud.ts`: 命令卡按钮从静态可见升级为可点击命令入口。
-- `src/ui/inspectPanel.ts`: 区分 inspect-only 与 commandable selection。
+- `src/ui/inspectPanel.ts`: 区分 inspect-only 与 commandable selection。已完成。
 
 优化项:
 
@@ -318,10 +319,8 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 
 ## 下一步推荐顺序
 
-1. inspect panel 的 inspect-only 区分。
-2. inspect-only 与 commandable selection 的 HUD/inspect panel 区分。
-3. P0-A summary 截图和文档收口。
-4. 进入信使和物品物流闭环。
+1. P0-A summary 截图和文档收口。
+2. 进入信使和物品物流闭环。
 
 ## 每阶段交付标准
 

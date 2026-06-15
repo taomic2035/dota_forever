@@ -75,7 +75,7 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 
 尚未完成的部分:
 
-- `src/ui/inspectPanel.ts` 还需要更明确区分 inspect-only 与 commandable selection。
+- `src/ui/inspectPanel.ts` 已新增 `COMMANDABLE` / `VIEW ONLY` 状态条,明确 inspect-only 与 commandable selection 的命令语义。
 - 命令卡按钮已可见且可点击:Move/Attack 进入下一次地面点击 pending,Stop/Hold/Hero/Courier/All/Glyph/Shop 复用热键回调。
 
 ## 统一优先级
@@ -106,7 +106,7 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 - `src/main.ts`: 持有 `SelectionState`,统一同步到 `UxFeedback`,命令分发给 commandable selection。
 - `src/ui/uxFeedback.ts`: 增加 `selectedUnitIds`、`commandableSelectedIds`、`inspectUnitId`、selection snapshot。
 - `src/ui/hud.ts`: 增加命令卡和多单位选择摘要。
-- `src/ui/inspectPanel.ts`: 区分 inspect-only 与可命令选择。
+- `src/ui/inspectPanel.ts`: 区分 inspect-only 与可命令选择。已完成。
 - `src/render/renderer.ts`: 2D 框选矩形、多单位选择环、主选高亮。
 - `src/render3d/renderer3d.ts`: 3D 多单位选择 marker 和主选 marker。
 - `tests/uxFeedback.test.ts`, `tests/queuedOrders.test.ts`, `tests/commandMode.test.ts`: 增加命令分发和选择状态测试。
@@ -260,9 +260,8 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 
 ## 下一步执行顺序
 
-1. 补 inspect panel 的 inspect-only 与 commandable selection 文案/布局区分。
-2. 补 inspect-only 与 commandable selection 的 HUD/inspect panel 区分。
-3. 更新 P0-A summary 并补截图/smoke 记录。
+1. 更新 P0-A summary 并补截图/smoke 记录。
+2. 进入信使和物品物流闭环。
 4. 聚焦验证: `selection`, `pick`, `uxFeedback`, `inputSelectionHotkeys`, `selectionCommandRouting`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `controlSettings`, `queuedOrders`, `commandMode`。
 5. 进入信使/物品物流闭环。
 
