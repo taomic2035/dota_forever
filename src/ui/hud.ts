@@ -13,6 +13,7 @@ import { abilityIconSvg } from './abilityIconSvg';
 import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../engine/controlSettings';
 import { commandCardActionFromValue, type CommandCardAction } from '../engine/commandCardActions';
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
+import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -104,6 +105,7 @@ export class Hud {
     const bagHtml = hero.backpack.map((inst, j) => this.backpackSlot(inst, j)).join(''); // 背包栏(3 格)
     const commandHtml = this.commandCard(controlSettings);
     const selectionSummary = this.selectionSummary(world, hero, ux);
+    const courierSummary = this.courierSummary(world, hero, ux);
 
     this.bottom.innerHTML = `
       <div style="display:grid;grid-template-columns:260px 1fr 392px;gap:10px;height:100%;">
@@ -135,6 +137,7 @@ export class Hud {
         </div>
         <div style="display:grid;grid-template-rows:auto 1fr;gap:6px;min-width:0;align-items:end;">
           <div style="align-self:start;justify-self:center;width:min(246px,100%);">
+            ${this.courierStatusHtml(courierSummary)}
             ${selectionSummary.visible ? this.selectionSummaryHtml(selectionSummary) : ''}
             ${commandHtml}
           </div>
@@ -158,6 +161,49 @@ export class Hud {
   private commandCard(settings: ControlSettings): string {
     const buttons = buildCommandCard(settings);
     return `<div title="Command card" style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">${buttons.map((button) => this.commandButton(button)).join('')}</div>`;
+  }
+
+  private courierSummary(world: World, hero: Unit, ux?: UxFeedback): CourierHudModel {
+    const couriers = [...world.units.values()].filter((unit) => unit.kind === 'courier' && unit.team === hero.team);
+    const courier = couriers.find((unit) => unit.alive) ?? couriers[couriers.length - 1];
+    const fountain = [...world.units.values()].find((unit) => unit.kind === 'building' && unit.team === hero.team && unit.buildingKind === 'fountain');
+    const atFountain = !!(courier && fountain && this.distSq(courier, fountain) <= 360 * 360);
+    const stashItems = hero.stash.filter((item) => item !== null).length;
+
+    return buildCourierHudModel({
+      selectedUnitId: ux?.selectedUnitId,
+      courier: courier ? {
+        id: courier.id,
+        alive: courier.alive,
+        hp: courier.hp,
+        maxHp: courier.calc.maxHp,
+        orderType: courier.order?.type,
+        atFountain,
+        stashItems,
+      } : undefined,
+    });
+  }
+
+  private distSq(a: Unit, b: Unit): number {
+    const dx = a.pos.x - b.pos.x;
+    const dy = a.pos.y - b.pos.y;
+    return dx * dx + dy * dy;
+  }
+
+  private courierStatusHtml(model: CourierHudModel): string {
+    const palette: Record<CourierHudModel['tone'], { border: string; bg: string; fg: string; hp: string }> = {
+      ready: { border: '#5f8d43', bg: '#12210f', fg: '#9cff74', hp: '#6fcf5a' },
+      busy: { border: '#7b6a36', bg: '#211b0d', fg: '#ffd76a', hp: '#d9b44a' },
+      danger: { border: '#8a3434', bg: '#260d0d', fg: '#ff8f8f', hp: '#ef5350' },
+      muted: { border: '#3b3d35', bg: '#11130f', fg: '#9a9277', hp: '#55584a' },
+    };
+    const p = palette[model.tone];
+    const selected = model.selected ? 'box-shadow:0 0 0 1px #d9b44a inset,0 0 8px #d9b44a55;' : '';
+    return `<div data-command-card="selectCourier" title="${model.detail} - F2 selects courier" style="height:21px;margin-bottom:3px;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;padding:0 5px;box-sizing:border-box;cursor:pointer;${selected}">
+      <b style="font-size:9px;letter-spacing:0;white-space:nowrap;">${model.label}</b>
+      <span style="font-size:9px;color:#cfc7a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+      <span style="min-width:32px;text-align:right;color:${p.hp};font-size:9px;font-weight:800;">${model.hpPercent}%</span>
+    </div>`;
   }
 
   private commandButton(button: CommandCardButton): string {

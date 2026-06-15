@@ -276,3 +276,16 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 - `npm test` 或明确列出的聚焦测试。
 - `npm run build`。
 - 更新 `docs/ux/README.md`。
+
+## 2026-06-15 Codex UX Progress Addendum
+
+Low-conflict UI/control work completed after the Opus handoff:
+
+- P0-A selection and command-card closure now has a dedicated summary: `2026-06-15-p0a-selection-command-courier-hud-summary.md`.
+- Inspect panel authority is explicit: commandable selected units and inspect-only units use different status labels and colors.
+- Courier HUD first pass is implemented as a read-only UI layer:
+  - pure model: `src/ui/courierHudModel.ts`
+  - focused tests: `tests/courierHudModel.test.ts`
+  - HUD integration: a compact clickable courier strip above the command card, reusing `selectCourier`.
+
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed.

@@ -337,3 +337,26 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 - Blizzard Warcraft III: Hot Keys and Special Commands, Unit Commands, Unit Control, Hero Control, Spell Basics.
 - Liquipedia Warcraft: Custom Hotkeys Guide.
 - Dota 2 Wiki Controls/Hotkeys 仅作为现代演化参考,不作为主目标。
+
+## 2026-06-15 Codex Continuation Addendum
+
+Mainline check: still focused on UI, controls, and playability. No new hero, balance, art-volume, or sim ownership work was added.
+
+Completed after the Opus handoff:
+
+- P0-A closure summary added: `2026-06-15-p0a-selection-command-courier-hud-summary.md`.
+- Inspect panel authority now distinguishes selected-commandable units from inspect-only units.
+- Courier HUD status first pass is implemented above the command card:
+  - `missing`
+  - `dead`
+  - `ready`
+  - `delivering`
+  - `returning`
+- The courier strip is clickable and routes through the existing `selectCourier` command-card action.
+- Implementation is deliberately UI-read-only: it consumes existing `world.units`, courier order state, courier HP/alive state, fountain proximity, and hero stash count.
+
+Next UI/control tasks:
+
+1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
+2. Add shop destination feedback: hero, backpack, stash, courier, and failure reason.
+3. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.
