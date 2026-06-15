@@ -13,6 +13,12 @@ This index groups the current UX workstream by player-facing problem area.
 - [UX master recap and next stage plan](2026-06-15-ux-master-recap-next-stage.md)
 - [Opus to Codex UX handoff status](2026-06-15-opus-to-codex-handoff-next.md)
 
+## DotA UX Gap Analysis And Opus↔Codex Collaboration (2026-06-15)
+
+- [DotA UX research + gap analysis](2026-06-15-dota-ux-gap-analysis.md) — 9-dimension research vs current state, 48 verified gaps, 4 root-cause clusters, roadmap + progress
+- [Opus review of Codex Batch 4 (selection/control-groups)](2026-06-15-opus-review-selection-batch4.md)
+- [Session retrospective (Opus line)](2026-06-15-session-retro-opus.md) — deliverables, collaboration retro, lessons learned
+
 ## World And Visual Readability
 
 - [World readability design](2026-06-12-world-readability-design.md)
