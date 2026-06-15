@@ -125,6 +125,7 @@ const PATH_DMG = [60, 90, 120, 150];
 
 const AURORA_W: AbilityDef = {
   key: 'aurora_path', name: '寒冰之径', maxLevel: 4, targetMode: 'point',
+  lineWidth: 160, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [900, 900, 900, 900], manaCost: [90, 100, 110, 120], cooldown: [16, 15, 14, 13],
   castPoint: 0.4, tags: ['aoe', 'slow', 'nuke'],
   description: '冻结一条冰径,沿线敌人被冻伤并大幅减速。',
@@ -332,6 +333,7 @@ const PIERCE_DMG = [120, 190, 260, 330];
 
 const KELON_W: AbilityDef = {
   key: 'kelon_pierce', name: '穿透射击', maxLevel: 4, targetMode: 'point',
+  lineWidth: 140, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [900, 900, 900, 900], manaCost: [90, 100, 110, 120], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'stun'],
   description: '射出穿透箭,伤害并击晕沿途敌人。',

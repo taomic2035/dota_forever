@@ -42,6 +42,7 @@ const POWER_DMG = [120, 200, 280, 360];
 
 const WIRA_W: AbilityDef = {
   key: 'wira_powershot', name: '强力击', maxLevel: 4, targetMode: 'point',
+  lineWidth: 150, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [900, 900, 900, 900], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.35, tags: ['nuke', 'aoe'],
   description: '蓄力射出一箭,贯穿伤害直线上的所有敌人。',
@@ -405,6 +406,7 @@ const ORB_DMG = [80, 140, 200, 260];
 
 const PUK_Q: AbilityDef = {
   key: 'puk_orb', name: '幻惑法球', maxLevel: 4, targetMode: 'point',
+  lineWidth: 170, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [9, 8, 7, 6],
   castPoint: 0.3, tags: ['nuke', 'aoe', 'slow'],
   description: '抛出幻惑法球,贯穿伤害并减速直线上的敌人。',

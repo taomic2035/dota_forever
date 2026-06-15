@@ -517,6 +517,7 @@ const STAFF_DMG = [100, 160, 220, 280];
 
 const MKY_Q: AbilityDef = {
   key: 'mky_staff', name: '棒击大地', maxLevel: 4, targetMode: 'point',
+  lineWidth: 150, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [600, 600, 600, 600], manaCost: [90, 100, 110, 120], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '挥棒猛击一条直线,造成暴击式伤害并击晕。',

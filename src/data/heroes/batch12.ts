@@ -191,6 +191,7 @@ const SWARM_DMG = [90, 150, 210, 270];
 
 const DPR_Q: AbilityDef = {
   key: 'dpr_swarm', name: '蝗群', maxLevel: 4, targetMode: 'point',
+  lineWidth: 160, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [700, 700, 700, 700], manaCost: [90, 100, 110, 120], cooldown: [8, 7, 6, 5],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '放出蝗群,贯穿啃食直线上的敌人。',
@@ -477,6 +478,7 @@ const IMPALE_DMG = [90, 150, 210, 270];
 
 const NYX_Q: AbilityDef = {
   key: 'nyx_impale', name: '穿刺', maxLevel: 4, targetMode: 'point',
+  lineWidth: 140, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [600, 600, 600, 600], manaCost: [95, 110, 125, 140], cooldown: [13, 12, 11, 10],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '掀起地刺,挑飞并击晕直线上的敌人。',

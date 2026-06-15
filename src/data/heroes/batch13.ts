@@ -19,6 +19,7 @@ const FISSURE_STUN = [1.2, 1.4, 1.6, 1.8];
 
 const EAR_Q: AbilityDef = {
   key: 'ear_fissure', name: '沟壑', maxLevel: 4, targetMode: 'point',
+  lineWidth: 150, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [700, 700, 700, 700], manaCost: [110, 120, 130, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['stun', 'nuke', 'aoe'],
   description: '撕开一道沟壑,震晕并重创直线上的敌人。',

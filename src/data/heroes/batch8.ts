@@ -185,6 +185,7 @@ const SONIC_DMG = [280, 380, 480];
 
 const QUEN_R: AbilityDef = {
   key: 'quen_sonic', name: '音波冲击', maxLevel: 3, ultimate: true, targetMode: 'point',
+  lineWidth: 200, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [900, 900, 900], manaCost: [150, 225, 300], cooldown: [60, 50, 40],
   scepter: { cooldown: [40, 35, 30], desc: '神杖:冷却降低;音波震荡更剧烈,击退距离从 220 增至 350,并附加 0.6 秒眩晕。' },
   castPoint: 0.35, tags: ['nuke', 'aoe', 'ultimate'],
@@ -355,6 +356,7 @@ const SHOCK_DMG = [100, 160, 220, 280];
 
 const MAG_W: AbilityDef = {
   key: 'mag_shock', name: '震荡波', maxLevel: 4, targetMode: 'point',
+  lineWidth: 160, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [800, 800, 800, 800], manaCost: [85, 95, 105, 115], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '震地掀起一道冲击波,贯穿伤害直线上的敌人。',

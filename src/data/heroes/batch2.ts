@@ -16,6 +16,7 @@ const QUAKE_STUN = [1.2, 1.4, 1.6, 1.8];
 
 const GORM_Q: AbilityDef = {
   key: 'gorm_quake', name: '裂地震击', maxLevel: 4, targetMode: 'point',
+  lineWidth: 170, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [1200, 1200, 1200, 1200], manaCost: [110, 130, 150, 170], cooldown: [15, 14, 13, 12],
   castPoint: 0.5, tags: ['nuke', 'stun', 'aoe'],
   description: '沿直线撕裂大地,眩晕并伤害线上敌人。',
@@ -132,6 +133,7 @@ const HOOK_DMG = [90, 180, 270, 360];
 
 const GROSH_Q: AbilityDef = {
   key: 'grosh_hook', name: '锁链魂钩', maxLevel: 4, targetMode: 'point',
+  lineWidth: 140, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [1000, 1100, 1200, 1300], manaCost: [110, 120, 130, 140], cooldown: [14, 13, 12, 11],
   castPoint: 0.3, tags: ['nuke', 'stun'],
   description: '掷出锁钩,把命中的第一个敌人拖到身边。',

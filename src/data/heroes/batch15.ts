@@ -430,6 +430,7 @@ const ILLUM_DMG = [100, 170, 240, 310];
 
 const KPR_Q: AbilityDef = {
   key: 'kpr_illuminate', name: '集中照明', maxLevel: 4, targetMode: 'point',
+  lineWidth: 180, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [900, 900, 900, 900], manaCost: [100, 110, 120, 130], cooldown: [10, 9, 8, 7],
   castPoint: 0.3, tags: ['nuke', 'aoe'],
   description: '凝聚一道光束,灼烧直线上的所有敌人。',

@@ -14,6 +14,7 @@ const SKEWER_DMG = [90, 150, 210, 270];
 
 const LAIN_Q: AbilityDef = {
   key: 'lain_skewer', name: '贯穿之刺', maxLevel: 4, targetMode: 'point',
+  lineWidth: 130, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [800, 800, 800, 800], manaCost: [90, 100, 110, 120], cooldown: [11, 10, 9, 8],
   castPoint: 0.3, tags: ['nuke', 'stun'],
   description: '掷出长矛贯穿直线敌人,造成伤害并眩晕。',

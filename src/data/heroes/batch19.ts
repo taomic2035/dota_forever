@@ -14,6 +14,7 @@ const BURROW_DMG = [100, 160, 220, 280];
 
 const SNK_Q: AbilityDef = {
   key: 'snk_burrow', name: '穿刺', maxLevel: 4, targetMode: 'point',
+  lineWidth: 140, // 线形预览半宽(=onCast 沿线 enemiesIn 半径)
   castRange: [600, 600, 600, 600], manaCost: [110, 120, 130, 140], cooldown: [12, 11, 10, 9],
   castPoint: 0.3, tags: ['stun', 'aoe', 'nuke'],
   description: '钻地突袭,挑飞并击晕直线上的敌人。',
