@@ -367,6 +367,10 @@ Completed after the Opus handoff:
   - `src/ui/heroXpHudModel.ts` maps hero level + cumulative XP to current-level progress.
   - `tests/heroXpHudModel.test.ts` covers early level, cumulative threshold, and max-level states.
   - `src/ui/hud.ts` renders a thin gold XP bar under HP/MP with remaining-XP tooltip.
+- Inspect inventory summary is now visible for selected enemy or non-primary heroes:
+  - `inspectInventorySummary()` in `src/ui/inspectPanelModel.ts` converts current inventory + TP slot to compact item chips.
+  - `tests/inspectPanelModel.test.ts` covers populated and empty item states.
+  - `src/ui/inspectPanel.ts` renders compact item chips without changing item effects or visibility rules.
 
 Next UI/control tasks:
 

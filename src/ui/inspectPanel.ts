@@ -8,7 +8,7 @@ import type { Unit, UnitKind } from '../sim/unit';
 import type { UxFeedback } from './uxFeedback';
 import { TEAM_COLOR } from '../render/renderer';
 import { statusChips, statusChipTime } from '../render/statusChips';
-import { inspectPanelAuthority } from './inspectPanelModel';
+import { inspectInventorySummary, inspectPanelAuthority } from './inspectPanelModel';
 
 const KIND_LABEL: Record<UnitKind, string> = {
   hero: '英雄',
@@ -73,6 +73,14 @@ export class InspectPanel {
           `<span title="${cp.key}" style="display:inline-flex;align-items:center;height:15px;padding:0 3px;border:1px solid ${cp.color};border-radius:2px;background:${cp.color}22;color:${cp.color};font-size:9px;font-weight:700">${cp.tag}${statusChipTime(cp.remaining)}</span>`,
         ).join('')}</div>`
       : '';
+    const inventory = u.kind === 'hero'
+      ? inspectInventorySummary({ inventory: u.inventory, tpSlot: u.tpSlot })
+      : { visible: false, items: [] };
+    const inventoryRow = inventory.visible
+      ? `<div title="Visible items" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px">${inventory.items.map((item) =>
+          `<span title="${esc(item.tooltip)}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:18px;padding:0 4px;border:1px solid #6a5a2a;border-radius:3px;background:#211b0d;color:#ffd76a;font-size:10px;font-weight:800;box-sizing:border-box;">${esc(item.label)}${item.charges > 0 ? `<em style="position:absolute;right:1px;bottom:-2px;font-style:normal;font-size:8px;color:#fff">${item.charges}</em>` : ''}</span>`,
+        ).join('')}</div>`
+      : '';
     const authority = inspectPanelAuthority({
       unitId: u.id,
       commandableSelectedIds: ux.commandableSelectedIds,
@@ -91,6 +99,7 @@ export class InspectPanel {
       this.meter(u.hp, hpMax, '#4caf50', '#1f6b2b', `${Math.round(u.hp)} / ${Math.round(hpMax)}`),
       mpMax > 0 ? this.meter(u.mp, mpMax, '#42a5f5', '#14569a', `${Math.round(u.mp)} / ${Math.round(mpMax)}`) : '',
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;margin-top:6px">${rows}</div>`,
+      inventoryRow,
       statusRow,
     ].join('');
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { inspectPanelAuthority } from '../src/ui/inspectPanelModel';
+import { inspectInventorySummary, inspectPanelAuthority } from '../src/ui/inspectPanelModel';
 
 describe('inspectPanelAuthority', () => {
   it('labels commandable non-hero selections as commandable', () => {
@@ -36,5 +36,36 @@ describe('inspectPanelAuthority', () => {
       commandableSelectedIds: [1, 2],
       inspectUnitId: 0,
     })?.kind).toBe('inspect');
+  });
+});
+
+describe('inspectInventorySummary', () => {
+  it('summarizes visible hero inventory and TP slot for inspect panels', () => {
+    expect(inspectInventorySummary({
+      inventory: [
+        { itemKey: 'blink' },
+        null,
+        { itemKey: 'broadsword' },
+        null,
+        null,
+        { itemKey: 'branch', charges: 2 },
+      ],
+      tpSlot: { itemKey: 'tp', charges: 3 },
+    })).toEqual({
+      visible: true,
+      items: [
+        { key: 'blink', label: '闪烁', tooltip: '闪烁短刃', charges: 0 },
+        { key: 'broadsword', label: '铁阔', tooltip: '铁阔剑', charges: 0 },
+        { key: 'branch', label: '铁树', tooltip: '铁树枝', charges: 2 },
+        { key: 'tp', label: 'TP', tooltip: '回城卷轴', charges: 3 },
+      ],
+    });
+  });
+
+  it('stays hidden when the inspected unit has no visible items', () => {
+    expect(inspectInventorySummary({
+      inventory: [null, null, null, null, null, null],
+      tpSlot: null,
+    })).toEqual({ visible: false, items: [] });
   });
 });

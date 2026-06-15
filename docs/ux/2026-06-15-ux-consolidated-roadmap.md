@@ -299,5 +299,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/heroXpHudModel.ts`
   - focused tests: `tests/heroXpHudModel.test.ts`
   - bottom HUD now shows a thin gold XP progress bar under HP/MP, with current-level XP and remaining-XP tooltip.
+- Inspect inventory summary first pass is implemented:
+  - model extension: `inspectInventorySummary()` in `src/ui/inspectPanelModel.ts`
+  - focused tests: `tests/inspectPanelModel.test.ts`
+  - selected enemy or non-primary hero panels now show compact visible item chips and TP charges.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy. The XP bar is HUD-only and does not change XP gain, level-up rules, skill points, or balance.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview and search only mirror/filter current item data; they do not change item placement or economy. The XP bar and inspect inventory summary are HUD-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, or balance.

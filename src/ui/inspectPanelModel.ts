@@ -1,3 +1,5 @@
+import { itemDef } from '../data/items';
+
 export type InspectPanelAuthorityKind = 'commandable' | 'inspect';
 
 export interface InspectPanelAuthorityInput {
@@ -12,6 +14,28 @@ export interface InspectPanelAuthority {
   detail: string;
   color: string;
   background: string;
+}
+
+export interface InspectInventoryItemInput {
+  itemKey: string;
+  charges?: number;
+}
+
+export interface InspectInventorySummaryInput {
+  inventory: Array<InspectInventoryItemInput | null>;
+  tpSlot?: InspectInventoryItemInput | null;
+}
+
+export interface InspectInventorySummaryItem {
+  key: string;
+  label: string;
+  tooltip: string;
+  charges: number;
+}
+
+export interface InspectInventorySummary {
+  visible: boolean;
+  items: InspectInventorySummaryItem[];
 }
 
 export function inspectPanelAuthority(input: InspectPanelAuthorityInput): InspectPanelAuthority | null {
@@ -32,4 +56,24 @@ export function inspectPanelAuthority(input: InspectPanelAuthorityInput): Inspec
     color: '#ffd76a',
     background: '#332715',
   };
+}
+
+export function inspectInventorySummary(input: InspectInventorySummaryInput): InspectInventorySummary {
+  const items = [
+    ...input.inventory.filter((item): item is InspectInventoryItemInput => !!item),
+    ...(input.tpSlot ? [input.tpSlot] : []),
+  ].map((item) => {
+    const def = itemDef(item.itemKey);
+    return {
+      key: item.itemKey,
+      label: item.itemKey === 'tp' ? 'TP' : compactItemName(def.name),
+      tooltip: def.name,
+      charges: Math.max(0, Math.floor(item.charges ?? 0)),
+    };
+  });
+  return { visible: items.length > 0, items };
+}
+
+function compactItemName(name: string): string {
+  return Array.from(name).slice(0, 2).join('');
 }
