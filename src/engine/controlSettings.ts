@@ -5,6 +5,9 @@ export const CAMERA_PAN_SPEEDS = ['slow', 'normal', 'fast'] as const;
 export type CameraPanSpeed = (typeof CAMERA_PAN_SPEEDS)[number];
 export const NUMBER_ROW_MODES = ['items', 'controlGroups'] as const;
 export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
+/** 自动攻击策略(经典 DotA):never=空闲绝不自动平A(保护正补,高手默认)/ standard=空闲就近平A / always=更主动。 */
+export const AUTO_ATTACK_MODES = ['never', 'standard', 'always'] as const;
+export type AutoAttackMode = (typeof AUTO_ATTACK_MODES)[number];
 
 export const ABILITY_CAST_SLOT_COUNT = 4;
 export const ITEM_CAST_SLOT_COUNT = 6;
@@ -42,6 +45,7 @@ export interface ControlSettings {
   cameraEdgePan: boolean;
   cameraPanSpeed: CameraPanSpeed;
   numberRowMode: NumberRowMode;
+  autoAttack: AutoAttackMode;
   /** 动作→物理键(默认 DEFAULT_KEY_BINDS)。 */
   keyBinds: Record<string, string>;
 }
@@ -54,6 +58,7 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   cameraEdgePan: true,
   cameraPanSpeed: 'normal',
   numberRowMode: 'items',
+  autoAttack: 'standard',
   keyBinds: { ...DEFAULT_KEY_BINDS },
 };
 
@@ -93,6 +98,11 @@ export function parseNumberRowMode(value: unknown): NumberRowMode | undefined {
   return NUMBER_ROW_MODES.includes(value as NumberRowMode) ? value as NumberRowMode : undefined;
 }
 
+export function parseAutoAttackMode(value: unknown): AutoAttackMode | undefined {
+  if (typeof value !== 'string') return undefined;
+  return AUTO_ATTACK_MODES.includes(value as AutoAttackMode) ? value as AutoAttackMode : undefined;
+}
+
 export function normalizeControlSettings(input: unknown): ControlSettings {
   const raw = typeof input === 'object' && input !== null ? input as Record<string, unknown> : {};
   return {
@@ -105,6 +115,7 @@ export function normalizeControlSettings(input: unknown): ControlSettings {
       : DEFAULT_CONTROL_SETTINGS.cameraEdgePan,
     cameraPanSpeed: parseCameraPanSpeed(raw.cameraPanSpeed) ?? DEFAULT_CONTROL_SETTINGS.cameraPanSpeed,
     numberRowMode: parseNumberRowMode(raw.numberRowMode) ?? DEFAULT_CONTROL_SETTINGS.numberRowMode,
+    autoAttack: parseAutoAttackMode(raw.autoAttack) ?? DEFAULT_CONTROL_SETTINGS.autoAttack,
     keyBinds: normalizeKeyBinds(raw.keyBinds),
   };
 }
@@ -131,6 +142,17 @@ export function cycleNumberRowMode(mode: NumberRowMode): NumberRowMode {
 
 export function numberRowModeLabel(mode: NumberRowMode): string {
   return mode === 'controlGroups' ? '控制组' : '物品';
+}
+
+export function cycleAutoAttackMode(mode: AutoAttackMode): AutoAttackMode {
+  const index = AUTO_ATTACK_MODES.indexOf(mode);
+  return AUTO_ATTACK_MODES[(index + 1) % AUTO_ATTACK_MODES.length];
+}
+
+export function autoAttackModeLabel(mode: AutoAttackMode): string {
+  if (mode === 'never') return '不攻';
+  if (mode === 'always') return '主动';
+  return '标准';
 }
 
 export function cameraPanSpeedLabel(speed: CameraPanSpeed): string {

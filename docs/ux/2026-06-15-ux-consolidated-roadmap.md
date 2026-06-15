@@ -76,7 +76,7 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 尚未完成的部分:
 
 - `src/ui/inspectPanel.ts` 还需要更明确区分 inspect-only 与 commandable selection。
-- 命令卡按钮已可见,但点击动作还需要接入。
+- 命令卡按钮已可见且可点击:Move/Attack 进入下一次地面点击 pending,Stop/Hold/Hero/Courier/All/Glyph/Shop 复用热键回调。
 
 ## 统一优先级
 
@@ -261,7 +261,7 @@ Dota1 的核心不是只有英雄可控,而是英雄优先的 RTS 控制面。�
 ## 下一步执行顺序
 
 1. 补 inspect panel 的 inspect-only 与 commandable selection 文案/布局区分。
-2. 接入命令卡按钮点击动作。
+2. 补 inspect-only 与 commandable selection 的 HUD/inspect panel 区分。
 3. 更新 P0-A summary 并补截图/smoke 记录。
 4. 聚焦验证: `selection`, `pick`, `uxFeedback`, `inputSelectionHotkeys`, `selectionCommandRouting`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `controlSettings`, `queuedOrders`, `commandMode`。
 5. 进入信使/物品物流闭环。

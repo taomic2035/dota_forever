@@ -170,6 +170,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   hud.onSell = (s) => { if (hero?.alive) shop.sellSlot(world, hero, s); }; // 右键库存物品出售(50% 返还,商店范围内)
   hud.onMoveToBackpack = (s) => { if (hero?.alive) moveToBackpack(world, hero, s); };
   hud.onMoveFromBackpack = (s) => { if (hero?.alive) moveFromBackpack(world, hero, s); };
+  hud.onCommandCard = (action) => input?.activateCommandCardAction(action);
   const killfeed = new KillFeed(app);
   const announce = new Announce(app); // 公屏播报:一血/连杀里程碑
   const shop = new ShopPanel(app);
@@ -198,11 +199,13 @@ function startGame(mode: 'play' | 'spectate'): void {
   });
   const audio = new AudioDirector();
   let controlSettings = loadControlSettings(params);
+  if (hero) hero.autoAttack = controlSettings.autoAttack; // 自动攻击策略注入 sim(初始)
   let input: InputManager | null = null;
   const setControlSettings = (settings: ControlSettings) => {
     controlSettings = normalizeControlSettings(settings);
     saveControlSettings(controlSettings);
     input?.setControlSettings(controlSettings);
+    if (hero) hero.autoAttack = controlSettings.autoAttack; // 改设置时同步
   };
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; }, {
     getSettings: () => controlSettings,
@@ -443,6 +446,12 @@ function startGame(mode: 'play' | 'spectate'): void {
         const pos = map.nearestWalkable(p);
         issueSelectedOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
       }
+    },
+    onMove(p, options?: CastInputOptions) {
+      if (!hero?.alive) return;
+      ux.clearCursorIntent();
+      const pos = map.nearestWalkable(p);
+      issueSelectedOrder({ type: 'move', pos }, { kind: 'move', pos }, options);
     },
     onLeftClick(p, options?: SelectInputOptions) {
       ux.clearCursorIntent();
@@ -698,6 +707,19 @@ function startGame(mode: 'play' | 'spectate'): void {
       // 悬停高亮:点取最近可见单位(排除自己),供渲染器画敌红/友绿轮廓 = 右键预期反馈
       const hov = pickUnitAt(world, hero?.team ?? null, worldPt, PICK_RADIUS);
       ux.hoverUnitId = hov && hov.id !== hero?.id ? hov.id : 0;
+    },
+    onPendingMove(active, options?: CastInputOptions) {
+      if (active) {
+        ux.setCursorIntent({
+          kind: 'move',
+          label: options?.queued ? 'QUEUE MOVE' : 'MOVE',
+          time: world.time,
+          color: options?.queued ? '#8dff7a' : '#8fd17a',
+          targetHint: 'ground',
+        });
+      } else if (ux.cursorIntentAt(world.time)?.kind === 'move') {
+        ux.clearCursorIntent();
+      }
     },
     canSelfCast(i) {
       const info = castInfo(i);

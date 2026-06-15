@@ -31,6 +31,7 @@ class FakeWindow {
 function callbacks(overrides: Partial<InputCallbacks> = {}): InputCallbacks {
   return {
     onRightClick: vi.fn(),
+    onMove: vi.fn(),
     onLeftClick: vi.fn(),
     onAttackMove: vi.fn(),
     onPrepareCast: vi.fn(() => false),
@@ -47,6 +48,7 @@ function callbacks(overrides: Partial<InputCallbacks> = {}): InputCallbacks {
     onToggleShop: vi.fn(),
     onGlyph: vi.fn(),
     onPointerMove: vi.fn(),
+    onPendingMove: vi.fn(),
     onPendingAttackMove: vi.fn(),
     onPendingCast: vi.fn(),
     onPendingItem: vi.fn(),
@@ -76,8 +78,9 @@ function installInput(cb: InputCallbacks, settings?: ControlSettings) {
     setZoom: vi.fn(),
     screenToWorld: (p: { x: number; y: number }) => p,
   };
-  new InputManager(canvas as unknown as HTMLCanvasElement, camera as any, cb, settings, (p) => p);
+  const manager = new InputManager(canvas as unknown as HTMLCanvasElement, camera as any, cb, settings, (p) => p);
   return {
+    manager,
     canvas,
     fakeWindow,
     restore() {
@@ -93,6 +96,52 @@ afterEach(() => {
 });
 
 describe('InputManager selection controls', () => {
+  it('lets command-card Move wait for a ground click and issue a forced move', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.manager.activateCommandCardAction('move');
+    input.canvas.emit('mousedown', { button: 0, offsetX: 240, offsetY: 260, shiftKey: false });
+
+    expect(cb.onPendingMove).toHaveBeenCalledWith(true, {});
+    expect(cb.onMove).toHaveBeenCalledWith({ x: 240, y: 260 }, {});
+    expect(cb.onRightClick).not.toHaveBeenCalled();
+    expect(cb.onPendingMove).toHaveBeenLastCalledWith(false);
+  });
+
+  it('lets command-card Attack enter the same pending attack-move flow as the hotkey', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.manager.activateCommandCardAction('attackMove', { queued: true });
+    input.canvas.emit('mousedown', { button: 0, offsetX: 300, offsetY: 340, shiftKey: false });
+
+    expect(cb.onPendingAttackMove).toHaveBeenCalledWith(true, { queued: true });
+    expect(cb.onAttackMove).toHaveBeenCalledWith({ x: 300, y: 340 }, { queued: true });
+    expect(cb.onPendingAttackMove).toHaveBeenLastCalledWith(false);
+  });
+
+  it('routes immediate command-card actions through existing command callbacks', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.manager.activateCommandCardAction('stop');
+    input.manager.activateCommandCardAction('hold');
+    input.manager.activateCommandCardAction('selectHero');
+    input.manager.activateCommandCardAction('selectCourier');
+    input.manager.activateCommandCardAction('selectAllControlled');
+    input.manager.activateCommandCardAction('glyph');
+    input.manager.activateCommandCardAction('shop');
+
+    expect(cb.onStop).toHaveBeenCalledTimes(1);
+    expect(cb.onHold).toHaveBeenCalledTimes(1);
+    expect(cb.onSelectHero).toHaveBeenCalledTimes(1);
+    expect(cb.onSelectCourier).toHaveBeenCalledTimes(1);
+    expect(cb.onSelectAllControlled).toHaveBeenCalledTimes(1);
+    expect(cb.onGlyph).toHaveBeenCalledTimes(1);
+    expect(cb.onToggleShop).toHaveBeenCalledTimes(1);
+  });
+
   it('routes F1/F2/F3 to hero, courier, and all-controlled selection callbacks', () => {
     const cb = callbacks();
     const input = installInput(cb);

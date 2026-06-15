@@ -8,6 +8,8 @@ export type CommandModeResult =
   | { kind: 'instant-item'; itemSlot: number; queued?: boolean }
   | { kind: 'pending-item'; itemSlot: number; queued?: boolean }
   | { kind: 'item'; itemSlot: number; queued?: boolean }
+  | { kind: 'pending-move'; queued?: boolean }
+  | { kind: 'move'; queued?: boolean }
   | { kind: 'pending-attackmove'; queued?: boolean }
   | { kind: 'attackmove'; queued?: boolean };
 
@@ -20,11 +22,13 @@ export class CommandMode {
     | { kind: 'none' }
     | { kind: 'cast'; abilityIndex: number; options: CommandModeOptions }
     | { kind: 'item'; itemSlot: number; options: CommandModeOptions }
+    | { kind: 'move'; options: CommandModeOptions }
     | { kind: 'attackmove'; options: CommandModeOptions } = { kind: 'none' };
 
   get pendingCast(): number {
     if (this.pending.kind === 'cast') return this.pending.abilityIndex;
     if (this.pending.kind === 'attackmove') return -2;
+    if (this.pending.kind === 'move') return -3;
     return -1;
   }
 
@@ -33,7 +37,7 @@ export class CommandMode {
   }
 
   pendingCastOptions(): CommandModeOptions {
-    return this.pending.kind === 'cast' || this.pending.kind === 'attackmove' ? { ...this.pending.options } : {};
+    return this.pending.kind === 'cast' || this.pending.kind === 'attackmove' || this.pending.kind === 'move' ? { ...this.pending.options } : {};
   }
 
   pendingItemOptions(): CommandModeOptions {
@@ -65,6 +69,11 @@ export class CommandMode {
     return { kind: 'pending-attackmove', ...resultQueued(options) };
   }
 
+  beginMove(options: CommandModeOptions = {}): CommandModeResult {
+    this.pending = { kind: 'move', options: { ...options } };
+    return { kind: 'pending-move', ...resultQueued(options) };
+  }
+
   previewCast(): number | null {
     return this.pending.kind === 'cast' ? this.pending.abilityIndex : null;
   }
@@ -90,6 +99,11 @@ export class CommandMode {
       const resultOptions = resultQueued(this.pending.options);
       this.pending = { kind: 'none' };
       return { kind: 'attackmove', ...resultOptions };
+    }
+    if (this.pending.kind === 'move') {
+      const resultOptions = resultQueued(this.pending.options);
+      this.pending = { kind: 'none' };
+      return { kind: 'move', ...resultOptions };
     }
     return { kind: 'none' };
   }

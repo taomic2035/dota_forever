@@ -131,6 +131,8 @@ export class Unit {
   glyphUntil = -Infinity;
   /** 英雄专属经济/成长状态 */
   heroMeta?: HeroMeta;
+  /** 自动攻击策略(主要供玩家英雄,由控制设置注入):'never' 时空闲不自动获取目标(保护正补)。默认 'standard'。 */
+  autoAttack: 'never' | 'standard' | 'always' = 'standard';
   /** 野怪营地归属与驻留点 */
   campId?: number;
   homePos?: Vec2;

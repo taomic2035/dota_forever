@@ -56,6 +56,15 @@ describe('CommandMode', () => {
     expect(mode.pendingCast).toBe(-1);
   });
 
+  it('uses the same primary-click flow for forced move', () => {
+    const mode = new CommandMode();
+
+    expect(mode.beginMove()).toEqual({ kind: 'pending-move' });
+    expect(mode.pendingCast).toBe(-3);
+    expect(mode.consumePrimary()).toEqual({ kind: 'move' });
+    expect(mode.pendingCast).toBe(-1);
+  });
+
   it('marks attack-move as queued when Shift starts the command', () => {
     const mode = new CommandMode();
 

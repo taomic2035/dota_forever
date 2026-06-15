@@ -16,6 +16,7 @@ import {
   type ControlSettings,
 } from './controlSettings';
 import type { ControlGroupSlot } from './selection';
+import type { CommandCardAction } from './commandCardActions';
 
 export interface CastInputOptions {
   selfCast?: boolean;
@@ -32,6 +33,7 @@ export interface ControlGroupInputOptions {
 
 export interface InputCallbacks {
   onRightClick(world: Vec2, options?: CastInputOptions): void;
+  onMove(world: Vec2, options?: CastInputOptions): void;
   onLeftClick(world: Vec2, options?: SelectInputOptions): void;
   onSelectBox(startWorld: Vec2, endWorld: Vec2, options?: SelectInputOptions): void;
   onSelectionBoxPreview(startScreen: Vec2, endScreen: Vec2): void;
@@ -58,6 +60,7 @@ export interface InputCallbacks {
   onBindControlGroup(slot: ControlGroupSlot): void;
   onSelectControlGroup(slot: ControlGroupSlot, options?: ControlGroupInputOptions): void;
   onPointerMove(screen: Vec2, world: Vec2): void;
+  onPendingMove(active: boolean, options?: CastInputOptions): void;
   onPendingAttackMove(active: boolean, options?: CastInputOptions): void;
   onPendingCast(index: number | null, options?: CastInputOptions): void;
   onPendingItem(slot: number | null, options?: CastInputOptions): void;
@@ -137,6 +140,7 @@ export class InputManager {
         this.smartHold = null;
         this.cb.onPendingCast(null);
         this.cb.onPendingItem(null);
+        this.cb.onPendingMove(false);
         this.cb.onPendingAttackMove(false);
         this.cb.onRightClick(world, { queued: e.shiftKey });
       } else if (e.button === 0) {
@@ -159,8 +163,13 @@ export class InputManager {
         } else if (pending === -2) {
           const result = this.commandMode.consumePrimary();
           this.smartHold = null;
-          this.cb.onAttackMove(world, { queued: result.kind === 'attackmove' && result.queued === true });
+          this.cb.onAttackMove(world, commandOptionsFromResult(result));
           this.cb.onPendingAttackMove(false);
+        } else if (pending === -3) {
+          const result = this.commandMode.consumePrimary();
+          this.smartHold = null;
+          this.cb.onMove(world, commandOptionsFromResult(result));
+          this.cb.onPendingMove(false);
         } else {
           this.leftSelectionStart = { screen, world, options: selectOptions(e.shiftKey) };
           this.leftSelectionDragging = false;
@@ -225,6 +234,7 @@ export class InputManager {
         case 'a':
           this.commandMode.beginAttackMove({ queued: e.shiftKey });
           this.smartHold = null;
+          this.cb.onPendingMove(false);
           this.cb.onPendingAttackMove(true, { queued: e.shiftKey });
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
@@ -234,6 +244,7 @@ export class InputManager {
           this.smartHold = null;
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
+          this.cb.onPendingMove(false);
           this.cb.onPendingAttackMove(false);
           this.cb.onStop();
           break;
@@ -251,6 +262,7 @@ export class InputManager {
           this.smartHold = null;
           this.cb.onPendingCast(null);
           this.cb.onPendingItem(null);
+          this.cb.onPendingMove(false);
           this.cb.onPendingAttackMove(false);
           break;
       }
@@ -300,6 +312,7 @@ export class InputManager {
       }
     } else {
       this.smartHold = null;
+      this.cb.onPendingMove(false);
       this.cb.onPendingCast(null);
     }
   }
@@ -325,12 +338,14 @@ export class InputManager {
       }
     } else {
       this.smartHold = null;
+      this.cb.onPendingMove(false);
       this.cb.onPendingItem(null);
     }
   }
 
   private activatePendingCast(i: number, world: Vec2): void {
     this.cb.onPendingAttackMove(false);
+    this.cb.onPendingMove(false);
     this.cb.onPendingItem(null);
     this.cb.onPendingCast(i, this.commandMode.pendingCastOptions());
     this.cb.onPreviewCast(i, world);
@@ -338,6 +353,7 @@ export class InputManager {
 
   private activatePendingItem(slot: number, world: Vec2): void {
     this.cb.onPendingAttackMove(false);
+    this.cb.onPendingMove(false);
     this.cb.onPendingCast(null);
     this.cb.onPendingItem(slot, this.commandMode.pendingItemOptions());
     this.cb.onPreviewItem(slot, world);
@@ -370,6 +386,55 @@ export class InputManager {
     }
   }
 
+  activateCommandCardAction(action: CommandCardAction, options: CastInputOptions = {}): void {
+    const world = this.pointToWorld(this.mouse ?? { x: this.camera.viewW / 2, y: this.camera.viewH / 2 });
+    switch (action) {
+      case 'move':
+        this.commandMode.beginMove(options);
+        this.smartHold = null;
+        this.cb.onPendingAttackMove(false);
+        this.cb.onPendingCast(null);
+        this.cb.onPendingItem(null);
+        this.cb.onPendingMove(true, options);
+        break;
+      case 'attackMove':
+        this.commandMode.beginAttackMove(options);
+        this.smartHold = null;
+        this.cb.onPendingMove(false);
+        this.cb.onPendingCast(null);
+        this.cb.onPendingItem(null);
+        this.cb.onPendingAttackMove(true, options);
+        break;
+      case 'stop':
+        this.commandMode.cancel();
+        this.smartHold = null;
+        this.cb.onPendingMove(false);
+        this.cb.onPendingCast(null);
+        this.cb.onPendingItem(null);
+        this.cb.onPendingAttackMove(false);
+        this.cb.onStop();
+        break;
+      case 'hold':
+        this.cb.onHold();
+        break;
+      case 'selectHero':
+        this.cb.onSelectHero();
+        break;
+      case 'selectCourier':
+        this.cb.onSelectCourier();
+        break;
+      case 'selectAllControlled':
+        this.cb.onSelectAllControlled();
+        break;
+      case 'glyph':
+        this.cb.onGlyph();
+        break;
+      case 'shop':
+        this.cb.onToggleShop();
+        break;
+    }
+  }
+
   private isControlGroupDoubleTap(slot: ControlGroupSlot, eventTime: number): boolean {
     const now = Number.isFinite(eventTime) && eventTime > 0 ? eventTime : Date.now();
     const center = this.lastControlGroupSelect?.slot === slot && now - this.lastControlGroupSelect.time <= 500;
@@ -397,6 +462,10 @@ export class InputManager {
 
 function mergeQueued(options: CastInputOptions, shiftKey: boolean): CastInputOptions {
   return options.queued || shiftKey ? { ...options, queued: true } : options;
+}
+
+function commandOptionsFromResult(result: { kind: string; queued?: boolean }): CastInputOptions {
+  return result.queued ? { queued: true } : {};
 }
 
 function selectOptions(shiftKey: boolean): SelectInputOptions | undefined {

@@ -93,10 +93,11 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 - `src/main.ts`: 控制组绑定/选择接入 `SelectionState`,死亡/丢失单位过滤后再恢复选择。
 - `src/ui/menu.ts`: 暂停菜单新增“数字行 物品/控制组”切换。
 - `src/ui/commandCard.ts`: 命令卡按钮数据、多单位选择摘要数据。
-- `src/ui/hud.ts`: 3x3 命令卡、多选摘要、热键跟随当前 `ControlSettings`。
-- 覆盖测试: `selection`, `selectionCommandRouting`, `inputSelectionHotkeys`, `pick`, `uxFeedback`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `controlKeyBinds`。
+- `src/ui/hud.ts`: 3x3 命令卡、多选摘要、热键跟随当前 `ControlSettings`,并将按钮点击接入命令路径。
+- `src/engine/commandMode.ts` / `src/engine/input.ts`: 命令卡 Move 进入 forced move pending,Attack 进入 attack-move pending,Stop/Hold/Hero/Courier/All/Glyph/Shop 复用热键回调。
+- 覆盖测试: `selection`, `selectionCommandRouting`, `inputSelectionHotkeys`, `commandMode`, `pick`, `uxFeedback`, `selectionVisual`, `selectionBox`, `selection3d`, `commandCard`, `controlKeyBinds`。
 
-这说明 P0-A 已经完成了约 80%。剩余是 inspect panel 区分、命令卡点击交互、P0-A summary 截图/smoke 收口。
+这说明 P0-A 已经完成了约 90%。剩余是 inspect panel 区分、P0-A summary 截图/smoke 收口。
 
 ## 当前已完成的预览契约接入
 
@@ -149,7 +150,7 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 - 控制组选择: 组键恢复选择,过滤死亡/丢失单位。已完成。
 - 控制组双击/二次触发居中。已完成。
 - number row mode: 默认 `items`,后续可切 `controlGroups`。已完成。
-- 命令卡按钮点击: Move、Attack、Stop、Hold、Hero、Courier、All、Glyph、Shop。
+- 命令卡按钮点击: Move、Attack、Stop、Hold、Hero、Courier、All、Glyph、Shop。已完成。
 - inspect panel 明确显示“只查看/不可命令”状态。
 
 修改项:
@@ -318,7 +319,7 @@ Dota1 本质上是 Warcraft III 自定义地图,所以核心 UX 不是 Dota2 风
 ## 下一步推荐顺序
 
 1. inspect panel 的 inspect-only 区分。
-2. 命令卡按钮点击接入。
+2. inspect-only 与 commandable selection 的 HUD/inspect panel 区分。
 3. P0-A summary 截图和文档收口。
 4. 进入信使和物品物流闭环。
 

@@ -393,6 +393,8 @@ export function ordersSystem(w: World): void {
 
 /** 空闲单位:就地获取并短距追击。 */
 function idleCombat(w: World, u: Unit): void {
+  // 自动攻击 = never:空闲绝不自动获取/平A(保护正补反补)。显式 attack / A-move 不走此路径,不受影响。
+  if (u.autoAttack === 'never') { u.attackTargetId = 0; return; }
   let t = w.getUnit(u.attackTargetId);
   if (!t || !t.alive || !isEnemy(u, t) || V.dist(u.pos, t.pos) > u.calc.acquireRange * 1.4) {
     u.attackTargetId = 0;

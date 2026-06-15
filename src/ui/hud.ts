@@ -11,6 +11,7 @@ import { fxStyle } from '../render/fxStyle';
 import { statusChips, statusChipTime } from '../render/statusChips';
 import { abilityIconSvg } from './abilityIconSvg';
 import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../engine/controlSettings';
+import { commandCardActionFromValue, type CommandCardAction } from '../engine/commandCardActions';
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
@@ -27,6 +28,7 @@ export class Hud {
   onSell?: (invSlot: number) => void;
   onMoveToBackpack?: (invSlot: number) => void;
   onMoveFromBackpack?: (bpSlot: number) => void;
+  onCommandCard?: (action: CommandCardAction) => void;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -60,13 +62,15 @@ export class Hud {
     // 用 mousedown 而非 click:HUD 每帧重建 innerHTML,click 需 mousedown+mouseup 命中同一元素,
     // 但元素在两者之间被重建销毁 → click 永不触发(学技能/买活/背包点击全失效)。mousedown 按下即触发,先于重建。
     this.bottom.addEventListener('mousedown', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
+      const el = (e.target as HTMLElement).closest('[data-command-card],[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
       if (!el) return;
       e.preventDefault();
       // 右键库存物品 → 出售(经 shop.sellSlot 校验商店范围 + toast,天然防误卖)
       if (e.button === 2 && el.hasAttribute('data-bag')) { this.onSell?.(Number(el.getAttribute('data-bag'))); return; }
       if (e.button === 2) return; // 其他槽位右键不处理
-      if (el.hasAttribute('data-buyback')) this.onBuyback?.();
+      const commandAction = commandCardActionFromValue(el.getAttribute('data-command-card'));
+      if (commandAction) this.onCommandCard?.(commandAction);
+      else if (el.hasAttribute('data-buyback')) this.onBuyback?.();
       else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
       else if (el.hasAttribute('data-bag')) this.onMoveToBackpack?.(Number(el.getAttribute('data-bag')));
       else if (el.hasAttribute('data-bagout')) this.onMoveFromBackpack?.(Number(el.getAttribute('data-bagout')));

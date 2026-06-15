@@ -1,17 +1,7 @@
 import type { ControlSettings, RebindAction } from '../engine/controlSettings';
 import { DEFAULT_KEY_BINDS } from '../engine/controlSettings';
+import type { CommandCardAction } from '../engine/commandCardActions';
 import type { UnitKind } from '../sim/unit';
-
-export type CommandCardAction =
-  | 'move'
-  | 'attackMove'
-  | 'stop'
-  | 'hold'
-  | 'selectHero'
-  | 'selectCourier'
-  | 'selectAllControlled'
-  | 'glyph'
-  | 'shop';
 
 export interface CommandCardButton {
   action: CommandCardAction;
