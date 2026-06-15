@@ -383,10 +383,14 @@ Completed after the Opus handoff:
   - `src/ui/shopOwnershipModel.ts` summarizes matching owned items across inventory, backpack, stash, and TP slot.
   - `tests/shopOwnershipModel.test.ts` covers hidden, lane-count, TP-charge, and stackable-charge states.
   - `src/ui/shop.ts` renders compact `Owned` badges below the purchase destination preview.
+- Shop recipe progress is now visible in combined item rows:
+  - `src/ui/shopRecipeModel.ts` summarizes total owned components, hero-ready components, and missing components.
+  - `tests/shopRecipeModel.test.ts` covers duplicate requirements and missing component cases.
+  - `src/ui/shop.ts` renders `Recipe x/y`, `Hero x/y`, and missing component labels below the ownership badges.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Expand shop v2 into quickbuy/component lanes: recipe tree, missing, affordable, and keyboard purchase flow.
+2. Expand shop v2 into true quickbuy/component transfer lanes and keyboard purchase flow.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
 4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.

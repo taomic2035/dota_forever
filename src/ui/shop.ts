@@ -10,6 +10,7 @@ import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
 import { buildShopVisibleItems } from './shopListModel';
 import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
+import { buildShopRecipeProgressModel, type ShopRecipeProgressModel } from './shopRecipeModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -134,6 +135,13 @@ export class ShopPanel {
         stash: hero.stash,
         tpSlot: hero.tpSlot,
       });
+      const recipeProgress = buildShopRecipeProgressModel({
+        recipe: def.recipe,
+        inventory: hero.inventory,
+        backpack: hero.backpack,
+        stash: hero.stash,
+        tpSlot: hero.tpSlot,
+      });
       const afford = destination.canBuy;
       row.style.cssText = `display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:5px;cursor:pointer;
         ${afford ? '' : 'opacity:.45;'}`;
@@ -148,6 +156,7 @@ export class ShopPanel {
           <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
           ${destinationBadge(destination)}
           ${ownershipBadges(ownership)}
+          ${recipeProgressBadge(recipeProgress)}
         </span>`;
       row.title = tooltip(def);
       // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
@@ -225,6 +234,18 @@ function ownershipBadges(model: ShopOwnershipModel): string {
   return `<span title="${model.detail}" style="display:flex;align-items:center;gap:4px;margin-top:3px;min-width:0;">
     <span style="flex:none;color:#8f9b75;font-size:10px;">Owned</span>
     ${model.badges.map((badge) => `<b style="flex:none;border:1px solid #3a4428;border-radius:3px;background:#12170e;color:#cfd8a0;font-size:9px;line-height:14px;padding:0 4px;">${badge.label} x${badge.count}</b>`).join('')}
+  </span>`;
+}
+
+function recipeProgressBadge(model: ShopRecipeProgressModel): string {
+  if (!model.visible) return '';
+  const missing = model.missing.length > 0
+    ? `<span style="min-width:0;color:#d8a84c;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Missing ${model.missing.map((component) => `${component.label} x${component.missing}`).join(' / ')}</span>`
+    : '<span style="min-width:0;color:#9cff74;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Components owned</span>';
+  return `<span title="${model.detail}" style="display:flex;align-items:center;gap:4px;margin-top:3px;min-width:0;">
+    <b style="flex:none;border:1px solid #4f5c38;border-radius:3px;background:#151b10;color:#d9c989;font-size:9px;line-height:14px;padding:0 4px;">Recipe ${model.ownedLabel}</b>
+    <b style="flex:none;border:1px solid #3a4428;border-radius:3px;background:#12170e;color:#cfd8a0;font-size:9px;line-height:14px;padding:0 4px;">Hero ${model.readyLabel}</b>
+    ${missing}
   </span>`;
 }
 
