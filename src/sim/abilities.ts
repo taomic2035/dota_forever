@@ -7,7 +7,7 @@ import { turnTowards } from '../core/mathx';
 import { TURN_RATE, ULT_LEVELS, STAT_BONUS_MAX } from '../data/balance';
 import type { AbilityDef } from '../data/heroes/types';
 import type { World } from './world';
-import { Unit, type Order, type EntityId } from './unit';
+import { Unit, type Order, type EntityId, type UnitStats } from './unit';
 import { castHooks, attackHitHooks, stateOf, applyDamage, isEnemy } from './combat';
 import { applyModifier, removeModifier, tryLinkenBlock, type ModifierDef } from './modifiers';
 import { targetMatchesFilter } from './targeting';
@@ -365,7 +365,29 @@ export interface SummonSpec {
 }
 
 /**
- * 创建源英雄的幻象:复制当前面板,出伤打折、受伤翻倍,无法施法,定时消失。
+ * 幻象的「面板快照」:取源英雄当前 calc(含装备/属性/光环加成)的战斗字段,而非裸 base。
+ * 经典 DotA:幻象继承英雄当前完整面板(攻击力/护甲/生命/魔抗/攻击距离等),再按 illuOutgoing 出伤打折。
+ * 注:illusion kind 非英雄、无装备,recalc 会原样镜像 base→calc(`c.dmgMin=b.dmgMin`…),故把 calc 写进
+ * base 不会二次折算;且天然不继承 crit/吸血/闪避等 calc-only 加成——这正是 DotA 幻象的正确行为(幻象不享受这些)。
+ */
+function illusionStats(source: Unit): UnitStats {
+  const c = source.calc;
+  const b = source.base;
+  return {
+    maxHp: c.maxHp, hpRegen: c.hpRegen, maxMp: c.maxMp, mpRegen: c.mpRegen,
+    dmgMin: c.dmgMin, dmgMax: c.dmgMax,
+    attackType: c.attackType, armorType: c.armorType,
+    armor: c.armor, magicResist: c.magicResist,
+    attackRange: c.attackRange, attackPoint: c.attackPoint,
+    bat: c.bat, projectileSpeed: c.projectileSpeed,
+    moveSpeed: c.moveSpeed, collisionRadius: c.collisionRadius,
+    visionDay: c.visionDay, visionNight: c.visionNight, acquireRange: c.acquireRange,
+    bountyMin: b.bountyMin, bountyMax: b.bountyMax, xpBounty: b.xpBounty,
+  };
+}
+
+/**
+ * 创建源英雄的幻象:复制当前面板(含装备加成),出伤打折、受伤翻倍,无法施法,定时消失。
  * 以 'illusion' kind 区分(不计英雄数/胜负/英雄赏金),渲染时仍显示为该英雄。
  */
 export function createIllusion(
@@ -380,7 +402,7 @@ export function createIllusion(
       team: source.team,
       pos: w.map.nearestWalkable(V.add(source.pos, offset)),
       name: source.name,
-      stats: { ...source.base },
+      stats: illusionStats(source),
     });
     u.heroDef = source.heroDef;        // 渲染识别(颜色/字形)
     u.level = source.level;

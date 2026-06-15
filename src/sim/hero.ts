@@ -33,6 +33,9 @@ export function heroAttributes(u: Unit): { str: number; agi: number; int: number
 /** 英雄面板重算扩展:在 base 镜像后叠属性。 */
 function heroRecalc(u: Unit): void {
   if (!u.heroDef) return;
+  // 幻象:base 已是源英雄的 calc 快照(含属性+装备,见 abilities.illusionStats),不再二次折算属性
+  // (幻象有 heroDef 仅供渲染识别)。否则属性会被双计。
+  if (u.kind === 'illusion') return;
   const { str, agi, int } = heroAttributes(u);
   const c = u.calc;
   c.maxHp += str * HP_PER_STR;
