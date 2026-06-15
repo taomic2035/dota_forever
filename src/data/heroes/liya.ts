@@ -10,6 +10,7 @@ const NOVA_SLOW_DUR = [3.0, 3.5, 4.0, 4.5];
 export const LIYA_Q: AbilityDef = {
   key: 'liya_nova', name: '冰霜新星', maxLevel: 4, targetMode: 'point',
   castRange: [700, 700, 700, 700], manaCost: [105, 120, 135, 150], cooldown: [11, 10, 9, 8],
+  aoeRadius: [400, 400, 400, 400], // 与 onCast 的 damageArea/modifierArea 半径一致(预览真实范围)
   castPoint: 0.4, tags: ['nuke', 'slow', 'aoe'],
   description: '在目标区域引爆寒霜,伤害并减速敌人。',
   onCast(w, caster, lvl, pos) {

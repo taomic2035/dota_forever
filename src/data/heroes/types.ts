@@ -29,6 +29,13 @@ export interface AbilityDef {
   manaCost?: number[];
   cooldown?: number[];
   /**
+   * 预览用 AoE 半径(按等级;与 onCast 的实际作用半径一致)。供 previewCast 画真实范围圈,
+   * 取代写死的固定半径。未声明时预览回落到默认半径(见 engine/abilityPreviewShape)。
+   */
+  aoeRadius?: number[];
+  /** 预览用线形宽度(点目标 + 此字段 = 线形技能;预览画线而非圈)。 */
+  lineWidth?: number;
+  /**
    * 阿哈利姆神杖(scepter)升级。持有 scepter 时:
    * - 数值轴:cooldown/manaCost/castRange 若提供则覆盖基础值(系统层经 abilityCooldown/abilityManaCost 读取);
    * - 行为轴:伤害/范围/额外效果在 onCast 内用 `hasScepter(caster)` 分支增强。
