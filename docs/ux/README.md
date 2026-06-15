@@ -2,6 +2,8 @@
 
 This index groups the current UX workstream by player-facing problem area.
 
+> **权威收尾**:2.1.0 的完整交付与协作复盘见 [`../2026-06-15-v2.1.0-release.md`](../2026-06-15-v2.1.0-release.md)。本目录是开发过程的分主题归档。
+
 ## Mainline Recaps
 
 - [Core UX design](2026-06-12-core-ux-design.md)

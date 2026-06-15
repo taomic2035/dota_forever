@@ -19,6 +19,9 @@ playwright-report/
 .env
 .env.*
 
+# 本地临时产物(开发期 vite 日志等)
+tmp/
+
 # 编辑器与系统
 .DS_Store
 .idea/

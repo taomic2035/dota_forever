@@ -2,6 +2,11 @@
 
 This folder is the documentation entry point: mechanics fidelity, balance, architecture, plus UX validation, screenshots, and implementation plans.
 
+## 版本发布(Releases)
+
+- [**2.1.0 — 发布与复盘**](2026-06-15-v2.1.0-release.md)(2026-06-15):操控与可玩性大版本。逐子系统交付、量化指标、工程洞察、Opus↔Codex 协作复盘与教训。**了解「当前做到哪了」先读此文。**
+- 版本摘要见 [`../CHANGELOG.md`](../CHANGELOG.md)(2.1.0 / 2.0.0 真 3D / 1.0.0 完整玩法)。
+
 ## 核心机制 / 数值 / 架构(Mechanics · Balance · Architecture)
 
 权威参考——理解游戏机制与保真度先读这些:
@@ -18,14 +23,9 @@ This folder is the documentation entry point: mechanics fidelity, balance, archi
 - [Implementation plans](superpowers/plans/): task-by-task execution notes for each major slice.
 - [Original project spec](superpowers/specs/2026-06-10-dota1-remake-design.md): broad product and gameplay baseline.
 
-## Current UX Focus
+## Current State (2.1.0)
 
-The active mainline is core game UX:
-
-- World and unit readability.
-- Command cursor, target preview, and rejection feedback.
-- Item and ability targeting precision.
-- Cast input modes, per-slot overrides, self-cast, and camera controls.
+操控与可玩性已达商用水平的主线目标——选择/控制组/指令卡/改键、施法条、公屏播报、危险反馈、商店去向预览、信使/防御符/后门等机制深化,2D/3D 渲染器经共享纯函数对等。完整清单与复盘见 [2.1.0 发布文档](2026-06-15-v2.1.0-release.md)。下一阶段(2.2)规划见该文「已知后续」。
 
 The visual direction is Dota1-inspired, but intentionally uses original programmatic art and a fresher interface style.
 
