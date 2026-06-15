@@ -135,7 +135,13 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 - 基础设施:补装缺失的 `three`/`@types/three`(node_modules 相对 package.json 过期,致 `tsc` 此前 100+ 报错)。
 - 结果:`tsc` 0 错;全量 1293 测试绿(+8 新测试)。注:3D 迷雾的视觉调校(纱罩浓度/边界柔化)建议后续浏览器实机过一遍。
 
+**Batch 3(部分)— Roshan/Boss 重生计时(P1,dota1-core)✅ 完成(2026-06-15)**
+- `world` 暴露 `bossId`/`bossRespawnAt`(此前为 `pitlord` 闭包局部变量,HUD 读不到);`pitlord` 写入;
+  `hud` 顶栏新增 ☠ 计时 chip(在世=绿/重生倒计时=琥珀,仿 Glyph chip)。测试 `bossTimer.test.ts`。
+  只碰 `world.ts`/`pitlord.ts`/`hud.ts`(与并行线零重叠)。
+
 > 注:Batch 4(多单位选择/控制组/command card)由并行 Codex 线推进中(`engine/selection.ts` 等),本线不重叠。
+> 为避免与并行线冲突,本线优先做落在 `sim`/`hud`/`render` 等他们不碰的文件里的项。
 
 ## 7. 收敛检查
 

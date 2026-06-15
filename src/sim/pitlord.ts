@@ -52,24 +52,23 @@ function spawnBoss(w: World, growths: number): Unit {
 }
 
 export function installPitlord(w: World): void {
-  let bossId = 0;
-  let respawnAt = Math.max(0, w.time); // 0:00 出生
+  w.bossRespawnAt = Math.max(0, w.time); // 0:00 出生(world.bossId 默认 0)
   let nextGrowth = PITLORD_GROWTH_INTERVAL;
 
   const system: WorldSystem = (world) => {
-    const boss = world.getUnit(bossId);
+    const boss = world.getUnit(world.bossId);
 
     // 出生/复活
-    if ((!boss || !boss.alive) && world.time >= respawnAt && respawnAt !== Infinity) {
+    if ((!boss || !boss.alive) && world.time >= world.bossRespawnAt && world.bossRespawnAt !== Infinity) {
       const growths = Math.floor(Math.max(0, world.time) / PITLORD_GROWTH_INTERVAL);
-      bossId = spawnBoss(world, growths).id;
-      respawnAt = Infinity;
+      world.bossId = spawnBoss(world, growths).id;
+      world.bossRespawnAt = Infinity;
     }
 
     // 成长(对在世 Boss 直接强化)
     if (world.time >= nextGrowth) {
       nextGrowth += PITLORD_GROWTH_INTERVAL;
-      const b = world.getUnit(bossId);
+      const b = world.getUnit(world.bossId);
       if (b?.alive) {
         b.base.maxHp += PITLORD_GROWTH.hp;
         b.hp += PITLORD_GROWTH.hp;
@@ -81,7 +80,7 @@ export function installPitlord(w: World): void {
 
     // 驻留(回巢满血)
     if (world.tick % 15 === 0) {
-      const b = world.getUnit(bossId);
+      const b = world.getUnit(world.bossId);
       if (b?.alive && b.homePos) {
         const distHome = V.dist(b.pos, b.homePos);
         const returning = b.order?.type === 'move';
@@ -98,8 +97,8 @@ export function installPitlord(w: World): void {
 
     // 死亡处理:掉盾 + 安排复活
     for (const e of world.events) {
-      if (e.kind !== 'unit_died' || e.unitId !== bossId) continue;
-      respawnAt = world.time + world.rng.range(PITLORD_RESPAWN[0], PITLORD_RESPAWN[1]);
+      if (e.kind !== 'unit_died' || e.unitId !== world.bossId) continue;
+      world.bossRespawnAt = world.time + world.rng.range(PITLORD_RESPAWN[0], PITLORD_RESPAWN[1]);
       const killer = world.getUnit(e.killerId);
       const byTeam = killer && killer.team !== Team.Neutral ? killer.team : Team.Dawn;
       world.emit({ kind: 'boss_killed', killerId: e.killerId, byTeam });

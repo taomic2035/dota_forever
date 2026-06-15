@@ -162,6 +162,11 @@ export class Hud {
     const gReadyAt = hero ? (world.glyphReadyAt?.[hero.team] ?? 0) : 0;
     const gLeft = Math.max(0, Math.ceil(gReadyAt - t));
     const glyph = gLeft <= 0 ? '就绪' : `${Math.floor(gLeft / 60)}:${(gLeft % 60).toString().padStart(2, '0')}`;
+    // 深渊领主(Boss/Roshan)重生计时:最受争夺的目标计时(读 world.bossId/bossRespawnAt)
+    const bossActive = world.bossId !== 0 || world.bossRespawnAt !== Infinity;
+    const bossAlive = !!world.getUnit(world.bossId)?.alive;
+    const bLeft = Math.max(0, Math.ceil(world.bossRespawnAt - t));
+    const bossTxt = bossAlive ? '在世' : world.bossRespawnAt === Infinity ? '?' : `${Math.floor(bLeft / 60)}:${(bLeft % 60).toString().padStart(2, '0')}`;
     this.topbar.innerHTML =
       `<span style="color:#8fd17a;font-weight:700">${dawnKills}</span>` +
       `<span style="color:#8a9">晨曦</span>` +
@@ -169,6 +174,7 @@ export class Hud {
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
       `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
       `<span title="守护符文 G(强化己方建筑)" style="color:${gLeft <= 0 ? '#8fd17a' : '#9a9277'}">🛡${glyph}</span>` +
+      (bossActive ? `<span title="深渊领主(Boss)重生计时" style="color:${bossAlive ? '#8fd17a' : '#d9a44a'}">☠${bossTxt}</span>` : '') +
       `<span style="color:#ffd54f">${gold}</span>` +
       `<span style="color:#a89">永夜</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;

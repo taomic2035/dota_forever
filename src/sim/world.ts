@@ -53,6 +53,9 @@ export class World {
   runes: import('./runes').RuneSpawn[] = [];
   /** 防御符文 Glyph 各队就绪时刻([Dawn, Night];world.time ≥ 此值方可激活)。 */
   glyphReadyAt: number[] = [0, 0];
+  /** 深渊领主(Boss):当前实体 id(0=不在世),下次复活时刻(在世时 = Infinity)。供 HUD 计时。 */
+  bossId: EntityId = 0;
+  bossRespawnAt = Infinity;
   /** 比赛实际开始前的准备时间偏移(time 从 -PREP 开始走) */
   constructor(map: GameMap, seed: number, startTime = -75) {
     this.map = map;
