@@ -180,6 +180,8 @@ export class Unit {
   attackCooldownUntil = -Infinity; // world.time
   windupUntil = -Infinity;
   windupTargetId: EntityId | 0 = 0;
+  // 暴击伪随机分布(PRD)计数:自上次暴击以来连续未暴击的攻击数(由 dealAttackDamage 维护)
+  critStreak = 0;
   // 防御塔连击递增状态(经典 DotA1:对同目标连续攻击伤害 +20%/次,切换目标或闲置重置)
   attackStreak = 0;
   attackStreakTargetId: EntityId | 0 = 0;

@@ -11,6 +11,7 @@ import {
 } from '../data/balance';
 import type { World } from './world';
 import { Unit, type EntityId } from './unit';
+import { prdChance } from './prd';
 
 /** 经典 DotA:重生「重组」窗口(秒)。期间无敌、眩晕;到期后原地满血复活。 */
 const REINCARNATION_DELAY = 3;
@@ -258,9 +259,15 @@ export function dealAttackDamage(w: World, attacker: Unit, target: Unit, precomp
   let amount = precomputed ?? rollAttackDamage(w, attacker);
   if (attacker.kind === 'illusion') amount *= attacker.illuOutgoing; // 幻象出伤打折
   let crit = false;
-  if (attacker.calc.critChance > 0 && w.rng.chance(attacker.calc.critChance)) {
-    amount *= attacker.calc.critMultiplier;
-    crit = true;
+  if (attacker.calc.critChance > 0) {
+    // 伪随机分布(PRD):随连续未暴击递增的概率,均值仍 = critChance,消除极端运气(经典 DotA)
+    if (w.rng.chance(prdChance(attacker.calc.critChance, attacker.critStreak))) {
+      amount *= attacker.calc.critMultiplier;
+      crit = true;
+      attacker.critStreak = 0;
+    } else {
+      attacker.critStreak++;
+    }
   }
   const dealt = applyDamage(w, target, { source: attacker.id, attackType: attacker.calc.attackType, amount });
   if (crit && dealt > 0) {
