@@ -29,6 +29,7 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - HUD reads allied courier state from `world.units` and hero stash count only.
   - States covered: `missing`, `dead`, `ready`, `delivering`, `returning`.
   - The courier strip is clickable and reuses the existing `selectCourier` command-card action.
+  - The courier strip now exposes a visible action hint instead of hiding guidance in a tooltip: `F2 select`, `F2 follow delivery`, `F2 follow return`, `Wait respawn`, or `No courier`.
 - Shop destination preview first pass:
   - New pure `buildShopDestinationModel` contract.
   - Shop rows now preview whether a purchase will go to hero inventory, backpack, stash, or TP slot.
@@ -67,6 +68,12 @@ It does not prioritize new heroes, art asset volume, balance tuning, or simulati
   - moving while stash has items: `Delivering stash xN`
   - moving without stash cargo: `Returning to base`
   - idle at fountain: `Ready at base` or `Ready / stash xN`
+- Courier action hints are UI-only:
+  - missing courier: `No courier`
+  - dead courier: `Wait respawn`
+  - delivery in progress: `F2 follow delivery`
+  - returning: `F2 follow return`
+  - ready: `F2 select` or `F2 select / stash ready`
 - Shop list rows expose purchase destination before click:
   - `Hero`: item goes to inventory or adds inventory charge.
   - `Backpack`: inventory is full and backpack can receive it.

@@ -201,9 +201,10 @@ export class Hud {
     };
     const p = palette[model.tone];
     const selected = model.selected ? 'box-shadow:0 0 0 1px #d9b44a inset,0 0 8px #d9b44a55;' : '';
-    return `<div data-command-card="selectCourier" title="${model.detail} - F2 selects courier" style="height:21px;margin-bottom:3px;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:5px;padding:0 5px;box-sizing:border-box;cursor:pointer;${selected}">
+    return `<div data-command-card="selectCourier" title="${model.detail} - ${model.actionLabel}" style="height:21px;margin-bottom:3px;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:5px;padding:0 5px;box-sizing:border-box;cursor:pointer;${selected}">
       <b style="font-size:9px;letter-spacing:0;white-space:nowrap;">${model.label}</b>
       <span style="font-size:9px;color:#cfc7a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+      <b style="font-size:8px;color:${p.fg};border:1px solid ${p.border};border-radius:2px;background:#0003;padding:0 3px;line-height:13px;white-space:nowrap;">${model.actionLabel}</b>
       <span style="min-width:32px;text-align:right;color:${p.hp};font-size:9px;font-weight:800;">${model.hpPercent}%</span>
     </div>`;
   }

@@ -8,6 +8,7 @@ describe('buildCourierHudModel', () => {
       status: 'missing',
       label: 'Courier',
       detail: 'No allied courier',
+      actionLabel: 'No courier',
       tone: 'muted',
       hpPercent: 0,
       selected: false,
@@ -30,6 +31,7 @@ describe('buildCourierHudModel', () => {
 
     expect(model.status).toBe('dead');
     expect(model.detail).toBe('Dead / respawning');
+    expect(model.actionLabel).toBe('Wait respawn');
     expect(model.tone).toBe('danger');
     expect(model.hpPercent).toBe(0);
     expect(model.selected).toBe(true);
@@ -51,6 +53,7 @@ describe('buildCourierHudModel', () => {
 
     expect(model.status).toBe('returning');
     expect(model.detail).toBe('Returning to base');
+    expect(model.actionLabel).toBe('F2 follow return');
     expect(model.tone).toBe('busy');
     expect(model.hpPercent).toBe(70);
     expect(model.selected).toBe(false);
@@ -72,6 +75,7 @@ describe('buildCourierHudModel', () => {
 
     expect(model.status).toBe('delivering');
     expect(model.detail).toBe('Delivering stash x3');
+    expect(model.actionLabel).toBe('F2 follow delivery');
     expect(model.tone).toBe('busy');
     expect(model.hpPercent).toBe(100);
     expect(model.selected).toBe(true);
@@ -93,7 +97,27 @@ describe('buildCourierHudModel', () => {
 
     expect(model.status).toBe('ready');
     expect(model.detail).toBe('Ready / stash x2');
+    expect(model.actionLabel).toBe('F2 select / stash ready');
     expect(model.tone).toBe('ready');
     expect(model.hpPercent).toBe(60);
+  });
+
+  it('shows a simple select action when idle with no pending stash', () => {
+    const model = buildCourierHudModel({
+      selectedUnitId: 1,
+      courier: {
+        id: 8,
+        alive: true,
+        hp: 300,
+        maxHp: 300,
+        orderType: undefined,
+        atFountain: true,
+        stashItems: 0,
+      },
+    });
+
+    expect(model.status).toBe('ready');
+    expect(model.detail).toBe('Ready at base');
+    expect(model.actionLabel).toBe('F2 select');
   });
 });

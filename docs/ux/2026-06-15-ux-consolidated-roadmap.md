@@ -287,6 +287,7 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/courierHudModel.ts`
   - focused tests: `tests/courierHudModel.test.ts`
   - HUD integration: a compact clickable courier strip above the command card, reusing `selectCourier`.
+  - visible action labels now clarify the next expected player action directly in the strip: `F2 select`, `F2 follow delivery`, `F2 follow return`, `Wait respawn`, or `No courier`.
 - Shop destination preview first pass is implemented as preview-only UI:
   - pure model: `src/ui/shopDestinationModel.ts`
   - focused tests: `tests/shopDestinationModel.test.ts`
@@ -330,4 +331,4 @@ Low-conflict UI/control work completed after the Opus handoff:
   - focused tests: `tests/shopStashActionModel.test.ts`
   - shop stash rows now expose a `Take all` action with home-shop/full-inventory blocked states.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, owned-location badges, recipe progress, Enter keyboard-buy action, Shift+Enter next-component purchase, Ctrl+Enter batch component purchase, and stash take-all action only mirror/filter current item data and call the existing purchase/take paths; they do not change item placement, item movement, recipes, combine rules, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.
+Boundary note: this addendum does not claim full courier logistics completion. The courier strip remains a read-only status/select entry point with visible action labels; manual deliver/return controls, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, owned-location badges, recipe progress, Enter keyboard-buy action, Shift+Enter next-component purchase, Ctrl+Enter batch component purchase, and stash take-all action only mirror/filter current item data and call the existing purchase/take paths; they do not change item placement, item movement, recipes, combine rules, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.

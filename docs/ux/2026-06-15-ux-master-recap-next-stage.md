@@ -353,6 +353,7 @@ Completed after the Opus handoff:
   - `delivering`
   - `returning`
 - The courier strip is clickable and routes through the existing `selectCourier` command-card action.
+- The courier strip now shows visible action labels for the current state: `No courier`, `Wait respawn`, `F2 select`, `F2 select / stash ready`, `F2 follow delivery`, or `F2 follow return`.
 - Implementation is deliberately UI-read-only: it consumes existing `world.units`, courier order state, courier HP/alive state, fountain proximity, and hero stash count.
 - Shop destination preview now appears directly in item rows:
   - `Hero`, `Backpack`, `Stash`, and `TP` indicate where the purchase will land.

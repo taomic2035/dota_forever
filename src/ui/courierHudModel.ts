@@ -23,6 +23,7 @@ export interface CourierHudModel {
   status: CourierHudStatus;
   label: string;
   detail: string;
+  actionLabel: string;
   tone: CourierHudTone;
   hpPercent: number;
   selected: boolean;
@@ -36,6 +37,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       status: 'missing',
       label: 'Courier',
       detail: 'No allied courier',
+      actionLabel: 'No courier',
       tone: 'muted',
       hpPercent: 0,
       selected: false,
@@ -51,6 +53,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       status: 'dead',
       label: 'Courier',
       detail: 'Dead / respawning',
+      actionLabel: 'Wait respawn',
       tone: 'danger',
       hpPercent,
       selected,
@@ -63,6 +66,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       status: 'delivering',
       label: 'Courier',
       detail: `Delivering stash x${courier.stashItems}`,
+      actionLabel: 'F2 follow delivery',
       tone: 'busy',
       hpPercent,
       selected,
@@ -75,6 +79,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       status: 'returning',
       label: 'Courier',
       detail: 'Returning to base',
+      actionLabel: 'F2 follow return',
       tone: 'busy',
       hpPercent,
       selected,
@@ -86,6 +91,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
     status: 'ready',
     label: 'Courier',
     detail: courier.stashItems > 0 ? `Ready / stash x${courier.stashItems}` : 'Ready at base',
+    actionLabel: courier.stashItems > 0 ? 'F2 select / stash ready' : 'F2 select',
     tone: 'ready',
     hpPercent,
     selected,
