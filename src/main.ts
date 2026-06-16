@@ -50,6 +50,7 @@ import {
 } from './engine/targetFilters';
 import { resolveSelfCastTarget, targetTeamAllowsSelfCast } from './engine/selfCast';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
+import { buildCourierDeathPulses } from './ui/courierEventFeedback';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 
 const params = new URLSearchParams(location.search);
@@ -785,6 +786,15 @@ function startGame(mode: 'play' | 'spectate'): void {
       killfeed.consume(world);
       audio.consume(world, hero);
       announce.consume(world, audio, hero?.team ?? null); // 公屏播报:一血/连杀里程碑/信使死亡(全局,含敌方预警)
+      if (world.events.length > 0) {
+        const courierDeathPulses = buildCourierDeathPulses({
+          viewerTeam: hero?.team ?? null,
+          events: world.events,
+          units: Array.from(world.units.values(), (unit) => ({ id: unit.id, kind: unit.kind, team: unit.team })),
+          time: world.time,
+        });
+        for (const pulse of courierDeathPulses) ux.addWorldPulse(pulse);
+      }
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
         for (const e of world.events) {

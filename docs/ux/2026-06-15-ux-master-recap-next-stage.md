@@ -413,10 +413,15 @@ Completed after the Opus handoff:
   - `tests/announceModel.test.ts` covers allied courier death, enemy courier death, non-courier filtering, and one courier announcement per batch.
   - `src/ui/announce.ts` reuses the central announcement component and calls alert/announce audio cues based on allied/enemy semantics.
   - This does not change courier death, bounty, respawn, AI, or item delivery behavior.
+- Courier death location pulse first pass is implemented:
+  - `src/ui/courierEventFeedback.ts` builds pure world-pulse data from existing event batches.
+  - `tests/courierEventFeedback.test.ts` covers allied courier death, enemy courier death, non-courier filtering, missing-position filtering, and allied-priority batching.
+  - `src/main.ts` adds a short existing `ping` pulse at the courier death location, so 2D, 3D, and minimap feedback stay aligned.
+  - This does not change courier death, bounty, respawn, AI, or item delivery behavior.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
 2. Expand shop v2 into persistent quickbuy queue, drag/click component transfer lanes, and richer queue editing.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
-4. Add courier path preview and death/danger feedback without duplicating Opus-owned sim logic.
+4. Add courier path preview and richer danger/retreat ping types without duplicating Opus-owned sim logic.
