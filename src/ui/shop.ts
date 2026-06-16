@@ -10,7 +10,13 @@ import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
 import { buildShopVisibleItems } from './shopListModel';
 import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
-import { buildShopQuickActionModel, type ShopQuickActionModel } from './shopQuickActionModel';
+import {
+  buildShopQuickActionModel,
+  buildShopRecipeNextActionModel,
+  type ShopQuickActionModel,
+  type ShopRecipeNextActionModel,
+  type ShopRecipeNextComponent,
+} from './shopQuickActionModel';
 import { buildShopRecipeProgressModel, type ShopRecipeProgressModel } from './shopRecipeModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
@@ -76,6 +82,31 @@ export class ShopPanel {
     const destinations = new Map<string, ShopDestinationModel>();
     for (const def of items) destinations.set(def.key, buildDestinationModel(def, hero, gold, at));
     const quickAction = buildShopQuickActionModel({ visibleItems: items, destinations });
+    const recipeProgress = new Map<string, ShopRecipeProgressModel>();
+    const nextComponents = new Map<string, ShopRecipeNextComponent>();
+    const componentDestinations = new Map<string, ShopDestinationModel>();
+    for (const def of items) {
+      const progress = buildShopRecipeProgressModel({
+        recipe: def.recipe,
+        inventory: hero.inventory,
+        backpack: hero.backpack,
+        stash: hero.stash,
+        tpSlot: hero.tpSlot,
+      });
+      recipeProgress.set(def.key, progress);
+      const missing = progress.missing[0];
+      if (!missing) continue;
+      const component = itemDef(missing.key);
+      nextComponents.set(def.key, { key: component.key, name: component.name });
+      if (!componentDestinations.has(component.key)) {
+        componentDestinations.set(component.key, buildDestinationModel(component, hero, gold, at));
+      }
+    }
+    const recipeNextAction = buildShopRecipeNextActionModel({
+      visibleItems: items,
+      nextComponents,
+      destinations: componentDestinations,
+    });
     this.root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <b>商店 ${at === 'secret' ? '· 秘密商店' : at === 'home' ? '· 基地' : '· <span style="color:#ef9a9a">不在商店范围</span>'}</b>
@@ -84,6 +115,7 @@ export class ShopPanel {
       <input id="shop-search" value="${escapeAttr(this.query)}" placeholder="Search items" spellcheck="false"
         style="width:100%;box-sizing:border-box;margin-bottom:6px;border:1px solid #3a4428;border-radius:5px;background:#0b0e08;color:#e8e2c8;padding:5px 7px;font-size:12px;outline:none;" />
       ${quickActionBadge(quickAction)}
+      ${recipeNextActionBadge(recipeNextAction)}
       <div id="shop-tabs" style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;"></div>
       <div id="shop-list" style="flex:1;overflow-y:auto;"></div>
       <div id="shop-stash" style="border-top:1px solid #3a4428;padding-top:6px;margin-top:6px;"></div>`;
@@ -98,8 +130,10 @@ export class ShopPanel {
       next?.setSelectionRange(next.value.length, next.value.length);
     };
     search.onkeydown = (event) => {
-      if (event.key !== 'Enter' || event.repeat || !quickAction.itemKey) return;
-      this.buy(w, hero, itemDef(quickAction.itemKey));
+      if (event.key !== 'Enter' || event.repeat) return;
+      const itemKey = event.shiftKey ? recipeNextAction.itemKey : quickAction.itemKey;
+      if (!itemKey) return;
+      this.buy(w, hero, itemDef(itemKey));
       event.preventDefault();
       event.stopPropagation();
     };
@@ -128,13 +162,7 @@ export class ShopPanel {
         stash: hero.stash,
         tpSlot: hero.tpSlot,
       });
-      const recipeProgress = buildShopRecipeProgressModel({
-        recipe: def.recipe,
-        inventory: hero.inventory,
-        backpack: hero.backpack,
-        stash: hero.stash,
-        tpSlot: hero.tpSlot,
-      });
+      const progress = recipeProgress.get(def.key)!;
       const afford = destination.canBuy;
       row.style.cssText = `display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:5px;cursor:pointer;
         ${afford ? '' : 'opacity:.45;'}`;
@@ -149,7 +177,8 @@ export class ShopPanel {
           <span style="display:block;color:#9a9277;font-size:11px;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${def.description ?? ''}</span>
           ${destinationBadge(destination)}
           ${ownershipBadges(ownership)}
-          ${recipeProgressBadge(recipeProgress)}
+          ${recipeProgressBadge(progress)}
+          ${recipeNextComponentBadge(nextComponents.get(def.key))}
         </span>`;
       row.title = tooltip(def);
       // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
@@ -267,6 +296,22 @@ function quickActionBadge(model: ShopQuickActionModel): string {
     <b style="color:${active ? '#d9c989' : '#ff9f8f'};font-size:10px;white-space:nowrap;">${model.label}</b>
     <span style="min-width:0;color:#9a9277;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
   </div>`;
+}
+
+function recipeNextActionBadge(model: ShopRecipeNextActionModel): string {
+  if (!model.visible) return '';
+  const active = model.itemKey !== null;
+  return `<div title="${escapeAttr(model.detail)}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 6px;padding:4px 6px;border:1px solid ${active ? '#435c4a' : '#5f3832'};border-radius:5px;background:${active ? '#101b16' : '#1c1010'};">
+    <b style="color:${active ? '#a8e6bd' : '#ff9f8f'};font-size:10px;white-space:nowrap;">${model.label}</b>
+    <span style="min-width:0;color:#9a9277;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+  </div>`;
+}
+
+function recipeNextComponentBadge(component: ShopRecipeNextComponent | undefined): string {
+  if (!component) return '';
+  return `<span title="Next missing recipe component" style="display:flex;align-items:center;gap:4px;margin-top:3px;min-width:0;">
+    <b style="flex:none;border:1px solid #435c4a;border-radius:3px;background:#101b16;color:#a8e6bd;font-size:9px;line-height:14px;padding:0 4px;">Next ${component.name}</b>
+  </span>`;
 }
 
 function ownershipBadges(model: ShopOwnershipModel): string {
