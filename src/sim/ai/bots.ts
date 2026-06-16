@@ -335,6 +335,9 @@ function castBest(w: World, u: Unit): boolean {
  *   自损物品(低血换蓝会自杀)。被沉默或濒死时使用。
  * - 对己方/自身指向的治疗/自保物品(targetTeam allyOrSelf/self):濒死时对自己使用。
  * 排除消耗品。每 tick 至多一件。
+ *
+ * 注:魔棒/魔杖等续航物品有意不纳入——batchsim 复验显示 bot 续航过强会拖死节奏(一局 90min 不决),
+ * 与 bot 已有的低血撤退叠加使其过难击杀。续航的平衡代价超过收益。
  */
 const SAFE_SELF_BUFF_ITEMS: ReadonlySet<string> = new Set(['bkb']);
 
