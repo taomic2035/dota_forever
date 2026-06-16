@@ -418,10 +418,15 @@ Completed after the Opus handoff:
   - `tests/courierEventFeedback.test.ts` covers allied courier death, enemy courier death, non-courier filtering, missing-position filtering, and allied-priority batching.
   - `src/main.ts` adds a short existing `ping` pulse at the courier death location, so 2D, 3D, and minimap feedback stay aligned.
   - This does not change courier death, bounty, respawn, AI, or item delivery behavior.
+- Map ping type first pass is implemented:
+  - `src/ui/mapPingModel.ts` maps minimap ping modifiers and shared visual colors.
+  - `tests/mapPingModel.test.ts` covers regular, danger, retreat, no-Alt rejection, and Ctrl-over-Shift priority.
+  - `src/render/minimap.ts`, `src/render/renderer.ts`, and `src/render3d/renderer3d.ts` now render regular/danger/retreat pings consistently.
+  - This does not add chat, multiplayer broadcast, vision reveals, or sim-side communication logic.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
 2. Expand shop v2 into persistent quickbuy queue, drag/click component transfer lanes, and richer queue editing.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
-4. Add courier path preview and richer danger/retreat ping types without duplicating Opus-owned sim logic.
+4. Add courier path preview and automatic courier danger semantics without duplicating Opus-owned sim logic.

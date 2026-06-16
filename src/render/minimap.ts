@@ -11,6 +11,7 @@ import { WORLD } from '../data/mapLayout';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { landmarkVisuals, type LandmarkVisual } from './mapReadability';
 import { buildCourierMinimapMarkers, type CourierMinimapMarker } from './minimapCourierMarker';
+import { isMapPingKind, mapPingKindFromModifiers, mapPingVisual, type MapPingKind } from '../ui/mapPingModel';
 
 const SIZE = 232;
 
@@ -18,7 +19,7 @@ export class MiniMap {
   root: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private terrainThumb: HTMLCanvasElement;
-  private pings: Array<{ x: number; y: number; at: number }> = [];
+  private pings: Array<{ x: number; y: number; at: number; kind: MapPingKind }> = [];
   /** 静态地标缓存(地图不变,只算一次,避免每帧重建+克隆 Vec2)(D5) */
   private landmarks: LandmarkVisual[] | null = null;
 
@@ -26,7 +27,7 @@ export class MiniMap {
     parent: HTMLElement,
     terrain: HTMLCanvasElement,
     private camera: Camera,
-    private onPing?: (wx: number, wy: number) => void,
+    private onPing?: (wx: number, wy: number, kind: MapPingKind) => void,
     private onMoveCommand?: (wx: number, wy: number) => void,
   ) {
     this.root = document.createElement('canvas');
@@ -46,9 +47,10 @@ export class MiniMap {
     this.root.addEventListener('mousedown', (e) => {
       const wx = (e.offsetX / SIZE) * WORLD;
       const wy = (e.offsetY / SIZE) * WORLD;
-      if (e.altKey) {
-        this.ping(wx, wy);
-        this.onPing?.(wx, wy);
+      const pingKind = mapPingKindFromModifiers({ altKey: e.altKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey });
+      if (pingKind) {
+        this.ping(wx, wy, pingKind);
+        this.onPing?.(wx, wy, pingKind);
       } else if (e.button === 2) {
         this.onMoveCommand?.(wx, wy); // 右键:命令英雄移动到此(MOBA 标配)
       } else {
@@ -61,8 +63,8 @@ export class MiniMap {
     this.root.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
-  ping(wx: number, wy: number): void {
-    this.pings.push({ x: wx, y: wy, at: performance.now() });
+  ping(wx: number, wy: number, kind: MapPingKind = 'ping'): void {
+    this.pings.push({ x: wx, y: wy, at: performance.now(), kind });
   }
 
   render(world: World, viewerTeam: Team | null, ux?: UxFeedback): void {
@@ -204,22 +206,25 @@ export class MiniMap {
     this.pings = this.pings.filter((p) => now - p.at < 2500);
     for (const p of this.pings) {
       const age = (now - p.at) / 2500;
-      ctx.strokeStyle = `rgba(255,235,59,${1 - age})`;
+      const visual = mapPingVisual(p.kind);
+      ctx.strokeStyle = `rgba(${visual.minimapRgb},${1 - age})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(p.x * k, p.y * k, 4 + age * 14, 0, Math.PI * 2);
+      ctx.arc(p.x * k, p.y * k, 4 + age * visual.minimapRadius, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     // 镜头视野框
     if (ux) {
-      for (const pulse of ux.worldPulsesAt(world.time).filter((p) => p.kind === 'ping')) {
+      for (const pulse of ux.worldPulsesAt(world.time)) {
+        if (!isMapPingKind(pulse.kind)) continue;
         const age = world.time - pulse.time;
         const u = Math.max(0, Math.min(1, age / 0.55));
-        ctx.strokeStyle = `rgba(72,216,255,${1 - u})`;
+        const visual = mapPingVisual(pulse.kind);
+        ctx.strokeStyle = `rgba(${visual.minimapRgb},${1 - u})`;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(pulse.pos.x * k, pulse.pos.y * k, 6 + 12 * u, 0, Math.PI * 2);
+        ctx.arc(pulse.pos.x * k, pulse.pos.y * k, 6 + visual.minimapRadius * u, 0, Math.PI * 2);
         ctx.stroke();
       }
     }

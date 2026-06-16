@@ -349,5 +349,10 @@ Low-conflict UI/control work completed after the Opus handoff:
   - focused tests: `tests/courierEventFeedback.test.ts`
   - courier death events now emit a short existing `ping` pulse at the death location, visible in world feedback and on the minimap.
   - allied courier death is prioritized when multiple courier deaths appear in the same event batch.
+- Map ping type first pass is implemented:
+  - pure model: `src/ui/mapPingModel.ts`
+  - focused tests: `tests/mapPingModel.test.ts`
+  - `Alt+click` remains regular ping, `Alt+Ctrl+click` creates danger ping, and `Alt+Shift+click` creates retreat ping.
+  - 2D world pulse, 3D world pulse, minimap local ping, and minimap UX pulse now share one visual color contract.
 
 Boundary note: this addendum does not claim full courier logistics completion. The courier strip remains a read-only status/select entry point with visible action labels and low-health danger feedback, the courier minimap marker is a read-only readability layer, and courier death announcements/pulses consume existing death events only; manual deliver/return controls, courier item lanes, dedicated courier toast stack, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, owned-location badges, recipe progress, Enter keyboard-buy action, Shift+Enter next-component purchase, Ctrl+Enter batch component purchase, and stash take-all action only mirror/filter current item data and call the existing purchase/take paths; they do not change item placement, item movement, recipes, combine rules, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.

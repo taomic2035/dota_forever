@@ -190,8 +190,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const inspectPanel = new InspectPanel(app);
   const commandCursor = new CommandCursor(app);
   // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
-  const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy) => {
-    ux.addWorldPulse({ kind: 'ping', pos: { x: wx, y: wy }, time: world.time });
+  const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy, kind) => {
+    ux.addWorldPulse({ kind, pos: { x: wx, y: wy }, time: world.time });
   }, (wx, wy) => {
     if (!hero?.alive) return;
     const pos = map.nearestWalkable({ x: wx, y: wy });

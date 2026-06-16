@@ -1,7 +1,17 @@
 import type { Vec2 } from '../core/vec2';
 import type { SelectionSnapshot } from '../engine/selection';
 
-export type WorldPulseKind = 'move' | 'attack' | 'attackmove' | 'queued' | 'reject' | 'stop' | 'hold' | 'ping';
+export type WorldPulseKind =
+  | 'move'
+  | 'attack'
+  | 'attackmove'
+  | 'queued'
+  | 'reject'
+  | 'stop'
+  | 'hold'
+  | 'ping'
+  | 'dangerPing'
+  | 'retreatPing';
 export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
 export type CursorIntentKind = 'move' | 'attackmove' | 'cast' | 'item';

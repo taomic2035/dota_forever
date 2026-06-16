@@ -22,6 +22,7 @@ import { projectileVisualFor, type ProjectileSourceKind } from './projectileRead
 import { buildCommandQueuePath, type CommandQueueLeg } from './commandQueuePath';
 import { selectionVisualState, type SelectionVisualState } from './selectionVisual';
 import { selectionBoxRect } from './selectionBox';
+import { isMapPingKind, mapPingVisual } from '../ui/mapPingModel';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -361,7 +362,7 @@ export class Renderer {
         pulse.kind === 'attackmove' ? '#ffd45a' :
         pulse.kind === 'queued' ? '#8dff7a' :
         pulse.kind === 'reject' ? '#ff3040' :
-        pulse.kind === 'ping' ? '#48d8ff' :
+        isMapPingKind(pulse.kind) ? mapPingVisual(pulse.kind).worldColor :
         '#cfe8ff';
       ctx.save();
       ctx.globalAlpha = 1 - u;

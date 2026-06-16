@@ -30,6 +30,7 @@ import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type H
 import { stackedUnitVisualOffset } from './stackOffset';
 import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
 import { selection3DMarkerIds } from './selection3d';
+import { isMapPingKind, mapPingVisual } from '../ui/mapPingModel';
 
 interface Gameplay3DReadabilityInput {
   isHero: boolean;
@@ -465,7 +466,7 @@ export class Renderer3D {
         pulse.kind === 'attackmove' ? '#ffd45a' :
         pulse.kind === 'queued' ? '#8dff7a' :
         pulse.kind === 'reject' ? '#ff3040' :
-        pulse.kind === 'ping' ? '#48d8ff' : '#cfe8ff';
+        isMapPingKind(pulse.kind) ? mapPingVisual(pulse.kind).worldColor : '#cfe8ff';
       ctx.save();
       ctx.globalAlpha = 1 - u;
       ctx.strokeStyle = color;
