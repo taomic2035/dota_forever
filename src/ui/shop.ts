@@ -12,8 +12,10 @@ import { buildShopVisibleItems } from './shopListModel';
 import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
 import {
   buildShopQuickActionModel,
+  buildShopRecipeBatchActionModel,
   buildShopRecipeNextActionModel,
   type ShopQuickActionModel,
+  type ShopRecipeBatchActionModel,
   type ShopRecipeNextActionModel,
   type ShopRecipeNextComponent,
 } from './shopQuickActionModel';
@@ -84,6 +86,7 @@ export class ShopPanel {
     const quickAction = buildShopQuickActionModel({ visibleItems: items, destinations });
     const recipeProgress = new Map<string, ShopRecipeProgressModel>();
     const nextComponents = new Map<string, ShopRecipeNextComponent>();
+    const missingComponents = new Map<string, ShopRecipeNextComponent[]>();
     const componentDestinations = new Map<string, ShopDestinationModel>();
     for (const def of items) {
       const progress = buildShopRecipeProgressModel({
@@ -94,17 +97,31 @@ export class ShopPanel {
         tpSlot: hero.tpSlot,
       });
       recipeProgress.set(def.key, progress);
+      const missingList = progress.missing.map((component) => {
+        const item = itemDef(component.key);
+        return Array.from({ length: component.missing }, () => ({ key: item.key, name: item.name }));
+      }).flat();
+      if (missingList.length > 0) {
+        missingComponents.set(def.key, missingList);
+        for (const component of missingList) {
+          if (!componentDestinations.has(component.key)) {
+            componentDestinations.set(component.key, buildDestinationModel(itemDef(component.key), hero, gold, at));
+          }
+        }
+      }
       const missing = progress.missing[0];
       if (!missing) continue;
       const component = itemDef(missing.key);
       nextComponents.set(def.key, { key: component.key, name: component.name });
-      if (!componentDestinations.has(component.key)) {
-        componentDestinations.set(component.key, buildDestinationModel(component, hero, gold, at));
-      }
     }
     const recipeNextAction = buildShopRecipeNextActionModel({
       visibleItems: items,
       nextComponents,
+      destinations: componentDestinations,
+    });
+    const recipeBatchAction = buildShopRecipeBatchActionModel({
+      visibleItems: items,
+      missingComponents,
       destinations: componentDestinations,
     });
     this.root.innerHTML = `
@@ -116,6 +133,7 @@ export class ShopPanel {
         style="width:100%;box-sizing:border-box;margin-bottom:6px;border:1px solid #3a4428;border-radius:5px;background:#0b0e08;color:#e8e2c8;padding:5px 7px;font-size:12px;outline:none;" />
       ${quickActionBadge(quickAction)}
       ${recipeNextActionBadge(recipeNextAction)}
+      ${recipeBatchActionBadge(recipeBatchAction)}
       <div id="shop-tabs" style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;"></div>
       <div id="shop-list" style="flex:1;overflow-y:auto;"></div>
       <div id="shop-stash" style="border-top:1px solid #3a4428;padding-top:6px;margin-top:6px;"></div>`;
@@ -131,6 +149,12 @@ export class ShopPanel {
     };
     search.onkeydown = (event) => {
       if (event.key !== 'Enter' || event.repeat) return;
+      if (event.ctrlKey) {
+        this.buyMany(w, hero, recipeBatchAction.itemKeys);
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       const itemKey = event.shiftKey ? recipeNextAction.itemKey : quickAction.itemKey;
       if (!itemKey) return;
       this.buy(w, hero, itemDef(itemKey));
@@ -234,6 +258,21 @@ export class ShopPanel {
     else this.showToast('Inventory, backpack, and stash are full');
     this.lastRender = 0;
   }
+
+  private buyMany(w: World, hero: Unit, itemKeys: string[]): void {
+    if (itemKeys.length === 0) {
+      this.showToast('No buyable recipe components');
+      return;
+    }
+    let bought = 0;
+    for (const key of itemKeys) {
+      const result = buyItem(w, hero, purchaseKeyFor(key));
+      if (result !== 'ok' && result !== 'ok_backpack' && result !== 'ok_stash') break;
+      bought++;
+    }
+    this.showToast(bought > 0 ? `Bought ${bought} recipe ${bought === 1 ? 'component' : 'components'}` : 'No buyable recipe components');
+    this.lastRender = 0;
+  }
 }
 
 function effectiveCost(def: ItemDef): number {
@@ -303,6 +342,15 @@ function recipeNextActionBadge(model: ShopRecipeNextActionModel): string {
   const active = model.itemKey !== null;
   return `<div title="${escapeAttr(model.detail)}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 6px;padding:4px 6px;border:1px solid ${active ? '#435c4a' : '#5f3832'};border-radius:5px;background:${active ? '#101b16' : '#1c1010'};">
     <b style="color:${active ? '#a8e6bd' : '#ff9f8f'};font-size:10px;white-space:nowrap;">${model.label}</b>
+    <span style="min-width:0;color:#9a9277;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+  </div>`;
+}
+
+function recipeBatchActionBadge(model: ShopRecipeBatchActionModel): string {
+  if (!model.visible) return '';
+  const active = model.itemKeys.length > 0;
+  return `<div title="${escapeAttr(model.detail)}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 6px;padding:4px 6px;border:1px solid ${active ? '#3f5d66' : '#5f3832'};border-radius:5px;background:${active ? '#0f181c' : '#1c1010'};">
+    <b style="color:${active ? '#98d9ef' : '#ff9f8f'};font-size:10px;white-space:nowrap;">${model.label}</b>
     <span style="min-width:0;color:#9a9277;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
   </div>`;
 }

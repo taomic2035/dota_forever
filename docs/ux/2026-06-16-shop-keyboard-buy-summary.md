@@ -21,6 +21,9 @@ The shop already showed search results, purchase destination, owned locations, a
   - `Next <component>` appears directly under the recipe progress chips.
   - `Shift+Enter: Buy <component>` appears below search when the current visible row has a missing component.
   - Shift+Enter buys that component through the existing `buyItem` path.
+- Current recipe rows now expose a batch component action:
+  - `Ctrl+Enter: Buy N components` appears below search when missing components are currently buyable.
+  - Ctrl+Enter buys the currently buyable missing components in order, stopping on the first existing purchase failure.
 
 ## UX Boundary
 
@@ -32,13 +35,15 @@ This is intentionally a UI/control improvement, not a mechanics change:
 - No courier delivery command changes.
 - Mouse row purchase behavior remains on the existing path.
 - Shift+Enter is a one-shot component purchase helper, not a persistent quickbuy queue.
+- Ctrl+Enter is a one-shot batch helper for the current visible recipe row, not a persistent quickbuy queue.
 
 ## Verification
 
 - RED: `npm test -- tests/shopQuickActionModel.test.ts` failed on missing behavior.
 - GREEN: `npm test -- tests/shopQuickActionModel.test.ts` passed.
-- Regression set: `npm test -- tests/shopQuickActionModel.test.ts tests/shopRecipeModel.test.ts tests/shopOwnershipModel.test.ts tests/shopDestinationModel.test.ts tests/shopListModel.test.ts` passed with 29 tests.
+- Regression set: `npm test -- tests/shopQuickActionModel.test.ts tests/shopRecipeModel.test.ts tests/shopOwnershipModel.test.ts tests/shopDestinationModel.test.ts tests/shopListModel.test.ts` passed with 32 tests.
 - Targeted type check: `npx tsc --noEmit --target ES2022 --module ESNext --moduleResolution bundler --lib "es2022,dom" --skipLibCheck src\ui\shop.ts src\ui\shopQuickActionModel.ts tests\shopQuickActionModel.test.ts` passed.
 - Browser smoke: opened 2D play mode, opened shop, searched `branch`, verified `Enter: Buy`, pressed Enter, and confirmed `branch` entered inventory.
 - Browser smoke: opened 2D play mode, searched `magic_wand`, verified `Shift+Enter`, pressed Shift+Enter, and confirmed `magic_stick` entered inventory.
+- Browser smoke: opened 2D play mode, searched `magic_wand`, verified `Ctrl+Enter`, pressed Ctrl+Enter, and confirmed all Magic Wand missing components entered inventory.
 - Full build: `npm run build` passed. Vite still reports the existing large chunk warning.

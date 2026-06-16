@@ -28,6 +28,14 @@ export interface ShopRecipeNextActionModel {
   detail: string;
 }
 
+export interface ShopRecipeBatchActionModel {
+  visible: boolean;
+  parentItemKey: string | null;
+  itemKeys: string[];
+  label: string;
+  detail: string;
+}
+
 export function buildShopQuickActionModel(_input: {
   visibleItems: ShopQuickActionVisibleItem[];
   destinations: ReadonlyMap<string, ShopQuickActionDestination>;
@@ -84,4 +92,46 @@ export function buildShopRecipeNextActionModel(input: {
   }
 
   return { visible: false, parentItemKey: null, itemKey: null, label: '', detail: '' };
+}
+
+export function buildShopRecipeBatchActionModel(input: {
+  visibleItems: ShopQuickActionVisibleItem[];
+  missingComponents: ReadonlyMap<string, ShopRecipeNextComponent[]>;
+  destinations: ReadonlyMap<string, ShopQuickActionDestination>;
+}): ShopRecipeBatchActionModel {
+  for (const item of input.visibleItems) {
+    const missing = input.missingComponents.get(item.key);
+    if (!missing || missing.length === 0) continue;
+    const buyable = missing.filter((component) => input.destinations.get(component.key)?.canBuy);
+    if (buyable.length === 0) {
+      return {
+        visible: true,
+        parentItemKey: item.key,
+        itemKeys: [],
+        label: 'Ctrl+Enter: blocked',
+        detail: `${item.name}: no buyable missing components`,
+      };
+    }
+    return {
+      visible: true,
+      parentItemKey: item.key,
+      itemKeys: buyable.map((component) => component.key),
+      label: `Ctrl+Enter: Buy ${buyable.length} ${buyable.length === 1 ? 'component' : 'components'}`,
+      detail: `For ${item.name}: ${componentSummary(buyable)}`,
+    };
+  }
+
+  return { visible: false, parentItemKey: null, itemKeys: [], label: '', detail: '' };
+}
+
+function componentSummary(components: ShopRecipeNextComponent[]): string {
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const component of components) {
+    const current = counts.get(component.key);
+    if (current) current.count++;
+    else counts.set(component.key, { name: component.name, count: 1 });
+  }
+  return [...counts.values()]
+    .map((component) => component.count > 1 ? `${component.name} x${component.count}` : component.name)
+    .join(' / ');
 }
