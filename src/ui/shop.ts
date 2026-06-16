@@ -20,6 +20,7 @@ import {
   type ShopRecipeNextComponent,
 } from './shopQuickActionModel';
 import { buildShopRecipeProgressModel, type ShopRecipeProgressModel } from './shopRecipeModel';
+import { buildShopStashActionModel, type ShopStashActionModel } from './shopStashActionModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -222,7 +223,24 @@ export class ShopPanel {
     // 储藏处
     const stashEl = this.root.querySelector('#shop-stash')!;
     const stashItems = hero.stash.map((s, i) => ({ s, i })).filter((x) => x.s);
+    const stashAction = buildShopStashActionModel({
+      stashItemCount: stashItems.length,
+      atHomeShop: at === 'home',
+      inventoryFreeSlots: freeCount(hero.inventory),
+    });
     stashEl.innerHTML = `<div style="color:#9a8;font-size:12px;margin-bottom:4px">储藏处${at !== 'home' ? '(回基地取)' : ''}</div>`;
+    if (stashAction.visible) {
+      const action = document.createElement('button');
+      action.textContent = stashAction.label;
+      action.title = stashAction.detail;
+      action.disabled = !stashAction.enabled;
+      action.style.cssText = stashActionButtonStyle(stashAction);
+      action.onmousedown = (event) => {
+        event.preventDefault();
+        this.takeAllStash(w, hero);
+      };
+      stashEl.appendChild(action);
+    }
     for (const { s, i } of stashItems) {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;justify-content:space-between;padding:2px 6px;font-size:12px;';
@@ -273,6 +291,17 @@ export class ShopPanel {
     this.showToast(bought > 0 ? `Bought ${bought} recipe ${bought === 1 ? 'component' : 'components'}` : 'No buyable recipe components');
     this.lastRender = 0;
   }
+
+  private takeAllStash(w: World, hero: Unit): void {
+    let moved = 0;
+    for (let i = 0; i < hero.stash.length; i++) {
+      if (!hero.stash[i]) continue;
+      if (!takeFromStash(w, hero, i)) break;
+      moved++;
+    }
+    this.showToast(moved > 0 ? `Took ${moved} stash ${moved === 1 ? 'item' : 'items'}` : 'Cannot take stash items');
+    this.lastRender = 0;
+  }
 }
 
 function effectiveCost(def: ItemDef): number {
@@ -285,6 +314,17 @@ function escapeAttr(value: string): string {
 
 function freeCount(slots: Array<unknown | null>): number {
   return slots.filter((slot) => slot === null).length;
+}
+
+function stashActionButtonStyle(model: ShopStashActionModel): string {
+  const palette: Record<ShopStashActionModel['tone'], { border: string; bg: string; fg: string }> = {
+    muted: { border: '#3b3d35', bg: '#11130f', fg: '#9a9277' },
+    ready: { border: '#5f8d43', bg: '#12210f', fg: '#9cff74' },
+    busy: { border: '#7b6a36', bg: '#211b0d', fg: '#ffd76a' },
+    blocked: { border: '#5f3832', bg: '#1c1010', fg: '#ff9f8f' },
+  };
+  const p = palette[model.tone];
+  return `width:100%;margin:0 0 5px 0;padding:3px 8px;border-radius:4px;border:1px solid ${p.border};background:${p.bg};color:${p.fg};font-size:11px;font-weight:800;cursor:${model.enabled ? 'pointer' : 'not-allowed'};opacity:${model.enabled ? 1 : 0.6};`;
 }
 
 function buildDestinationModel(

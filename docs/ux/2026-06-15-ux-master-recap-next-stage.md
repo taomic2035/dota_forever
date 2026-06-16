@@ -393,10 +393,14 @@ Completed after the Opus handoff:
   - `src/ui/shop.ts` renders an `Enter: Buy <item>` strip and pressing Enter in search buys through the existing purchase path.
   - Recipe rows now show `Next <component>`, and Shift+Enter buys the next missing component through the existing purchase path.
   - Ctrl+Enter buys the current recipe row's currently buyable missing components in one pass, still through the existing purchase path.
+- Shop stash retrieval first pass is visible in the stash area:
+  - `src/ui/shopStashActionModel.ts` describes take-all, partial-room, away-from-home, and full-inventory states.
+  - `tests/shopStashActionModel.test.ts` covers the stash action states.
+  - `src/ui/shop.ts` renders a `Take all` action above stash rows and repeatedly calls the existing `takeFromStash` path.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Expand shop v2 into persistent quickbuy queue, component transfer lanes, and richer queue editing.
+2. Expand shop v2 into persistent quickbuy queue, drag/click component transfer lanes, and richer queue editing.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
 4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.
