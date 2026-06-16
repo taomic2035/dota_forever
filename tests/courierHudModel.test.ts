@@ -81,6 +81,27 @@ describe('buildCourierHudModel', () => {
     expect(model.selected).toBe(true);
   });
 
+  it('flags low-health live couriers as danger without losing task context', () => {
+    const model = buildCourierHudModel({
+      selectedUnitId: 1,
+      courier: {
+        id: 4,
+        alive: true,
+        hp: 105,
+        maxHp: 300,
+        orderType: 'move',
+        atFountain: false,
+        stashItems: 3,
+      },
+    });
+
+    expect(model.status).toBe('delivering');
+    expect(model.detail).toBe('Low HP / Delivering stash x3');
+    expect(model.actionLabel).toBe('F2 select / save courier');
+    expect(model.tone).toBe('danger');
+    expect(model.hpPercent).toBe(35);
+  });
+
   it('shows ready when idle at fountain and highlights pending stash', () => {
     const model = buildCourierHudModel({
       selectedUnitId: 1,

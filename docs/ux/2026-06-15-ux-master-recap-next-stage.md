@@ -403,6 +403,11 @@ Completed after the Opus handoff:
   - `tests/minimapCourierMarker.test.ts` covers allied through-fog visibility, enemy vision gating, dead courier hiding, and danger/busy tone priority.
   - `src/render/minimap.ts` renders couriers as distinct diamond markers instead of generic unit dots.
   - This does not add courier path preview, manual courier commands, or item transfer logic.
+- Courier low-health HUD danger feedback is implemented:
+  - live couriers at or below 35% HP keep their current task status but upgrade the courier strip to danger tone.
+  - detail text becomes `Low HP / ...`.
+  - action text becomes `F2 select / save courier`.
+  - This does not add retreat commands, sim behavior, sound, or toast yet.
 
 Next UI/control tasks:
 

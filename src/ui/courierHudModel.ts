@@ -46,6 +46,10 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
 
   const hpPercent = Math.round(Math.max(0, Math.min(1, courier.hp / Math.max(1, courier.maxHp))) * 100);
   const selected = input.selectedUnitId === courier.id;
+  const lowHealth = hpPercent <= 35;
+  const detailFor = (detail: string): string => lowHealth ? `Low HP / ${detail}` : detail;
+  const actionFor = (actionLabel: string): string => lowHealth ? 'F2 select / save courier' : actionLabel;
+  const toneFor = (tone: CourierHudTone): CourierHudTone => lowHealth ? 'danger' : tone;
 
   if (!courier.alive) {
     return {
@@ -65,9 +69,9 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       visible: true,
       status: 'delivering',
       label: 'Courier',
-      detail: `Delivering stash x${courier.stashItems}`,
-      actionLabel: 'F2 follow delivery',
-      tone: 'busy',
+      detail: detailFor(`Delivering stash x${courier.stashItems}`),
+      actionLabel: actionFor('F2 follow delivery'),
+      tone: toneFor('busy'),
       hpPercent,
       selected,
     };
@@ -78,9 +82,9 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       visible: true,
       status: 'returning',
       label: 'Courier',
-      detail: 'Returning to base',
-      actionLabel: 'F2 follow return',
-      tone: 'busy',
+      detail: detailFor('Returning to base'),
+      actionLabel: actionFor('F2 follow return'),
+      tone: toneFor('busy'),
       hpPercent,
       selected,
     };
@@ -90,9 +94,9 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
     visible: true,
     status: 'ready',
     label: 'Courier',
-    detail: courier.stashItems > 0 ? `Ready / stash x${courier.stashItems}` : 'Ready at base',
-    actionLabel: courier.stashItems > 0 ? 'F2 select / stash ready' : 'F2 select',
-    tone: 'ready',
+    detail: detailFor(courier.stashItems > 0 ? `Ready / stash x${courier.stashItems}` : 'Ready at base'),
+    actionLabel: actionFor(courier.stashItems > 0 ? 'F2 select / stash ready' : 'F2 select'),
+    tone: toneFor('ready'),
     hpPercent,
     selected,
   };
