@@ -408,6 +408,11 @@ Completed after the Opus handoff:
   - detail text becomes `Low HP / ...`.
   - action text becomes `F2 select / save courier`.
   - This does not add retreat commands, sim behavior, sound, or toast yet.
+- Courier death announcement first pass is implemented:
+  - `src/ui/announceModel.ts` builds pure central announcement data from existing event batches.
+  - `tests/announceModel.test.ts` covers allied courier death, enemy courier death, non-courier filtering, and one courier announcement per batch.
+  - `src/ui/announce.ts` reuses the central announcement component and calls alert/announce audio cues based on allied/enemy semantics.
+  - This does not change courier death, bounty, respawn, AI, or item delivery behavior.
 
 Next UI/control tasks:
 

@@ -784,7 +784,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.fx.consume(world, renderer.viewerTeam);
       killfeed.consume(world);
       audio.consume(world, hero);
-      announce.consume(world, audio); // 公屏播报:一血/连杀里程碑(全局,含敌方预警)
+      announce.consume(world, audio, hero?.team ?? null); // 公屏播报:一血/连杀里程碑/信使死亡(全局,含敌方预警)
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
         for (const e of world.events) {

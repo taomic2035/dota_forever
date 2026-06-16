@@ -4,6 +4,7 @@
  */
 import type { World } from '../sim/world';
 import type { AudioDirector } from '../audio/director';
+import { buildAnnouncements, type AnnouncementAudioCue } from './announceModel';
 
 export class Announce {
   private root: HTMLElement;
@@ -38,19 +39,25 @@ export class Announce {
     }
   }
 
-  /** 每 step 消费事件:一血 / 连杀里程碑(streak≥3)。 */
-  consume(world: World, audio?: AudioDirector): void {
-    for (const e of world.events) {
-      if (e.kind === 'first_blood') {
-        this.show('一血!', '#ff5252');
-        audio?.announce();
-      } else if (e.kind === 'hero_kill' && e.streakText) {
-        const killer = world.getUnit(e.killerId);
-        if ((killer?.heroMeta?.streak ?? 0) >= 3) {
-          this.show(e.streakText, '#ffd54f');
-          audio?.announce();
-        }
-      }
-    }
+  /** 每 step 消费事件:一血 / 连杀里程碑 / 信使死亡。 */
+  consume(world: World, audio?: AudioDirector, viewerTeam: number | null = null): void {
+    const [announcement] = buildAnnouncements({
+      viewerTeam,
+      events: world.events,
+      units: [...world.units.values()].map((unit) => ({
+        id: unit.id,
+        kind: unit.kind,
+        team: unit.team,
+        streak: unit.heroMeta?.streak,
+      })),
+    });
+    if (!announcement) return;
+    this.show(announcement.text, announcement.color);
+    this.playAudioCue(audio, announcement.audioCue);
+  }
+
+  private playAudioCue(audio: AudioDirector | undefined, cue: AnnouncementAudioCue): void {
+    if (cue === 'alert') audio?.alert();
+    else audio?.announce();
   }
 }
