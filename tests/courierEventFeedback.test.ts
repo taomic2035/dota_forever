@@ -3,7 +3,7 @@ import { buildCourierDeathPulses } from '../src/ui/courierEventFeedback';
 import { Team } from '../src/sim/map';
 
 describe('buildCourierDeathPulses', () => {
-  it('emits a map pulse at allied courier death location', () => {
+  it('emits a danger pulse at allied courier death location', () => {
     const pulses = buildCourierDeathPulses({
       viewerTeam: Team.Dawn,
       time: 42,
@@ -16,7 +16,7 @@ describe('buildCourierDeathPulses', () => {
 
     expect(pulses).toEqual([
       {
-        kind: 'ping',
+        kind: 'dangerPing',
         pos: { x: 100, y: 200 },
         time: 42,
         targetId: 7,
@@ -81,7 +81,7 @@ describe('buildCourierDeathPulses', () => {
 
     expect(pulses).toEqual([
       {
-        kind: 'ping',
+        kind: 'dangerPing',
         pos: { x: 100, y: 200 },
         time: 70,
         targetId: 7,

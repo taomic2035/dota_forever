@@ -32,14 +32,15 @@ export function buildCourierDeathPulses(input: CourierEventFeedbackInput): World
     const unit = units.get(event.unitId);
     if (unit?.kind !== 'courier') continue;
 
+    const isAlliedCourier = input.viewerTeam !== null && unit.team === input.viewerTeam;
     const pulse: WorldPulse = {
-      kind: 'ping',
+      kind: isAlliedCourier ? 'dangerPing' : 'ping',
       pos: event.pos,
       time: input.time,
       targetId: unit.id,
     };
 
-    if (input.viewerTeam !== null && unit.team === input.viewerTeam) return [pulse];
+    if (isAlliedCourier) return [pulse];
     if (!fallbackPulse) fallbackPulse = pulse;
   }
 

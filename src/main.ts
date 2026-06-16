@@ -51,6 +51,7 @@ import {
 import { resolveSelfCastTarget, targetTeamAllowsSelfCast } from './engine/selfCast';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
 import { buildCourierDeathPulses } from './ui/courierEventFeedback';
+import { buildBuildingAttackAlertPulses } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 
 const params = new URLSearchParams(location.search);
@@ -797,15 +798,16 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
-        for (const e of world.events) {
-          if (e.kind !== 'unit_damaged') continue;
-          const tgt = world.getUnit(e.unitId);
-          if (!tgt?.isBuilding() || tgt.team !== hero.team) continue;
-          const src = world.getUnit(e.sourceId);
-          if (!src?.isHero() || src.team === hero.team) continue;
-          if (world.time - (buildingAlertAt.get(tgt.id) ?? -Infinity) < 6) continue;
-          buildingAlertAt.set(tgt.id, world.time);
-          ux.addWorldPulse({ kind: 'ping', pos: tgt.pos, time: world.time });
+        const buildingAlertPulses = buildBuildingAttackAlertPulses({
+          viewerTeam: hero.team,
+          events: world.events,
+          units: Array.from(world.units.values(), (unit) => ({ id: unit.id, kind: unit.kind, team: unit.team, pos: unit.pos })),
+          time: world.time,
+          lastAlertAtByUnit: buildingAlertAt,
+        });
+        for (const pulse of buildingAlertPulses) {
+          if (pulse.targetId !== undefined) buildingAlertAt.set(pulse.targetId, world.time);
+          ux.addWorldPulse(pulse);
           audio.alert();
         }
       }

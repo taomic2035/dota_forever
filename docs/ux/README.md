@@ -23,6 +23,7 @@ This index groups the current UX workstream by player-facing problem area.
 - [Shop keyboard buy summary](2026-06-16-shop-keyboard-buy-summary.md)
 - [Courier death pulse summary](2026-06-16-courier-death-pulse-summary.md)
 - [Map ping types summary](2026-06-16-map-ping-types-summary.md)
+- [Automatic danger ping summary](2026-06-16-automatic-danger-ping-summary.md)
 - [Opus to Codex UX handoff status](2026-06-15-opus-to-codex-handoff-next.md)
 
 ## DotA UX Gap Analysis And Opus↔Codex Collaboration (2026-06-15)
