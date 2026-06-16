@@ -398,10 +398,15 @@ Completed after the Opus handoff:
   - `src/ui/shopStashActionModel.ts` describes take-all, partial-room, away-from-home, and full-inventory states.
   - `tests/shopStashActionModel.test.ts` covers the stash action states.
   - `src/ui/shop.ts` renders a `Take all` action above stash rows and repeatedly calls the existing `takeFromStash` path.
+- Courier minimap marker first pass is visible on the core minimap:
+  - `src/render/minimapCourierMarker.ts` builds a pure marker model from existing unit position, team, HP, alive state, and order type.
+  - `tests/minimapCourierMarker.test.ts` covers allied through-fog visibility, enemy vision gating, dead courier hiding, and danger/busy tone priority.
+  - `src/render/minimap.ts` renders couriers as distinct diamond markers instead of generic unit dots.
+  - This does not add courier path preview, manual courier commands, or item transfer logic.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
 2. Expand shop v2 into persistent quickbuy queue, drag/click component transfer lanes, and richer queue editing.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
-4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.
+4. Add courier path preview and death/danger feedback without duplicating Opus-owned sim logic.

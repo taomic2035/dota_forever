@@ -10,6 +10,7 @@ import { TEAM_COLOR } from './renderer';
 import { WORLD } from '../data/mapLayout';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { landmarkVisuals, type LandmarkVisual } from './mapReadability';
+import { buildCourierMinimapMarkers, type CourierMinimapMarker } from './minimapCourierMarker';
 
 const SIZE = 232;
 
@@ -160,11 +161,35 @@ export class MiniMap {
         ctx.beginPath();
         ctx.arc(x, y, 3.5, 0, Math.PI * 2);
         ctx.fill();
+      } else if (u.kind === 'courier') {
+        continue;
       } else {
         ctx.fillStyle = TEAM_COLOR[u.team];
         ctx.fillRect(x - 1, y - 1, 2, 2);
       }
     }
+
+    // Courier markers
+    const courierMarkers = buildCourierMinimapMarkers({
+      viewerTeam,
+      worldSize: WORLD,
+      minimapSize: SIZE,
+      units: [...world.units.values()].map((unit) => ({
+        id: unit.id,
+        kind: unit.kind,
+        team: unit.team,
+        alive: unit.alive,
+        pos: unit.pos,
+        hp: unit.hp,
+        maxHp: unit.calc.maxHp,
+        orderType: unit.order?.type,
+      })),
+      isVisible: (unit) => {
+        const liveUnit = world.getUnit(unit.id);
+        return !!liveUnit && viewerTeam !== null && isVisibleTo(world, viewerTeam, liveUnit);
+      },
+    });
+    for (const marker of courierMarkers) this.drawCourierMarker(marker);
 
     // 符文
     for (const r of world.runes) {
@@ -204,5 +229,43 @@ export class MiniMap {
     ctx.strokeStyle = 'rgba(232,226,200,0.7)';
     ctx.lineWidth = 1;
     ctx.strokeRect(tl.x * k, tl.y * k, (br.x - tl.x) * k, (br.y - tl.y) * k);
+  }
+
+  private drawCourierMarker(marker: CourierMinimapMarker): void {
+    const palette: Record<CourierMinimapMarker['tone'], { fill: string; stroke: string; glow: string }> = {
+      ally: { fill: '#f0d782', stroke: '#17210f', glow: 'rgba(240,215,130,0.35)' },
+      enemy: { fill: '#f06d5f', stroke: '#2c0f0d', glow: 'rgba(240,109,95,0.3)' },
+      busy: { fill: '#70d6ff', stroke: '#0d2631', glow: 'rgba(112,214,255,0.4)' },
+      danger: { fill: '#ff5a4f', stroke: '#3a0e0a', glow: 'rgba(255,90,79,0.55)' },
+    };
+    const p = palette[marker.tone];
+    const { ctx } = this;
+
+    ctx.save();
+    ctx.fillStyle = p.glow;
+    ctx.beginPath();
+    ctx.arc(marker.x, marker.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = p.fill;
+    ctx.strokeStyle = p.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(marker.x, marker.y - 5);
+    ctx.lineTo(marker.x + 5, marker.y);
+    ctx.lineTo(marker.x, marker.y + 5);
+    ctx.lineTo(marker.x - 5, marker.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    if (marker.tone === 'busy' || marker.tone === 'danger') {
+      ctx.strokeStyle = p.fill;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(marker.x, marker.y, 7.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 }

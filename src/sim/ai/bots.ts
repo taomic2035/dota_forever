@@ -10,7 +10,7 @@ import type { World, WorldSystem } from '../world';
 import type { Unit, EntityId } from '../unit';
 import { isVisibleTo } from '../vision';
 import { abilityReady, learnAbility, learnStatBonus, canLearn, canLearnStatBonus } from '../abilities';
-import { inAttackRange } from '../combat';
+import { inAttackRange, stateOf } from '../combat';
 import { buyItem, shopAt, useItem, itemUseReason, takeFromStash, TP_SLOT } from '../items';
 import { purchaseKeyFor } from '../recipes';
 import { itemDef } from '../../data/items';
@@ -192,6 +192,8 @@ function think(w: World, u: Unit, st: BotState): void {
     foes.push(v);
   }
   if (foes.length) {
+    // 受威胁(被沉默/濒死)时优先自保物品(BKB 解控/自疗)
+    if ((stateOf(u).silenced || hpFrac < 0.55) && tryUseDefensiveItems(w, u)) return;
     if (castBest(w, u)) return;
     foes.sort((a, b) => a.hp / a.calc.maxHp - b.hp / b.calc.maxHp);
     const t = foes[0];
@@ -327,6 +329,35 @@ function castBest(w: World, u: Unit): boolean {
  * 平衡影响可预测(bot 在团战里多打控制/爆发)。每 tick 至多一件(像施法一样占用本 tick)。
  * 自用 'none' 物品(BKB 等)的启发式有浪费风险(误用治疗/显影),留作后续。
  */
+/**
+ * 受威胁时使用自保主动物品。安全优先:
+ * - 'none' 自施增益仅限 allowlist(已验证无自损,如 BKB 强驱散+魔免)——杜绝误用 soul ring 等
+ *   自损物品(低血换蓝会自杀)。被沉默或濒死时使用。
+ * - 对己方/自身指向的治疗/自保物品(targetTeam allyOrSelf/self):濒死时对自己使用。
+ * 排除消耗品。每 tick 至多一件。
+ */
+const SAFE_SELF_BUFF_ITEMS: ReadonlySet<string> = new Set(['bkb']);
+
+export function tryUseDefensiveItems(w: World, u: Unit): boolean {
+  const hpFrac = u.hp / u.calc.maxHp;
+  const silenced = stateOf(u).silenced;
+  for (let slot = 0; slot < u.inventory.length; slot++) {
+    const inst = u.inventory[slot];
+    if (!inst) continue;
+    if (itemUseReason(w, u, slot) !== null) continue;
+    const def = itemDef(inst.itemKey);
+    if (def.category === 'consumable') continue; // 不乱用消耗品
+    const act = def.active;
+    if (!act) continue;
+    if (act.targetMode === 'none' && SAFE_SELF_BUFF_ITEMS.has(inst.itemKey)) {
+      if (silenced || hpFrac < 0.45) { if (useItem(w, u, slot)) return true; } // BKB 等:被控/濒死
+    } else if (act.targetMode === 'unit' && (act.targetTeam === 'allyOrSelf' || act.targetTeam === 'self')) {
+      if (hpFrac < 0.55 && useItem(w, u, slot, undefined, u)) return true; // 自疗/自保
+    }
+  }
+  return false;
+}
+
 export function tryUseOffensiveItems(w: World, u: Unit, target: Unit): boolean {
   for (let slot = 0; slot < u.inventory.length; slot++) {
     const inst = u.inventory[slot];
