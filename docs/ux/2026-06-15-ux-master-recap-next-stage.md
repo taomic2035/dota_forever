@@ -387,10 +387,14 @@ Completed after the Opus handoff:
   - `src/ui/shopRecipeModel.ts` summarizes total owned components, hero-ready components, and missing components.
   - `tests/shopRecipeModel.test.ts` covers duplicate requirements and missing component cases.
   - `src/ui/shop.ts` renders `Recipe x/y`, `Hero x/y`, and missing component labels below the ownership badges.
+- Shop keyboard-buy first pass is now visible in the shop search flow:
+  - `src/ui/shopQuickActionModel.ts` selects the first visible buyable row for the current filter.
+  - `tests/shopQuickActionModel.test.ts` covers buyable, blocked, and empty-list states.
+  - `src/ui/shop.ts` renders an `Enter: Buy <item>` strip and pressing Enter in search buys through the existing purchase path.
 
 Next UI/control tasks:
 
 1. Add courier logistics controls once sim contract is stable: deliver, return, transfer/stash lanes.
-2. Expand shop v2 into true quickbuy/component transfer lanes and keyboard purchase flow.
+2. Expand shop v2 into true quickbuy queue, component transfer lanes, and buy-next/buy-all flows.
 3. Add scoreboard icon polish, hero portrait polish, and team objective rows.
 4. Add courier minimap marker/path preview and death/danger feedback without duplicating Opus-owned sim logic.

@@ -319,5 +319,9 @@ Low-conflict UI/control work completed after the Opus handoff:
   - pure model: `src/ui/shopRecipeModel.ts`
   - focused tests: `tests/shopRecipeModel.test.ts`
   - combined item rows now show total owned components, hero-ready components, and missing components.
+- Shop keyboard-buy first pass is implemented:
+  - pure model: `src/ui/shopQuickActionModel.ts`
+  - focused tests: `tests/shopQuickActionModel.test.ts`
+  - shop search now shows the current Enter purchase target and pressing Enter buys the first visible buyable row.
 
-Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, owned-location badges, and recipe progress only mirror/filter current item data; they do not change item placement, item movement, recipes, combine rules, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.
+Boundary note: this addendum does not claim full courier logistics completion. Manual deliver/return, courier item lanes, death toasts/audio, and minimap delivery path remain next-stage UI/control work and should wait for stable sim contracts where needed. The shop destination preview, search, owned-location badges, recipe progress, and Enter keyboard-buy action only mirror/filter current item data and call the existing purchase path; they do not change item placement, item movement, recipes, combine rules, or economy. The XP bar, inspect inventory summary, scoreboard net worth, and scoreboard death/buyback status are HUD/scoreboard-only and do not change XP gain, level-up rules, skill points, item effects, visibility rules, item costs, buyback cost, respawn timing, or balance.

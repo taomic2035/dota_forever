@@ -10,6 +10,7 @@ import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
 import { buildShopVisibleItems } from './shopListModel';
 import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
+import { buildShopQuickActionModel, type ShopQuickActionModel } from './shopQuickActionModel';
 import { buildShopRecipeProgressModel, type ShopRecipeProgressModel } from './shopRecipeModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
@@ -72,6 +73,9 @@ export class ShopPanel {
       query: this.query,
       recipePrefix: RECIPE_PREFIX,
     });
+    const destinations = new Map<string, ShopDestinationModel>();
+    for (const def of items) destinations.set(def.key, buildDestinationModel(def, hero, gold, at));
+    const quickAction = buildShopQuickActionModel({ visibleItems: items, destinations });
     this.root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <b>商店 ${at === 'secret' ? '· 秘密商店' : at === 'home' ? '· 基地' : '· <span style="color:#ef9a9a">不在商店范围</span>'}</b>
@@ -79,6 +83,7 @@ export class ShopPanel {
       </div>
       <input id="shop-search" value="${escapeAttr(this.query)}" placeholder="Search items" spellcheck="false"
         style="width:100%;box-sizing:border-box;margin-bottom:6px;border:1px solid #3a4428;border-radius:5px;background:#0b0e08;color:#e8e2c8;padding:5px 7px;font-size:12px;outline:none;" />
+      ${quickActionBadge(quickAction)}
       <div id="shop-tabs" style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;"></div>
       <div id="shop-list" style="flex:1;overflow-y:auto;"></div>
       <div id="shop-stash" style="border-top:1px solid #3a4428;padding-top:6px;margin-top:6px;"></div>`;
@@ -91,6 +96,12 @@ export class ShopPanel {
       const next = this.root.querySelector('#shop-search') as HTMLInputElement | null;
       next?.focus();
       next?.setSelectionRange(next.value.length, next.value.length);
+    };
+    search.onkeydown = (event) => {
+      if (event.key !== 'Enter' || event.repeat || !quickAction.itemKey) return;
+      this.buy(w, hero, itemDef(quickAction.itemKey));
+      event.preventDefault();
+      event.stopPropagation();
     };
 
     const tabs = this.root.querySelector('#shop-tabs')!;
@@ -109,25 +120,7 @@ export class ShopPanel {
     }
     for (const def of items) {
       const row = document.createElement('div');
-      const destination = buildShopDestinationModel({
-        item: {
-          key: def.key,
-          cost: effectiveCost(def),
-          secretShop: def.secretShop,
-          stackCharges: def.stackCharges,
-        },
-        hero: {
-          alive: hero.alive,
-          gold,
-          shop: at,
-          inventoryFreeSlots: freeCount(hero.inventory),
-          backpackFreeSlots: freeCount(hero.backpack),
-          stashFreeSlots: freeCount(hero.stash),
-          tpSlotOccupied: !!hero.tpSlot,
-          stackInInventory: hero.inventory.some((slot) => slot?.itemKey === def.key),
-          stackInStash: hero.stash.some((slot) => slot?.itemKey === def.key),
-        },
-      });
+      const destination = destinations.get(def.key)!;
       const ownership = buildShopOwnershipModel({
         itemKey: def.key,
         inventory: hero.inventory,
@@ -201,6 +194,17 @@ export class ShopPanel {
     if (sellItem(w, hero, slot)) this.showToast(`已出售 ${itemDef(inst.itemKey).name}`);
     else this.showToast('需在商店范围内出售');
   }
+
+  private buy(w: World, hero: Unit, def: ItemDef): void {
+    const r = buyItem(w, hero, purchaseKeyFor(def.key));
+    if (r === 'ok') this.showToast(`Bought ${def.name}`);
+    else if (r === 'ok_backpack') this.showToast(`${def.name} to backpack`);
+    else if (r === 'ok_stash') this.showToast(`${def.name} to stash`);
+    else if (r === 'no_gold') this.showToast('Not enough gold');
+    else if (r === 'no_shop') this.showToast(def.secretShop ? 'Need secret shop' : 'Need home shop');
+    else this.showToast('Inventory, backpack, and stash are full');
+    this.lastRender = 0;
+  }
 }
 
 function effectiveCost(def: ItemDef): number {
@@ -213,6 +217,33 @@ function escapeAttr(value: string): string {
 
 function freeCount(slots: Array<unknown | null>): number {
   return slots.filter((slot) => slot === null).length;
+}
+
+function buildDestinationModel(
+  def: ItemDef,
+  hero: Unit,
+  gold: number,
+  at: 'home' | 'secret' | null,
+): ShopDestinationModel {
+  return buildShopDestinationModel({
+    item: {
+      key: def.key,
+      cost: effectiveCost(def),
+      secretShop: def.secretShop,
+      stackCharges: def.stackCharges,
+    },
+    hero: {
+      alive: hero.alive,
+      gold,
+      shop: at,
+      inventoryFreeSlots: freeCount(hero.inventory),
+      backpackFreeSlots: freeCount(hero.backpack),
+      stashFreeSlots: freeCount(hero.stash),
+      tpSlotOccupied: !!hero.tpSlot,
+      stackInInventory: hero.inventory.some((slot) => slot?.itemKey === def.key),
+      stackInStash: hero.stash.some((slot) => slot?.itemKey === def.key),
+    },
+  });
 }
 
 function destinationBadge(model: ShopDestinationModel): string {
@@ -229,6 +260,15 @@ function destinationBadge(model: ShopDestinationModel): string {
 }
 
 /** 物品类别程序化 SVG 图标(与 HUD 一致:药瓶/宝石/剑/盾/法球/合成星)。 */
+function quickActionBadge(model: ShopQuickActionModel): string {
+  if (!model.visible) return '';
+  const active = model.itemKey !== null;
+  return `<div title="${escapeAttr(model.detail)}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-2px 0 6px;padding:4px 6px;border:1px solid ${active ? '#4f5c38' : '#5f3832'};border-radius:5px;background:${active ? '#151b10' : '#1c1010'};">
+    <b style="color:${active ? '#d9c989' : '#ff9f8f'};font-size:10px;white-space:nowrap;">${model.label}</b>
+    <span style="min-width:0;color:#9a9277;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+  </div>`;
+}
+
 function ownershipBadges(model: ShopOwnershipModel): string {
   if (!model.visible) return '';
   return `<span title="${model.detail}" style="display:flex;align-items:center;gap:4px;margin-top:3px;min-width:0;">
