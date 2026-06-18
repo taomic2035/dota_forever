@@ -11,7 +11,7 @@ import type { Projectile } from './projectile';
 
 export type GameEvent =
   | { kind: 'unit_died'; unitId: EntityId; killerId: EntityId; pos: Vec2 }
-  | { kind: 'unit_damaged'; unitId: EntityId; sourceId: EntityId; amount: number; pos: Vec2 }
+  | { kind: 'unit_damaged'; unitId: EntityId; sourceId: EntityId; amount: number; pos: Vec2; damageType: 'physical' | 'magical' | 'pure' }
   | { kind: 'attack_launched'; unitId: EntityId; targetId: EntityId }
   | { kind: 'projectile_hit'; pos: Vec2 }
   | { kind: 'hero_level'; unitId: EntityId; level: number }

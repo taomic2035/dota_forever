@@ -19,6 +19,7 @@ import { InputManager, type CastInputOptions, type ControlGroupInputOptions, typ
 import { SelectionState, type ControlGroupSlot } from './engine/selection';
 import { issueSelectionOrder } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
+import { DamageLog } from './ui/deathRecapModel';
 import { KillFeed } from './ui/killfeed';
 import { Announce } from './ui/announce';
 import { ShopPanel } from './ui/shop';
@@ -797,6 +798,21 @@ function startGame(mode: 'play' | 'spectate'): void {
   }, controlSettings, renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
 
   const buildingAlertAt = new Map<number, number>(); // 建筑被攻击警报的每建筑限频(world.time)
+  // 死亡回顾:玩家英雄受伤记录(UX 层累积,不进 sim 状态;复活时清空)
+  const damageLog = new DamageLog();
+  let prevHeroAlive = hero?.alive ?? true;
+  const describeDamageSource = (id: number): { name: string; color?: string; groupKey: string } => {
+    const u = world.getUnit(id);
+    if (!u) return { name: '未知来源', groupKey: 'unknown' };
+    // 英雄按个体聚合(各自一行 + 队色);通用单位按类型聚合(多兵多塔合并,避免刷屏)
+    if (u.isHero()) return { name: u.name, color: u.heroDef?.color, groupKey: `h${u.id}` };
+    const name = u.kind === 'tower' ? '防御塔'
+      : u.kind === 'building' ? '建筑'
+      : u.kind === 'boss' ? '深渊领主'
+      : u.kind === 'neutral' ? '野怪'
+      : u.kind === 'courier' ? '信使' : '小兵';
+    return { name, groupKey: name };
+  };
   const loop = new GameLoop({
     step() {
       world.step();
@@ -812,6 +828,17 @@ function startGame(mode: 'play' | 'spectate'): void {
           time: world.time,
         });
         for (const pulse of courierDeathPulses) ux.addWorldPulse(pulse);
+      }
+      // 死亡回顾:累积玩家英雄受到的伤害(复活时清空上一条命的记录)
+      if (hero) {
+        if (hero.alive && !prevHeroAlive) damageLog.clear();
+        prevHeroAlive = hero.alive;
+        for (const ev of world.events) {
+          if (ev.kind === 'unit_damaged' && ev.unitId === hero.id && ev.amount > 0) {
+            const src = describeDamageSource(ev.sourceId);
+            damageLog.push({ at: world.time, groupKey: src.groupKey, sourceName: src.name, sourceColor: src.color, amount: ev.amount, type: ev.damageType });
+          }
+        }
       }
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
@@ -846,6 +873,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         }
       }
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
+      hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
       hud.update(world, hero, ux, controlSettings);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出

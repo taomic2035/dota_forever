@@ -74,7 +74,7 @@ describe('FxLayer.consume 其他事件', () => {
     const fx = new FxLayer();
     const hero = { pos: { x: 5, y: 5 }, isBuilding: () => false, isHero: () => true, team: 0 };
     fx.consume(
-      fakeWorld([{ kind: 'unit_damaged', unitId: 1, sourceId: 2, amount: 137, pos: { x: 5, y: 5 } }], { 1: hero }),
+      fakeWorld([{ kind: 'unit_damaged', unitId: 1, sourceId: 2, amount: 137, pos: { x: 5, y: 5 }, damageType: 'physical' }], { 1: hero }),
       null,
     );
     expect(fx.texts.some((t) => t.text.includes('137'))).toBe(true);

@@ -15,6 +15,7 @@ import { commandCardActionFromValue, type CommandCardAction } from '../engine/co
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
 import { buildHeroXpHudModel, type HeroXpHudModel } from './heroXpHudModel';
+import type { DeathRecapEntry } from './deathRecapModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -30,6 +31,8 @@ export class Hud {
   onSell?: (invSlot: number) => void;
   onMoveToBackpack?: (invSlot: number) => void;
   onMoveFromBackpack?: (bpSlot: number) => void;
+  /** 死亡回顾:致命前 ~10s 的伤害来源拆解(由 main 每帧在死亡时填入)。 */
+  deathRecapEntries: DeathRecapEntry[] = [];
   onCommandCard?: (action: CommandCardAction) => void;
 
   constructor(parent: HTMLElement) {
@@ -276,14 +279,48 @@ export class Hud {
   /** 死亡回放:显示最后击杀来源(被谁击杀)。 */
   private deathRecap(world: World, hero: Unit): string {
     const killer = hero.lastAttackerId ? world.getUnit(hero.lastAttackerId) : undefined;
-    if (!killer) return '';
-    const who = killer.isHero() ? killer.name
+    const who = !killer ? ''
+      : killer.isHero() ? killer.name
       : killer.kind === 'tower' ? '防御塔'
       : killer.kind === 'building' ? '建筑'
       : killer.kind === 'boss' ? '深渊领主'
       : killer.kind === 'neutral' ? '野怪' : '小兵';
-    const color = killer.isHero() ? (killer.heroDef?.color ?? '#ef5350') : '#b0a890';
-    return `<div style="font-size:11px;color:#9a9277;margin-bottom:2px">被 <span style="color:${color};font-weight:700">${who}</span> 击杀</div>`;
+    const color = killer?.isHero() ? (killer.heroDef?.color ?? '#ef5350') : '#b0a890';
+    const header = killer
+      ? `<div style="font-size:11px;color:#9a9277;margin-bottom:2px">被 <span style="color:${color};font-weight:700">${who}</span> 击杀</div>`
+      : '';
+    return header + this.deathRecapBreakdown();
+  }
+
+  /** 致命前 ~10s 伤害来源拆解:每来源一条(名字 + 总伤 + 物理/魔法/纯粹分段条)。 */
+  private deathRecapBreakdown(): string {
+    const entries = this.deathRecapEntries;
+    if (!entries.length) return '';
+    const max = Math.max(1, ...entries.map((e) => e.total));
+    const typeColor: Record<'physical' | 'magical' | 'pure', string> = {
+      physical: '#e07a4a', // 物理
+      magical: '#8a7dff', // 魔法
+      pure: '#e8e8e8', // 纯粹
+    };
+    const rows = entries.map((e) => {
+      const widthPct = (e.total / max) * 100;
+      const segs = (['physical', 'magical', 'pure'] as const)
+        .filter((t) => e.byType[t] > 0)
+        .map((t) => `<span style="display:inline-block;height:100%;width:${(e.byType[t] / e.total) * 100}%;background:${typeColor[t]}"></span>`)
+        .join('');
+      const name = e.sourceColor
+        ? `<span style="color:${e.sourceColor};font-weight:700">${e.sourceName}</span>`
+        : `<span style="color:#c2b9a0">${e.sourceName}</span>`;
+      return `<div style="display:flex;align-items:center;gap:6px;margin:2px 0;font-size:10px">
+        <span style="flex:0 0 64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        <span style="flex:1;height:8px;background:#0a0b0a;border-radius:2px;overflow:hidden;display:flex"><span style="display:flex;width:${widthPct}%;height:100%">${segs}</span></span>
+        <span style="flex:0 0 38px;text-align:right;color:#e6ddc4;font-weight:700">${Math.round(e.total)}</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin:3px 0 4px">
+      <div style="font-size:10px;color:#7d7560;margin-bottom:1px">致命前伤害来源</div>
+      ${rows}
+    </div>`;
   }
 
   /** 死亡时买活行:可买活则显示按钮(费用),冷却中显示倒计时,金不足显示所需。 */

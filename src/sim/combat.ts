@@ -173,7 +173,14 @@ export function applyDamage(w: World, target: Unit, evt: DamageEvent): number {
       target.blinkLockedUntil = w.time + BLINK_DAMAGE_LOCKOUT;
     }
   }
-  w.emit({ kind: 'unit_damaged', unitId: target.id, sourceId: evt.source, amount, pos: V.clone(target.pos) });
+  w.emit({
+    kind: 'unit_damaged',
+    unitId: target.id,
+    sourceId: evt.source,
+    amount,
+    pos: V.clone(target.pos),
+    damageType: flags.pure ? 'pure' : flags.spell ? 'magical' : 'physical',
+  });
   // 反击/反伤(retaliate,火盾/反击类):仅对非反弹的物理伤害,反弹纯粹伤害给来源,标记防递归
   if (!flags.spell && !flags.reflected) {
     let retal = 0;
