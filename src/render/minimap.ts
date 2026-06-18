@@ -67,7 +67,7 @@ export class MiniMap {
     this.pings.push({ x: wx, y: wy, at: performance.now(), kind });
   }
 
-  render(world: World, viewerTeam: Team | null, ux?: UxFeedback): void {
+  render(world: World, viewerTeam: Team | null, ux?: UxFeedback, selfHeroId?: number): void {
     const { ctx } = this;
     ctx.drawImage(this.terrainThumb, 0, 0);
     const k = SIZE / WORLD;
@@ -161,6 +161,14 @@ export class MiniMap {
         ctx.lineWidth = 1.8;
         ctx.strokeStyle = ally ? '#6fe06f' : '#ff5a5a';
         ctx.stroke();
+        // 自身英雄:额外白环,一眼在小地图找到自己
+        if (u.id === selfHeroId) {
+          ctx.lineWidth = 1.4;
+          ctx.strokeStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(x, y, 6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.lineWidth = 1;
       } else if (u.kind === 'boss') {
         ctx.fillStyle = '#ce93d8';

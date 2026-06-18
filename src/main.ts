@@ -899,7 +899,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);
       shop.update(world, hero);
-      minimap?.render(world, renderer.viewerTeam, ux);
+      minimap?.render(world, renderer.viewerTeam, ux, hero?.id);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);
     },
   });
