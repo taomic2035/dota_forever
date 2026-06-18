@@ -12,6 +12,10 @@ import {
   numberRowModeLabel,
   normalizeControlSettings,
   parseCameraPanSpeed,
+  parseHudScale,
+  cycleHudScale,
+  hudScaleLabel,
+  hudScaleValue,
   parseCastInputMode,
   resolveAbilityCastMode,
   resolveItemCastMode,
@@ -38,6 +42,24 @@ describe('control settings', () => {
     expect(parseCameraPanSpeed('fast')).toBe('fast');
     expect(parseCameraPanSpeed('bad')).toBeUndefined();
     expect(parseCameraPanSpeed(null)).toBeUndefined();
+  });
+
+  it('HUD 缩放:cycle/parse/label/value + 默认', () => {
+    expect(cycleHudScale('small')).toBe('normal');
+    expect(cycleHudScale('normal')).toBe('large');
+    expect(cycleHudScale('large')).toBe('small');
+    expect(parseHudScale('small')).toBe('small');
+    expect(parseHudScale('bad')).toBeUndefined();
+    expect(parseHudScale(null)).toBeUndefined();
+    expect(hudScaleLabel('small')).toBe('小');
+    expect(hudScaleLabel('normal')).toBe('标准');
+    expect(hudScaleLabel('large')).toBe('大');
+    expect(hudScaleValue('small')).toBeCloseTo(0.9);
+    expect(hudScaleValue('normal')).toBe(1.0);
+    expect(hudScaleValue('large')).toBeCloseTo(1.1);
+    expect(DEFAULT_CONTROL_SETTINGS.hudScale).toBe('normal');
+    expect(normalizeControlSettings({ hudScale: 'large' }).hudScale).toBe('large');
+    expect(normalizeControlSettings({ hudScale: 'bad' }).hudScale).toBe('normal');
   });
 
   it('normalizes partial settings and rejects unknown modes', () => {

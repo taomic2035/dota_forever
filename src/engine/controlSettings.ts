@@ -3,6 +3,9 @@ export type CastInputMode = (typeof CAST_INPUT_MODES)[number];
 export type CastInputOverride = CastInputMode | undefined;
 export const CAMERA_PAN_SPEEDS = ['slow', 'normal', 'fast'] as const;
 export type CameraPanSpeed = (typeof CAMERA_PAN_SPEEDS)[number];
+/** HUD 缩放(可访问性):底部英雄面板大小,适配不同屏幕/视力。 */
+export const HUD_SCALES = ['small', 'normal', 'large'] as const;
+export type HudScale = (typeof HUD_SCALES)[number];
 export const NUMBER_ROW_MODES = ['items', 'controlGroups'] as const;
 export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
 /** 自动攻击策略(经典 DotA):never=空闲绝不自动平A(保护正补,高手默认)/ standard=空闲就近平A / always=更主动。 */
@@ -44,6 +47,7 @@ export interface ControlSettings {
   itemCasts: CastInputOverride[];
   cameraEdgePan: boolean;
   cameraPanSpeed: CameraPanSpeed;
+  hudScale: HudScale;
   numberRowMode: NumberRowMode;
   autoAttack: AutoAttackMode;
   /** 动作→物理键(默认 DEFAULT_KEY_BINDS)。 */
@@ -57,6 +61,7 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   itemCasts: emptyOverrideList(ITEM_CAST_SLOT_COUNT),
   cameraEdgePan: true,
   cameraPanSpeed: 'normal',
+  hudScale: 'normal',
   numberRowMode: 'items',
   autoAttack: 'standard',
   keyBinds: { ...DEFAULT_KEY_BINDS },
@@ -93,6 +98,11 @@ export function parseCameraPanSpeed(value: unknown): CameraPanSpeed | undefined 
   return CAMERA_PAN_SPEEDS.includes(value as CameraPanSpeed) ? value as CameraPanSpeed : undefined;
 }
 
+export function parseHudScale(value: unknown): HudScale | undefined {
+  if (typeof value !== 'string') return undefined;
+  return HUD_SCALES.includes(value as HudScale) ? value as HudScale : undefined;
+}
+
 export function parseNumberRowMode(value: unknown): NumberRowMode | undefined {
   if (typeof value !== 'string') return undefined;
   return NUMBER_ROW_MODES.includes(value as NumberRowMode) ? value as NumberRowMode : undefined;
@@ -114,6 +124,7 @@ export function normalizeControlSettings(input: unknown): ControlSettings {
       ? raw.cameraEdgePan
       : DEFAULT_CONTROL_SETTINGS.cameraEdgePan,
     cameraPanSpeed: parseCameraPanSpeed(raw.cameraPanSpeed) ?? DEFAULT_CONTROL_SETTINGS.cameraPanSpeed,
+    hudScale: parseHudScale(raw.hudScale) ?? DEFAULT_CONTROL_SETTINGS.hudScale,
     numberRowMode: parseNumberRowMode(raw.numberRowMode) ?? DEFAULT_CONTROL_SETTINGS.numberRowMode,
     autoAttack: parseAutoAttackMode(raw.autoAttack) ?? DEFAULT_CONTROL_SETTINGS.autoAttack,
     keyBinds: normalizeKeyBinds(raw.keyBinds),
@@ -165,6 +176,24 @@ export function cameraPanSpeedMultiplier(speed: CameraPanSpeed): number {
   if (speed === 'slow') return 0.75;
   if (speed === 'fast') return 1.45;
   return 1.1;
+}
+
+export function cycleHudScale(scale: HudScale): HudScale {
+  const index = HUD_SCALES.indexOf(scale);
+  return HUD_SCALES[(index + 1) % HUD_SCALES.length];
+}
+
+export function hudScaleLabel(scale: HudScale): string {
+  if (scale === 'small') return '小';
+  if (scale === 'large') return '大';
+  return '标准';
+}
+
+/** HUD 缩放系数(底部面板 transform:scale)。 */
+export function hudScaleValue(scale: HudScale): number {
+  if (scale === 'small') return 0.9;
+  if (scale === 'large') return 1.1;
+  return 1.0;
 }
 
 export function cycleCastInputOverride(mode: CastInputOverride): CastInputOverride {

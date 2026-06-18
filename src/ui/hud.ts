@@ -10,7 +10,7 @@ import type { UxFeedback } from './uxFeedback';
 import { fxStyle } from '../render/fxStyle';
 import { statusChips, statusChipTime } from '../render/statusChips';
 import { abilityIconSvg } from './abilityIconSvg';
-import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../engine/controlSettings';
+import { DEFAULT_CONTROL_SETTINGS, hudScaleValue, type ControlSettings } from '../engine/controlSettings';
 import { commandCardActionFromValue, type CommandCardAction } from '../engine/commandCardActions';
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
@@ -112,6 +112,10 @@ export class Hud {
   }
 
   update(world: World, hero: Unit | undefined, ux?: UxFeedback, controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS): void {
+    // HUD 缩放(可访问性):底部英雄面板按设置缩放,锚定底部中央(点击命中随 transform 一同缩放)
+    const scale = hudScaleValue(controlSettings.hudScale);
+    this.bottom.style.transformOrigin = 'bottom center';
+    this.bottom.style.transform = `translateX(-50%) scale(${scale})`;
     this.renderTopbar(world, hero);
     this.renderHeroBars(world, hero);
     if (!hero) {
