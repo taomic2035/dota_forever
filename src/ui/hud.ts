@@ -26,7 +26,7 @@ const HOTKEYS = ['Q', 'W', 'E', 'R'];
 export class Hud {
   root: HTMLElement;
   private topbar: HTMLElement;
-  private enemyBar: HTMLElement;
+  private heroBar: HTMLElement;
   private bottom: HTMLElement;
   /** 低血危险暗角:血量越低红光越强,临界脉动(DotA-like 危险反馈)。 */
   private vignette: HTMLElement;
@@ -58,13 +58,13 @@ export class Hud {
     ].join('');
     this.root.appendChild(this.topbar);
 
-    // 敌方英雄顶栏:常驻威胁评估(等级/复活公开;血蓝仅视野内显示)。置于顶栏正下方居中。
-    this.enemyBar = document.createElement('div');
-    this.enemyBar.style.cssText = [
+    // 双方英雄顶栏:友军(左)+ 敌方(右),DotA 式常驻总览。等级/复活公开;敌方血蓝仅视野内显示。置于顶栏正下方居中。
+    this.heroBar = document.createElement('div');
+    this.heroBar.style.cssText = [
       'position:absolute;top:32px;left:50%;transform:translateX(-50%);',
-      'display:flex;gap:6px;align-items:flex-start;',
+      'display:flex;gap:10px;align-items:flex-start;',
     ].join('');
-    this.root.appendChild(this.enemyBar);
+    this.root.appendChild(this.heroBar);
 
     this.bottom = document.createElement('div');
     this.bottom.style.cssText = [
@@ -102,7 +102,7 @@ export class Hud {
 
   update(world: World, hero: Unit | undefined, ux?: UxFeedback, controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS): void {
     this.renderTopbar(world, hero);
-    this.renderEnemyBar(world, hero);
+    this.renderHeroBars(world, hero);
     if (!hero) {
       this.bottom.innerHTML = '';
       return;
@@ -305,34 +305,44 @@ export class Hud {
   }
 
   /** 敌方英雄顶栏:常驻威胁评估。等级/复活公开常显;血蓝仅在玩家视野内显示(不透雾)。 */
-  private renderEnemyBar(world: World, hero: Unit | undefined): void {
-    if (!hero) { this.enemyBar.innerHTML = ''; return; }
+  /** 双方英雄顶栏:友军(左,血蓝常显)+ 敌方(右,迷雾门控)。DotA 式常驻总览。 */
+  private renderHeroBars(world: World, hero: Unit | undefined): void {
+    if (!hero) { this.heroBar.innerHTML = ''; return; }
+    const toInput = (u: Unit) => ({
+      id: u.id, name: u.name, glyph: u.heroDef?.glyph ?? '⚔',
+      color: u.heroDef?.color ?? (u.team === hero.team ? '#8fd17a' : '#ef9a9a'),
+      level: u.level, alive: u.alive, visible: isVisibleTo(world, hero.team, u),
+      hp: u.hp, maxHp: u.calc.maxHp, mp: u.mp, maxMp: u.calc.maxMp, respawnAt: u.heroMeta?.respawnAt ?? world.time,
+    });
+    const allies = [...world.units.values()].filter((u) => u.isHero() && u.team === hero.team);
     const enemies = [...world.units.values()].filter((u) => u.isHero() && u.team !== hero.team);
-    const chips = buildEnemyHeroBar(
-      enemies.map((u) => ({
-        id: u.id, name: u.name, glyph: u.heroDef?.glyph ?? '⚔', color: u.heroDef?.color ?? '#ef9a9a',
-        level: u.level, alive: u.alive, visible: isVisibleTo(world, hero.team, u),
-        hp: u.hp, maxHp: u.calc.maxHp, mp: u.mp, maxMp: u.calc.maxMp, respawnAt: u.heroMeta?.respawnAt ?? world.time,
-      })),
-      world.time,
-    );
-    if (chips.length === 0) { this.enemyBar.innerHTML = ''; return; }
+    const allyChips = buildEnemyHeroBar(allies.map(toInput), world.time); // 同队 visible 恒真 → 血蓝常显
+    const enemyChips = buildEnemyHeroBar(enemies.map(toInput), world.time);
+    if (allyChips.length === 0 && enemyChips.length === 0) { this.heroBar.innerHTML = ''; return; }
+    const selfId = hero.id;
+    const group = (chips: ReturnType<typeof buildEnemyHeroBar>) =>
+      `<div style="display:flex;gap:6px;align-items:flex-start">${chips.map((c) => this.heroChipHtml(c, c.id === selfId)).join('')}</div>`;
+    const sep = '<div style="align-self:center;color:#6b6550;font-size:11px;font-weight:700">VS</div>';
+    this.heroBar.innerHTML = group(allyChips) + sep + group(enemyChips);
+  }
+
+  /** 单个英雄 chip:字形 + 等级 + 血蓝条 /(雾中)迷雾 /(死亡)复活倒计时;自己描金边。 */
+  private heroChipHtml(c: ReturnType<typeof buildEnemyHeroBar>[number], isSelf: boolean): string {
     const miniBar = (frac: number, color: string) =>
       `<div style="height:4px;background:#0a0b0a;border-radius:1px;margin-top:1px;overflow:hidden"><div style="height:100%;width:${Math.round(frac * 100)}%;background:${color}"></div></div>`;
-    this.enemyBar.innerHTML = chips.map((c) => {
-      const body = c.showBars
-        ? miniBar(c.hpFrac, '#4caf50') + miniBar(c.mpFrac, '#42a5f5')
-        : !c.alive
-          ? `<div style="font-size:9px;color:#ef5350;text-align:center;font-weight:700;margin-top:2px">复活 ${c.respawnIn}s</div>`
-          : `<div style="font-size:9px;color:#6b6550;text-align:center;margin-top:2px">迷雾</div>`;
-      return `<div title="${c.name}" style="width:58px;border:1px solid ${c.color};background:#0c0f08d8;border-radius:4px;padding:2px 3px;opacity:${c.alive ? 1 : 0.55}">
-        <div style="display:flex;justify-content:space-between;align-items:center;line-height:13px">
-          <span style="color:${c.color};font-size:11px">${c.glyph}</span>
-          <span style="color:#1a1d12;background:#cfd8a0;border-radius:2px;padding:0 3px;font-size:9px;font-weight:700">${c.level}</span>
-        </div>
-        ${body}
-      </div>`;
-    }).join('');
+    const body = c.showBars
+      ? miniBar(c.hpFrac, '#4caf50') + miniBar(c.mpFrac, '#42a5f5')
+      : !c.alive
+        ? `<div style="font-size:9px;color:#ef5350;text-align:center;font-weight:700;margin-top:2px">复活 ${c.respawnIn}s</div>`
+        : `<div style="font-size:9px;color:#6b6550;text-align:center;margin-top:2px">迷雾</div>`;
+    const ring = isSelf ? 'box-shadow:0 0 0 1px #ffd54f inset;' : '';
+    return `<div title="${c.name}${isSelf ? '(你)' : ''}" style="width:58px;border:1px solid ${c.color};background:#0c0f08d8;border-radius:4px;padding:2px 3px;opacity:${c.alive ? 1 : 0.55};${ring}">
+      <div style="display:flex;justify-content:space-between;align-items:center;line-height:13px">
+        <span style="color:${c.color};font-size:11px">${c.glyph}</span>
+        <span style="color:#1a1d12;background:#cfd8a0;border-radius:2px;padding:0 3px;font-size:9px;font-weight:700">${c.level}</span>
+      </div>
+      ${body}
+    </div>`;
   }
 
   /** 死亡回放:显示最后击杀来源(被谁击杀)。 */
