@@ -152,12 +152,16 @@ export class MiniMap {
         const s = u.buildingKind === 'ancient' ? 7 : 4;
         ctx.fillRect(x - s / 2, y - s / 2, s, s);
       } else if (u.isHero()) {
-        ctx.fillStyle = u.heroDef?.color ?? TEAM_COLOR[u.team];
-        ctx.strokeStyle = '#000';
+        // 英雄:英雄色填充 + 队色环(友绿/敌红,一眼辨敌我)+ 略大于小兵,醒目突出
+        const ally = viewerTeam === null ? u.team === 0 : u.team === viewerTeam;
         ctx.beginPath();
-        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = u.heroDef?.color ?? TEAM_COLOR[u.team];
         ctx.fill();
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = ally ? '#6fe06f' : '#ff5a5a';
         ctx.stroke();
+        ctx.lineWidth = 1;
       } else if (u.kind === 'boss') {
         ctx.fillStyle = '#ce93d8';
         ctx.beginPath();
