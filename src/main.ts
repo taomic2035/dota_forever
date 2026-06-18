@@ -170,6 +170,14 @@ function startGame(mode: 'play' | 'spectate'): void {
   renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
   const hud = new Hud(app);
   hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
+  // 点击顶栏英雄 chip → 镜头跳到该英雄(友军/可见敌方;雾中敌方不跳,避免透雾)。解除跟随以停在该处。
+  hud.onCenterUnit = (id) => {
+    const u = world.getUnit(id);
+    if (!u || !hero) return;
+    if (u.team !== hero.team && !isVisibleTo(world, hero.team, u)) return;
+    camera.centerOn(u.pos);
+    camera.follow = false;
+  };
   hud.onLearnStat = () => { if (hero?.alive) learnStatBonus(hero); };
   hud.onBuyback = () => { if (hero && !hero.alive) tryBuyback(world, hero); };
   hud.onSell = (s) => { if (hero?.alive) shop.sellSlot(world, hero, s); }; // 右键库存物品出售(50% 返还,商店范围内)

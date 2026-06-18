@@ -29,7 +29,12 @@
 
 `renderEnemyBar` → `renderHeroBars`:友军(左,血蓝常显——同队 `isVisibleTo` 恒真)+ `VS` 分隔 + 敌方(右,迷雾门控),DotA 式 both-teams 常驻总览。自己英雄 chip 描金边标注「(你)」。复用 `buildEnemyHeroBar`(团队无关)。`heroChipHtml` 提取共享。真实验证:友军 盾(自己)/蛊/裂/磁/蹄 显血蓝条;敌方 岩/熊/妖/霜/翼 显「迷雾」;VS 分隔。
 
+## 更新:chip 点击居中镜头(2026-06-18)
+
+点击顶栏英雄 chip → 镜头跳到该英雄(DotA 点头像居中)。`chip` 加 `data-hero-id` + `pointer-events:auto`;`heroBar` mousedown 委托(HUD 每帧重建,用 mousedown);`onCenterUnit` 回调由 main 注入,**视野门控**:友军/可见敌方才跳,雾中敌方不跳(避免透雾定位)。居中后 `camera.follow=false` 停在该处(空格可重新跟随)。真实验证(未暂停):点友军 chip → 镜头从 (1370,13603) 跳到 ≈ 友军位 (5740,13712),follow→false,0 错误。
+> 排错记录:验证时一度失败,根因是 `Esc` 同时**切换暂停菜单**(main.ts:461),暂停菜单 z-120/inset:0/pointer-events:auto 模态盖住全屏拦截点击——是测试用 Esc 关引导的假象,非功能 bug(dispatch 直发事件证明 wiring 正确)。
+
 ## 后续(留档)
 
-- 点击 chip 跳转镜头到该英雄 / 上次可见位置。
+- chip 点击敌方雾中时跳「上次可见位置」(需 last-known 追踪)。
 - 关键道具图标(BKB/跳刀就绪)提示——需敌方道具可见性规则,V2。

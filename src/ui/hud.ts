@@ -42,6 +42,8 @@ export class Hud {
   deathControlEntries: ControlInstance[] = [];
   /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
   quickbuy: QuickbuyModel | null = null;
+  /** 点击顶栏英雄 chip → 镜头跳到该英雄(main 注入,内部做视野/雾门控)。 */
+  onCenterUnit?: (id: number) => void;
   onCommandCard?: (action: CommandCardAction) => void;
 
   constructor(parent: HTMLElement) {
@@ -65,6 +67,13 @@ export class Hud {
       'display:flex;gap:10px;align-items:flex-start;',
     ].join('');
     this.root.appendChild(this.heroBar);
+    // 点击英雄 chip → 居中镜头(mousedown:HUD 每帧重建,click 会跨重建丢失)。chip 自带 pointer-events:auto。
+    this.heroBar.addEventListener('mousedown', (e) => {
+      const el = (e.target as HTMLElement).closest('[data-hero-id]') as HTMLElement | null;
+      if (!el) return;
+      e.preventDefault();
+      this.onCenterUnit?.(Number(el.getAttribute('data-hero-id')));
+    });
 
     this.bottom = document.createElement('div');
     this.bottom.style.cssText = [
@@ -336,7 +345,7 @@ export class Hud {
         ? `<div style="font-size:9px;color:#ef5350;text-align:center;font-weight:700;margin-top:2px">复活 ${c.respawnIn}s</div>`
         : `<div style="font-size:9px;color:#6b6550;text-align:center;margin-top:2px">迷雾</div>`;
     const ring = isSelf ? 'box-shadow:0 0 0 1px #ffd54f inset;' : '';
-    return `<div title="${c.name}${isSelf ? '(你)' : ''}" style="width:58px;border:1px solid ${c.color};background:#0c0f08d8;border-radius:4px;padding:2px 3px;opacity:${c.alive ? 1 : 0.55};${ring}">
+    return `<div data-hero-id="${c.id}" title="${c.name}${isSelf ? '(你)' : ''} — 点击居中" style="width:58px;border:1px solid ${c.color};background:#0c0f08d8;border-radius:4px;padding:2px 3px;opacity:${c.alive ? 1 : 0.55};${ring}pointer-events:auto;cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:center;line-height:13px">
         <span style="color:${c.color};font-size:11px">${c.glyph}</span>
         <span style="color:#1a1d12;background:#cfd8a0;border-radius:2px;padding:0 3px;font-size:9px;font-weight:700">${c.level}</span>
