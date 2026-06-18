@@ -19,6 +19,7 @@ import type { DeathRecapEntry, ControlInstance, ControlKind } from './deathRecap
 import { buildEnemyHeroBar } from './enemyHeroBarModel';
 import { isVisibleTo } from '../sim/vision';
 import type { QuickbuyModel } from './quickbuyModel';
+import { buildAbilityTooltip } from './abilityTooltipModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -469,7 +470,7 @@ export class Hud {
     const pips = Array.from({ length: def.maxLevel }, (_, k) =>
       `<span style="width:6px;height:4px;border-radius:1px;background:${k < lvl ? '#ffd54f' : '#3a4428'}"></span>`).join('');
     const aghsDesc = aghs && def.scepter?.desc ? `\n${def.scepter.desc}` : aghs ? '\n神杖:增强升级' : '';
-    return `<div ${learnable ? `data-learn="${i}" ` : ''}title="${def.name}${def.ultimate ? ' (Ultimate)' : ''}${learnable ? ' — 点击学习' : ''}: ${def.description}${aghsDesc}"
+    return `<div ${learnable ? `data-learn="${i}" ` : ''}title="${buildAbilityTooltip(def, lvl)}${learnable ? '\n点击学习(+)' : ''}${aghsDesc}"
       style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};${learnable ? 'cursor:pointer;' : ''}
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
       <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
@@ -529,7 +530,10 @@ export class Hud {
     const itemCdFrac = itemCdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / itemCdTotal)) : 1;
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
-    const tip = canBag ? `${def.name}: ${def.description}(左键移入背包栏 · 右键出售)` : `${def.name}: ${def.description}`;
+    // 主动物品补数值:法力/冷却(DotA tooltip 核心信息)
+    const act = def.active;
+    const actLine = act ? `\n${[act.manaCost ? `法力 ${act.manaCost}` : '', act.cooldown ? `冷却 ${act.cooldown}s` : '', act.castRange ? `施法距离 ${act.castRange}` : ''].filter(Boolean).join(' · ')}` : '';
+    const tip = `${def.name}${actLine}\n${def.description}${canBag ? '\n左键移入背包栏 · 右键出售' : ''}`;
     return `<div ${canBag ? `data-bag="${i}" ` : ''}title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
       background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
       align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
