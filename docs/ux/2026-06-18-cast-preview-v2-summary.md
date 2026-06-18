@@ -35,5 +35,5 @@ V1(`abilityPreviewShape`)已能输出 unit/point/area/line 的预览几何,但�
 ## 后续(V2.1,留档非必修)
 
 - cone/vector 形预览(当前无使用方)。
-- unit 目标对 `invulnerable`/`untargetable`/魔免-非穿透-减益 判 `invalid`(当前 sim 会拒,预览暂按 has-target 处理)。
+- ✅ **V2.1 已做**:unit 目标对敌方 `invulnerable`/`untargetable` 判 `invalid`(与 sim 施法/物品拒绝一致)。`main.ts` previewCast/previewItem 的 hasTarget 排除敌方无敌/不可指向单位。真实验证:无敌敌人 → 红(invalid),解除 → 蓝(ready)。(魔免-非穿透-减益判定更复杂,仍留后续)
 - 不可达路径(寻路失败)的独立提示,区别于单纯超距走近。

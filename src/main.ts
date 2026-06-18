@@ -55,6 +55,7 @@ import { buildCourierDeathPulses } from './ui/courierEventFeedback';
 import { buildBuildingAttackAlertPulses } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 import { castStatus } from './engine/castValidity';
+import { modifierStates } from './sim/modifiers';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -367,12 +368,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     const geometry = previewTargetingGeometry(abilityPreviewShape(info.def, info.inst.level), info.range);
     const requiresTarget = geometry.mode === 'unit';
     const target = requiresTarget ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
+    // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 施法拒绝一致)→ 预览显红
+    const hasTarget = !!target && !(target.team !== hero.team && (target.invulnerable || modifierStates(target).untargetable));
     const status = castStatus({
       origin: hero.pos,
       aim: target?.pos ?? p,
       range: geometry.range,
       requiresTarget,
-      hasTarget: !!target,
+      hasTarget,
     });
     ux.setTargeting({
       abilityIndex: i,
@@ -420,12 +423,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     const geometry = previewTargetingGeometry(itemPreviewShape(info.active), info.range);
     const requiresTarget = geometry.mode === 'unit';
     const target = requiresTarget ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
+    // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 物品拒绝一致)→ 预览显红
+    const hasTarget = !!target && !(target.team !== hero.team && (target.invulnerable || modifierStates(target).untargetable));
     const status = castStatus({
       origin: hero.pos,
       aim: target?.pos ?? p,
       range: geometry.range,
       requiresTarget,
-      hasTarget: !!target,
+      hasTarget,
     });
     ux.setTargeting({
       abilityIndex: -1,
