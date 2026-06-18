@@ -110,6 +110,36 @@ export function controlTimeline(instances: ControlInstance[], windowSec: number,
   return instances.filter((c) => c.at >= windowStart).slice(-maxEntries);
 }
 
+/**
+ * 致命前总锁定时长(秒):取窗口内控制区间 [at, at+duration] 的**并集**长度,
+ * 合并重叠(同时眩晕+缠绕不重复计)→ 真实「你被锁了多久」。
+ */
+export function controlLockdownSeconds(instances: ControlInstance[], windowSec: number): number {
+  if (instances.length === 0) return 0;
+  let endTime = -Infinity;
+  for (const c of instances) if (c.at > endTime) endTime = c.at;
+  const windowStart = endTime - windowSec;
+  const ivals = instances
+    .filter((c) => c.at + c.duration >= windowStart)
+    .map((c) => [Math.max(windowStart, c.at), c.at + c.duration] as [number, number])
+    .sort((a, b) => a[0] - b[0]);
+  if (ivals.length === 0) return 0;
+  let total = 0;
+  let [curStart, curEnd] = ivals[0];
+  for (let i = 1; i < ivals.length; i++) {
+    const [s, e] = ivals[i];
+    if (s <= curEnd) {
+      if (e > curEnd) curEnd = e;
+    } else {
+      total += curEnd - curStart;
+      curStart = s;
+      curEnd = e;
+    }
+  }
+  total += curEnd - curStart;
+  return total;
+}
+
 export class ControlLog {
   private buf: ControlInstance[] = [];
   constructor(private readonly cap = 24) {}
@@ -125,6 +155,11 @@ export class ControlLog {
 
   timeline(windowSec = 10, maxEntries = 5): ControlInstance[] {
     return controlTimeline(this.buf, windowSec, maxEntries);
+  }
+
+  /** 窗口内总锁定时长(秒,区间并集)。 */
+  lockdownSeconds(windowSec = 10): number {
+    return controlLockdownSeconds(this.buf, windowSec);
   }
 
   get size(): number {

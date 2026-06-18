@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DamageLog, aggregateRecap, ControlLog, controlTimeline, type DamageInstance, type ControlInstance } from '../src/ui/deathRecapModel';
+import { DamageLog, aggregateRecap, ControlLog, controlTimeline, controlLockdownSeconds, type DamageInstance, type ControlInstance } from '../src/ui/deathRecapModel';
 
 function inst(at: number, groupKey: number | string, amount: number, type: DamageInstance['type'] = 'physical', sourceName = `u${groupKey}`): DamageInstance {
   return { at, groupKey: String(groupKey), sourceName, amount, type };
@@ -107,13 +107,41 @@ describe('controlTimeline', () => {
   });
 });
 
+describe('controlLockdownSeconds(区间并集)', () => {
+  it('空 → 0', () => {
+    expect(controlLockdownSeconds([], 10)).toBe(0);
+  });
+  it('连续不重叠 → 求和', () => {
+    // 晕[100,101.5] + 沉默[102,105] = 1.5 + 3 = 4.5(中间 0.5s 间隙不计)
+    expect(controlLockdownSeconds([ctrl(100, 'stun', 1.5), ctrl(102, 'silence', 3)], 20)).toBeCloseTo(4.5);
+  });
+  it('重叠控制取并集,不重复计', () => {
+    // 晕[100,102] 与 缠绕[101,103] 重叠 → 并集 [100,103] = 3(而非 2+2=4)
+    expect(controlLockdownSeconds([ctrl(100, 'stun', 2), ctrl(101, 'root', 2)], 20)).toBeCloseTo(3);
+  });
+  it('完全被包含的区间不增加总时长', () => {
+    // 晕[100,104] 包含 沉默[101,102] → 仍 4
+    expect(controlLockdownSeconds([ctrl(100, 'stun', 4), ctrl(101, 'silence', 1)], 20)).toBeCloseTo(4);
+  });
+  it('窗口裁剪:窗外旧控制不计', () => {
+    // 最近控制起于 t=195;窗口 10 → windowStart=185。旧控制 [100,102] 在窗外 → 不计;[195,198]=3
+    expect(controlLockdownSeconds([ctrl(100, 'stun', 2), ctrl(195, 'stun', 3)], 10)).toBeCloseTo(3);
+  });
+  it('控制从窗外延入窗内:只计窗内部分(起点裁到 windowStart)', () => {
+    // endTime=190;窗口 10 → windowStart=180。[178,188] 延入 → 计 [180,188]=8;[190,190.x] 锚点
+    expect(controlLockdownSeconds([ctrl(178, 'stun', 10), ctrl(190, 'silence', 0.5)], 10)).toBeCloseTo(8.5);
+  });
+});
+
 describe('ControlLog', () => {
-  it('push/timeline/clear', () => {
+  it('push/timeline/clear + lockdownSeconds', () => {
     const log = new ControlLog(8);
     log.push(ctrl(100, 'stun', 1.5));
     log.push(ctrl(101, 'silence', 2));
     expect(log.timeline(10).map((c) => c.control)).toEqual(['stun', 'silence']);
+    expect(log.lockdownSeconds(20)).toBeCloseTo(3); // [100,101.5]∪[101,103] = [100,103] = 3
     log.clear();
     expect(log.timeline(10)).toEqual([]);
+    expect(log.lockdownSeconds(10)).toBe(0);
   });
 });

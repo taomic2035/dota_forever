@@ -40,6 +40,8 @@ export class Hud {
   deathRecapEntries: DeathRecapEntry[] = [];
   /** 死亡回顾:致命前 ~10s 的控制时间线(眩晕/缠绕/沉默…按顺序)。 */
   deathControlEntries: ControlInstance[] = [];
+  /** 死亡回顾:致命前总锁定时长(秒,区间并集)。 */
+  deathControlLockdown = 0;
   /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
   quickbuy: QuickbuyModel | null = null;
   /** 点击顶栏英雄 chip → 镜头跳到该英雄(main 注入,内部做视野/雾门控)。 */
@@ -387,8 +389,11 @@ export class Hud {
       const src = c.sourceColor ? `<span style="color:${c.sourceColor}">${c.sourceName}</span>` : c.sourceName;
       return `<span style="display:inline-flex;align-items:center;gap:2px;padding:0 4px;border:1px solid ${l.color};border-radius:2px;background:${l.color}1f;color:${l.color};font-size:9px;font-weight:700">${l.tag} ${c.duration.toFixed(1)}s</span><span style="font-size:9px;color:#9a9277"> ${src}</span>`;
     }).join('<span style="color:#5a5444;font-size:9px"> › </span>');
+    const lockdown = this.deathControlLockdown > 0
+      ? `<span style="color:#ffca28;font-weight:700"> 共被控 ${this.deathControlLockdown.toFixed(1)}s</span>`
+      : '';
     return `<div style="margin:1px 0 4px">
-      <div style="font-size:10px;color:#7d7560;margin-bottom:1px">控制链</div>
+      <div style="font-size:10px;color:#7d7560;margin-bottom:1px">控制链${lockdown}</div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">${chips}</div>
     </div>`;
   }
