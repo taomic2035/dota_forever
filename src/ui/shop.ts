@@ -21,6 +21,7 @@ import {
 } from './shopQuickActionModel';
 import { buildShopRecipeProgressModel, type ShopRecipeProgressModel } from './shopRecipeModel';
 import { buildShopStashActionModel, type ShopStashActionModel } from './shopStashActionModel';
+import { buildQuickbuyModel, quickbuyRemainingCost, type QuickbuyModel } from './quickbuyModel';
 
 const CATS: Array<{ key: ItemCategory | 'all'; label: string }> = [
   { key: 'consumable', label: '消耗' },
@@ -38,6 +39,8 @@ export class ShopPanel {
   private query = '';
   private lastRender = 0;
   private toast: HTMLElement;
+  /** Quickbuy 目标物品 key(Shift 点击商店项设置;离店仍在 HUD 顶栏提醒)。 */
+  private quickbuyKey: string | null = null;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -125,11 +128,13 @@ export class ShopPanel {
       missingComponents,
       destinations: componentDestinations,
     });
+    const qb = this.quickbuyState(hero);
     this.root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <b>商店 ${at === 'secret' ? '· 秘密商店' : at === 'home' ? '· 基地' : '· <span style="color:#ef9a9a">不在商店范围</span>'}</b>
         <span style="color:#ffd54f">⛁ ${gold}</span>
       </div>
+      ${quickbuyBadge(qb.model)}
       <input id="shop-search" value="${escapeAttr(this.query)}" placeholder="Search items" spellcheck="false"
         style="width:100%;box-sizing:border-box;margin-bottom:6px;border:1px solid #3a4428;border-radius:5px;background:#0b0e08;color:#e8e2c8;padding:5px 7px;font-size:12px;outline:none;" />
       ${quickActionBadge(quickAction)}
@@ -162,6 +167,17 @@ export class ShopPanel {
       event.preventDefault();
       event.stopPropagation();
     };
+
+    const qbEl = this.root.querySelector('#shop-quickbuy') as HTMLElement | null;
+    if (qbEl) {
+      qbEl.onmousedown = (event) => {
+        event.preventDefault();
+        if (event.button === 2) { this.quickbuyKey = null; this.showToast('已取消快速购买'); this.lastRender = 0; return; } // 右键取消
+        if (qb.model.ready) this.completeQuickbuy(w, hero, qb.buyKeys);
+        else this.showToast(`还需 ${qb.model.deficit} 金`);
+      };
+      qbEl.oncontextmenu = (e) => e.preventDefault();
+    }
 
     const tabs = this.root.querySelector('#shop-tabs')!;
     for (const c of CATS) {
@@ -207,7 +223,14 @@ export class ShopPanel {
         </span>`;
       row.title = tooltip(def);
       // mousedown 而非 onclick:买入后 lastRender=0 强制重建,快速连买时 click 可能跨重建丢失;按下即触发更稳(与 HUD 一致)
-      row.onmousedown = () => {
+      row.onmousedown = (event) => {
+        // Shift 点击 → 设为 quickbuy 目标(不立即购买),离店仍在 HUD 顶栏提醒还差多少金
+        if (event.shiftKey) {
+          this.quickbuyKey = def.key;
+          this.showToast(`快速购买:${def.name}`);
+          this.lastRender = 0;
+          return;
+        }
         const r = buyItem(w, hero, purchaseKeyFor(def.key));
         if (r === 'ok') this.showToast(`购入 ${def.name}`);
         else if (r === 'ok_backpack') this.showToast(`${def.name} 已放入背包栏`);
@@ -266,6 +289,46 @@ export class ShopPanel {
     else this.showToast('需在商店范围内出售');
   }
 
+  /** 供 HUD 顶栏读取的 quickbuy 提醒(离店仍可见还差多少金)。 */
+  quickbuyModel(hero: Unit | undefined): QuickbuyModel {
+    if (!hero) return buildQuickbuyModel({ quickbuyKey: null, label: '', glyph: '', remainingCost: 0, gold: 0 });
+    return this.quickbuyState(hero).model;
+  }
+
+  /** quickbuy 目标的当前状态 + 完成所需购买项(raw key 列表,由 buyMany 套 purchaseKeyFor)。 */
+  private quickbuyState(hero: Unit): { model: QuickbuyModel; buyKeys: string[] } {
+    const inactive = { model: buildQuickbuyModel({ quickbuyKey: null, label: '', glyph: '', remainingCost: 0, gold: 0 }), buyKeys: [] as string[] };
+    const key = this.quickbuyKey;
+    if (!key) return inactive;
+    const def = itemDef(key);
+    if (!def) { this.quickbuyKey = null; return inactive; }
+    // 已拥有该物品 → 自动清除 quickbuy
+    const owns = (slots: Array<{ itemKey: string } | null>) => slots.some((s) => s?.itemKey === key);
+    if (owns(hero.inventory) || owns(hero.backpack)) { this.quickbuyKey = null; return inactive; }
+    const gold = hero.heroMeta?.gold ?? 0;
+    const buyKeys: string[] = [];
+    let remainingCost: number;
+    if (def.recipe) {
+      const progress = buildShopRecipeProgressModel({
+        recipe: def.recipe, inventory: hero.inventory, backpack: hero.backpack, stash: hero.stash, tpSlot: hero.tpSlot,
+      });
+      const missingComponentCost = progress.missing.reduce((s, m) => s + m.missing * itemDef(m.key).cost, 0);
+      remainingCost = quickbuyRemainingCost({ recipe: true, fullCost: 0, missingComponentCost, recipeCost: def.recipe.recipeCost });
+      for (const m of progress.missing) for (let i = 0; i < m.missing; i++) buyKeys.push(m.key);
+      buyKeys.push(key); // 最终合成:buyMany 套 purchaseKeyFor → 卷轴触发 tryCombine
+    } else {
+      remainingCost = quickbuyRemainingCost({ recipe: false, fullCost: def.cost, missingComponentCost: 0, recipeCost: 0 });
+      buyKeys.push(key);
+    }
+    const model = buildQuickbuyModel({ quickbuyKey: key, label: def.name, glyph: def.secretShop ? '◈' : '🛒', remainingCost, gold });
+    return { model, buyKeys };
+  }
+
+  private completeQuickbuy(w: World, hero: Unit, buyKeys: string[]): void {
+    this.buyMany(w, hero, buyKeys);
+    this.quickbuyKey = null; // 完成后清除目标(buyMany 已置 lastRender=0 触发重建)
+  }
+
   private buy(w: World, hero: Unit, def: ItemDef): void {
     const r = buyItem(w, hero, purchaseKeyFor(def.key));
     if (r === 'ok') this.showToast(`Bought ${def.name}`);
@@ -306,6 +369,16 @@ export class ShopPanel {
 
 function effectiveCost(def: ItemDef): number {
   return def.recipe && def.recipe.recipeCost > 0 ? def.recipe.recipeCost : def.cost;
+}
+
+function quickbuyBadge(m: QuickbuyModel): string {
+  if (!m.active) return '';
+  const color = m.ready ? '#8fd17a' : '#ffb74d';
+  const status = m.ready ? '可购买 · 点击买齐' : `还需 ${m.deficit} 金`;
+  return `<div id="shop-quickbuy" title="左键买齐(够钱) / 右键取消" style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px;padding:4px 8px;border:1px solid ${color};border-radius:5px;background:${color}1a;cursor:pointer">
+    <span style="color:${color};font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⭐ ${m.label}</span>
+    <span style="color:${color};font-size:12px;flex:none">${status}</span>
+  </div>`;
 }
 
 function escapeAttr(value: string): string {

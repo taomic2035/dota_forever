@@ -874,6 +874,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
       hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
+      hud.quickbuy = shop.quickbuyModel(hero); // quickbuy 顶栏提醒(离店仍可见)
       hud.update(world, hero, ux, controlSettings);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出

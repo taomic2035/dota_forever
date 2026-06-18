@@ -18,6 +18,7 @@ import { buildHeroXpHudModel, type HeroXpHudModel } from './heroXpHudModel';
 import type { DeathRecapEntry } from './deathRecapModel';
 import { buildEnemyHeroBar } from './enemyHeroBarModel';
 import { isVisibleTo } from '../sim/vision';
+import type { QuickbuyModel } from './quickbuyModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -36,6 +37,8 @@ export class Hud {
   onMoveFromBackpack?: (bpSlot: number) => void;
   /** 死亡回顾:致命前 ~10s 的伤害来源拆解(由 main 每帧在死亡时填入)。 */
   deathRecapEntries: DeathRecapEntry[] = [];
+  /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
+  quickbuy: QuickbuyModel | null = null;
   onCommandCard?: (action: CommandCardAction) => void;
 
   constructor(parent: HTMLElement) {
@@ -284,8 +287,18 @@ export class Hud {
       `<span title="守护符文 G(强化己方建筑)" style="color:${gLeft <= 0 ? '#8fd17a' : '#9a9277'}">🛡${glyph}</span>` +
       (bossActive ? `<span title="深渊领主(Boss)重生计时" style="color:${bossAlive ? '#8fd17a' : '#d9a44a'}">☠${bossTxt}</span>` : '') +
       `<span style="color:#ffd54f">${gold}</span>` +
+      this.quickbuyChip() +
       `<span style="color:#a89">永夜</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
+  }
+
+  /** 顶栏 quickbuy 提醒:目标装备 + 还差多少金 / 可购买(离店仍可见,DotA 核心 QoL)。 */
+  private quickbuyChip(): string {
+    const q = this.quickbuy;
+    if (!q || !q.active) return '';
+    const color = q.ready ? '#8fd17a' : '#ffb74d';
+    const status = q.ready ? '可购买' : `还需 ${q.deficit}`;
+    return `<span title="快速购买目标(商店内 Shift 点击设置)" style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${color};border-radius:4px;padding:0 6px;color:${color};font-size:12px">⭐ ${q.label} · ${status}</span>`;
   }
 
   /** 敌方英雄顶栏:常驻威胁评估。等级/复活公开常显;血蓝仅在玩家视野内显示(不透雾)。 */
