@@ -18,7 +18,11 @@ export function showOnboarding(parent: HTMLElement): void {
       <span><b style="color:#7ec8e3">1-6</b> 用物品 · <b style="color:#7ec8e3">T</b> 回城卷轴</span>
       <span><b style="color:#ffd45a">F</b> 商店(需站在<b>泉水/基地</b>范围内买)</span>
       <span><b style="color:#8fd17a">S</b> 停 · <b style="color:#8fd17a">H</b> 原地 · <b>空格</b> 镜头回英雄</span>
-      <span><b style="color:#7ec8e3">Tab</b> 记分牌 · <b style="color:#7ec8e3">滚轮</b> 缩放 · <b>P</b> 暂停</span>
+      <span><b style="color:#7ec8e3">Tab</b> 记分牌 · <b style="color:#7ec8e3">滚轮</b> 缩放 · <b>P</b> 暂停/设置</span>
+      <span><b style="color:#ffb74d">Shift+点商店物品</b> 预购(顶栏看还差多少金)</span>
+      <span><b style="color:#7fe3d0">点顶栏英雄头像</b> 镜头跳转 · 顶栏看双方血蓝/复活</span>
+      <span><b style="color:#c39cff">P 菜单</b> 可调 HUD 缩放 / 施法模式 / 改键</span>
+      <span><b style="color:#ef9a9a">阵亡面板</b> 看伤害来源 + 控制链(学习死因)</span>
     </div>
     <div style="text-align:center;margin-top:10px">
       <button id="ob-ok" style="padding:5px 24px;border-radius:6px;border:1px solid #8fd17a;background:#8fd17a22;color:#9fe87a;font-weight:700;cursor:pointer">知道了</button>
