@@ -84,3 +84,50 @@ export class DamageLog {
     return this.buf.length;
   }
 }
+
+// ---------- 控制时间线(死亡回顾 V3) ----------
+
+export type ControlKind = 'stun' | 'root' | 'silence' | 'disarm' | 'mute' | 'lift';
+
+export interface ControlInstance {
+  at: number;
+  sourceName: string;
+  sourceColor?: string;
+  control: ControlKind;
+  /** 控制持续秒数。 */
+  duration: number;
+}
+
+/**
+ * 致命前的控制时间线:锚定最近一次控制(贴近死亡)回看 windowSec,按时间顺序返回最近 maxEntries 条。
+ * 不聚合——控制的「顺序」本身就是死因故事(被晕→再被晕→被沉默)。
+ */
+export function controlTimeline(instances: ControlInstance[], windowSec: number, maxEntries = 5): ControlInstance[] {
+  if (instances.length === 0) return [];
+  let endTime = -Infinity;
+  for (const c of instances) if (c.at > endTime) endTime = c.at;
+  const windowStart = endTime - windowSec;
+  return instances.filter((c) => c.at >= windowStart).slice(-maxEntries);
+}
+
+export class ControlLog {
+  private buf: ControlInstance[] = [];
+  constructor(private readonly cap = 24) {}
+
+  push(inst: ControlInstance): void {
+    this.buf.push(inst);
+    if (this.buf.length > this.cap) this.buf.shift();
+  }
+
+  clear(): void {
+    this.buf = [];
+  }
+
+  timeline(windowSec = 10, maxEntries = 5): ControlInstance[] {
+    return controlTimeline(this.buf, windowSec, maxEntries);
+  }
+
+  get size(): number {
+    return this.buf.length;
+  }
+}

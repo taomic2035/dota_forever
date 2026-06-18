@@ -15,7 +15,7 @@ import { commandCardActionFromValue, type CommandCardAction } from '../engine/co
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
 import { buildHeroXpHudModel, type HeroXpHudModel } from './heroXpHudModel';
-import type { DeathRecapEntry } from './deathRecapModel';
+import type { DeathRecapEntry, ControlInstance, ControlKind } from './deathRecapModel';
 import { buildEnemyHeroBar } from './enemyHeroBarModel';
 import { isVisibleTo } from '../sim/vision';
 import type { QuickbuyModel } from './quickbuyModel';
@@ -37,6 +37,8 @@ export class Hud {
   onMoveFromBackpack?: (bpSlot: number) => void;
   /** 死亡回顾:致命前 ~10s 的伤害来源拆解(由 main 每帧在死亡时填入)。 */
   deathRecapEntries: DeathRecapEntry[] = [];
+  /** 死亡回顾:致命前 ~10s 的控制时间线(眩晕/缠绕/沉默…按顺序)。 */
+  deathControlEntries: ControlInstance[] = [];
   /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
   quickbuy: QuickbuyModel | null = null;
   onCommandCard?: (action: CommandCardAction) => void;
@@ -345,7 +347,30 @@ export class Hud {
     const header = killer
       ? `<div style="font-size:11px;color:#9a9277;margin-bottom:2px">被 <span style="color:${color};font-weight:700">${who}</span> 击杀</div>`
       : '';
-    return header + this.deathRecapBreakdown();
+    return header + this.deathRecapBreakdown() + this.deathControlTimeline();
+  }
+
+  /** 致命前控制时间线:被谁眩晕/缠绕/沉默/缴械,按顺序 + 时长(理解被连控致死)。 */
+  private deathControlTimeline(): string {
+    const entries = this.deathControlEntries;
+    if (!entries.length) return '';
+    const label: Record<ControlKind, { tag: string; color: string }> = {
+      stun: { tag: '晕', color: '#ffca28' },
+      root: { tag: '缚', color: '#66bb6a' },
+      silence: { tag: '默', color: '#ab47bc' },
+      disarm: { tag: '缴', color: '#ef9a9a' },
+      mute: { tag: '禁', color: '#8d6e63' },
+      lift: { tag: '升空', color: '#26c6da' },
+    };
+    const chips = entries.map((c) => {
+      const l = label[c.control];
+      const src = c.sourceColor ? `<span style="color:${c.sourceColor}">${c.sourceName}</span>` : c.sourceName;
+      return `<span style="display:inline-flex;align-items:center;gap:2px;padding:0 4px;border:1px solid ${l.color};border-radius:2px;background:${l.color}1f;color:${l.color};font-size:9px;font-weight:700">${l.tag} ${c.duration.toFixed(1)}s</span><span style="font-size:9px;color:#9a9277"> ${src}</span>`;
+    }).join('<span style="color:#5a5444;font-size:9px"> › </span>');
+    return `<div style="margin:1px 0 4px">
+      <div style="font-size:10px;color:#7d7560;margin-bottom:1px">控制链</div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center">${chips}</div>
+    </div>`;
   }
 
   /** 致命前 ~10s 伤害来源拆解:每来源一条(名字 + 总伤 + 物理/魔法/纯粹分段条)。 */

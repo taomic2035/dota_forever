@@ -135,3 +135,39 @@ describe('modifiers', () => {
     expect(c.calc.magicResist).toBeCloseTo(0.85, 5);
   });
 });
+
+// 注:step 外直调 applyModifier 时 emit 进 pendingEvents;w.step() 将其并入 w.events(等价游戏内同 tick 可见)。
+describe('控制事件 unit_controlled(死亡回顾 V3 数据源)', () => {
+  it('敌方来源的有限时长控制 → emit unit_controlled', () => {
+    const target = mk(Team.Dawn, 7000, 8000);
+    const enemy = mk(Team.Night, 7100, 8000);
+    applyModifier(w, target, { key: 'test_stun', duration: 1.5, states: { stunned: true } }, enemy.id);
+    w.step();
+    const ev = w.events.find((e) => e.kind === 'unit_controlled');
+    expect(ev).toBeTruthy();
+    expect(ev).toMatchObject({ kind: 'unit_controlled', unitId: target.id, sourceId: enemy.id, control: 'stun', duration: 1.5 });
+  });
+
+  it('沉默/缠绕/缴械各映射到对应 control 种类', () => {
+    const target = mk(Team.Dawn, 7000, 8000);
+    const enemy = mk(Team.Night, 7100, 8000);
+    applyModifier(w, target, { key: 's', duration: 3, states: { silenced: true } }, enemy.id);
+    applyModifier(w, target, { key: 'r', duration: 2, states: { rooted: true } }, enemy.id);
+    applyModifier(w, target, { key: 'd', duration: 4, states: { disarmed: true } }, enemy.id);
+    w.step();
+    const kinds = w.events.filter((e) => e.kind === 'unit_controlled').map((e) => (e as { control: string }).control);
+    expect(kinds).toEqual(expect.arrayContaining(['silence', 'root', 'disarm']));
+  });
+
+  it('友方来源 / buff / 无时长控制 / 非控制减速 → 不 emit', () => {
+    const target = mk(Team.Dawn, 7000, 8000);
+    const ally = mk(Team.Dawn, 7100, 8000);
+    const enemy = mk(Team.Night, 7200, 8000);
+    applyModifier(w, target, { key: 'ally_stun', duration: 1, states: { stunned: true } }, ally.id); // 友方来源
+    applyModifier(w, target, { key: 'buff', duration: 5, states: { stunned: true }, isBuff: true }, enemy.id); // buff
+    applyModifier(w, target, { key: 'perm', states: { rooted: true } }, enemy.id); // 无 duration
+    applyModifier(w, target, { key: 'slow', duration: 3, stats: { bonusMoveSpeedPct: -30 } }, enemy.id); // 非控制(减速)
+    w.step();
+    expect(w.events.some((e) => e.kind === 'unit_controlled')).toBe(false);
+  });
+});

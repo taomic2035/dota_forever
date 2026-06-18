@@ -116,8 +116,28 @@ function immuneToDebuff(w: World, target: Unit, def: ModifierDef, sourceId: Enti
   return modifierStates(target).magicImmune === true;
 }
 
+/** 控制类 state → 死亡回顾时间线的控制种类(严重度排序,取首个命中)。无控制返回 null。 */
+function controlKindOf(states: StateMods | undefined): 'stun' | 'root' | 'silence' | 'disarm' | 'mute' | 'lift' | null {
+  if (!states) return null;
+  if (states.untargetable) return 'lift'; // 升空(飓风等):最强控制,不可被指向
+  if (states.stunned) return 'stun';
+  if (states.rooted) return 'root';
+  if (states.silenced) return 'silence';
+  if (states.disarmed) return 'disarm';
+  if (states.muted) return 'mute';
+  return null;
+}
+
 export function applyModifier(w: World, target: Unit, def: ModifierDef, sourceId: EntityId): Modifier {
   if (immuneToDebuff(w, target, def, sourceId)) return blockedModifier(def, sourceId);
+  // 死亡回顾 V3:敌方来源、有限时长的控制 → emit 事件供 UX 层记录控制时间线(不进 sim 状态)
+  if (def.isBuff !== true && def.duration !== undefined && def.duration > 0) {
+    const control = controlKindOf(def.states);
+    const src = w.getUnit(sourceId);
+    if (control && src && src.team !== target.team) {
+      w.emit({ kind: 'unit_controlled', unitId: target.id, sourceId, control, duration: def.duration });
+    }
+  }
   if (!def.stackable) {
     const existing = target.modifiers.find((m) => m.key === def.key && m.sourceId === sourceId);
     if (existing) {

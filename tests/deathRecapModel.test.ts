@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DamageLog, aggregateRecap, type DamageInstance } from '../src/ui/deathRecapModel';
+import { DamageLog, aggregateRecap, ControlLog, controlTimeline, type DamageInstance, type ControlInstance } from '../src/ui/deathRecapModel';
 
 function inst(at: number, groupKey: number | string, amount: number, type: DamageInstance['type'] = 'physical', sourceName = `u${groupKey}`): DamageInstance {
   return { at, groupKey: String(groupKey), sourceName, amount, type };
@@ -78,5 +78,42 @@ describe('DamageLog', () => {
     // 最近伤害 t=4,窗口 10 → [−6,4] 含 t=2,3,4(t=1 已被挤掉)
     const ids = log.recap(10).map((e) => e.groupKey).sort();
     expect(ids).toEqual(['2', '3', '4']);
+  });
+});
+
+function ctrl(at: number, control: ControlInstance['control'], duration: number, sourceName = 'X'): ControlInstance {
+  return { at, control, duration, sourceName };
+}
+
+describe('controlTimeline', () => {
+  it('空 → 空数组', () => {
+    expect(controlTimeline([], 10)).toEqual([]);
+  });
+
+  it('按时间顺序返回(不聚合):晕→晕→沉默', () => {
+    const r = controlTimeline([ctrl(100, 'stun', 1.5, 'A'), ctrl(101.5, 'stun', 1.2, 'A'), ctrl(102.7, 'silence', 3, 'B')], 10);
+    expect(r.map((c) => c.control)).toEqual(['stun', 'stun', 'silence']);
+    expect(r.map((c) => c.sourceName)).toEqual(['A', 'A', 'B']);
+  });
+
+  it('锚定最近控制回看窗口,旧控制排除', () => {
+    const r = controlTimeline([ctrl(100, 'stun', 2), ctrl(195, 'root', 1), ctrl(200, 'stun', 1)], 10);
+    expect(r.map((c) => c.at)).toEqual([195, 200]);
+  });
+
+  it('只取最近 maxEntries 条(保序)', () => {
+    const r = controlTimeline([ctrl(100, 'stun', 1), ctrl(101, 'root', 1), ctrl(102, 'silence', 1), ctrl(103, 'disarm', 1)], 10, 2);
+    expect(r.map((c) => c.control)).toEqual(['silence', 'disarm']);
+  });
+});
+
+describe('ControlLog', () => {
+  it('push/timeline/clear', () => {
+    const log = new ControlLog(8);
+    log.push(ctrl(100, 'stun', 1.5));
+    log.push(ctrl(101, 'silence', 2));
+    expect(log.timeline(10).map((c) => c.control)).toEqual(['stun', 'silence']);
+    log.clear();
+    expect(log.timeline(10)).toEqual([]);
   });
 });

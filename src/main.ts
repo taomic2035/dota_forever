@@ -19,7 +19,7 @@ import { InputManager, type CastInputOptions, type ControlGroupInputOptions, typ
 import { SelectionState, type ControlGroupSlot } from './engine/selection';
 import { issueSelectionOrder } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
-import { DamageLog } from './ui/deathRecapModel';
+import { DamageLog, ControlLog } from './ui/deathRecapModel';
 import { KillFeed } from './ui/killfeed';
 import { Announce } from './ui/announce';
 import { ShopPanel } from './ui/shop';
@@ -798,8 +798,9 @@ function startGame(mode: 'play' | 'spectate'): void {
   }, controlSettings, renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
 
   const buildingAlertAt = new Map<number, number>(); // 建筑被攻击警报的每建筑限频(world.time)
-  // 死亡回顾:玩家英雄受伤记录(UX 层累积,不进 sim 状态;复活时清空)
+  // 死亡回顾:玩家英雄受伤记录 + 控制时间线(UX 层累积,不进 sim 状态;复活时清空)
   const damageLog = new DamageLog();
+  const controlLog = new ControlLog();
   let prevHeroAlive = hero?.alive ?? true;
   const describeDamageSource = (id: number): { name: string; color?: string; groupKey: string } => {
     const u = world.getUnit(id);
@@ -829,14 +830,17 @@ function startGame(mode: 'play' | 'spectate'): void {
         });
         for (const pulse of courierDeathPulses) ux.addWorldPulse(pulse);
       }
-      // 死亡回顾:累积玩家英雄受到的伤害(复活时清空上一条命的记录)
+      // 死亡回顾:累积玩家英雄受到的伤害 + 控制(复活时清空上一条命的记录)
       if (hero) {
-        if (hero.alive && !prevHeroAlive) damageLog.clear();
+        if (hero.alive && !prevHeroAlive) { damageLog.clear(); controlLog.clear(); }
         prevHeroAlive = hero.alive;
         for (const ev of world.events) {
           if (ev.kind === 'unit_damaged' && ev.unitId === hero.id && ev.amount > 0) {
             const src = describeDamageSource(ev.sourceId);
             damageLog.push({ at: world.time, groupKey: src.groupKey, sourceName: src.name, sourceColor: src.color, amount: ev.amount, type: ev.damageType });
+          } else if (ev.kind === 'unit_controlled' && ev.unitId === hero.id) {
+            const src = describeDamageSource(ev.sourceId);
+            controlLog.push({ at: world.time, sourceName: src.name, sourceColor: src.color, control: ev.control, duration: ev.duration });
           }
         }
       }
@@ -874,6 +878,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
       hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
+      hud.deathControlEntries = hero && !hero.alive ? controlLog.timeline(10) : [];
       hud.quickbuy = shop.quickbuyModel(hero); // quickbuy 顶栏提醒(离店仍可见)
       hud.update(world, hero, ux, controlSettings);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
