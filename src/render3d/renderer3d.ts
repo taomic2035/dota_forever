@@ -21,6 +21,7 @@ import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './
 import { Fog3D } from './fog3d';
 import { isVisibleTo } from '../sim/vision';
 import type { UxFeedback } from '../ui/uxFeedback';
+import { resolveCastStatus, castStatusHex } from '../engine/castValidity';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { unitStatusPips } from '../render/statusPips';
 import { castBarInfo, type CastTrackEntry } from '../render/castBar';
@@ -697,7 +698,7 @@ export class Renderer3D {
     const t = ux?.targeting;
     if (!t) { this.tGroup.visible = false; return; }
     this.tGroup.visible = true;
-    const color = t.valid === false ? 0xff4656 : 0x50aaff;
+    const color = castStatusHex(resolveCastStatus(t.status, t.valid));
     const ox = t.origin.x, oz = t.origin.y;
     const oy = terrainElevation(world.map, ox, oz) + 4;
     const cur = t.cursor ?? t.origin;

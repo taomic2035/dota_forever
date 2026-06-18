@@ -1,5 +1,6 @@
 import type { Vec2 } from '../core/vec2';
 import type { SelectionSnapshot } from '../engine/selection';
+import type { CastStatus } from '../engine/castValidity';
 
 export type WorldPulseKind =
   | 'move'
@@ -33,7 +34,10 @@ export interface TargetingState {
   origin: Vec2;
   range: number;
   cursor?: Vec2;
+  /** 兼容旧字段:status==='invalid' 时为 false。新代码优先用 status。 */
   valid?: boolean;
+  /** 施法预览三态:ready 就绪 / walk 走近施法 / invalid 非法。 */
+  status?: CastStatus;
   radius?: number;
   width?: number;
 }

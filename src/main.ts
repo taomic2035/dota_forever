@@ -53,6 +53,7 @@ import { cursorTargetHintFor } from './ui/cursorTargetHint';
 import { buildCourierDeathPulses } from './ui/courierEventFeedback';
 import { buildBuildingAttackAlertPulses } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
+import { castStatus } from './engine/castValidity';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -363,8 +364,15 @@ function startGame(mode: 'play' | 'spectate'): void {
     const info = castInfo(i);
     if (!hero || !info) return false;
     const geometry = previewTargetingGeometry(abilityPreviewShape(info.def, info.inst.level), info.range);
-    const target = geometry.mode === 'unit' ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
-    const valid = geometry.mode === 'unit' ? !!target : true;
+    const requiresTarget = geometry.mode === 'unit';
+    const target = requiresTarget ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
+    const status = castStatus({
+      origin: hero.pos,
+      aim: target?.pos ?? p,
+      range: geometry.range,
+      requiresTarget,
+      hasTarget: !!target,
+    });
     ux.setTargeting({
       abilityIndex: i,
       mode: geometry.mode,
@@ -373,9 +381,10 @@ function startGame(mode: 'play' | 'spectate'): void {
       range: geometry.range,
       radius: geometry.radius,
       width: geometry.width,
-      valid,
+      valid: status !== 'invalid',
+      status,
     });
-    return valid;
+    return status !== 'invalid';
   };
 
   const itemInfo = (slot: number) => {
@@ -408,8 +417,15 @@ function startGame(mode: 'play' | 'spectate'): void {
     const info = itemInfo(slot);
     if (!hero || !info) return false;
     const geometry = previewTargetingGeometry(itemPreviewShape(info.active), info.range);
-    const target = geometry.mode === 'unit' ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
-    const valid = geometry.mode === 'unit' ? !!target : true;
+    const requiresTarget = geometry.mode === 'unit';
+    const target = requiresTarget ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
+    const status = castStatus({
+      origin: hero.pos,
+      aim: target?.pos ?? p,
+      range: geometry.range,
+      requiresTarget,
+      hasTarget: !!target,
+    });
     ux.setTargeting({
       abilityIndex: -1,
       source: 'item',
@@ -420,9 +436,10 @@ function startGame(mode: 'play' | 'spectate'): void {
       range: geometry.range,
       radius: geometry.radius,
       width: geometry.width,
-      valid,
+      valid: status !== 'invalid',
+      status,
     });
-    return valid;
+    return status !== 'invalid';
   };
 
   window.addEventListener('keydown', (e) => {
