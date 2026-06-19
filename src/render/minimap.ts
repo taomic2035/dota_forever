@@ -175,6 +175,21 @@ export class MiniMap {
         ctx.beginPath();
         ctx.arc(x, y, 3.5, 0, Math.PI * 2);
         ctx.fill();
+      } else if (u.kind === 'ward') {
+        // 守卫:眼形图标(视域守卫金 / 岗哨真视青),追踪视野/反隐覆盖。迷雾门控天然正确(上面 isVisibleTo)。
+        const sentry = (u.calc.trueSight ?? 0) > 0;
+        ctx.fillStyle = sentry ? '#5fd0d0' : '#ffd54f';
+        ctx.strokeStyle = '#0a0c08';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#0a0c08'; // 瞳孔
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1;
       } else if (u.kind === 'courier') {
         continue;
       } else {
