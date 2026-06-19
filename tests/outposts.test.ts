@@ -3,6 +3,7 @@ import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { HEROES } from '../src/data/heroes';
+import { cellVisible } from '../src/sim/vision';
 import {
   makeOutposts,
   outpostSpots,
@@ -81,5 +82,15 @@ describe('前哨', () => {
 
     // 刚发完未到间隔 → 不再发
     expect(stepOutpostXp(w, op)).toBe(false);
+  });
+
+  it('占领方在前哨周围获得视野(DotA 前哨效果)', () => {
+    const w = createWorld(map, { seed: 1, startTime: 100 });
+    w.outposts = makeOutposts(map);
+    const op = w.outposts[1]; // 永夜秘密商店侧——晨曦初始看不见
+    expect(cellVisible(w, Team.Dawn, op.pos)).toBe(false);
+    op.team = Team.Dawn; // 晨曦占领
+    for (let i = 0; i < 10; i++) w.step(); // 触发视野重算(每 8 tick)
+    expect(cellVisible(w, Team.Dawn, op.pos)).toBe(true);
   });
 });

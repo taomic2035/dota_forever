@@ -7,6 +7,7 @@ import type { World, WorldSystem } from './world';
 import type { Unit } from './unit';
 import { Team } from './map';
 import { stateOf, setVisibilityCheck } from './combat';
+import { OUTPOST_VISION } from './outposts';
 
 export interface VisionData {
   /** [Dawn, Night] 每格 0/1 */
@@ -69,6 +70,32 @@ function recomputeVision(w: World): void {
     }
     if (u.calc.trueSight > 0) {
       vis.trueSight[team].push({ pos: V.clone(u.pos), r: u.calc.trueSight });
+    }
+  }
+
+  // 前哨视野:占领方在前哨周围获得视野(DotA 前哨的定义性效果之一)
+  for (const op of w.outposts) {
+    if (op.team === Team.Neutral) continue;
+    const team = op.team as 0 | 1;
+    const grid = vis.grids[team];
+    const explored = vis.explored[team];
+    const oh = map.heightAt(op.pos);
+    const { cx, cy } = map.cellOf(op.pos);
+    const cellR = Math.ceil(OUTPOST_VISION / map.CELL);
+    const r2 = OUTPOST_VISION * OUTPOST_VISION;
+    for (let dy = -cellR; dy <= cellR; dy++) {
+      const y = cy + dy;
+      if (y < 0 || y >= map.GH) continue;
+      for (let dx = -cellR; dx <= cellR; dx++) {
+        const x = cx + dx;
+        if (x < 0 || x >= map.GW) continue;
+        const cc = map.cellCenter(x, y);
+        if (V.distSq(op.pos, cc) > r2) continue;
+        const i = y * map.GW + x;
+        if (map.height[i] > oh) continue;
+        grid[i] = 1;
+        explored[i] = 1;
+      }
     }
   }
 }

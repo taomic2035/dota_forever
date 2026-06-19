@@ -19,6 +19,7 @@ export const OUTPOST_CAPTURE_TIME = 6;
 export const OUTPOST_XP_INTERVAL = 420; // 7 分钟
 export const OUTPOST_XP_BASE = 120;
 export const OUTPOST_XP_PER_MIN = 6;
+export const OUTPOST_VISION = 700; // 占领方在前哨周围获得的视野半径(DotA 前哨提供视野)
 
 export interface Outpost {
   pos: Vec2;
