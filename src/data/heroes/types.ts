@@ -47,6 +47,10 @@ export interface AbilityDef {
     castRange?: number[];
     desc?: string;
   };
+  /** 阿哈神识升级说明(UI 展示);行为走各英雄 onCast/orbOnHit 的 hasShard 分支。 */
+  shard?: {
+    desc?: string;
+  };
   /** 施法前摇(秒) */
   castPoint?: number;
   tags: AbilityTag[];

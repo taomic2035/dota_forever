@@ -1,7 +1,7 @@
 /** 雷霆先知·佐拉:智力全图法师。连环闪电/天雷/静电场/雷神之怒。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { enemiesIn, spellDamage, hasScepter } from '../../sim/abilities';
+import { enemiesIn, spellDamage, hasScepter, hasShard } from '../../sim/abilities';
 import { isEnemy } from '../../sim/combat';
 import { applyModifier } from '../../sim/modifiers';
 import type { World } from '../../sim/world';
@@ -60,6 +60,7 @@ export const ZOLA_W: AbilityDef = {
   targetTeam: 'enemy',
   castRange: [700, 700, 700, 700], manaCost: [95, 115, 135, 155], cooldown: [12, 11, 10, 9],
   castPoint: 0.35, tags: ['nuke', 'stun'],
+  shard: { desc: '神识:天雷弹射至 600 范围内 1 个额外敌方英雄(60% 伤害,无眩晕)。' },
   description: '召来天雷轰击目标,造成重创并短暂打断。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
@@ -67,6 +68,16 @@ export const ZOLA_W: AbilityDef = {
     // 0.2s 微眩晕:打断引导
     applyModifier(w, target, { key: 'zola_bolt_ministun', duration: 0.2, states: { stunned: true } }, caster.id);
     w.emit({ kind: 'fx', fx: 'bolt', pos: V.clone(target.pos) });
+    // 神识:弹射至附近 1 个额外敌方英雄
+    if (hasShard(caster)) {
+      const extra = w
+        .queryRadius(target.pos, 600, (t) => isEnemy(caster, t) && t.isHero() && t.alive && t.id !== target.id)
+        .sort((a, b) => V.distSq(target.pos, a.pos) - V.distSq(target.pos, b.pos))[0];
+      if (extra) {
+        spellDamage(w, caster, extra, BOLT_DMG[lvl - 1] * 0.6);
+        w.emit({ kind: 'fx', fx: 'bolt', pos: V.clone(extra.pos) });
+      }
+    }
     staticFieldPulse(w, caster);
   },
   aiScore(w, caster, lvl) {

@@ -92,6 +92,8 @@ export interface HeroMeta {
   buybackCooldownUntil: number;
   /** 知识之书:每英雄使用冷却到期时刻(防滥用 gold→XP) */
   tomeReadyAt: number;
+  /** 阿哈神识:已激活则为 true(永久),解锁该英雄的神识能力强化 */
+  shard: boolean;
 }
 
 export function makeHeroMeta(startingGold: number): HeroMeta {
@@ -99,6 +101,7 @@ export function makeHeroMeta(startingGold: number): HeroMeta {
     gold: startingGold, reliableGold: 0, xp: 0, skillPoints: 1, statBonusLearned: 0,
     lastHits: 0, denies: 0, kills: 0, deaths: 0, assists: 0, streak: 0,
     respawnAt: -Infinity, buybackCooldownUntil: -Infinity, tomeReadyAt: -Infinity,
+    shard: false,
   };
 }
 

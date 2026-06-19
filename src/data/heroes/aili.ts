@@ -1,22 +1,28 @@
 /** 疾风射手·艾莉:敏捷远程核心。霜寒之箭/风行/精准光环/百步穿杨。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { enemiesIn } from '../../sim/abilities';
+import { enemiesIn, spellDamage, hasShard } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
+
+const SHARD_SHATTER = [60, 90, 120, 150];
 
 const FROST_SLOW = [-0.10, -0.20, -0.30, -0.40];
 
 export const AILI_Q: AbilityDef = {
   key: 'aili_frost', name: '霜寒之箭', maxLevel: 4, targetMode: 'passive',
   tags: ['orb', 'slow'],
+  shard: { desc: '神识:对已处于减速状态的敌人,寒霜碎裂造成额外魔法伤害(60/90/120/150)。' },
   description: '箭矢附着寒霜,攻击减速敌人。',
   passiveModifier: () => ({ key: 'aili_frost_passive', isBuff: true }),
   orbOnHit(w, attacker, target, lvl) {
     if (target.isBuilding()) return;
+    // 神识:命中前若目标已减速,则触发寒霜碎裂额外魔法伤害
+    const shatter = hasShard(attacker) && target.modifiers.some((m) => (m.def.stats?.bonusMoveSpeedPct ?? 0) < 0);
     applyModifier(w, target, {
       key: 'aili_frost_slow', duration: 1.5,
       stats: { bonusMoveSpeedPct: FROST_SLOW[lvl - 1] },
     }, attacker.id);
+    if (shatter) spellDamage(w, attacker, target, SHARD_SHATTER[lvl - 1]);
   },
 };
 

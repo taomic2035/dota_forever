@@ -1,7 +1,7 @@
 /** 霜语者·莉雅:智力法系辅助。冰霜新星/冰封禁制/秘法之泉/极寒领域。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { damageArea, modifierArea, enemiesIn, spellDamage, hasScepter } from '../../sim/abilities';
+import { damageArea, modifierArea, enemiesIn, spellDamage, hasScepter, hasShard } from '../../sim/abilities';
 import { applyModifier } from '../../sim/modifiers';
 
 const NOVA_DMG = [110, 160, 210, 260];
@@ -36,14 +36,26 @@ export const LIYA_W: AbilityDef = {
   key: 'liya_bind', name: '冰封禁制', maxLevel: 4, targetMode: 'unit', targetTeam: 'enemy',
   castRange: [550, 550, 550, 550], manaCost: [115, 125, 135, 150], cooldown: [10, 9.5, 9, 8.5],
   castPoint: 0.4, tags: ['stun', 'nuke'],
+  shard: { desc: '神识:冰封结束时在目标处引爆小型冰霜新星(范围 300:伤害 + 减速)。' },
   description: '冰封目标,使其无法移动并持续受到伤害。',
   onCast(w, caster, lvl, _pos, target) {
     if (!target) return;
+    const shard = hasShard(caster);
     applyModifier(w, target, {
       key: 'liya_bind_root', duration: BIND_DUR[lvl - 1],
       states: { rooted: true, disarmed: true },
       tickInterval: 0.5,
       onTick: (world, u) => { spellDamage(world, caster, u, BIND_DPS[lvl - 1] / 2); },
+      onExpire: shard
+        ? (world, u) => {
+            // 神识:冰封结束引爆小型冰霜新星
+            damageArea(world, caster, u.pos, 300, BIND_DPS[lvl - 1] * 2);
+            modifierArea(world, caster, u.pos, 300, {
+              key: 'liya_bind_shatter', duration: 1.5, stats: { bonusMoveSpeedPct: -0.25 },
+            }, 'enemy');
+            world.emit({ kind: 'fx', fx: 'frostnova', pos: V.clone(u.pos), radius: 300 });
+          }
+        : undefined,
     }, caster.id);
     w.emit({ kind: 'fx', fx: 'frostbind', pos: V.clone(target.pos), radius: 80 });
   },

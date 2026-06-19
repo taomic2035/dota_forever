@@ -169,6 +169,16 @@ export const ITEMS: ItemDef[] = [
       },
     },
     description: `立即获得 ${TOME_XP} 经验;每英雄 ${Math.round(TOME_COOLDOWN / 60)} 分钟冷却(防滥用)。` },
+  { key: 'aghanims_shard', name: '阿哈神识', cost: 1400, category: 'consumable', charges: 1,
+    active: {
+      name: '激活神识', cooldown: 0, targetMode: 'none',
+      onUse(_w, user) {
+        if (!user.heroMeta || user.heroMeta.shard) return false; // 已激活则不重复消耗
+        user.heroMeta.shard = true;
+        return true;
+      },
+    },
+    description: '永久激活该英雄的神识强化(具体效果见各技能说明)。' },
   { key: 'tp', name: '回城卷轴', cost: 135, category: 'consumable', charges: 1, stackCharges: true,
     active: { name: '传送', manaCost: 75, cooldown: 0, targetMode: 'point', castRange: 99999, onUse: tpUse },
     description: '引导 3 秒后传送至目标点附近的己方建筑。' },

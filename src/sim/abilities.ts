@@ -27,6 +27,10 @@ export function abilityDefAt(u: Unit, index: number): AbilityDef | undefined {
 export function hasScepter(u: Unit): boolean {
   return u.isHero() && u.inventory.some((i) => i?.itemKey === 'scepter');
 }
+/** 阿哈神识:已激活(heroMeta.shard)则解锁该英雄的神识强化分支。 */
+export function hasShard(u: Unit): boolean {
+  return u.isHero() && u.heroMeta?.shard === true;
+}
 /** 神杖感知的法力消耗(持杖且该技能声明 scepter.manaCost 时用升级值)。 */
 export function abilityManaCost(u: Unit, def: AbilityDef, lvl: number): number {
   const arr = hasScepter(u) && def.scepter?.manaCost ? def.scepter.manaCost : def.manaCost;

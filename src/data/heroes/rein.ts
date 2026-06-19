@@ -1,8 +1,8 @@
 /** 雷恩·铁壁:力量先手坦克。锤晕/战吼/顺劈/泰坦之力。 */
 import { V } from '../../core/vec2';
 import type { AbilityDef } from './types';
-import { abilityProjectile, spellDamage, modifierArea, enemiesIn, hasScepter } from '../../sim/abilities';
-import { applyModifier } from '../../sim/modifiers';
+import { abilityProjectile, spellDamage, modifierArea, enemiesIn, hasScepter, hasShard } from '../../sim/abilities';
+import { applyModifier, purge } from '../../sim/modifiers';
 import { applyDamage, isEnemy } from '../../sim/combat';
 
 const HAMMER_DMG = [100, 175, 250, 325];
@@ -39,6 +39,7 @@ export const REIN_W: AbilityDef = {
   key: 'rein_warcry', name: '裂石战吼', maxLevel: 4, targetMode: 'none',
   manaCost: [60, 60, 60, 60], cooldown: [16, 16, 16, 16],
   castPoint: 0.2, tags: ['buff', 'aoe'],
+  shard: { desc: '神识:战吼额外软驱散范围内友军的减益(减速/缴械等非硬控负面)。' },
   description: '战吼激励周围友军,提升护甲与移速。',
   onCast(w, caster, lvl) {
     modifierArea(w, caster, caster.pos, 700, {
@@ -46,6 +47,12 @@ export const REIN_W: AbilityDef = {
       stats: { bonusArmor: WARCRY_ARMOR[lvl - 1], bonusMoveSpeedPct: 0.08 },
     }, 'ally');
     w.emit({ kind: 'fx', fx: 'warcry', pos: V.clone(caster.pos), radius: 700 });
+    // 神识:软驱散范围内友军负面(基础驱散,不解硬控)
+    if (hasShard(caster)) {
+      for (const ally of w.queryRadius(caster.pos, 700, (t) => t.isHero() && t.team === caster.team && t.alive)) {
+        purge(w, ally, false, false);
+      }
+    }
   },
   aiScore(w, caster) {
     const foes = enemiesIn(w, caster, caster.pos, 800).filter((t) => t.isHero());
