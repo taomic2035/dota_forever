@@ -33,6 +33,11 @@ export interface EnemyHeroChip {
   showBars: boolean;
   hpFrac: number;
   mpFrac: number;
+  /** 当前血/蓝整数值(showBars 时供 Alt 显精确数值;DotA 击杀计算)。 */
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
   /** 死亡复活倒计时(秒,向上取整,≥0);存活为 0。 */
   respawnIn: number;
 }
@@ -54,6 +59,10 @@ export function buildEnemyHeroBar(heroes: EnemyHeroBarInputHero[], now: number):
       showBars,
       hpFrac: clamp01(u.hp / Math.max(1, u.maxHp)),
       mpFrac: clamp01(u.mp / Math.max(1, u.maxMp)),
+      hp: Math.max(0, Math.round(u.hp)),
+      maxHp: Math.max(0, Math.round(u.maxHp)),
+      mp: Math.max(0, Math.round(u.mp)),
+      maxMp: Math.max(0, Math.round(u.maxMp)),
       respawnIn: u.alive ? 0 : Math.max(0, Math.ceil(u.respawnAt - now)),
     };
   });

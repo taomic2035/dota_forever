@@ -17,6 +17,17 @@ describe('buildEnemyHeroBar', () => {
     expect(c.hpFrac).toBeCloseTo(0.6);
     expect(c.mpFrac).toBeCloseTo(0.25);
     expect(c.respawnIn).toBe(0);
+    // Alt 精确数值:整数血/蓝(DotA 击杀计算)
+    expect(c.hp).toBe(600);
+    expect(c.maxHp).toBe(1000);
+    expect(c.mp).toBe(100);
+    expect(c.maxMp).toBe(400);
+  });
+
+  it('Alt 精确数值四舍五入为整数', () => {
+    const [c] = buildEnemyHeroBar([h({ hp: 599.7, mp: 100.4 })], 0);
+    expect(c.hp).toBe(600);
+    expect(c.mp).toBe(100);
   });
 
   it('迷雾中(不可见)→ 不泄露实时血量(showBars=false)', () => {

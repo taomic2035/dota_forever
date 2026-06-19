@@ -117,7 +117,7 @@ export class Hud {
     this.bottom.style.transformOrigin = 'bottom center';
     this.bottom.style.transform = `translateX(-50%) scale(${scale})`;
     this.renderTopbar(world, hero);
-    this.renderHeroBars(world, hero);
+    this.renderHeroBars(world, hero, ux?.altInfo ?? false);
     if (!hero) {
       this.bottom.innerHTML = '';
       return;
@@ -321,7 +321,7 @@ export class Hud {
 
   /** 敌方英雄顶栏:常驻威胁评估。等级/复活公开常显;血蓝仅在玩家视野内显示(不透雾)。 */
   /** 双方英雄顶栏:友军(左,血蓝常显)+ 敌方(右,迷雾门控)。DotA 式常驻总览。 */
-  private renderHeroBars(world: World, hero: Unit | undefined): void {
+  private renderHeroBars(world: World, hero: Unit | undefined, alt = false): void {
     if (!hero) { this.heroBar.innerHTML = ''; return; }
     const toInput = (u: Unit) => ({
       id: u.id, name: u.name, glyph: u.heroDef?.glyph ?? '⚔',
@@ -336,17 +336,21 @@ export class Hud {
     if (allyChips.length === 0 && enemyChips.length === 0) { this.heroBar.innerHTML = ''; return; }
     const selfId = hero.id;
     const group = (chips: ReturnType<typeof buildEnemyHeroBar>) =>
-      `<div style="display:flex;gap:6px;align-items:flex-start">${chips.map((c) => this.heroChipHtml(c, c.id === selfId)).join('')}</div>`;
+      `<div style="display:flex;gap:6px;align-items:flex-start">${chips.map((c) => this.heroChipHtml(c, c.id === selfId, alt)).join('')}</div>`;
     const sep = '<div style="align-self:center;color:#6b6550;font-size:11px;font-weight:700">VS</div>';
     this.heroBar.innerHTML = group(allyChips) + sep + group(enemyChips);
   }
 
   /** 单个英雄 chip:字形 + 等级 + 血蓝条 /(雾中)迷雾 /(死亡)复活倒计时;自己描金边。 */
-  private heroChipHtml(c: ReturnType<typeof buildEnemyHeroBar>[number], isSelf: boolean): string {
+  private heroChipHtml(c: ReturnType<typeof buildEnemyHeroBar>[number], isSelf: boolean, alt = false): string {
     const miniBar = (frac: number, color: string) =>
       `<div style="height:4px;background:#0a0b0a;border-radius:1px;margin-top:1px;overflow:hidden"><div style="height:100%;width:${Math.round(frac * 100)}%;background:${color}"></div></div>`;
+    // 按住 Alt:可见英雄显精确血/蓝数值(DotA 击杀计算);否则显血蓝条
+    const bars = alt
+      ? `<div style="font-size:8px;text-align:center;line-height:11px;margin-top:1px"><span style="color:#6fdc6f;font-weight:700">${c.hp}</span> <span style="color:#5aa2ff">${c.mp}</span></div>`
+      : miniBar(c.hpFrac, '#4caf50') + miniBar(c.mpFrac, '#42a5f5');
     const body = c.showBars
-      ? miniBar(c.hpFrac, '#4caf50') + miniBar(c.mpFrac, '#42a5f5')
+      ? bars
       : !c.alive
         ? `<div style="font-size:9px;color:#ef5350;text-align:center;font-weight:700;margin-top:2px">复活 ${c.respawnIn}s</div>`
         : `<div style="font-size:9px;color:#6b6550;text-align:center;margin-top:2px">迷雾</div>`;
