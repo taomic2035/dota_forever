@@ -20,6 +20,10 @@ export class Scene3D {
 
   constructor(parent: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    // 设备像素比(Retina 等高 DPI):必须在创建 composer 前设置,使 composer 的渲染目标
+    // 继承同一 pixelRatio。否则默认 1 → 高 DPI 下半分辨率(模糊),且某些 GPU/驱动上
+    // 渲染目标与画布 drawingBuffer 比例错配会出现「只渲染 1/4 画面」。上限 2 防 5K 过载。
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // 电影级色调映射,质感更润
