@@ -19,6 +19,7 @@ import { installRunes } from './runes';
 import { installNeutrals } from './neutrals';
 import { installNeutralItems } from './neutralItems';
 import { installPitlord } from './pitlord';
+import { installOutposts } from './outposts';
 import { installDayNight } from './daynight';
 
 export interface WorldOptions {
@@ -56,6 +57,7 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
     installNeutrals(w); // 与兵线一起代表“真实对局”
     installNeutralItems(w); // 野怪掉落中立物品(依赖野营存在)
     installPitlord(w);
+    installOutposts(w); // 前哨据点(占领→团队周期经验)
   }
   return w;
 }

@@ -25,6 +25,7 @@ export type GameEvent =
   | { kind: 'rune_spawned'; rune: string; pos: Vec2 }
   | { kind: 'rune_taken'; rune: string; unitId: EntityId }
   | { kind: 'boss_killed'; killerId: EntityId; byTeam: Team }
+  | { kind: 'outpost_captured'; team: Team; pos: Vec2 }
   | { kind: 'cast_started'; unitId: EntityId; abilityKey: string }
   | { kind: 'cast_done'; unitId: EntityId; abilityKey: string; pos?: Vec2; targetId?: EntityId }
   | { kind: 'fx'; fx: string; pos: Vec2; pos2?: Vec2; radius?: number; duration?: number };
@@ -52,6 +53,8 @@ export class World {
   forceNightUntil = -Infinity;
   /** 当前在场符文(installRunes 维护,至多一个) */
   runes: import('./runes').RuneSpawn[] = [];
+  /** 前哨据点(installOutposts 维护;占领→团队周期经验 + 小地图标记)。 */
+  outposts: import('./outposts').Outpost[] = [];
   /** 防御符文 Glyph 各队就绪时刻([Dawn, Night];world.time ≥ 此值方可激活)。 */
   glyphReadyAt: number[] = [0, 0];
   /** 扫描各队就绪时刻([Dawn, Night];揭示选定区域,纯信息无平衡影响)。 */
