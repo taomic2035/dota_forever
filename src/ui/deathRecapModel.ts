@@ -80,6 +80,13 @@ export class DamageLog {
     return aggregateRecap(this.buf, windowSec, maxEntries);
   }
 
+  /** 最近一次受伤的时间戳(-Infinity 表示无记录)。用于判断「是否正在战斗中」以显示实时受伤提示。 */
+  lastAt(): number {
+    let m = -Infinity;
+    for (const d of this.buf) if (d.at > m) m = d.at;
+    return m;
+  }
+
   get size(): number {
     return this.buf.length;
   }

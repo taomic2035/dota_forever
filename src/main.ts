@@ -890,6 +890,8 @@ function startGame(mode: 'play' | 'spectate'): void {
         }
       }
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
+      // 实时受伤来源:存活且近 3s 内受击 → 侧边显示伤害来源(谁在打你)
+      hud.incomingDamage = hero && hero.alive && world.time - damageLog.lastAt() < 3 ? damageLog.recap(4, 4) : [];
       hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
       hud.deathControlEntries = hero && !hero.alive ? controlLog.timeline(10) : [];
       hud.deathControlLockdown = hero && !hero.alive ? controlLog.lockdownSeconds(10) : 0;

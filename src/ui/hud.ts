@@ -27,6 +27,7 @@ export class Hud {
   root: HTMLElement;
   private topbar: HTMLElement;
   private heroBar: HTMLElement;
+  private combatFeed: HTMLElement;
   private bottom: HTMLElement;
   /** 低血危险暗角:血量越低红光越强,临界脉动(DotA-like 危险反馈)。 */
   private vignette: HTMLElement;
@@ -42,6 +43,8 @@ export class Hud {
   deathControlEntries: ControlInstance[] = [];
   /** 死亡回顾:致命前总锁定时长(秒,区间并集)。 */
   deathControlLockdown = 0;
+  /** 实时受伤来源(战斗中显示在屏幕侧边:谁正在打你、打了多少)。由 main 在近期受击时填入。 */
+  incomingDamage: DeathRecapEntry[] = [];
   /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
   quickbuy: QuickbuyModel | null = null;
   /** 点击顶栏英雄 chip → 镜头跳到该英雄(main 注入,内部做视野/雾门控)。 */
@@ -69,6 +72,15 @@ export class Hud {
       'display:flex;gap:10px;align-items:flex-start;',
     ].join('');
     this.root.appendChild(this.heroBar);
+
+    // 实时受伤来源提示:战斗中显示在屏幕左侧(谁正在打你 + 伤害量),便于即时判断威胁/撤退。
+    this.combatFeed = document.createElement('div');
+    this.combatFeed.style.cssText = [
+      'position:absolute;left:12px;top:40%;transform:translateY(-50%);',
+      'display:flex;flex-direction:column;gap:3px;pointer-events:none;min-width:120px;',
+    ].join('');
+    this.root.appendChild(this.combatFeed);
+
     // 点击英雄 chip → 居中镜头(mousedown:HUD 每帧重建,click 会跨重建丢失)。chip 自带 pointer-events:auto。
     this.heroBar.addEventListener('mousedown', (e) => {
       const el = (e.target as HTMLElement).closest('[data-hero-id]') as HTMLElement | null;
@@ -118,6 +130,7 @@ export class Hud {
     this.bottom.style.transform = `translateX(-50%) scale(${scale})`;
     this.renderTopbar(world, hero);
     this.renderHeroBars(world, hero, ux?.altInfo ?? false);
+    this.renderCombatFeed();
     if (!hero) {
       this.bottom.innerHTML = '';
       return;
@@ -361,6 +374,34 @@ export class Hud {
         <span style="color:#1a1d12;background:#cfd8a0;border-radius:2px;padding:0 3px;font-size:9px;font-weight:700">${c.level}</span>
       </div>
       ${body}
+    </div>`;
+  }
+
+  /** 实时受伤来源提示:战斗中显示「谁正在打你 + 伤害量」(复用死亡回顾的来源聚合,但实时)。 */
+  private renderCombatFeed(): void {
+    const entries = this.incomingDamage;
+    if (entries.length === 0) { if (this.combatFeed.innerHTML) this.combatFeed.innerHTML = ''; return; }
+    const typeColor: Record<'physical' | 'magical' | 'pure', string> = {
+      physical: '#e07a4a', magical: '#8a7dff', pure: '#e8e8e8',
+    };
+    const max = Math.max(1, ...entries.map((e) => e.total));
+    const rows = entries.map((e) => {
+      const widthPct = (e.total / max) * 100;
+      const segs = (['physical', 'magical', 'pure'] as const)
+        .filter((t) => e.byType[t] > 0)
+        .map((t) => `<span style="display:inline-block;height:100%;width:${(e.byType[t] / e.total) * 100}%;background:${typeColor[t]}"></span>`)
+        .join('');
+      const name = e.sourceColor
+        ? `<span style="color:${e.sourceColor};font-weight:700">${e.sourceName}</span>`
+        : `<span style="color:#c2b9a0">${e.sourceName}</span>`;
+      return `<div style="display:flex;align-items:center;gap:5px;font-size:10px">
+        <span style="flex:0 0 52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}</span>
+        <span style="flex:1;height:6px;background:#0a0b0a99;border-radius:2px;overflow:hidden;display:flex"><span style="display:flex;width:${widthPct}%;height:100%">${segs}</span></span>
+        <span style="flex:0 0 34px;text-align:right;color:#ff8a6a;font-weight:700">${Math.round(e.total)}</span>
+      </div>`;
+    }).join('');
+    this.combatFeed.innerHTML = `<div style="background:#0c0f08c8;border:1px solid #5a3a2a;border-left:3px solid #e0673a;border-radius:4px;padding:3px 6px">
+      <div style="font-size:9px;color:#e0813a;margin-bottom:1px;font-weight:700">⚠ 正在受到伤害</div>${rows}
     </div>`;
   }
 

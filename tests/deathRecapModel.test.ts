@@ -69,6 +69,15 @@ describe('DamageLog', () => {
     expect(log.recap(10)).toEqual([]);
   });
 
+  it('lastAt 返回最近受伤时间(空为 -Infinity)', () => {
+    const log = new DamageLog(8);
+    expect(log.lastAt()).toBe(-Infinity);
+    log.push(inst(100, 1, 10));
+    log.push(inst(140, 2, 20));
+    log.push(inst(120, 3, 15));
+    expect(log.lastAt()).toBe(140);
+  });
+
   it('环形容量上限:超出丢弃最旧', () => {
     const log = new DamageLog(3);
     log.push(inst(1, 1, 10));
