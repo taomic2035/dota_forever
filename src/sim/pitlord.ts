@@ -6,6 +6,7 @@ import { V } from '../core/vec2';
 import {
   PITLORD_BASE, PITLORD_GROWTH_INTERVAL, PITLORD_GROWTH,
   PITLORD_BOUNTY, PITLORD_RESPAWN, AEGIS_REVIVE_DELAY,
+  CHEESE_HEAL_HP, CHEESE_HEAL_MP, CHEESE_DROP_FROM_KILL,
 } from '../data/balance';
 import { ITEMS, ITEM_BY_KEY, type ItemDef } from '../data/items';
 import { Team } from './map';
@@ -21,6 +22,25 @@ const AEGIS: ItemDef = {
 if (!ITEM_BY_KEY.has('aegis')) {
   ITEMS.push(AEGIS);
   ITEM_BY_KEY.set('aegis', AEGIS);
+}
+
+// 注册奶酪(不可购买:cost 0,商店过滤)。Boss 第 2 次击杀起额外掉落,食用即时回血回蓝。
+const CHEESE: ItemDef = {
+  key: 'cheese', name: '奶酪', cost: 0, category: 'consumable', charges: 1,
+  description: `食用即时回复 ${CHEESE_HEAL_HP} 生命与 ${CHEESE_HEAL_MP} 法力。击败深渊领主第 ${CHEESE_DROP_FROM_KILL} 次起获得。`,
+  active: {
+    name: '食用', cooldown: 0, targetMode: 'none',
+    onUse(_w, user) {
+      if (user.hp >= user.calc.maxHp && user.mp >= user.calc.maxMp) return false; // 满状态不浪费
+      user.hp = Math.min(user.calc.maxHp, user.hp + CHEESE_HEAL_HP);
+      user.mp = Math.min(user.calc.maxMp, user.mp + CHEESE_HEAL_MP);
+      return true;
+    },
+  },
+};
+if (!ITEM_BY_KEY.has('cheese')) {
+  ITEMS.push(CHEESE);
+  ITEM_BY_KEY.set('cheese', CHEESE);
 }
 
 function spawnBoss(w: World, growths: number): Unit {
@@ -54,6 +74,7 @@ function spawnBoss(w: World, growths: number): Unit {
 export function installPitlord(w: World): void {
   w.bossRespawnAt = Math.max(0, w.time); // 0:00 出生(world.bossId 默认 0)
   let nextGrowth = PITLORD_GROWTH_INTERVAL;
+  let bossKills = 0; // Boss 累计被击杀次数(决定是否掉奶酪:第 2 次起)
 
   const system: WorldSystem = (world) => {
     const boss = world.getUnit(world.bossId);
@@ -98,22 +119,27 @@ export function installPitlord(w: World): void {
     // 死亡处理:掉盾 + 安排复活
     for (const e of world.events) {
       if (e.kind !== 'unit_died' || e.unitId !== world.bossId) continue;
+      bossKills++;
       world.bossRespawnAt = world.time + world.rng.range(PITLORD_RESPAWN[0], PITLORD_RESPAWN[1]);
       const killer = world.getUnit(e.killerId);
       const byTeam = killer && killer.team !== Team.Neutral ? killer.team : Team.Dawn;
       world.emit({ kind: 'boss_killed', killerId: e.killerId, byTeam });
-      // 盾给击杀者;背包满则给附近同队英雄
+      // 掉落:不灭之盾;Boss 第 2 次击杀起额外掉奶酪(经典 DotA1)。
+      // 各掉落物给击杀者;其背包满则给附近同队英雄(各自独立找空位)。
       const candidates: Unit[] = [];
       if (killer?.isHero()) candidates.push(killer);
       for (const h of world.queryRadius(e.pos, 1200, (x) => x.isHero() && x.team === byTeam)) {
         if (!candidates.includes(h)) candidates.push(h);
       }
-      for (const h of candidates) {
-        const slot = h.inventory.findIndex((s) => s === null);
-        if (slot >= 0) {
-          h.inventory[slot] = makeItem('aegis');
-          afterInventoryChange(world, h);
-          break;
+      const drops = bossKills >= CHEESE_DROP_FROM_KILL ? ['aegis', 'cheese'] : ['aegis'];
+      for (const key of drops) {
+        for (const h of candidates) {
+          const slot = h.inventory.findIndex((s) => s === null);
+          if (slot >= 0) {
+            h.inventory[slot] = makeItem(key);
+            afterInventoryChange(world, h);
+            break;
+          }
         }
       }
     }

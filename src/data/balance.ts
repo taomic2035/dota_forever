@@ -98,6 +98,12 @@ export function heroKillBounty(victimLevel: number, streak: number): number {
   return g;
 }
 export const ASSIST_RADIUS = 1000; // 经典助攻圈(M10:1300→1000)
+// 助攻金 = 从击杀赏金里「切出」的比例,在所有助攻英雄间均分;击杀者得剩余(1-本系数)份额。
+// 关键:切出而非叠加——每次击杀的总注入恒 = 赏金,与无助攻金的基线经济完全相同,故零净值通胀、
+// 保住 batchsim 8/8 决胜。(实证:任何「在赏金之上额外加」的助攻金——可靠 0.25/0.35 或不可靠 0.2——
+// 都会推高双方永久净值 → 90min 平局降到 6/8;切出式与基线同经济,既给助攻补给又不破坏决胜。)
+export const ASSIST_GOLD_POOL = 0.4;
+export const ILLUSION_BOUNTY = 10; // 击杀幻象的小额赏金(不可靠金)
 export function deathGoldLoss(level: number): number {
   return 30 * level;
 }
@@ -199,6 +205,11 @@ export const PITLORD_GROWTH = { hp: 500, dmg: 10, armor: 1 };
 export const PITLORD_BOUNTY = { gold: [200, 290] as [number, number], teamXp: 0, killerXp: 800 };
 export const PITLORD_RESPAWN = [480, 660] as [number, number]; // 8–11 分钟
 export const AEGIS_REVIVE_DELAY = 5;
+// 奶酪(Cheese):Boss 第 2 次被击杀起,除不灭之盾外额外掉落(经典 DotA1)。
+// 消耗品:使用即时回 2500 HP + 1000 MP。
+export const CHEESE_HEAL_HP = 2500;
+export const CHEESE_HEAL_MP = 1000;
+export const CHEESE_DROP_FROM_KILL = 2; // 第几次击杀 Boss 起额外掉奶酪
 
 // ---------- 商店/物品通用 ----------
 export const SHOP_RANGE = 900;

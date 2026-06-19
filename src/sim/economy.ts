@@ -6,6 +6,7 @@ import {
   PERIODIC_GOLD, PERIODIC_GOLD_INTERVAL, STARTING_GOLD,
   XP_TABLE, MAX_LEVEL, XP_SHARE_RADIUS, DENY_XP_FACTOR,
   heroKillBounty, deathGoldLoss, xpForKillLevel, ASSIST_RADIUS,
+  ASSIST_GOLD_POOL, ILLUSION_BOUNTY,
   TOWER_STATS, RAX_STATS, FIRST_BLOOD_BOUNTY, respawnTime,
 } from '../data/balance';
 import { Team } from './map';
@@ -123,6 +124,9 @@ export function installEconomy(w: World): void {
           killer.heroMeta!.denies++;
           world.emit({ kind: 'last_hit', unitId: killer.id, gold: 0, pos: V.clone(victim.pos), deny: true });
         }
+      } else if (victim.kind === 'illusion') {
+        // 击杀幻象:给敌方击杀者小额不可靠金(幻象本身非英雄,不触发英雄死亡结算)
+        if (killer?.isHero() && killer.team !== victim.team) addGold(killer, ILLUSION_BOUNTY, false);
       } else if (victim.isHero()) {
         const vm = victim.heroMeta!;
         vm.deaths++;
@@ -138,18 +142,26 @@ export function installEconomy(w: World): void {
         for (const h of xpShare) addXp(world, h, xpForKillLevel(victim.level) / Math.max(1, xpShare.length));
         if (killer && killer.isHero() && killer.team !== victim.team) {
           const bounty = heroKillBounty(victim.level, vm.streak);
-          addGold(killer, bounty, true); // 击杀赏金为可靠金
-          if (!firstBloodTaken) { // 一血:额外 +200 可靠金 + 公告
+          // 助攻金从击杀赏金「切出」(非额外叠加):有助攻者时池额在助攻者间均分,击杀者得剩余。
+          // 每次击杀注入总额恒 = 赏金,与无助攻金的基线相同 → 零净值通胀,保住 batchsim 8/8 决胜。
+          const assists: number[] = [];
+          const assisters = enemyHeroesNear(world, victim.pos, victim.team, ASSIST_RADIUS)
+            .filter((a) => a.id !== killer.id);
+          const assistTotal = assisters.length > 0 ? Math.round(bounty * ASSIST_GOLD_POOL) : 0;
+          addGold(killer, bounty - assistTotal, true); // 击杀者得切出后的剩余(可靠金)
+          const perAssist = assisters.length > 0 ? Math.round(assistTotal / assisters.length) : 0;
+          for (const a of assisters) {
+            a.heroMeta!.assists++;
+            addGold(a, perAssist, true); // 助攻金(可靠金,DotA 助攻补给;由赏金切出不叠加)
+            assists.push(a.id);
+          }
+          if (!firstBloodTaken) { // 一血:额外 +200 可靠金 + 公告(不参与切出)
             firstBloodTaken = true;
             addGold(killer, FIRST_BLOOD_BOUNTY, true);
             world.emit({ kind: 'first_blood', killerId: killer.id, victimId: victim.id });
           }
           killer.heroMeta!.kills++;
           killer.heroMeta!.streak++;
-          const assists: number[] = [];
-          for (const a of enemyHeroesNear(world, victim.pos, victim.team, ASSIST_RADIUS)) {
-            if (a.id !== killer.id) { a.heroMeta!.assists++; assists.push(a.id); }
-          }
           world.emit({
             kind: 'hero_kill', killerId: killer.id, victimId: victim.id, bounty,
             streakText: streakText(killer.heroMeta!.streak, killer.name, victim.name),

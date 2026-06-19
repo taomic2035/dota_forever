@@ -3,6 +3,7 @@ import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { applyDamage } from '../src/sim/combat';
+import { makeItem, useItem } from '../src/sim/items';
 import { REIN } from '../src/data/heroes';
 import { V } from '../src/core/vec2';
 import type { Unit } from '../src/sim/unit';
@@ -65,5 +66,42 @@ describe('深渊领主', () => {
     for (let i = 0; i < 30 * 25; i++) w.step();
     expect(V.dist(boss.pos, map.pitPos)).toBeLessThan(300);
     expect(boss.hp / boss.calc.maxHp).toBeGreaterThan(0.9);
+  });
+
+  it('首次击杀只掉盾;第 2 次起额外掉奶酪(经典 DotA1)', () => {
+    const w = createWorld(map, { seed: 25, creeps: true, startTime: -1 });
+    for (let i = 0; i < 60; i++) w.step();
+    let boss = findBoss(w)!;
+    const h = spawnHero(w, REIN, Team.Dawn, w.map.nearestWalkable(V.add(boss.pos, { x: 200, y: 0 })));
+    // 第 1 次击杀:只掉盾,无奶酪
+    applyDamage(w, boss, { source: h.id, attackType: 'hero', amount: 1e7, flags: { pure: true } });
+    for (let i = 0; i < 5; i++) w.step();
+    expect(h.inventory.some((s) => s?.itemKey === 'aegis')).toBe(true);
+    expect(h.inventory.some((s) => s?.itemKey === 'cheese')).toBe(false); // 首杀无奶酪
+    // 清空背包腾位 + 强制 Boss 立刻重生,准备第 2 次击杀
+    for (let k = 0; k < h.inventory.length; k++) h.inventory[k] = null;
+    w.bossRespawnAt = w.time;
+    for (let i = 0; i < 5 && !findBoss(w); i++) w.step();
+    boss = findBoss(w)!;
+    expect(boss).toBeTruthy();
+    h.pos = w.map.nearestWalkable(V.add(boss.pos, { x: 200, y: 0 }));
+    applyDamage(w, boss, { source: h.id, attackType: 'hero', amount: 1e7, flags: { pure: true } });
+    for (let i = 0; i < 5; i++) w.step();
+    expect(h.inventory.some((s) => s?.itemKey === 'aegis')).toBe(true);  // 第 2 次仍掉盾
+    expect(h.inventory.some((s) => s?.itemKey === 'cheese')).toBe(true); // 第 2 次额外掉奶酪
+  }, 60000);
+
+  it('食用奶酪即时回血回蓝并消耗', () => {
+    const w = createWorld(map, { seed: 25, creeps: true, startTime: -1 });
+    for (let i = 0; i < 60; i++) w.step();
+    const boss = findBoss(w)!;
+    const h = spawnHero(w, REIN, Team.Dawn, w.map.nearestWalkable(V.add(boss.pos, { x: 200, y: 0 })));
+    const slot = h.inventory.findIndex((s) => s === null);
+    h.inventory[slot] = makeItem('cheese');
+    h.hp = 1; h.mp = 0;
+    const ok = useItem(w, h, slot);
+    expect(ok).toBe(true);
+    expect(h.hp).toBeGreaterThan(1);          // 即时回血
+    expect(h.inventory[slot]).toBeNull();     // 一次性消耗,清槽
   });
 });
