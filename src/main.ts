@@ -20,6 +20,8 @@ import { SelectionState, type ControlGroupSlot } from './engine/selection';
 import { issueSelectionOrder } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
 import { DamageLog, ControlLog } from './ui/deathRecapModel';
+import { CombatLog } from './ui/combatLogModel';
+import { CombatLogPanel } from './ui/combatLogPanel';
 import { KillFeed } from './ui/killfeed';
 import { Announce } from './ui/announce';
 import { ShopPanel } from './ui/shop';
@@ -678,6 +680,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     onTogglePause() { loop.paused = !loop.paused; },
     onSpeedDelta(dir) { loop.speed = steppedSpeed(loop.speed, dir); }, // 观战/对局变速(=/-)
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
+    onToggleCombatLog() { combatLogPanel.toggle(); },
     onToggleShop() { shop.toggle(); },
     onGlyph() { // 防御符文:己方建筑短时免疫;反馈激活/冷却(此前静默)
       if (!hero) return;
@@ -814,6 +817,9 @@ function startGame(mode: 'play' | 'spectate'): void {
   // 死亡回顾:玩家英雄受伤记录 + 控制时间线(UX 层累积,不进 sim 状态;复活时清空)
   const damageLog = new DamageLog();
   const controlLog = new ControlLog();
+  const combatLog = new CombatLog();
+  const combatLogPanel = new CombatLogPanel(app);
+  const CONTROL_CN: Record<string, string> = { stun: '眩晕', root: '缠绕', silence: '沉默', disarm: '缴械', mute: '禁用', lift: '升空' };
   let prevHeroAlive = hero?.alive ?? true;
   const describeDamageSource = (id: number): { name: string; color?: string; groupKey: string } => {
     const u = world.getUnit(id);
@@ -854,6 +860,22 @@ function startGame(mode: 'play' | 'spectate'): void {
           } else if (ev.kind === 'unit_controlled' && ev.unitId === hero.id) {
             const src = describeDamageSource(ev.sourceId);
             controlLog.push({ at: world.time, sourceName: src.name, sourceColor: src.color, control: ev.control, duration: ev.duration });
+            combatLog.push(world.time, `${src.name} 对你 ${CONTROL_CN[ev.control] ?? ev.control} ${ev.duration.toFixed(1)}s`, '#ffca28');
+          }
+        }
+        // 战斗日志:英雄/塔/Boss 参与的伤害(排除小兵平A 刷屏)+ 击杀
+        const notable = (id: number) => { const u = world.getUnit(id); return !!u && (u.isHero() || u.kind === 'tower' || u.kind === 'boss'); };
+        for (const ev of world.events) {
+          if (ev.kind === 'unit_damaged' && ev.amount >= 1) {
+            const dealt = ev.sourceId === hero.id, taken = ev.unitId === hero.id;
+            if ((dealt && notable(ev.unitId)) || (taken && notable(ev.sourceId))) {
+              const amt = Math.round(ev.amount);
+              if (dealt) combatLog.push(world.time, `你 → ${describeDamageSource(ev.unitId).name} ${amt}`, '#9fe87a');
+              else combatLog.push(world.time, `${describeDamageSource(ev.sourceId).name} → 你 ${amt}`, '#ff8a6a');
+            }
+          } else if (ev.kind === 'hero_kill') {
+            const k = describeDamageSource(ev.killerId).name, v = describeDamageSource(ev.victimId).name;
+            combatLog.push(world.time, `${k} 击杀 ${v}`, '#ffd54f');
           }
         }
       }
@@ -901,6 +923,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);
       shop.update(world, hero);
+      if (combatLogPanel.open) combatLogPanel.render(combatLog.recent());
       minimap?.render(world, renderer.viewerTeam, ux, hero?.id);
       endScreen.check(world, mode === 'play' ? Team.Dawn : null);
     },

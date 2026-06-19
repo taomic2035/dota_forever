@@ -20,7 +20,7 @@ export const REBINDABLE_ACTIONS = [
   'ability0', 'ability1', 'ability2', 'ability3',
   'item0', 'item1', 'item2', 'item3', 'item4', 'item5',
   'tp', 'attackMove', 'stop', 'hold', 'shop', 'glyph',
-  'selectHero', 'selectCourier', 'selectAllControlled',
+  'selectHero', 'selectCourier', 'selectAllControlled', 'combatLog',
 ] as const;
 export type RebindAction = (typeof REBINDABLE_ACTIONS)[number];
 
@@ -29,7 +29,7 @@ export const DEFAULT_KEY_BINDS: Record<RebindAction, string> = {
   ability0: 'q', ability1: 'w', ability2: 'e', ability3: 'r',
   item0: '1', item1: '2', item2: '3', item3: '4', item4: '5', item5: '6',
   tp: 't', attackMove: 'a', stop: 's', hold: 'h', shop: 'f', glyph: 'g',
-  selectHero: 'f1', selectCourier: 'f2', selectAllControlled: 'f3',
+  selectHero: 'f1', selectCourier: 'f2', selectAllControlled: 'f3', combatLog: 'l',
 };
 
 /** 改键友好名(UI 显示)。 */
@@ -37,7 +37,7 @@ export const ACTION_LABEL: Record<RebindAction, string> = {
   ability0: '技能 Q', ability1: '技能 W', ability2: '技能 E', ability3: '技能 R',
   item0: '物品 1', item1: '物品 2', item2: '物品 3', item3: '物品 4', item4: '物品 5', item5: '物品 6',
   tp: '回城', attackMove: '攻击移动', stop: '停止', hold: '守住', shop: '商店', glyph: '守护符',
-  selectHero: '选择英雄', selectCourier: '选择信使', selectAllControlled: '全选可控',
+  selectHero: '选择英雄', selectCourier: '选择信使', selectAllControlled: '全选可控', combatLog: '战斗日志',
 };
 
 export interface ControlSettings {
