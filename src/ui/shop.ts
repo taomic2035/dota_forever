@@ -80,7 +80,7 @@ export class ShopPanel {
   private render(w: World, hero: Unit): void {
     const gold = hero.heroMeta?.gold ?? 0;
     const at = shopAt(w, hero);
-    const items = buildShopVisibleItems(ITEMS, {
+    const items = buildShopVisibleItems(ITEMS.filter((i) => !i.neutral), {
       category: this.cat,
       query: this.query,
       recipePrefix: RECIPE_PREFIX,

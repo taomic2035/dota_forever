@@ -17,6 +17,7 @@ import { installCourier } from './courier';
 import { installGlyph } from './glyph';
 import { installRunes } from './runes';
 import { installNeutrals } from './neutrals';
+import { installNeutralItems } from './neutralItems';
 import { installPitlord } from './pitlord';
 import { installDayNight } from './daynight';
 
@@ -53,6 +54,7 @@ export function createWorld(map: GameMap, opts: WorldOptions): World {
   installRunes(w);
   if (opts.creeps) {
     installNeutrals(w); // 与兵线一起代表“真实对局”
+    installNeutralItems(w); // 野怪掉落中立物品(依赖野营存在)
     installPitlord(w);
   }
   return w;

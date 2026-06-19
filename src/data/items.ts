@@ -46,6 +46,8 @@ export interface ItemDef {
   /** 持有期间常驻 modifier(光环/灼烧等),背包同步管理 */
   holderModifier?: import('../sim/modifiers').ModifierDef;
   recipe?: { components: string[]; recipeCost: number };
+  /** 中立物品(野怪掉落,不进商店;tier 按游戏时间解锁;每英雄上限 1 件)。 */
+  neutral?: { tier: number };
   description: string;
 }
 
@@ -232,6 +234,20 @@ export const ITEMS: ItemDef[] = [
   // 鞋
   { key: 'boots', name: '速度之靴', cost: 500, category: 'armor',
     stats: { bonusMoveSpeed: 55 }, description: '+55 移动速度。' },
+
+  // ---------- 中立物品(野怪掉落,不进商店;每英雄上限 1 件;温和数值,batchsim 验证)----------
+  { key: 'nt_whetstone', name: '磨刃石', cost: 0, category: 'combined', neutral: { tier: 1 },
+    stats: { bonusDamage: 14 }, description: '中立(T1):+14 攻击力。' },
+  { key: 'nt_vitality_band', name: '活力护环', cost: 0, category: 'combined', neutral: { tier: 1 },
+    stats: { bonusHp: 130, bonusHpRegen: 2 }, description: '中立(T1):+130 生命 +2 生命恢复。' },
+  { key: 'nt_arcane_sliver', name: '秘能碎片', cost: 0, category: 'combined', neutral: { tier: 2 },
+    stats: { bonusInt: 12, bonusMpRegen: 2.5 }, description: '中立(T2):+12 智力 +2.5 法力恢复。' },
+  { key: 'nt_ironwood_charm', name: '铁木护符', cost: 0, category: 'combined', neutral: { tier: 2 },
+    stats: { bonusStr: 12, bonusArmor: 2 }, description: '中立(T2):+12 力量 +2 护甲。' },
+  { key: 'nt_phase_lens', name: '相位棱镜', cost: 0, category: 'combined', neutral: { tier: 3 },
+    stats: { bonusAgi: 16, bonusMoveSpeedPct: 6 }, description: '中立(T3):+16 敏捷 +6% 移动速度。' },
+  { key: 'nt_ember_core', name: '余烬核心', cost: 0, category: 'combined', neutral: { tier: 3 },
+    stats: { bonusHp: 280, bonusDamage: 18 }, description: '中立(T3):+280 生命 +18 攻击力。' },
 ];
 
 export const ITEM_BY_KEY = new Map(ITEMS.map((i) => [i.key, i]));

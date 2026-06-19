@@ -126,6 +126,20 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
   return 'ok_stash';
 }
 
+/**
+ * 无偿授予物品(中立掉落等):放入主物品栏 → 背包栏 → 储藏处。返回是否成功放下。
+ * 复用与购买一致的落位语义,但不扣金、不校验商店范围。
+ */
+export function grantItem(w: World, hero: Unit, key: string): boolean {
+  let slot = hero.alive ? freeSlot(hero.inventory) : -1;
+  if (slot >= 0) { hero.inventory[slot] = makeItem(key); afterInventoryChange(w, hero); return true; }
+  const bp = hero.alive ? freeSlot(hero.backpack) : -1;
+  if (bp >= 0) { hero.backpack[bp] = makeItem(key); afterInventoryChange(w, hero); return true; }
+  const st = freeSlot(hero.stash);
+  if (st >= 0) { hero.stash[st] = makeItem(key); afterInventoryChange(w, hero); return true; }
+  return false;
+}
+
 /** 出售:商店范围内,50% 返还。 */
 export function sellItem(w: World, hero: Unit, slot: number, fromStash = false): boolean {
   const inst = fromStash ? hero.stash[slot] : itemInSlot(hero, slot);
