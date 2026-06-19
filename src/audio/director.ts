@@ -237,6 +237,13 @@ export class AudioDirector {
     this.env(620, 'triangle', 0.06, 0.05, 130);
   }
 
+  /** Quickbuy 够钱:轻柔双音上行提示(目标装备可购买了)。 */
+  quickbuyReady(): void {
+    if (!this.ctx || this.throttled('qbready', 500)) return;
+    this.env(660, 'sine', 0.1, 0.08, 70);
+    setTimeout(() => { if (this.ctx) this.env(880, 'sine', 0.12, 0.07, 50); }, 95);
+  }
+
   /** 低血危险:低沉双拍紧张脉冲(DotA-like 撤退警示),自带限频。 */
   lowHp(): void {
     if (!this.ctx || this.throttled('lowhp', 700)) return;

@@ -821,6 +821,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const combatLogPanel = new CombatLogPanel(app);
   const CONTROL_CN: Record<string, string> = { stun: '眩晕', root: '缠绕', silence: '沉默', disarm: '缴械', mute: '禁用', lift: '升空' };
   let prevHeroAlive = hero?.alive ?? true;
+  let prevQbReady = false; // quickbuy 够钱提示音的边沿检测
   const describeDamageSource = (id: number): { name: string; color?: string; groupKey: string } => {
     const u = world.getUnit(id);
     if (!u) return { name: '未知来源', groupKey: 'unknown' };
@@ -918,6 +919,10 @@ function startGame(mode: 'play' | 'spectate'): void {
       hud.deathControlEntries = hero && !hero.alive ? controlLog.timeline(10) : [];
       hud.deathControlLockdown = hero && !hero.alive ? controlLog.lockdownSeconds(10) : 0;
       hud.quickbuy = shop.quickbuyModel(hero); // quickbuy 顶栏提醒(离店仍可见)
+      // quickbuy 够钱(false→true 转变)→ 轻提示音(金币基本单调增长,只触发一次)
+      const qbReady = !!hud.quickbuy?.active && !!hud.quickbuy?.ready;
+      if (qbReady && !prevQbReady) audio.quickbuyReady();
+      prevQbReady = qbReady;
       hud.update(world, hero, ux, controlSettings);
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出
