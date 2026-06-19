@@ -29,6 +29,7 @@ export type UnitVisualRole =
   | 'neutralLarge'
   | 'neutralAncient'
   | 'boss'
+  | 'illusion'
   | 'ward'
   | 'building';
 
@@ -43,6 +44,7 @@ export interface UnitArt {
   weapon: WeaponKind;
   role: UnitVisualRole;
   weight: 'light' | 'medium' | 'heavy' | 'boss';
+  teamRead: 'dawn' | 'night' | 'neutral';
   glyph?: string;
 }
 
@@ -64,13 +66,13 @@ const MIN_R = 12;
 
 export function unitArt(u: ArtInput): UnitArt {
   if (u.kind === 'ward') {
-    return { shape: 'wisp', primary: u.team === 0 ? '#7ad6a0' : '#d98a8a', accent: '#fff7c8', radius: 10, weapon: 'none', role: 'ward', weight: 'light' };
+    return { shape: 'wisp', primary: u.team === 0 ? '#7ad6a0' : '#d98a8a', accent: '#fff7c8', radius: 10, weapon: 'none', role: 'ward', weight: 'light', teamRead: teamRead(u.team) };
   }
   if (u.kind === 'hero' || u.kind === 'illusion') {
     return heroArt(u);
   }
   if (u.kind === 'boss') {
-    return { shape: 'beast', primary: '#6d4030', accent: '#ffca5a', radius: Math.max(40, u.collisionRadius * 0.7), weapon: 'claw', role: 'boss', weight: 'boss' };
+    return { shape: 'beast', primary: '#6d4030', accent: '#ffca5a', radius: Math.max(40, u.collisionRadius * 0.7), weapon: 'claw', role: 'boss', weight: 'boss', teamRead: 'neutral' };
   }
   if (u.kind === 'neutral') {
     const role = neutralRole(u);
@@ -82,17 +84,18 @@ export function unitArt(u: ArtInput): UnitArt {
       weapon: 'claw',
       role,
       weight: role === 'neutralAncient' ? 'heavy' : role === 'neutralLarge' ? 'medium' : 'light',
+      teamRead: 'neutral',
     };
   }
   if (u.kind === 'courier') {
     // 信使:小型随身坐骑,队色微差(晨曦棕/永夜蓝)
-    return { shape: 'beast', primary: u.team === 0 ? '#8a6b48' : '#5676a8', accent: '#ffd782', radius: 15, weapon: 'none', role: 'neutralSmall', weight: 'light' };
+    return { shape: 'beast', primary: u.team === 0 ? '#8a6b48' : '#5676a8', accent: '#ffd782', radius: 15, weapon: 'none', role: 'neutralSmall', weight: 'light', teamRead: teamRead(u.team) };
   }
   if (u.kind === 'creep') {
     return creepArt(u);
   }
   // tower/building 在 renderer 单独绘制;给个兜底
-  return { shape: 'bulk', primary: '#777', accent: '#aaa', radius: Math.max(MIN_R, u.collisionRadius), weapon: 'none', role: 'building', weight: 'heavy' };
+  return { shape: 'bulk', primary: '#777', accent: '#aaa', radius: Math.max(MIN_R, u.collisionRadius), weapon: 'none', role: 'building', weight: 'heavy', teamRead: teamRead(u.team) };
 }
 
 function heroArt(u: ArtInput): UnitArt {
@@ -126,8 +129,9 @@ function heroArt(u: ArtInput): UnitArt {
     accent: lighten(color, 60),
     radius: Math.max(18, u.collisionRadius),
     weapon,
-    role,
-    weight: role === 'tank' ? 'heavy' : 'medium',
+    role: u.kind === 'illusion' ? 'illusion' : role,
+    weight: u.kind === 'illusion' ? 'light' : role === 'tank' ? 'heavy' : 'medium',
+    teamRead: teamRead(u.team),
     glyph: d?.glyph,
   };
 }
@@ -138,13 +142,19 @@ function creepArt(u: ArtInput): UnitArt {
   const isSuper = u.name.startsWith('超级');
   const lower = u.name.toLowerCase();
   if (u.name.includes('投石车') || u.name.includes('攻城') || lower.includes('siege')) {
-    return { shape: 'siege', primary: '#6b5436', accent: '#cdb079', radius: 24, weapon: 'none', role: 'creepSiege', weight: 'heavy' };
+    return { shape: 'siege', primary: '#6b5436', accent: '#cdb079', radius: 24, weapon: 'none', role: 'creepSiege', weight: 'heavy', teamRead: teamRead(u.team) };
   }
   const ranged = u.attackRange > 200 || u.name.includes('远程') || u.name.includes('弓') || lower.includes('ranged') || lower.includes('caster') || lower.includes('archer');
   if (ranged) {
-    return { shape: 'archer', primary: teamCol, accent, radius: isSuper ? 17 : 14, weapon: 'bow', role: 'creepRanged', weight: isSuper ? 'medium' : 'light' };
+    return { shape: 'archer', primary: teamCol, accent, radius: isSuper ? 17 : 14, weapon: 'bow', role: 'creepRanged', weight: isSuper ? 'medium' : 'light', teamRead: teamRead(u.team) };
   }
-  return { shape: 'grunt', primary: teamCol, accent, radius: isSuper ? 18 : 15, weapon: 'sword', role: 'creepMelee', weight: isSuper ? 'medium' : 'light' };
+  return { shape: 'grunt', primary: teamCol, accent, radius: isSuper ? 18 : 15, weapon: 'sword', role: 'creepMelee', weight: isSuper ? 'medium' : 'light', teamRead: teamRead(u.team) };
+}
+
+function teamRead(team: number): UnitArt['teamRead'] {
+  if (team === 0) return 'dawn';
+  if (team === 1) return 'night';
+  return 'neutral';
 }
 
 function neutralRole(u: ArtInput): UnitVisualRole {

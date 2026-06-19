@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  applyControlPreset,
   cameraPanSpeedLabel,
   cameraPanSpeedMultiplier,
   castInputModeOverrideLabel,
@@ -162,5 +163,45 @@ describe('control settings', () => {
     expect(cameraPanSpeedLabel('fast')).toBe('快');
     expect(cameraPanSpeedMultiplier('slow')).toBeLessThan(cameraPanSpeedMultiplier('normal'));
     expect(cameraPanSpeedMultiplier('fast')).toBeGreaterThan(cameraPanSpeedMultiplier('normal'));
+  });
+
+  it('applies an RTS legacy preset while preserving display accessibility preferences', () => {
+    const settings = normalizeControlSettings({
+      abilityCast: 'quick',
+      itemCast: 'smart',
+      abilityCasts: ['quick', 'smart'],
+      itemCasts: ['quick'],
+      numberRowMode: 'items',
+      autoAttack: 'always',
+      hudScale: 'large',
+      accessibilityMode: 'colorblind',
+      cameraPanSpeed: 'fast',
+      keyBinds: { ...DEFAULT_CONTROL_SETTINGS.keyBinds, attackMove: 'x', stop: 'z' },
+    });
+
+    expect(applyControlPreset(settings, 'legacy')).toEqual({
+      ...DEFAULT_CONTROL_SETTINGS,
+      abilityCast: 'normal',
+      itemCast: 'normal',
+      numberRowMode: 'controlGroups',
+      autoAttack: 'standard',
+      hudScale: 'large',
+      accessibilityMode: 'colorblind',
+      cameraPanSpeed: 'fast',
+      keyBinds: DEFAULT_CONTROL_SETTINGS.keyBinds,
+    });
+  });
+
+  it('applies the modern preset without carrying stale per-slot overrides', () => {
+    const settings = normalizeControlSettings({
+      abilityCast: 'smart',
+      itemCast: 'smart',
+      abilityCasts: ['quick', 'smart', 'normal'],
+      itemCasts: ['quick', 'smart'],
+      numberRowMode: 'controlGroups',
+      autoAttack: 'never',
+    });
+
+    expect(applyControlPreset(settings, 'modern')).toEqual(DEFAULT_CONTROL_SETTINGS);
   });
 });

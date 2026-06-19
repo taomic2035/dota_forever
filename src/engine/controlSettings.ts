@@ -13,6 +13,8 @@ export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
 /** 自动攻击策略(经典 DotA):never=空闲绝不自动平A(保护正补,高手默认)/ standard=空闲就近平A / always=更主动。 */
 export const AUTO_ATTACK_MODES = ['never', 'standard', 'always'] as const;
 export type AutoAttackMode = (typeof AUTO_ATTACK_MODES)[number];
+export const CONTROL_PRESETS = ['modern', 'legacy'] as const;
+export type ControlPreset = (typeof CONTROL_PRESETS)[number];
 
 export const ABILITY_CAST_SLOT_COUNT = 4;
 export const ITEM_CAST_SLOT_COUNT = 6;
@@ -71,6 +73,48 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   keyBinds: { ...DEFAULT_KEY_BINDS },
 };
 
+export function applyControlPreset(settings: ControlSettings, preset: ControlPreset): ControlSettings {
+  const displayPrefs = {
+    cameraEdgePan: settings.cameraEdgePan,
+    cameraPanSpeed: settings.cameraPanSpeed,
+    hudScale: settings.hudScale,
+    accessibilityMode: settings.accessibilityMode,
+  };
+  const base: ControlSettings = {
+    ...DEFAULT_CONTROL_SETTINGS,
+    ...displayPrefs,
+    abilityCasts: emptyOverrideList(ABILITY_CAST_SLOT_COUNT),
+    itemCasts: emptyOverrideList(ITEM_CAST_SLOT_COUNT),
+    keyBinds: { ...DEFAULT_KEY_BINDS },
+  };
+  if (preset === 'legacy') {
+    return {
+      ...base,
+      abilityCast: 'normal',
+      itemCast: 'normal',
+      numberRowMode: 'controlGroups',
+      autoAttack: 'standard',
+    };
+  }
+  return base;
+}
+
+export function inferControlPreset(settings: ControlSettings): ControlPreset {
+  return settings.numberRowMode === 'controlGroups'
+    && settings.abilityCast === 'normal'
+    && settings.itemCast === 'normal'
+    ? 'legacy'
+    : 'modern';
+}
+
+export function cycleControlPreset(settings: ControlSettings): ControlSettings {
+  return applyControlPreset(settings, inferControlPreset(settings) === 'legacy' ? 'modern' : 'legacy');
+}
+
+export function controlPresetLabel(preset: ControlPreset): string {
+  return preset === 'legacy' ? 'RTS Legacy' : '现代';
+}
+
 /** 物理键→规范键(switch 用):每个动作把其当前物理键映射回默认键。默认绑定下为恒等。 */
 export function buildKeyTranslation(binds: Record<string, string>): Record<string, string> {
   const t: Record<string, string> = {};
@@ -90,6 +134,29 @@ export function normalizeKeyBinds(input: unknown): Record<string, string> {
     out[action] = typeof v === 'string' && v.length >= 1 ? v.toLowerCase() : DEFAULT_KEY_BINDS[action];
   }
   return out;
+}
+
+export interface CaptureRebindResult {
+  changed: boolean;
+  keyBinds: Record<string, string>;
+}
+
+export function captureRebindKey(
+  current: Record<string, string>,
+  action: RebindAction,
+  rawKey: string,
+): CaptureRebindResult {
+  const key = rawKey.toLowerCase();
+  if (!key || key === 'escape') {
+    return { changed: false, keyBinds: current };
+  }
+  const binds = normalizeKeyBinds(current);
+  const old = binds[action] ?? DEFAULT_KEY_BINDS[action];
+  for (const other of REBINDABLE_ACTIONS) {
+    if (other !== action && binds[other] === key) binds[other] = old;
+  }
+  binds[action] = key;
+  return { changed: true, keyBinds: binds };
 }
 
 export function parseCastInputMode(value: unknown): CastInputMode | undefined {

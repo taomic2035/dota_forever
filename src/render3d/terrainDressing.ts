@@ -192,7 +192,10 @@ function cliffEdgeRotation(map: GameMap, cx: number, cy: number): number {
 function addLandmarks(map: GameMap, out: TerrainDressingSample[]): void {
   const points = [
     ...map.runeSpots.map((pos) => ({ pos, color: '#b8d4ff' })),
-    ...map.shops.map((shop) => ({ pos: shop.pos, color: shop.secret ? '#9ed3ff' : '#ffd782' })),
+    ...map.shops.map((shop) => ({
+      pos: shop.pos,
+      color: shop.kind === 'secret' ? '#9ed3ff' : shop.kind === 'side' ? '#ffc65f' : '#ffd782',
+    })),
     ...map.camps.map((camp) => ({ pos: camp.pos, color: camp.tier === 'ancient' ? '#ff8a5a' : '#caffdc' })),
     { pos: map.pitPos, color: '#ff8a5a' },
   ];

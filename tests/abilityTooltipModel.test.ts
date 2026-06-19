@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildAbilityTooltip } from '../src/ui/abilityTooltipModel';
+import { buildAbilitySlotTitle, buildAbilityTooltip } from '../src/ui/abilityTooltipModel';
 import type { AbilityDef } from '../src/data/heroes/types';
 
 function def(over: Partial<AbilityDef> = {}): AbilityDef {
@@ -50,5 +50,66 @@ describe('buildAbilityTooltip', () => {
     expect(t).toContain('纯被动');
     expect(t).toContain('被动加成。');
     expect(t).not.toContain('法力');
+  });
+
+  it('技能槽 title 显示 learned autocast/toggle 当前状态与切换入口', () => {
+    const auto = buildAbilitySlotTitle(def({ name: '霜寒之箭', targetMode: 'passive', tags: ['orb', 'autocast'] }), {
+      level: 1,
+      autocastOn: true,
+    });
+    expect(auto).toContain('AUTO ON');
+    expect(auto).toContain('QWER/右键切换自动施放');
+
+    const toggle = buildAbilitySlotTitle(def({ name: '燃烧姿态', targetMode: 'passive', tags: ['toggle'] }), {
+      level: 1,
+      toggleOn: false,
+    });
+    expect(toggle).toContain('OFF');
+    expect(toggle).toContain('QWER/右键切换开关状态');
+  });
+
+  it('技能槽 title 显示主动技能当前冷却、法力和就绪状态', () => {
+    expect(buildAbilitySlotTitle(def({ name: '闪烁' }), {
+      level: 2,
+      cooldownRemaining: 7.2,
+      manaCost: 60,
+      currentMana: 200,
+    })).toContain('当前: 冷却 8s');
+
+    expect(buildAbilitySlotTitle(def({ name: '神力' }), {
+      level: 2,
+      cooldownRemaining: 0,
+      manaCost: 100,
+      currentMana: 30,
+    })).toContain('当前: 法力不足 30/100');
+
+    expect(buildAbilitySlotTitle(def({ name: '火球' }), {
+      level: 2,
+      cooldownRemaining: 0,
+      manaCost: 90,
+      currentMana: 160,
+    })).toContain('当前: 就绪');
+  });
+
+  it('技能槽 title 对可切换被动优先显示 AUTO 状态而不是就绪', () => {
+    const t = buildAbilitySlotTitle(def({ name: '霜寒之箭', targetMode: 'passive', tags: ['orb', 'autocast'] }), {
+      level: 1,
+      autocastOn: false,
+      cooldownRemaining: 0,
+      manaCost: 0,
+      currentMana: 300,
+    });
+    expect(t).toContain('AUTO OFF');
+    expect(t).not.toContain('当前: 就绪');
+  });
+
+  it('技能槽 title 不给未学习技能显示当前开关态', () => {
+    const t = buildAbilitySlotTitle(def({ name: '霜寒之箭', targetMode: 'passive', tags: ['orb', 'autocast'] }), {
+      level: 0,
+      learnable: true,
+      autocastOn: true,
+    });
+    expect(t).not.toContain('AUTO ON');
+    expect(t).toContain('点击学习(+)');
   });
 });

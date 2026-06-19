@@ -61,6 +61,7 @@ import { modifierStates } from './sim/modifiers';
 import { castScan } from './sim/scan';
 import { canDenyTarget } from './sim/denyRules';
 import { requestCourierDelivery } from './sim/courier';
+import { shouldToggleAbilityFromHotkey, toggleAbilitySlotState } from './ui/abilitySlotToggleModel';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -213,6 +214,27 @@ function startGame(mode: 'play' | 'spectate'): void {
         : '无可用信使';
     ux.setCommandMessage({ kind: 'reject', label, time: world.time, color: '#ff3040' });
     audio.reject();
+  };
+  const toggleAbilityForUnit = (unit: Unit | undefined, index: number): boolean => {
+    if (!unit?.alive || !unit.heroDef) return false;
+    const def = unit.heroDef.abilities[index];
+    const inst = unit.abilities[index];
+    if (!def || !inst) return false;
+    const result = toggleAbilitySlotState(def, inst);
+    if (result.ok) {
+      ux.flashHudSlot(`ability-${index}`, 'confirm', world.time);
+      ux.setCommandMessage({ kind: 'info', label: result.label, time: world.time, color: result.enabled ? '#9fdf5f' : '#d6b887', ttl: 1.6 });
+      audio.command(false);
+      return true;
+    }
+    const label = result.reason === 'not-learned' ? '技能未学习' : '该技能不可切换';
+    ux.flashHudSlot(`ability-${index}`, 'reject', world.time);
+    ux.setCommandMessage({ kind: 'reject', label, time: world.time, color: '#ff3040' });
+    audio.reject();
+    return false;
+  };
+  hud.onToggleAbility = (index) => {
+    toggleAbilityForUnit(hero, index);
   };
   const selection = hero ? new SelectionState(hero.team, hero.id) : null;
   const syncSelection = () => {
@@ -568,7 +590,17 @@ function startGame(mode: 'play' | 'spectate'): void {
       const caster = currentCastSubject();
       const info = castInfo(i, caster);
       if (!caster || !info) {
-        if (caster) showReject(castRejectReason(i, caster) ?? 'blocked', caster.pos, `ability-${i}`);
+        if (caster) {
+          const def = caster.heroDef?.abilities[i];
+          const inst = caster.abilities[i];
+          const abilityReason = abilityCastReason(world, caster, i);
+          if (def && inst && shouldToggleAbilityFromHotkey(def, inst, abilityReason)) {
+            toggleAbilityForUnit(caster, i);
+            ux.clearTargeting();
+            return false;
+          }
+          showReject(castRejectReason(i, caster) ?? 'blocked', caster.pos, `ability-${i}`);
+        }
         return false;
       }
       ux.clearCommandMessage();
@@ -1008,7 +1040,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   });
   loop.speed = speed;
   loop.start();
-  if (mode === 'play') showOnboarding(app); // 操作引导(可关闭)
+  if (mode === 'play') showOnboarding(app, controlSettings); // 操作引导(可关闭)
 
   window.__game = { world, hero, camera, loop, renderer, ux, seed };
 }

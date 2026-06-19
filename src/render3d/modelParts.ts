@@ -18,6 +18,8 @@ export interface HumanoidSpec {
   hasRobe: boolean;     // 智力法袍裙摆
   accent: string;
   primary: string;
+  visualRole: UnitArt['role'];
+  teamRead: UnitArt['teamRead'];
   headGear: HeadGear;   // 头饰(仅英雄角色;兵/野怪为 none)
   hasCape: boolean;     // 背披风
   hasShoulders: boolean;// 肩甲
@@ -31,7 +33,7 @@ function hashStr(s: string): number {
   return h >>> 0;
 }
 
-const HERO_ROLES = ['tank', 'mage', 'rangedCarry', 'meleeCarry', 'support', 'assassin'];
+const HERO_ROLES = ['tank', 'mage', 'rangedCarry', 'meleeCarry', 'support', 'assassin', 'illusion'];
 
 const WEAPON_LEN: Record<WeaponKind, number> = {
   sword: 34, staff: 44, bow: 30, claw: 18, hammer: 30, spear: 50, none: 0,
@@ -52,11 +54,11 @@ export function humanoidSpec(art: UnitArt): HumanoidSpec {
     if (art.role === 'tank') headGear = (seed & 1) ? 'horns' : 'helm';
     else if (art.role === 'mage') headGear = 'hat';
     else if (art.role === 'support') headGear = (seed & 1) ? 'hood' : 'hat';
-    else if (art.role === 'assassin') headGear = 'hood';
+    else if (art.role === 'assassin' || art.role === 'illusion') headGear = 'hood';
     else headGear = (seed & 1) ? 'crown' : 'helm'; // 敏捷核心
   }
   // 披风:法系/辅助/刺客常有,其余按种子;肩甲:魁梧或按种子
-  const hasCape = heroRole && (robe || art.role === 'assassin' || (seed & 2) === 0);
+  const hasCape = heroRole && (robe || art.role === 'assassin' || art.role === 'illusion' || (seed & 2) === 0);
   const hasShoulders = heroRole && (heavy || (seed & 4) !== 0);
 
   // 缩放微抖(±6%,仍 ≥0.8),同体型英雄高矮略异;不动 torso.w(保持桶序契约)
@@ -71,6 +73,8 @@ export function humanoidSpec(art: UnitArt): HumanoidSpec {
     hasRobe: robe,
     accent: art.accent,
     primary: art.primary,
+    visualRole: art.role,
+    teamRead: art.teamRead,
     headGear,
     hasCape,
     hasShoulders,

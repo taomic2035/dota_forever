@@ -44,6 +44,25 @@ describe('autoAttack policy (last-hit protection)', () => {
     for (let i = 0; i < 60; i++) w.step();
     expect(creep.hp).toBeLessThan(500); // 标准:空闲自动平A
   });
+
+  it('standard holds lane while always actively chases enemies in acquire range', () => {
+    const standardWorld = createWorld(map, { seed: 1, noBuildings: true, startTime: 0 });
+    const standardHero = mk(standardWorld, 'hero', Team.Dawn, 7000, 8000);
+    standardHero.autoAttack = 'standard';
+    const standardCreep = mk(standardWorld, 'creep', Team.Night, 7350, 8000, { dmgMin: 0, dmgMax: 0, maxHp: 500 });
+    for (let i = 0; i < 120; i++) standardWorld.step();
+    expect(standardHero.pos.x).toBe(7000);
+    expect(standardCreep.hp).toBe(500);
+    expect(standardHero.attackTargetId).toBe(0);
+
+    const alwaysWorld = createWorld(map, { seed: 1, noBuildings: true, startTime: 0 });
+    const alwaysHero = mk(alwaysWorld, 'hero', Team.Dawn, 7000, 8000);
+    alwaysHero.autoAttack = 'always';
+    const alwaysCreep = mk(alwaysWorld, 'creep', Team.Night, 7350, 8000, { dmgMin: 0, dmgMax: 0, maxHp: 500 });
+    for (let i = 0; i < 120; i++) alwaysWorld.step();
+    expect(alwaysHero.pos.x).toBeGreaterThan(7000);
+    expect(alwaysCreep.hp).toBeLessThan(500);
+  });
 });
 
 describe('autoAttack control setting', () => {

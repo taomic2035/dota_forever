@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
-import { DAWN_RAMPS, PIT_POS, RUNE_SPOTS } from '../src/data/mapLayout';
+import { DAWN_RAMPS, DAWN_SIDE_SHOP, PIT_POS, RUNE_SPOTS, mirror } from '../src/data/mapLayout';
 import { landmarkVisuals, terrainVisualAt } from '../src/render/mapReadability';
 
 const map = new GameMap();
@@ -58,6 +58,7 @@ describe('map readability landmark classification', () => {
     const landmarks = landmarkVisuals(map);
 
     expect(landmarks.filter((l) => l.kind === 'secretShop')).toHaveLength(2);
+    expect(landmarks.filter((l) => l.kind === 'sideShop')).toHaveLength(2);
     expect(landmarks.filter((l) => l.kind === 'pit')).toHaveLength(1);
     expect(landmarks.filter((l) => l.kind === 'rune')).toHaveLength(RUNE_SPOTS.length);
     expect(landmarks.filter((l) => l.kind === 'camp')).toHaveLength(map.camps.length);
@@ -67,6 +68,8 @@ describe('map readability landmark classification', () => {
   it('preserves team ownership for side landmarks', () => {
     const landmarks = landmarkVisuals(map);
 
+    expect(landmarks).toContainEqual({ kind: 'sideShop', pos: DAWN_SIDE_SHOP, team: Team.Dawn });
+    expect(landmarks).toContainEqual({ kind: 'sideShop', pos: mirror(DAWN_SIDE_SHOP), team: Team.Night });
     expect(landmarks.some((l) => l.kind === 'secretShop' && l.team === Team.Dawn)).toBe(true);
     expect(landmarks.some((l) => l.kind === 'secretShop' && l.team === Team.Night)).toBe(true);
     expect(landmarks.every((l) => l.kind !== 'camp' || l.team === Team.Dawn || l.team === Team.Night)).toBe(true);

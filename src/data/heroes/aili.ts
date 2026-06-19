@@ -10,7 +10,7 @@ const FROST_SLOW = [-0.10, -0.20, -0.30, -0.40];
 
 export const AILI_Q: AbilityDef = {
   key: 'aili_frost', name: '霜寒之箭', maxLevel: 4, targetMode: 'passive',
-  tags: ['orb', 'slow'],
+  tags: ['orb', 'autocast', 'slow'],
   shard: { desc: '神识:对已处于减速状态的敌人,寒霜碎裂造成额外魔法伤害(60/90/120/150)。' },
   description: '箭矢附着寒霜,攻击减速敌人。',
   passiveModifier: () => ({ key: 'aili_frost_passive', isBuff: true }),

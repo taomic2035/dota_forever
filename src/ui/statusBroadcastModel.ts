@@ -6,6 +6,8 @@ export interface AbilityStatusBroadcastInput {
   cooldownRemaining: number;
   manaCost: number;
   currentMana: number;
+  autocastOn?: boolean;
+  toggleOn?: boolean;
 }
 
 export interface ItemStatusBroadcastInput {
@@ -22,6 +24,8 @@ export interface ItemStatusBroadcastInput {
 export function abilityStatusBroadcastLabel(input: AbilityStatusBroadcastInput): string {
   const prefix = `${input.hotkey} ${input.name}:`;
   if (!input.learned) return `${prefix} 未学习`;
+  if (input.autocastOn !== undefined) return `${prefix} AUTO ${input.autocastOn ? 'ON' : 'OFF'}`;
+  if (input.toggleOn !== undefined) return `${prefix} ${input.toggleOn ? 'ON' : 'OFF'}`;
   if (input.passive) return `${prefix} 被动`;
   if (input.cooldownRemaining > 0) return `${prefix} 冷却 ${formatSeconds(input.cooldownRemaining)}`;
   if (input.manaCost > input.currentMana) return `${prefix} 法力不足 ${Math.floor(input.currentMana)}/${input.manaCost}`;

@@ -1,11 +1,13 @@
 # Hero3D Preview Handoff for Opus
 
 Date: 2026-06-13
-Current update: 2026-06-15 V24 hero FX occlusion budget pass
+Current update: 2026-06-19 V25 hero emissive budget pass
 Current branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
 Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
 Latest screenshot: `docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png`
+V25 summary: `docs/ux/2026-06-19-3d-v25-hero-emissive-budget-summary.md`
+V25 screenshot note: not captured in this pass; Playwright browser escalation was rejected, so V24 remains the latest visual baseline.
 V24 summary: `docs/ux/2026-06-15-3d-v24-hero-fx-occlusion-budget-summary.md`
 V24 gameplay screenshot: `docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png`
 V23 summary: `docs/ux/2026-06-14-3d-v23-hero-real-play-readability-summary.md`
@@ -64,6 +66,8 @@ Changed files:
   - V19 extends `root.userData.gameplayModelQuality` with `refinementLayer`, `refinementLayerParts`, and `coreMaterialContrastBands`.
   - V22 extends `root.userData.gameplayModelQuality` with `finishingLayer`, `finishingLayerParts`, `anatomyReadableParts`, `playCameraDepthLayers`, and `materialFinishLayers`.
   - V22 tags runtime parts with `playCameraDepthLayer` and `playCameraAnatomyRead` for Opus smoke checks.
+  - V25 extends `root.userData.gameplayModelQuality` with `emissiveBudget`.
+  - V25 caps persistent idle glint opacity, energy core opacity, runtime glint opacity, and runtime `MeshStandardMaterial.emissiveIntensity` so hero glow does not flood the default play camera.
 - `src/render3d/hero3dModel.ts`
   - Bridges the fine hero assets into the real 3D play-route `UnitModel` contract.
   - V20 keeps existing `AnimationMixer` clip playback and also calls `updateHeroRuntimePresentation(...)` from `applyPose(...)`.
@@ -93,6 +97,7 @@ Changed files:
   - V18 adds red-to-green checks that classic heroes no longer ship paper-box gameplay geometry profiles, and that Rein's `heavy cuirass`, `tower shield`, and `royal back banner` use rounded/extruded/curved gameplay geometry.
   - V19 locks that `createHero3DModel(...)` actually outputs the refinement parts and exposes them through `root.userData.gameplayModelQuality`.
   - V22 locks that `createHero3DModel(...)` actually outputs the finishing parts, depth-layer tags, anatomy-read tags, and quality metadata.
+  - V25 locks that all 10 classic heroes obey the play-camera emissive budget during idle and `cast_r` runtime presentation.
 - `tests/render3d/hero3dModel.test.ts`
   - V20 locks that the real gameplay `buildHero3DUnitModel(...).applyPose(...)` path routes through `updateHeroRuntimePresentation(...)`.
   - Verifies `cast` pose produces `runtimeAction.activeAction === "cast_q"`, runtime animated parts/materials, normalized base scale, and `gameplayRuntimeBridge` metadata.
@@ -132,6 +137,8 @@ V22 returns to the core Opus feedback: real in-game model quality. It adds anato
 V23 handles the readability layer around that model in the real renderer. It makes the hero slightly larger at default gameplay zoom, moves the health bar above the head read, and tones down the persistent team/selection rings so UI feedback no longer competes with the model itself.
 
 V24 budgets status/cast/channel FX on top of the readable model. It keeps action feedback visible, but caps additive glow scale and opacity so the effect does not become a bright ball that hides the hero in the default play camera.
+
+V25 budgets persistent hero material glow on the same real-play model path. It keeps readable rim glints and energy cores, but caps idle glow, runtime glint, energy core opacity, and runtime emissive intensity so the hero no longer trends toward a constant golden bloom after the V24 FX cap.
 
 ## Tradeoff
 
@@ -177,6 +184,7 @@ Suggested Opus merge flow:
 
 ```bash
 npm test -- tests/hero3dFactory.test.ts tests/hero3dPreview.test.ts tests/hero3dAssets.test.ts
+npm test -- tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/statusFx.test.ts tests/render3d/renderer3dReadability.test.ts tests/hero3dPreview.test.ts
 npm run build
 npm test -- --pool=forks --maxWorkers=1
 ```
@@ -258,6 +266,15 @@ http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
   - `heroStatusFxState(...).readabilityBudget.pass`
   - `heroStatusFxState(...).readabilityBudget.maxCastGlowOpacity`
   - `heroStatusFxState(...).readabilityBudget.maxCastGlowScale`
+- V25 real-play hero emissive budget hooks:
+  - `root.userData.gameplayModelQuality.emissiveBudget.pass`
+  - `root.userData.gameplayModelQuality.emissiveBudget.maxIdleGlowOpacity`
+  - `root.userData.gameplayModelQuality.emissiveBudget.maxRuntimeGlowOpacity`
+  - `root.userData.gameplayModelQuality.emissiveBudget.maxEnergyCoreOpacity`
+  - `root.userData.gameplayModelQuality.emissiveBudget.maxRuntimeEmissiveIntensity`
+  - `material.userData.surfaceRole === "emissive-glow"`
+  - `material.userData.surfaceRole === "rim-glint"`
+  - `material.userData.heroRuntimeGlintLayer`
   - `status-fx:cast-glow`
 
 ## Verification Evidence
@@ -265,15 +282,35 @@ http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
 Latest verified commands in this worktree:
 
 ```text
-npm test -- tests/render3d/statusFx.test.ts tests/render3d/pose.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/renderer3dReadability.test.ts tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts
+npm test -- tests/hero3dFactory.test.ts tests/hero3dAssets.test.ts tests/render3d/hero3dModel.test.ts tests/render3d/statusFx.test.ts tests/render3d/renderer3dReadability.test.ts tests/hero3dPreview.test.ts
 6 files passed
-33 tests passed
+28 tests passed
 ```
 
 ```text
 npm run build
 build passed
 warning: Three.js keeps the output chunk above 500 kB
+```
+
+V25 red-to-green evidence:
+
+```text
+npm test -- tests/hero3dFactory.test.ts
+Before fix: 1 failed
+- expected gameplayModelQuality.emissiveBudget to match v25-play-camera-emissive-budget
+
+After fix:
+1 file passed
+9 tests passed
+```
+
+Real play-route V25 evidence:
+
+```text
+Screenshot not captured in this pass because Playwright browser escalation was rejected.
+Use V24 screenshot as the latest visual baseline, then re-smoke:
+http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d
 ```
 
 V24 red-to-green evidence:

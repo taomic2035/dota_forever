@@ -7,6 +7,7 @@ import {
   REBINDABLE_ACTIONS,
   ACTION_LABEL,
   DEFAULT_KEY_BINDS,
+  captureRebindKey,
   cameraPanSpeedLabel,
   castInputModeLabel,
   cycleCameraPanSpeed,
@@ -16,6 +17,9 @@ import {
   numberRowModeLabel,
   cycleAutoAttackMode,
   autoAttackModeLabel,
+  cycleControlPreset,
+  controlPresetLabel,
+  inferControlPreset,
   cycleHudScale,
   hudScaleLabel,
   cycleAccessibilityMode,
@@ -184,8 +188,9 @@ export function createPauseMenu(
       <button id="pm-auto-attack" title="自动攻击:不攻=空闲绝不自动平A(保护正补)" style="${compactBtnCss('#2c1f1f', '#ff9f7a')}"></button>
       <button id="pm-hud-scale" title="HUD 缩放:适配不同屏幕/视力" style="${compactBtnCss('#1f2c2a', '#7fe3d0')}"></button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr;gap:8px;width:360px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
       <button id="pm-accessibility-mode" title="可访问性配色:切换血蓝条和危险暗角的色盲友好方案" style="${compactBtnCss('#221f2c', '#d0b3ff')}"></button>
+      <button id="pm-control-preset" title="控制预设:现代=数字行物品;RTS Legacy=数字行控制组并恢复经典命令键" style="${compactBtnCss('#252219', '#e8d28a')}"></button>
     </div>
     <div style="width:430px;display:flex;flex-direction:column;gap:7px">
       <div style="${sectionLabelCss('#7ec8e3')}">技能施法</div>
@@ -217,6 +222,7 @@ export function createPauseMenu(
     const autoAttack = root.querySelector('#pm-auto-attack') as HTMLButtonElement | null;
     const hudScaleBtn = root.querySelector('#pm-hud-scale') as HTMLButtonElement | null;
     const accessibilityMode = root.querySelector('#pm-accessibility-mode') as HTMLButtonElement | null;
+    const controlPreset = root.querySelector('#pm-control-preset') as HTMLButtonElement | null;
     if (ability) ability.textContent = `技能 ${castInputModeLabel(settings.abilityCast)}`;
     if (item) item.textContent = `物品 ${castInputModeLabel(settings.itemCast)}`;
     if (camera) camera.textContent = `镜头 ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
@@ -226,6 +232,7 @@ export function createPauseMenu(
     if (autoAttack) autoAttack.textContent = `自动攻击 ${autoAttackModeLabel(settings.autoAttack)}`;
     if (hudScaleBtn) hudScaleBtn.textContent = `HUD ${hudScaleLabel(settings.hudScale)}`;
     if (accessibilityMode) accessibilityMode.textContent = `可访问性 ${accessibilityModeLabel(settings.accessibilityMode)}`;
+    if (controlPreset) controlPreset.textContent = `预设 ${controlPresetLabel(inferControlPreset(settings))}`;
     root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.abilityCastSlot);
       const hotkey = abilityHotkeys[slot] ?? '?';
@@ -299,6 +306,11 @@ export function createPauseMenu(
     controls.onChange({ ...settings, accessibilityMode: cycleAccessibilityMode(settings.accessibilityMode) });
     syncControls();
   });
+  root.querySelector('#pm-control-preset')?.addEventListener('click', () => {
+    if (!controls) return;
+    controls.onChange(cycleControlPreset(controls.getSettings()));
+    syncControls();
+  });
   // 改键:点按钮进入捕获,下一次 keydown(capture 阶段 + 阻止冒泡,抑制游戏输入)设为新键
   root.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -313,15 +325,9 @@ export function createPauseMenu(
     e.stopImmediatePropagation(); // 抑制 input.ts 把此键当游戏操作
     const action = capturing;
     capturing = null;
-    const k = e.key.toLowerCase();
-    if (k !== 'escape') { // Esc 取消捕获
-      const settings = controls.getSettings();
-      const binds = { ...settings.keyBinds };
-      const old = binds[action] ?? DEFAULT_KEY_BINDS[action];
-      for (const a of REBINDABLE_ACTIONS) if (a !== action && binds[a] === k) binds[a] = old; // 冲突互换,保持双射
-      binds[action] = k;
-      controls.onChange({ ...settings, keyBinds: binds });
-    }
+    const settings = controls.getSettings();
+    const result = captureRebindKey(settings.keyBinds, action, e.key);
+    if (result.changed) controls.onChange({ ...settings, keyBinds: result.keyBinds });
     syncControls();
   }, { capture: true });
   root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {

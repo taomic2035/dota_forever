@@ -5,9 +5,26 @@ Branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
 Primary preview routes: `?mode=resource3d-preview`, `?mode=hero3d-preview`, `?mode=play&renderer=3d`
 Legacy phase-1 screenshot: `docs/screenshots/ux-resource3d-preview.png`
 
-Current V21 update for Opus merge:
+Current V26 update for Opus merge:
 
 - Worktree/branch: `main` at `/Users/taomic/vibecoding/dota_forever`.
+- Current coordination note: Codex owns UX/material/control polish; Opus owns mainline gameplay integration. Short cross-cat handoff: `docs/ux/2026-06-19-codex-opus-ux-handoff.md`. New cross-over point is `docs/ux/2026-06-19-toggle-autocast-badges-summary.md`: tagged autocast orb effects now obey `AbilityInstance.autocastOn` in `src/sim/abilities.ts`, and learned passive autocast/toggle abilities can be switched from QWER or right-click ability slots. Default-state policy, one-orb priority, manual orb-cast orders, and deeper cost semantics remain open for Opus.
+- HUD tooltip note: `src/ui/abilityTooltipModel.ts` and `src/ui/itemTooltipModel.ts` now own slot hover title text for current cooldown/mana/ready/toggle/charge/backpack-no-bonus states; if Opus changes ability or item availability semantics, update those models and tests alongside sim changes.
+- UX/control handoff addendum: `docs/ux/2026-06-19-minimap-target-confirm-summary.md`.
+- Related 2026-06-19 UX control summaries: `docs/ux/2026-06-19-minimap-misclick-guard-summary.md`,
+  `docs/ux/2026-06-19-world-alt-ping-summary.md`, `docs/ux/2026-06-19-f1-doubletap-center-summary.md`,
+  `docs/ux/2026-06-19-game-speed-hud-summary.md`, `docs/ux/2026-06-19-building-attack-alert-toast-summary.md`,
+  `docs/ux/2026-06-19-death-recap-assists-summary.md`, `docs/ux/2026-06-19-alt-click-status-broadcast-summary.md`,
+  `docs/ux/2026-06-19-deny-rules-fidelity-summary.md`, `docs/ux/2026-06-19-break-status-chip-summary.md`,
+  `docs/ux/2026-06-19-inspect-cast-progress-summary.md`, `docs/ux/2026-06-19-accessibility-mode-summary.md`,
+  `docs/ux/2026-06-19-selected-cast-subject-summary.md`, `docs/ux/2026-06-19-manual-courier-delivery-summary.md`,
+  `docs/ux/2026-06-19-auto-attack-mode-summary.md`,
+  `docs/ux/2026-06-19-toggle-autocast-badges-summary.md`,
+  `docs/ux/2026-06-19-control-presets-summary.md`,
+  `docs/ux/2026-06-19-keybind-capture-summary.md`,
+  `docs/ux/2026-06-19-onboarding-gates-summary.md`,
+  `docs/ux/2026-06-19-side-shop-summary.md`.
+- V26 non-hero real-play model quality summary: `docs/ux/2026-06-19-3d-v26-nonhero-model-quality-summary.md`.
 - V3 summary: `docs/ux/2026-06-13-3d-v3-resource-polish-summary.md`.
 - V3 screenshot: `docs/screenshots/ux-3d-v3-resource-material-motion.png`.
 - V3 part-motion screenshot: `docs/screenshots/ux-3d-v3-resource-part-motion.png`.
@@ -64,6 +81,7 @@ Current V21 update for Opus merge:
 - V17 combat FX readability screenshot: `docs/screenshots/ux-3d-v17-combat-fx-readability.png`.
 - V21 real-play resource runtime bridge summary: `docs/ux/2026-06-14-3d-v21-resource-runtime-bridge-summary.md`.
 - V21 real-play resource runtime bridge screenshot: `docs/screenshots/ux-3d-v21-resource-runtime-bridge.png`.
+- V26 note: real `buildUnitModel(...)` output now carries play-camera model-quality metadata for lane creeps, neutrals, and illusions; the main humanoid path uses rounded/capsule/sphere/cylinder geometry instead of box-heavy placeholder reads.
 - Adds material/detail metadata, high-detail procedural texture overlays, runtime hero action/surface presentation, runtime non-hero unit presentation, runtime map/terrain ambience presentation, combat FX readability presentation, runtime resource motion, part-level model motion, richer 3D battle FX, V4 map terrain realism layers, V9 VFX/audio sync contracts, V10 visible VFX playback layers, V11 VFX phase animation, V12 all-resource runtime motion, V13 runtime material/surface animation, and shift-queued command UX.
 - V21 note: non-hero resource units now consume `updateResourceRuntimeUnitPresentation(...)` in the real `?mode=play&renderer=3d` path through `src/render3d/resource3dModel.ts`, not only in `?mode=resource3d-preview`.
 - Scope note: this branch now includes UI/control plumbing for queued orders in `src/sim/unit.ts`, `src/engine/input.ts`, and related tests. Those changes are intentional UX/control-side work for Opus to review against mainline logic.
@@ -252,6 +270,13 @@ Total: 408 samples.
   - Runtime base scale is normalized to `[1, 1, 1]` under the gameplay scaler, preventing preview asset scale from double-applying in real play.
   - Real play-route evidence confirms `resource3d:dawn_melee_creep` animates runtime unit parts/materials/cues during an attack pose.
   - Evidence: `docs/screenshots/ux-3d-v21-resource-runtime-bridge.png`.
+- [x] V26 non-hero real-play model-quality pass exists for generic unit models.
+  - `src/render3d/modelGen.ts` uses rounded/capsule, sphere, and cylinder reads for humanoid bodies, heads, limbs, hands, feet, and clone glints.
+  - `src/render3d/unitModel.ts` uses ellipsoid core volumes for neutral/beast bodies, humps, heads, and snouts.
+  - Unit roots expose `root.userData.gameplayUnitModelQuality` for Opus smoke checks.
+  - Key parts expose `obj.userData.playCameraReadabilityLayer`.
+  - Covered smoke cases: lane creep, ancient neutral, illusion.
+  - Evidence summary: `docs/ux/2026-06-19-3d-v26-nonhero-model-quality-summary.md`.
 - [x] V16 map runtime ambience exists for 58 terrain/map/environment Resource3D samples.
   - `terrain_tiles`, `map_props`, and `environment_fx` expose `root.userData.runtimeMapPresentation`.
   - `updateResourceRuntimeMapPresentation(root, elapsedMs)` drives deterministic river flow, sky haze, tree-wall occlusion, highground depth, grass/flower bloom, fence depth, and ground-dust ambience from cached base values.

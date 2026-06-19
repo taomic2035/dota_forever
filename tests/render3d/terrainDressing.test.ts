@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DAWN_SIDE_SHOP, mirror } from '../../src/data/mapLayout';
 import { GameMap } from '../../src/sim/map';
 import { buildTerrain3D, updateTerrainRuntimeMotion } from '../../src/render3d/terrain3d';
 import { terrainDressingSamples, terrainDressingSummary } from '../../src/render3d/terrainDressing';
@@ -47,6 +48,18 @@ describe('terrainDressingSamples', () => {
       expect(sample.z, `${sample.kind} z`).toBeLessThanOrEqual(map.W);
       expect(Number.isFinite(sample.y), `${sample.kind} y`).toBe(true);
     }
+  });
+
+  it('marks side shops with distinct 3D landmark rings', () => {
+    const samples = terrainDressingSamples(new GameMap());
+    const sideShopRings = [DAWN_SIDE_SHOP, mirror(DAWN_SIDE_SHOP)].map((pos) => samples.find((sample) =>
+      sample.kind === 'landmark_ring'
+      && sample.x === pos.x
+      && sample.z === pos.y
+      && sample.color === '#ffc65f'
+    ));
+
+    expect(sideShopRings.every(Boolean)).toBe(true);
   });
 });
 

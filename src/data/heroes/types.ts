@@ -8,7 +8,8 @@ import type { TargetKindFilter, TargetTeamFilter } from '../../sim/targeting';
 export type TargetMode = 'none' | 'point' | 'unit' | 'line' | 'passive';
 
 export type AbilityTag =
-  | 'nuke' | 'stun' | 'slow' | 'heal' | 'escape' | 'buff' | 'aoe' | 'channel' | 'orb' | 'ultimate';
+  | 'nuke' | 'stun' | 'slow' | 'heal' | 'escape' | 'buff' | 'aoe' | 'channel'
+  | 'orb' | 'autocast' | 'toggle' | 'ultimate';
 
 export interface AiCastSuggestion {
   score: number;

@@ -38,11 +38,11 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 | 命令/输入 | **STRONG** | 单位 RTS 命令语法忠实且有测试;缺口集中在**多单位控制原语**(控制组、框选、召唤物施法) |
 | 目标/施法反馈 | **STRONG** | 闭环扎实、光标基本不说谎;三处核心忠实漏洞:**AoE 占位圈、仅眩晕打断前摇、魔免不挡单体** |
 | HUD/状态 | **STRONG** | 信息广而成熟;技能/物品径向冷却扫描与 passive/orb/ultimate/scepter 徽标已模型化;仍缺真正 toggle/autocast on/off 状态 |
-| 商店/物品/信使 | **STRONG** | 商店/合成/储藏/TP槽/背包/信使均完整;手动派送已接 HUD;仍缺侧边商店与更完整的手动转运细节 |
+| 商店/物品/信使 | **STRONG** | 商店/合成/储藏/TP槽/背包/信使均完整;手动派送已接 HUD;侧边商店规则起步完成;仍缺更完整的手动转运细节 |
 | 镜头/小地图 | **STRONG** | 自由镜头、F1 双击回英雄、小地图指令面核心都在;已补小地图误触保护与小地图地面施法/TP |
 | 沟通 | STRONG | 世界内/小地图 Alt ping、危险/撤退信号和声音已成体系;Alt 点击技能/物品状态已接本地信息提示;聊天/MIA 类因单机贬值暂不投入 |
 | 记分板/观战 | STRONG | 记分板/播报/顶栏/结算扎实;Boss 计时、死亡回顾、观战/对局变速与速度反馈、建筑受击警报已覆盖 |
-| 设置/上手 | **STRONG** | 改键/施法模式/镜头/持久化优秀,已超 DotA1 基线;缺**自动攻击开关、可访问性、教程门控、改键测试** |
+| 设置/上手 | **STRONG** | 改键/施法模式/镜头/持久化优秀,已超 DotA1 基线;自动攻击三档、可访问性、RTS Legacy 控制预设、改键捕获测试、上手门控已接入;缺**英雄专属 Legacy Keys** |
 | 3D 世界可读性 | **STRONG** | 与 2D 近乎奇偶对齐;一个核心漏洞:**3D 地面无战争迷雾** + 两处打磨 |
 
 ---
@@ -92,13 +92,13 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 - **命令/输入**:控制组 Ctrl+数字(`input.ts` 加 Ctrl 分支,注意与 1-6 物品键冲突);框选/双击同类全选/Shift 增减(选择 Set 化,簇 C)。〔dota1-core〕
 - **镜头/小地图**:世界内 Alt 点击 ping(`input.ts` 左键加 altKey 分支);**ping 加音效**(`onPing` 处接 `audio`)。〔dota1-core〕✅ 已完成 2026-06-19
 - **记分板/观战**:**Roshan/Boss 重生计时**与观战运行时变速均已完成;速度 chip 已在非 `1x` / 暂停时显示。〔core / refined〕✅ 已完成 2026-06-19
-- **商店/信使**:手动「交物给信使」指令链已起步:HUD 可请求信使送储藏,手动移近也触发交付;仍可后续补更细的信使背包/取回/转交语义。〔dota1-core〕✅ 已完成 2026-06-19 起步版
-- **设置**:自动攻击 Never/Standard/Always(保护补刀;`combat.ts:393` idleCombat 按设置门控)。〔dota2-refined〕
+- **商店/信使**:手动「交物给信使」指令链已起步:HUD 可请求信使送储藏,手动移近也触发交付;侧边商店规则起步完成;仍可后续补更细的信使背包/取回/转交语义。〔dota1-core/refined〕✅ 已完成 2026-06-19 起步版
+- **设置**:✅ 自动攻击 Never/Standard/Always 已接 pause menu 与 idleCombat;`standard` 守线只打射程内,`always` 才主动警戒追击。〔dota2-refined〕
 - **3D**:仅 10/112 英雄有独特 3D 剪影,其余靠 archetype+染色 → 高人气英雄优先补精模 + 强化程序化剪影差异。〔dota2-refined/L〕
 
 ### P2 — 有意义的打磨(16,摘要)
 
-真正 toggle/autocast on/off 图标标记、上手门控+Legacy 预设、改键逻辑测试。
+toggle/autocast on/off 图标标记、右键状态切换、QWER 被动法球热键切换、Alt 点击状态广播、hover tooltip 状态提示已接入(状态契约 + HUD badge + 3 个法球样例),技能/物品 hover 也显示当前冷却/法力/就绪/充能状态,背包 hover 显示无加成、移入物品栏后 6 秒就绪与充能次数;且 `autocast` 标记法球已按 `autocastOn` 门控攻击命中效果;仍缺默认状态策略、单法球优先级与手动 orb-cast/消耗细则。RTS Legacy 控制预设、改键捕获测试、上手门控已接入;英雄专属 Legacy Keys 仍待补。
 
 ### P3 — 锦上添花 / 单机低价值(16,摘要)
 
@@ -114,7 +114,7 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 - **Batch 2 — 技能数据契约 + 施法忠实(P1,簇 B)**:`AbilityDef` 加 `aoeRadius/lineWidth/piercesImmunity` → 真实 AoE/线预览 + 魔免挡单体;前摇打断扩到 hex/sleep/root。机制忠实度大提升,且解一串。
 - **Batch 3 — 宏观可读(P1)**:Roshan/Boss 顶栏计时、世界内 ping + ping 音效、小地图地面施法/TP、Alt 点击技能/物品状态自检已完成;后续可转向更多观战/复盘提示。
 - **Batch 4 — 多单位(P1-P2,簇 C)**:选择 Set 化 → 框选/同类全选 → 控制组 → 召唤物/信使施法。一条依赖链顺次推。
-- **Batch 5 — 设置/QoL(P1-P2)**:自动攻击开关(保护补刀)→ 改键测试 + Legacy/默认预设 → 径向冷却扫描 + autocast 标记。
+- **Batch 5 — 设置/QoL(P1-P2)**:自动攻击开关已完成(保护补刀 + 三档语义)→ autocast/toggle 状态可读、右键/QWER 被动热键切换、标记法球攻击 gate 已接入 → RTS Legacy 控制预设与改键捕获测试已完成 → 英雄专属 Legacy Keys → 单法球优先级/手动 orb-cast/消耗细则。
 - **不做(现阶段)**:聊天/MIA/队友广播/画线(簇 D,单机贬值);录像 seek;3D 透视视锥框。
 
 每个 batch 沿用既有验收:`tsc` 0 + `npm test` 全绿 + 2D/3D 实机截图 + 文档勾选。
@@ -255,6 +255,56 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 - ✅ Courier HUD 有储藏物且信使可用时主操作显示 `Deliver stash`;低血/返航/送货中仍优先选择/保命语义。
 - ✅ 总结 `docs/ux/2026-06-19-manual-courier-delivery-summary.md`。
 
+**Sub-batch Settings/Combat — 自动攻击三档手感(2026-06-19)**
+- ✅ `never` 保持空闲不自动索敌,保护正补/控线。
+- ✅ `standard` 只打已经进入射程的敌人,不会空闲离线追击。
+- ✅ `always` 保留警戒范围内主动索敌并短距追击,与 `standard` 形成真实手感差异。
+- ✅ 总结 `docs/ux/2026-06-19-auto-attack-mode-summary.md`。
+
+**Sub-batch HUD/Ability — Toggle/Autocast 状态徽标起步(2026-06-19)**
+- ✅ `AbilityTag` 增加 `autocast` / `toggle`,`AbilityInstance` 增加 `autocastOn` / `toggleOn` 状态钩子。
+- ✅ HUD 技能格可显示 `AUTO ON` / `AUTO OFF` / `ON` / `OFF`,并通过 `data-ability-badge` 暴露给 smoke check。
+- ✅ 右键点击已学习的 autocast/toggle 技能格会切换状态并显示本地 HUD 反馈。
+- ✅ QWER 热键按到已学习的 passive autocast/toggle 技能时,会切换同一状态,不再误拒绝为“被动技能”。
+- ✅ Alt 点击技能状态广播会显示 `AUTO ON/OFF` 或 `ON/OFF`,不再把可切换法球泛化为“被动”。
+- ✅ hover tooltip 会显示当前 `AUTO ON/OFF` 或 `ON/OFF` 和 `QWER/右键` 切换入口,与徽标/状态广播一致。
+- ✅ 主动技能 hover tooltip 会额外显示 `当前: 冷却 Ns` / `当前: 法力不足 X/Y` / `当前: 就绪`,减少战斗中读槽成本。
+- ✅ 物品 hover tooltip 会显示 `当前: 冷却 Ns` / `当前: 法力不足 X/Y` / `当前: 就绪 · N 次` / `当前: 被动`,空 TP 槽也标记 `当前: 空槽`。
+- ✅ 首批给 `aili_frost`、`hsk_spears`、`vip_poison` 三个经典法球样例补 `autocast` 元数据。
+- ✅ `src/sim/abilities.ts` 攻击命中法球钩子已尊重 `autocastOn === true`;默认关闭时不再触发 `autocast` 标记法球。
+- ⚠️ 默认开关策略、单法球优先级、手动 orb-cast、自动施放 AI/消耗语义仍留给后续 input/sim 接线。
+- ✅ 总结 `docs/ux/2026-06-19-toggle-autocast-badges-summary.md`。
+
+**Sub-batch Settings/Input — RTS Legacy 控制预设(2026-06-19)**
+- ✅ `applyControlPreset(...)` 提供现代 / RTS Legacy 两套可恢复控制基线。
+- ✅ RTS Legacy 将数字行切为控制组,恢复普通施法/物品和 A/S/H/F1/F2/F3 等经典命令键。
+- ✅ 预设保留 HUD 缩放、色盲友好、镜头速度、边缘平移等显示/可访问性偏好。
+- ✅ 暂停菜单新增 `预设 现代 / RTS Legacy` 按钮。
+- ⚠️ 这不是英雄专属 DotA1 Legacy Keys 全集;后者仍需等英雄身份/技能键位稳定后单独设计。
+- ✅ 总结 `docs/ux/2026-06-19-control-presets-summary.md`。
+
+**Sub-batch Settings/Input — 改键捕获可靠性(2026-06-19)**
+- ✅ `captureRebindKey(...)` 抽出暂停菜单改键捕获规则,让冲突互换和取消捕获有纯测试保护。
+- ✅ `Escape` / 空键不再产生脏绑定;占用键会与目标动作互换,保持一键一动作。
+- ✅ 暂停菜单改为消费共享模型,避免 UI 事件逻辑和测试逻辑漂移。
+- ✅ 总结 `docs/ux/2026-06-19-keybind-capture-summary.md`。
+
+**Sub-batch Settings/Onboarding — 上手门控模型化(2026-06-19)**
+- ✅ `buildOnboardingSections(...)` 抽出开局操作提示模型,覆盖移动/战斗、技能/物品、地图/沟通、多单位/设置四组。
+- ✅ `showOnboarding(...)` 改为模型驱动渲染,保留点击/按键/18 秒超时关闭。
+- ✅ `main.ts` 传入当前 `controlSettings`,RTS Legacy 下提示 `1-6 选控制组`,现代模式下提示 `1-6 用物品`。
+- ✅ 新提示覆盖 Alt ping 变体、小地图 armed 技能/TP 确认、右键技能格 AUTO/开关状态、F1/F2/F3、P 菜单可访问性等近期 UX 能力。
+- ✅ 总结 `docs/ux/2026-06-19-onboarding-gates-summary.md`。
+
+**Sub-batch Shop/Map — 侧边商店起步(2026-06-19)**
+- ✅ `ShopZone.kind` 增加 `home | side | secret`,`shopAt(...)` 可返回 `side`。
+- ✅ 地图新增晨曦边店与镜像永夜边店,不影响基地/秘店判定。
+- ✅ `ItemDef.sideShop` 标记首批边店基础货:TP、鞋、补刀斧、树肢、瓶子、魔棒、小属性件、攻速手套、回复/回蓝小件等。
+- ✅ `buyItem(...)` 允许边店购买白名单小件,但不解锁基地大件或秘店件。
+- ✅ 边店购买只进随身/背包,满时拒绝,不会远程溢出到基地储藏。
+- ✅ 商店 destination preview 与 toast 增加 side-shop 文案,减少“人在边店为什么买不了”的困惑。
+- ✅ 总结 `docs/ux/2026-06-19-side-shop-summary.md`。
+
 ## 6.9 四大根因簇收敛状态(2026-06-15 末)
 
 | 簇 | 内容 | 状态 |
@@ -265,7 +315,7 @@ DotA 的 UI/操控不是一堆按钮,而是**高压战斗下的一套闭环**:�
 | **D 沟通(单机贬值)** | 聊天/MIA/队友广播/画线;本地 ping 与槽位状态自检 | ✅ 本地自我信号已做;队友通信正确推迟 |
 
 > 另:旋风打断施法(`5554149`)、Roshan/Boss 计时(`d47df46`)两个 P1 dota1-core 缺口已修。
-> 剩余为长尾单项(真正 toggle/autocast on/off、上手门控/Legacy、侧边商店等),多在 input/main 线,按需协调推进。
+> 剩余为长尾单项(toggle/autocast 默认策略、单法球规则与手动 orb-cast,英雄专属 Legacy Keys、更完整的信使转运等),多在 input/main/sim 线,按需协调推进。
 
 ## 7. 收敛检查
 

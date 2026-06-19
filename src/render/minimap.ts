@@ -125,6 +125,18 @@ export class MiniMap {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (landmark.kind === 'sideShop') {
+        ctx.fillStyle = 'rgba(255,198,95,0.34)';
+        ctx.strokeStyle = 'rgba(255,226,145,0.95)';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.rect(x - 3.6, y - 2.5, 7.2, 5);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 2.3, y + 2.6);
+        ctx.lineTo(x + 2.3, y + 2.6);
+        ctx.stroke();
       } else if (landmark.kind === 'pit') {
         ctx.fillStyle = 'rgba(206,147,216,0.45)';
         ctx.strokeStyle = 'rgba(235,170,255,0.95)';

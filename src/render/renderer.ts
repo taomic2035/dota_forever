@@ -473,12 +473,16 @@ export class Renderer {
       const c = this.camera.worldToScreen(s.pos);
       const rr = this.s(s.range);
       ctx.setLineDash([8, 8]);
-      ctx.strokeStyle = s.secret ? 'rgba(120,200,255,0.30)' : 'rgba(255,210,90,0.22)';
+      ctx.strokeStyle = s.kind === 'secret'
+        ? 'rgba(120,200,255,0.30)'
+        : s.kind === 'side'
+          ? 'rgba(255,198,95,0.34)'
+          : 'rgba(255,210,90,0.22)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(c.x, c.y, rr, 0, Math.PI * 2);
       ctx.stroke();
-      if (s.secret) {
+      if (s.kind === 'secret') {
         const r = this.s(48);
         ctx.setLineDash([]);
         ctx.fillStyle = 'rgba(80,190,235,0.20)';
@@ -491,6 +495,23 @@ export class Renderer {
         ctx.lineTo(c.x - r * 0.55, c.y);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke();
+      } else if (s.kind === 'side') {
+        const r = this.s(36);
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255,198,95,0.22)';
+        ctx.strokeStyle = 'rgba(255,220,130,0.82)';
+        ctx.lineWidth = Math.max(1, this.s(2));
+        ctx.beginPath();
+        ctx.rect(c.x - r * 0.55, c.y - r * 0.38, r * 1.1, r * 0.76);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(c.x - r * 0.32, c.y - r * 0.1);
+        ctx.lineTo(c.x + r * 0.28, c.y - r * 0.1);
+        ctx.lineTo(c.x + r * 0.12, c.y + r * 0.22);
+        ctx.lineTo(c.x - r * 0.45, c.y + r * 0.22);
+        ctx.closePath();
         ctx.stroke();
       } else {
         const r = this.s(30);

@@ -19,12 +19,18 @@ import { buildDeathAssistSummary, type DeathAssistSource, type DeathRecapEntry, 
 import { buildEnemyHeroBar } from './enemyHeroBarModel';
 import { isVisibleTo } from '../sim/vision';
 import type { QuickbuyModel } from './quickbuyModel';
-import { buildAbilityTooltip } from './abilityTooltipModel';
+import { buildAbilitySlotTitle } from './abilityTooltipModel';
 import { buildCooldownOverlayModel, type CooldownOverlayModel } from './cooldownOverlayModel';
 import { buildAbilitySlotBadges, type AbilitySlotBadge, type AbilitySlotBadgeTone } from './abilitySlotBadgeModel';
 import { buildGameSpeedHudModel, type GameSpeedHudModel } from './gameSpeedHudModel';
 import { abilityStatusBroadcastLabel, itemStatusBroadcastLabel } from './statusBroadcastModel';
 import { hudAccessibilityPalette } from './accessibilityPalette';
+import {
+  buildBackpackItemSlotTitle,
+  buildEmptyBackpackSlotTitle,
+  buildEmptyItemSlotTitle,
+  buildItemSlotTitle,
+} from './itemTooltipModel';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -59,6 +65,7 @@ export class Hud {
   onCommandCard?: (action: CommandCardAction) => void;
   onStatusBroadcast?: (label: string) => void;
   onCourierDeliver?: () => void;
+  onToggleAbility?: (index: number) => void;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -116,7 +123,7 @@ export class Hud {
     // 用 mousedown 而非 click:HUD 每帧重建 innerHTML,click 需 mousedown+mouseup 命中同一元素,
     // 但元素在两者之间被重建销毁 → click 永不触发(学技能/买活/背包点击全失效)。mousedown 按下即触发,先于重建。
     this.bottom.addEventListener('mousedown', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-courier-action],[data-command-card],[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout],[data-status-broadcast]') as HTMLElement | null;
+      const el = (e.target as HTMLElement).closest('[data-courier-action],[data-command-card],[data-ability-toggle],[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout],[data-status-broadcast]') as HTMLElement | null;
       if (!el) return;
       e.preventDefault();
       const courierAction = el.getAttribute('data-courier-action');
@@ -135,6 +142,10 @@ export class Hud {
       }
       // 右键库存物品 → 出售(经 shop.sellSlot 校验商店范围 + toast,天然防误卖)
       if (e.button === 2 && el.hasAttribute('data-bag')) { this.onSell?.(Number(el.getAttribute('data-bag'))); return; }
+      if (e.button === 2 && el.hasAttribute('data-ability-toggle')) {
+        this.onToggleAbility?.(Number(el.getAttribute('data-ability-toggle')));
+        return;
+      }
       if (e.button === 2) return; // 其他槽位右键不处理
       const commandAction = commandCardActionFromValue(el.getAttribute('data-command-card'));
       if (commandAction) this.onCommandCard?.(commandAction);
@@ -604,15 +615,31 @@ export class Hud {
     const aghs = !!(def.scepter || def.scepterPassive);
     const scepterOn = aghs && hasScepter(hero);
     const shardOn = !!def.shard && hasShard(hero);
-    const badges = buildAbilitySlotBadges(def, { learned: lvl > 0, scepterOn, shardOn });
+    const badges = buildAbilitySlotBadges(def, {
+      learned: lvl > 0,
+      scepterOn,
+      shardOn,
+      autocastOn: inst.autocastOn,
+      toggleOn: inst.toggleOn,
+    });
     const border = scepterOn ? '#d56bff' : shardOn ? '#5fd0d0' : learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
     const bg = lvl > 0 ? (ready || passive ? '#2a3a18' : '#1d2412') : '#0d100a';
     const flash = ux?.hudFlashFor(`ability-${i}`, world.time);
     const flashShadow = flash?.kind === 'reject' ? 'box-shadow:0 0 0 2px #ff3040 inset,0 0 10px #ff3040;' : '';
     const pips = Array.from({ length: def.maxLevel }, (_, k) =>
       `<span style="width:6px;height:4px;border-radius:1px;background:${k < lvl ? '#ffd54f' : '#3a4428'}"></span>`).join('');
-    const aghsDesc = aghs && def.scepter?.desc ? `\n${def.scepter.desc}` : aghs ? '\n神杖:增强升级' : '';
-    const shardDesc = def.shard?.desc ? `\n${def.shard.desc}` : '';
+    const title = buildAbilitySlotTitle(def, {
+      level: lvl,
+      learnable,
+      autocastOn: lvl > 0 && def.tags.includes('autocast') ? inst.autocastOn === true : undefined,
+      toggleOn: lvl > 0 && def.tags.includes('toggle') ? inst.toggleOn === true : undefined,
+      cooldownRemaining: Math.max(0, inst.cooldownUntil - world.time),
+      manaCost: lvl > 0 ? mana : 0,
+      currentMana: hero.mp,
+      scepterDesc: aghs && def.scepter?.desc ? def.scepter.desc : undefined,
+      scepterAvailable: aghs && !def.scepter?.desc,
+      shardDesc: def.shard?.desc,
+    });
     const status = abilityStatusBroadcastLabel({
       name: def.name,
       hotkey: HOTKEYS[i],
@@ -621,8 +648,11 @@ export class Hud {
       cooldownRemaining: Math.max(0, inst.cooldownUntil - world.time),
       manaCost: lvl > 0 ? mana : 0,
       currentMana: hero.mp,
+      autocastOn: lvl > 0 && def.tags.includes('autocast') ? inst.autocastOn === true : undefined,
+      toggleOn: lvl > 0 && def.tags.includes('toggle') ? inst.toggleOn === true : undefined,
     });
-    return `<div ${learnable ? `data-learn="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${buildAbilityTooltip(def, lvl)}${learnable ? '\n点击学习(+)' : ''}${aghsDesc}${shardDesc}"
+    const toggleable = lvl > 0 && (def.tags.includes('autocast') || def.tags.includes('toggle'));
+    return `<div ${learnable ? `data-learn="${i}" ` : ''}${toggleable ? `data-ability-toggle="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${escapeAttr(title)}"
       style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};${learnable ? 'cursor:pointer;' : ''}
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
       <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
@@ -670,7 +700,8 @@ export class Hud {
       '';
     if (!inst) {
       const status = itemStatusBroadcastLabel({ hotkey: label, empty: true, cooldownRemaining: 0, hasActive: false });
-      return `<div data-status-broadcast="${escapeAttr(status)}" title="${isTp ? '回城卷轴槽(按 T 使用)' : ''}" style="position:relative;width:64px;height:64px;border:1px solid ${flash?.kind === 'reject' ? '#ff3040' : emptyBorder};border-radius:4px;background:#0d100a;${flashShadow}
+      const title = buildEmptyItemSlotTitle({ hotkey: label, isTpSlot: isTp });
+      return `<div data-status-broadcast="${escapeAttr(status)}" title="${escapeAttr(title)}" style="position:relative;width:64px;height:64px;border:1px solid ${flash?.kind === 'reject' ? '#ff3040' : emptyBorder};border-radius:4px;background:#0d100a;${flashShadow}
         font-size:10px;color:#555;display:flex;align-items:center;justify-content:center">
         <span style="position:absolute;top:2px;left:4px;color:${isTp ? '#6f8fbf' : '#777'}">${label}</span>
         ${isTp ? '<span style="font-size:9px;color:#3a4a6a">TP</span>' : ''}
@@ -681,10 +712,17 @@ export class Hud {
     // 中立物品:琥珀边框 + 角标 ◈,与购买物品区分(DotA 中立物品视觉独特)
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : def.neutral ? '#e0813a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
-    // 主动物品补数值:法力/冷却(DotA tooltip 核心信息)
     const act = def.active;
-    const actLine = act ? `\n${[act.manaCost ? `法力 ${act.manaCost}` : '', act.cooldown ? `冷却 ${act.cooldown}s` : '', act.castRange ? `施法距离 ${act.castRange}` : ''].filter(Boolean).join(' · ')}` : '';
-    const tip = `${def.name}${actLine}\n${def.description}${canBag ? '\n左键移入背包栏 · 右键出售' : ''}`;
+    const tip = buildItemSlotTitle({
+      name: def.name,
+      description: def.description,
+      hotkey: label,
+      active: act ? { manaCost: act.manaCost, cooldown: act.cooldown, castRange: act.castRange } : null,
+      cooldownRemaining: Math.max(0, inst.cooldownUntil - world.time),
+      currentMana: hero.mp,
+      charges: inst.charges,
+      canBackpack: canBag,
+    });
     const status = itemStatusBroadcastLabel({
       hotkey: label,
       name: def.name,
@@ -694,7 +732,7 @@ export class Hud {
       currentMana: hero.mp,
       charges: inst.charges,
     });
-    return `<div ${canBag ? `data-bag="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
+    return `<div ${canBag ? `data-bag="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${escapeAttr(tip)}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
       background:${cooldown.active ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
       align-items:center;justify-content:center;overflow:hidden;${cooldown.active ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
@@ -708,10 +746,11 @@ export class Hud {
   /** 背包栏槽(后备栏,不提供加成;点击物品移入主物品栏,移入后 6 秒就绪)。 */
   private backpackSlot(inst: ItemInstance | null, j: number): string {
     if (!inst) {
-      return `<div title="背包栏(随身·不提供加成)" style="width:44px;height:44px;border:1px dashed #3a3320;border-radius:3px;background:#0c0e08;"></div>`;
+      return `<div title="${escapeAttr(buildEmptyBackpackSlotTitle())}" style="width:44px;height:44px;border:1px dashed #3a3320;border-radius:3px;background:#0c0e08;"></div>`;
     }
     const def = itemDef(inst.itemKey);
-    return `<div data-bagout="${j}" title="${def.name}(背包栏·无加成 — 点击移入物品栏,移入后 6 秒就绪)" style="position:relative;width:44px;height:44px;border:1px solid #6a5a3a;border-radius:3px;background:#1c1a12;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.78;">
+    const tip = buildBackpackItemSlotTitle({ name: def.name, description: def.description, charges: inst.charges });
+    return `<div data-bagout="${j}" title="${escapeAttr(tip)}" style="position:relative;width:44px;height:44px;border:1px solid #6a5a3a;border-radius:3px;background:#1c1a12;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.78;">
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:0;right:2px;font-size:9px;color:#caa84a;font-weight:700">${inst.charges}</span>` : ''}
     </div>`;
@@ -737,6 +776,10 @@ export class Hud {
 
 function abilityBadgeTone(tone: AbilitySlotBadgeTone): { bg: string; border: string; color: string } {
   switch (tone) {
+    case 'autocastOn': return { bg: '#233615', border: '#9fdf5f', color: '#e2ffc2' };
+    case 'autocastOff': return { bg: '#251b14', border: '#8f6a42', color: '#d6b887' };
+    case 'toggleOn': return { bg: '#18322c', border: '#54d6b7', color: '#c9fff2' };
+    case 'toggleOff': return { bg: '#24262b', border: '#69717d', color: '#c8d0dc' };
     case 'orb': return { bg: '#1a2f32', border: '#63d0d8', color: '#b8fbff' };
     case 'ultimate': return { bg: '#302312', border: '#d9a441', color: '#ffd76a' };
     case 'scepter': return { bg: '#2b1836', border: '#d56bff', color: '#f0c5ff' };

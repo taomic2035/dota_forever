@@ -75,6 +75,8 @@ export const DAWN_CAMPS: CampSpawn[] = [
 ];
 
 export const DAWN_SECRET_SHOP: Vec2 = { x: 10800, y: 8900 };
+/** 晨曦边路商店:靠近安全路外侧,永夜方自动镜像。 */
+export const DAWN_SIDE_SHOP: Vec2 = { x: 7000, y: 13680 };
 
 /** 符文点(河道线上,全图共享)。 */
 export const RUNE_SPOTS: Vec2[] = [

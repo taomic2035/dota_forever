@@ -26,6 +26,30 @@ describe('status broadcast model', () => {
     })).toBe('W 余震: 被动');
   });
 
+  it('labels learned autocast and toggle ability states before generic passive', () => {
+    expect(abilityStatusBroadcastLabel({
+      name: '霜寒之箭',
+      hotkey: 'Q',
+      learned: true,
+      passive: true,
+      cooldownRemaining: 0,
+      manaCost: 0,
+      currentMana: 220,
+      autocastOn: true,
+    })).toBe('Q 霜寒之箭: AUTO ON');
+
+    expect(abilityStatusBroadcastLabel({
+      name: '燃烧姿态',
+      hotkey: 'E',
+      learned: true,
+      passive: true,
+      cooldownRemaining: 0,
+      manaCost: 0,
+      currentMana: 220,
+      toggleOn: false,
+    })).toBe('E 燃烧姿态: OFF');
+  });
+
   it('labels ability cooldown and no-mana states before ready', () => {
     expect(abilityStatusBroadcastLabel({
       name: '闪烁',

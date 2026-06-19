@@ -151,7 +151,7 @@ const POISON_DPS = [16, 26, 36, 46];
 
 const VIP_E: AbilityDef = {
   key: 'vip_poison', name: '毒性攻击', maxLevel: 4, targetMode: 'passive',
-  tags: ['orb'],
+  tags: ['orb', 'autocast'],
   description: '攻击附带毒素,持续伤害并减速(可叠加)。',
   passiveModifier: () => ({ key: 'vip_poison_passive', isBuff: true }),
   orbOnHit(w, attacker, target, lvl) {

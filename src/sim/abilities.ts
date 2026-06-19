@@ -16,6 +16,10 @@ export interface AbilityInstance {
   key: string;
   level: number;
   cooldownUntil: number;
+  /** UI/UX state hook for DotA-like autocast abilities. Logic consumers may opt in later. */
+  autocastOn?: boolean;
+  /** UI/UX state hook for DotA-like toggle abilities. Logic consumers may opt in later. */
+  toggleOn?: boolean;
 }
 
 export function abilityDefAt(u: Unit, index: number): AbilityDef | undefined {
@@ -91,6 +95,10 @@ export function learnAbility(w: World, u: Unit, index: number): boolean {
   const inst = u.abilities[index];
   const def = abilityDefAt(u, index)!;
   inst.level++;
+  // 自动施法默认开启(Opus sim 策略,用户拍板 A):autocast 法球学习即生效。
+  // 否则默认关→法球学了也沉默、且 bot 永不 toggle→法球休眠+平衡偏移。
+  // 玩家仍可 QWER/右键 toggle 关(保正补/避免推线)。Codex 需同步 UX 徽标默认态为 on。
+  if (def.tags.includes('autocast') && inst.autocastOn === undefined) inst.autocastOn = true;
   u.heroMeta!.skillPoints--;
   if (def.passiveModifier) {
     removeModifier(w, u, `passive_${def.key}`, u.id);
@@ -271,6 +279,7 @@ attackHitHooks.push((w, attacker, target, dealt) => {
     const inst = attacker.abilities[i];
     const def = attacker.heroDef.abilities[i];
     if (!def?.orbOnHit || inst.level <= 0) continue;
+    if (def.tags.includes('autocast') && inst.autocastOn !== true) continue;
     def.orbOnHit(w, attacker, target, inst.level);
   }
 });

@@ -123,9 +123,19 @@ describe('斯娜', () => {
 });
 
 describe('哈斯', () => {
-  it('燃烧之矛:攻击点燃目标', () => {
+  it('燃烧之矛:自动施法关闭时攻击不点燃目标', () => {
     const h = spawnHero(w, HSK, Team.Dawn, { x: 7000, y: 8000 });
     learnAbility(w, h, 0);
+    h.abilities[0].autocastOn = false; // 显式关闭(默认开启已是 Opus 策略,玩家可 toggle 关)
+    const t = dummy(7350, 8000, { magicResist: 0 });
+    h.issueOrder({ type: 'attack', targetId: t.id });
+    run(40);
+    expect(t.modifiers.some((m) => m.key === 'hsk_spears_burn')).toBe(false);
+  });
+  it('燃烧之矛:自动施法开启时攻击点燃目标', () => {
+    const h = spawnHero(w, HSK, Team.Dawn, { x: 7000, y: 8000 });
+    learnAbility(w, h, 0);
+    h.abilities[0].autocastOn = true;
     const t = dummy(7350, 8000, { magicResist: 0 });
     h.issueOrder({ type: 'attack', targetId: t.id });
     run(40);

@@ -174,9 +174,21 @@ describe('佐拉', () => {
 });
 
 describe('艾莉', () => {
-  it('霜寒之箭:攻击附带减速', () => {
+  it('霜寒之箭:自动施法关闭时攻击不附带减速', () => {
     const h = spawnHero(w, AILI, Team.Dawn, { x: 7000, y: 8000 });
     learnAbility(w, h, 0);
+    h.abilities[0].autocastOn = false; // 显式关闭(默认开启已是 Opus 策略,玩家可 toggle 关)
+    const d = dummy(7400, 8000);
+    h.issueOrder({ type: 'attack', targetId: d.id });
+    run(70);
+    expect(hasModifier(d, 'aili_frost_slow')).toBe(false);
+    expect(d.calc.moveSpeed).toBeCloseTo(300, 0);
+  });
+
+  it('霜寒之箭:自动施法开启时攻击附带减速', () => {
+    const h = spawnHero(w, AILI, Team.Dawn, { x: 7000, y: 8000 });
+    learnAbility(w, h, 0);
+    h.abilities[0].autocastOn = true;
     const d = dummy(7400, 8000);
     h.issueOrder({ type: 'attack', targetId: d.id });
     run(70);

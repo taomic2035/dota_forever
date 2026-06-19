@@ -7,8 +7,9 @@ import type { Unit } from '../sim/unit';
 import { ITEMS, itemDef, type ItemDef, type ItemCategory } from '../data/items';
 import { buyItem, takeFromStash, sellItem, shopAt } from '../sim/items';
 import { purchaseKeyFor, RECIPE_PREFIX } from '../sim/recipes';
+import { buildShopAccessModel, type ShopAccessModel } from './shopAccessModel';
 import { buildShopDestinationModel, type ShopDestinationModel } from './shopDestinationModel';
-import { buildShopVisibleItems } from './shopListModel';
+import { buildShopVisibleItems, orderShopVisibleItemsByAvailability } from './shopListModel';
 import { buildShopOwnershipModel, type ShopOwnershipModel } from './shopOwnershipModel';
 import {
   buildShopQuickActionModel,
@@ -80,13 +81,15 @@ export class ShopPanel {
   private render(w: World, hero: Unit): void {
     const gold = hero.heroMeta?.gold ?? 0;
     const at = shopAt(w, hero);
-    const items = buildShopVisibleItems(ITEMS.filter((i) => !i.neutral), {
+    const access = buildShopAccessModel(at);
+    let items = buildShopVisibleItems(ITEMS.filter((i) => !i.neutral), {
       category: this.cat,
       query: this.query,
       recipePrefix: RECIPE_PREFIX,
     });
     const destinations = new Map<string, ShopDestinationModel>();
     for (const def of items) destinations.set(def.key, buildDestinationModel(def, hero, gold, at));
+    items = orderShopVisibleItemsByAvailability(items, destinations);
     const quickAction = buildShopQuickActionModel({ visibleItems: items, destinations });
     const recipeProgress = new Map<string, ShopRecipeProgressModel>();
     const nextComponents = new Map<string, ShopRecipeNextComponent>();
@@ -130,9 +133,9 @@ export class ShopPanel {
     });
     const qb = this.quickbuyState(hero);
     this.root.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <b>商店 ${at === 'secret' ? '· 秘密商店' : at === 'home' ? '· 基地' : '· <span style="color:#ef9a9a">不在商店范围</span>'}</b>
-        <span style="color:#ffd54f">⛁ ${gold}</span>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+        ${shopAccessBadge(access)}
+        <span style="color:#ffd54f;font-weight:800;flex:none">⛁ ${gold}</span>
       </div>
       ${quickbuyBadge(qb.model)}
       <input id="shop-search" value="${escapeAttr(this.query)}" placeholder="Search items" spellcheck="false"
@@ -236,7 +239,7 @@ export class ShopPanel {
         else if (r === 'ok_backpack') this.showToast(`${def.name} 已放入背包栏`);
         else if (r === 'ok_stash') this.showToast(`${def.name} 已放入储藏处`);
         else if (r === 'no_gold') this.showToast('金币不足');
-        else if (r === 'no_shop') this.showToast(def.secretShop ? '需要在秘密商店购买' : '不在商店范围内');
+        else if (r === 'no_shop') this.showToast(def.secretShop ? '需要在秘密商店购买' : at === 'side' ? '需要在基地商店购买' : '不在商店范围内');
         else this.showToast('物品栏、背包栏与储藏均已满');
         this.lastRender = 0;
       };
@@ -331,11 +334,12 @@ export class ShopPanel {
 
   private buy(w: World, hero: Unit, def: ItemDef): void {
     const r = buyItem(w, hero, purchaseKeyFor(def.key));
+    const at = shopAt(w, hero);
     if (r === 'ok') this.showToast(`Bought ${def.name}`);
     else if (r === 'ok_backpack') this.showToast(`${def.name} to backpack`);
     else if (r === 'ok_stash') this.showToast(`${def.name} to stash`);
     else if (r === 'no_gold') this.showToast('Not enough gold');
-    else if (r === 'no_shop') this.showToast(def.secretShop ? 'Need secret shop' : 'Need home shop');
+    else if (r === 'no_shop') this.showToast(def.secretShop ? 'Need secret shop' : at === 'side' ? 'Need home shop' : 'Not in shop range');
     else this.showToast('Inventory, backpack, and stash are full');
     this.lastRender = 0;
   }
@@ -400,17 +404,32 @@ function stashActionButtonStyle(model: ShopStashActionModel): string {
   return `width:100%;margin:0 0 5px 0;padding:3px 8px;border-radius:4px;border:1px solid ${p.border};background:${p.bg};color:${p.fg};font-size:11px;font-weight:800;cursor:${model.enabled ? 'pointer' : 'not-allowed'};opacity:${model.enabled ? 1 : 0.6};`;
 }
 
+function shopAccessBadge(model: ShopAccessModel): string {
+  const palette: Record<ShopAccessModel['tone'], { border: string; bg: string; fg: string }> = {
+    home: { border: '#5f8d43', bg: '#12210f', fg: '#a7e87a' },
+    side: { border: '#8a6b32', bg: '#21180b', fg: '#ffd06a' },
+    secret: { border: '#3f6f7d', bg: '#0d1a1f', fg: '#9edfff' },
+    away: { border: '#5f3832', bg: '#1c1010', fg: '#ff9f8f' },
+  };
+  const p = palette[model.tone];
+  return `<div title="${escapeAttr(model.title)}" style="min-width:0;display:flex;flex-direction:column;gap:2px;">
+    <b style="color:#e8e2c8;font-size:13px;line-height:1.15">商店 · ${model.label}</b>
+    <span style="display:inline-flex;align-items:center;align-self:flex-start;max-width:220px;border:1px solid ${p.border};border-radius:4px;background:${p.bg};color:${p.fg};font-size:10px;line-height:14px;padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
+  </div>`;
+}
+
 function buildDestinationModel(
   def: ItemDef,
   hero: Unit,
   gold: number,
-  at: 'home' | 'secret' | null,
+  at: 'home' | 'side' | 'secret' | null,
 ): ShopDestinationModel {
   return buildShopDestinationModel({
     item: {
       key: def.key,
       cost: effectiveCost(def),
       secretShop: def.secretShop,
+      sideShop: def.sideShop,
       stackCharges: def.stackCharges,
     },
     hero: {

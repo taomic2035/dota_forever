@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONTROL_SETTINGS, DEFAULT_KEY_BINDS, normalizeControlSettings, normalizeKeyBinds } from '../src/engine/controlSettings';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  DEFAULT_KEY_BINDS,
+  captureRebindKey,
+  normalizeControlSettings,
+  normalizeKeyBinds,
+} from '../src/engine/controlSettings';
 
 describe('control key binds for selection commands', () => {
   it('keeps number row item hotkeys while adding selection command defaults', () => {
@@ -19,5 +25,35 @@ describe('control key binds for selection commands', () => {
     expect(DEFAULT_CONTROL_SETTINGS.numberRowMode).toBe('items');
     expect(normalizeControlSettings({ numberRowMode: 'controlGroups' }).numberRowMode).toBe('controlGroups');
     expect(normalizeControlSettings({ numberRowMode: 'bad' }).numberRowMode).toBe('items');
+  });
+
+  it('captures a rebind and swaps conflicts to keep one action per key', () => {
+    const binds = {
+      ...DEFAULT_KEY_BINDS,
+      attackMove: 'a',
+      stop: 's',
+    };
+
+    expect(captureRebindKey(binds, 'attackMove', 'S')).toEqual({
+      changed: true,
+      keyBinds: {
+        ...DEFAULT_KEY_BINDS,
+        attackMove: 's',
+        stop: 'a',
+      },
+    });
+  });
+
+  it('cancels escape or empty captures without mutating binds', () => {
+    const binds = { ...DEFAULT_KEY_BINDS, attackMove: 'x' };
+
+    expect(captureRebindKey(binds, 'attackMove', 'Escape')).toEqual({
+      changed: false,
+      keyBinds: binds,
+    });
+    expect(captureRebindKey(binds, 'attackMove', '')).toEqual({
+      changed: false,
+      keyBinds: binds,
+    });
   });
 });

@@ -23,6 +23,7 @@ export interface TerrainVisual {
 
 export type LandmarkVisualKind =
   | 'shop'
+  | 'sideShop'
   | 'secretShop'
   | 'pit'
   | 'rune'
@@ -89,7 +90,8 @@ export function terrainVisualAt(map: GameMap, cx: number, cy: number): TerrainVi
 export function landmarkVisuals(map: GameMap): LandmarkVisual[] {
   const out: LandmarkVisual[] = [];
   for (const shop of map.shops) {
-    out.push({ kind: shop.secret ? 'secretShop' : 'shop', pos: { ...shop.pos }, team: shop.team });
+    const kind: LandmarkVisualKind = shop.kind === 'secret' ? 'secretShop' : shop.kind === 'side' ? 'sideShop' : 'shop';
+    out.push({ kind, pos: { ...shop.pos }, team: shop.team });
   }
   out.push({ kind: 'pit', pos: { ...map.pitPos }, team: Team.Neutral });
   for (const pos of map.runeSpots) out.push({ kind: 'rune', pos: { ...pos }, team: Team.Neutral });

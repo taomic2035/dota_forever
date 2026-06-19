@@ -49,11 +49,13 @@ function setItemSlot(hero: Unit, slot: number, inst: ItemInstance | null): void 
   else hero.inventory[slot] = inst;
 }
 
-/** 单位当前所处商店:'home' 基地 | 'secret' 秘密 | null。 */
-export function shopAt(w: World, u: Unit): 'home' | 'secret' | null {
+export type ShopAccess = 'home' | 'side' | 'secret' | null;
+
+/** 单位当前所处商店:'home' 基地 | 'side' 边路 | 'secret' 秘密 | null。 */
+export function shopAt(w: World, u: Unit): ShopAccess {
   for (const s of w.map.shops) {
     if (s.team !== u.team) continue;
-    if (V.dist(u.pos, s.pos) <= s.range) return s.secret ? 'secret' : 'home';
+    if (V.dist(u.pos, s.pos) <= s.range) return s.kind;
   }
   return null;
 }
@@ -77,7 +79,7 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
   if (!m) return 'no_shop';
 
   const at = hero.alive ? shopAt(w, hero) : 'home'; // 死亡时视为基地购买(进储藏)
-  const allowed = def.secretShop ? at === 'secret' : at === 'home';
+  const allowed = def.secretShop ? at === 'secret' : def.sideShop ? at === 'home' || at === 'side' : at === 'home';
   if (!allowed) return 'no_shop';
   if (m.gold < def.cost) return 'no_gold';
 
@@ -117,7 +119,8 @@ export function buyItem(w: World, hero: Unit, key: string): BuyResult {
       return 'ok_backpack';
     }
   }
-  // 背包栏也满或死亡 → 储藏(仅基地商店语义)
+  // 背包栏也满或死亡 → 储藏(仅基地商店语义;边店不会远程送储藏)
+  if (hero.alive && at !== 'home') return 'full';
   if (def.secretShop && hero.alive) return 'full'; // 秘密商店不送储藏
   const stashSlot = freeSlot(hero.stash);
   if (stashSlot < 0) return 'full';

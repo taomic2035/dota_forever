@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildShopVisibleItems } from '../src/ui/shopListModel';
+import { buildShopVisibleItems, orderShopVisibleItemsByAvailability } from '../src/ui/shopListModel';
 
 const catalog = [
   { key: 'branch', name: 'Iron Branch', category: 'attribute' as const, cost: 53, description: '+1 all stats' },
@@ -58,5 +58,24 @@ describe('buildShopVisibleItems', () => {
     });
 
     expect(result.map((item) => item.key)).toEqual(['branch', 'broadsword', 'ward_obs']);
+  });
+
+  it('orders currently buyable rows before blocked rows while preserving stable row order', () => {
+    const rows = [
+      { key: 'broadsword', name: 'Broad Sword', category: 'weapon' as const, cost: 1000 },
+      { key: 'boots', name: 'Boots', category: 'armor' as const, cost: 500 },
+      { key: 'ward_obs', name: 'Observer Ward', category: 'consumable' as const, cost: 150 },
+      { key: 'branch', name: 'Iron Branch', category: 'attribute' as const, cost: 53 },
+    ];
+
+    const result = orderShopVisibleItemsByAvailability(rows, new Map([
+      ['broadsword', { canBuy: false }],
+      ['boots', { canBuy: true }],
+      ['ward_obs', { canBuy: false }],
+      ['branch', { canBuy: true }],
+    ]));
+
+    expect(result.map((item) => item.key)).toEqual(['boots', 'branch', 'broadsword', 'ward_obs']);
+    expect(rows.map((item) => item.key)).toEqual(['broadsword', 'boots', 'ward_obs', 'branch']);
   });
 });

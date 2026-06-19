@@ -85,6 +85,15 @@ function sphere(mats: THREE.MeshLambertMaterial[], r: number, color: string, emi
   mesh.castShadow = true;
   return mesh;
 }
+function ellipsoid(mats: THREE.MeshLambertMaterial[], w: number, h: number, d: number, color: string, emissive?: string): THREE.Mesh {
+  const m = new THREE.MeshLambertMaterial({ color });
+  if (emissive) m.emissive.set(emissive);
+  mats.push(m);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), m);
+  mesh.scale.set(w / 2, h / 2, d / 2);
+  mesh.castShadow = true;
+  return mesh;
+}
 function cyl(mats: THREE.MeshLambertMaterial[], rt: number, rb: number, h: number, seg: number, color: string): THREE.Mesh {
   const m = new THREE.MeshLambertMaterial({ color });
   mats.push(m);
@@ -104,17 +113,24 @@ function beastModel(art: UnitArt): UnitModel {
   const bodyL = mid ? 50 : 38;
   const bodyH = mid ? 24 : 18;
   const eyeGlow = big ? art.accent : undefined; // Boss/远古发光眼
+  root.userData.gameplayUnitModelQuality = {
+    pass: 'v26-nonhero-play-camera-model-quality',
+    family: 'neutral',
+    threatRead: art.role === 'boss' ? 'boss' : art.role === 'neutralAncient' ? 'ancient' : art.role === 'neutralLarge' ? 'large' : 'small',
+    priority: big ? 'medium' : 'low',
+  };
 
   // 躯体核心组(攻击前冲 / 施法后仰用)
   const core = new THREE.Group();
   core.position.y = legH;
   root.add(core);
 
-  const body = box(mats, bodyW, bodyH, bodyL, art.primary);
+  const body = ellipsoid(mats, bodyW, bodyH, bodyL, art.primary);
   body.position.y = bodyH / 2;
+  body.userData.playCameraReadabilityLayer = 'core-volume';
   core.add(body);
   // 隆起背脊
-  const hump = box(mats, bodyW * 0.7, bodyH * 0.5, bodyL * 0.45, art.primary);
+  const hump = ellipsoid(mats, bodyW * 0.7, bodyH * 0.5, bodyL * 0.45, art.primary);
   hump.position.set(0, bodyH * 0.9, -bodyL * 0.1);
   core.add(hump);
 
@@ -122,9 +138,10 @@ function beastModel(art: UnitArt): UnitModel {
   const headG = new THREE.Group();
   headG.position.set(0, bodyH * 0.7, bodyL / 2 + 4);
   core.add(headG);
-  const head = box(mats, bodyW * 0.7, bodyH * 0.7, 20, art.primary);
+  const head = ellipsoid(mats, bodyW * 0.7, bodyH * 0.7, 20, art.primary);
+  head.userData.playCameraReadabilityLayer = 'head-read';
   headG.add(head);
-  const snout = box(mats, bodyW * 0.4, bodyH * 0.35, 12, art.accent);
+  const snout = ellipsoid(mats, bodyW * 0.4, bodyH * 0.35, 12, art.accent);
   snout.position.set(0, -bodyH * 0.12, 14);
   headG.add(snout);
   // 双眼
@@ -140,6 +157,7 @@ function beastModel(art: UnitArt): UnitModel {
       horn.position.set(sx * bodyW * 0.28, bodyH * 0.5, 2);
       horn.rotation.z = sx * -0.4;
       horn.rotation.x = -0.3;
+      horn.userData.playCameraReadabilityLayer = 'threat-horns';
       headG.add(horn);
     }
   }

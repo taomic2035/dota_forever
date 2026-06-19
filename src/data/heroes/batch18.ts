@@ -396,7 +396,7 @@ const SPEAR_DPS = [30, 45, 60, 75];
 
 const HSK_Q: AbilityDef = {
   key: 'hsk_spears', name: '燃烧之矛', maxLevel: 4, targetMode: 'passive',
-  tags: ['orb'],
+  tags: ['orb', 'autocast'],
   description: '攻击附带燃烧之矛,持续灼烧目标(消耗少量自身生命)。',
   passiveModifier: () => ({ key: 'hsk_spears_passive', isBuff: true }),
   orbOnHit(w, attacker, target, lvl) {

@@ -42,6 +42,30 @@ describe('items: buy/sell/stash', () => {
     expect(buyItem(w, h, 'sacred_relic')).toBe('ok');
   });
 
+  it('side shops sell lane utility basics without unlocking home or secret inventory', () => {
+    const side = w.map.shops.find((s) => s.team === Team.Dawn && s.kind === 'side')!;
+    h.pos = w.map.nearestWalkable(side.pos);
+    h.heroMeta!.gold = 4000;
+
+    expect(shopAt(w, h)).toBe('side');
+    expect(buyItem(w, h, 'tp')).toBe('ok');
+    expect(buyItem(w, h, 'boots')).toBe('ok');
+    expect(buyItem(w, h, 'quelling_blade')).toBe('ok');
+    expect(buyItem(w, h, 'sacred_relic')).toBe('no_shop');
+    expect(buyItem(w, h, 'broadsword')).toBe('no_shop');
+  });
+
+  it('side shops never overflow purchases into the base stash', () => {
+    const side = w.map.shops.find((s) => s.team === Team.Dawn && s.kind === 'side')!;
+    h.pos = w.map.nearestWalkable(side.pos);
+    h.heroMeta!.gold = 4000;
+    h.inventory.fill(makeTestItem('branch'));
+    h.backpack.fill(makeTestItem('branch'));
+
+    expect(buyItem(w, h, 'boots')).toBe('full');
+    expect(h.stash.every((slot) => slot === null)).toBe(true);
+  });
+
   it('溢出链:物品栏(6)→背包栏(3)→储藏;takeFromStash works', () => {
     h.heroMeta!.gold = 5000;
     for (let i = 0; i < 6; i++) expect(buyItem(w, h, 'branch')).toBe('ok'); // 主物品栏满
@@ -134,4 +158,8 @@ describe('items: consumables & actives', () => {
 import { applyModifier as _am } from '../src/sim/modifiers';
 function await_import_modifiers() {
   return { applyModifier: _am };
+}
+
+function makeTestItem(itemKey: string) {
+  return { itemKey, charges: 0, cooldownUntil: -Infinity };
 }

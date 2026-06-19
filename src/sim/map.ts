@@ -7,7 +7,7 @@ import { Rng } from '../core/rng';
 import {
   WORLD, CELL, GRID, mirror,
   DAWN_BUILDINGS, LANE_WAYPOINTS, DAWN_CAMPS, DAWN_SECRET_SHOP,
-  RUNE_SPOTS, PIT_POS, PIT_MOUTH, BASE_L1, DAWN_RAMPS, RIVER_HALF_WIDTH,
+  DAWN_SIDE_SHOP, RUNE_SPOTS, PIT_POS, PIT_MOUTH, BASE_L1, DAWN_RAMPS, RIVER_HALF_WIDTH,
   DAWN_JUNGLE_PATHS,
   type BuildingSpawn, type CampSpawn, type Lane, type RampZone,
 } from '../data/mapLayout';
@@ -16,7 +16,8 @@ export enum Team { Dawn = 0, Night = 1, Neutral = 2 }
 
 export interface PlacedBuilding extends BuildingSpawn { team: Team }
 export interface PlacedCamp extends CampSpawn { side: Team; id: number }
-export interface ShopZone { team: Team; secret: boolean; pos: Vec2; range: number }
+export type ShopKind = 'home' | 'side' | 'secret';
+export interface ShopZone { team: Team; kind: ShopKind; secret: boolean; pos: Vec2; range: number }
 
 const MAP_SEED = 0xd07a;
 
@@ -255,10 +256,12 @@ export class GameMap {
     }
     const dawnFountain = DAWN_BUILDINGS.find((b) => b.kind === 'fountain')!.pos;
     this.shops = [
-      { team: Team.Dawn, secret: false, pos: V.clone(dawnFountain), range: 900 },
-      { team: Team.Night, secret: false, pos: mirror(dawnFountain), range: 900 },
-      { team: Team.Dawn, secret: true, pos: V.clone(DAWN_SECRET_SHOP), range: 450 },
-      { team: Team.Night, secret: true, pos: mirror(DAWN_SECRET_SHOP), range: 450 },
+      { team: Team.Dawn, kind: 'home', secret: false, pos: V.clone(dawnFountain), range: 900 },
+      { team: Team.Night, kind: 'home', secret: false, pos: mirror(dawnFountain), range: 900 },
+      { team: Team.Dawn, kind: 'side', secret: false, pos: V.clone(DAWN_SIDE_SHOP), range: 520 },
+      { team: Team.Night, kind: 'side', secret: false, pos: mirror(DAWN_SIDE_SHOP), range: 520 },
+      { team: Team.Dawn, kind: 'secret', secret: true, pos: V.clone(DAWN_SECRET_SHOP), range: 450 },
+      { team: Team.Night, kind: 'secret', secret: true, pos: mirror(DAWN_SECRET_SHOP), range: 450 },
     ];
     // 建筑脚下不可走(以建筑半径占格)
     for (const b of this.buildings) {

@@ -33,6 +33,26 @@ describe('buildAbilitySlotBadges', () => {
       { key: 'ultimate', label: 'ULT', tone: 'ultimate', title: 'Ultimate ability' },
     ]);
   });
+
+  it('surfaces learned autocast state without implying unlearned skills are active', () => {
+    expect(buildAbilitySlotBadges(ability({ tags: ['autocast'] }), { learned: true, autocastOn: true })).toEqual([
+      { key: 'autocast-on', label: 'AUTO ON', tone: 'autocastOn', title: 'Autocast enabled' },
+    ]);
+    expect(buildAbilitySlotBadges(ability({ tags: ['autocast'] }), { learned: true, autocastOn: false })).toEqual([
+      { key: 'autocast-off', label: 'AUTO OFF', tone: 'autocastOff', title: 'Autocast disabled' },
+    ]);
+    expect(buildAbilitySlotBadges(ability({ tags: ['autocast'] }), { learned: false, autocastOn: true })).toEqual([]);
+  });
+
+  it('surfaces learned toggle state before upgrade badges', () => {
+    expect(buildAbilitySlotBadges(ability({
+      tags: ['toggle'],
+      scepter: { desc: 'Upgraded.' },
+    }), { learned: true, toggleOn: true, scepterOn: true })).toEqual([
+      { key: 'toggle-on', label: 'ON', tone: 'toggleOn', title: 'Toggle enabled' },
+      { key: 'scepter', label: 'SCP', tone: 'scepter', title: 'Scepter upgrade active' },
+    ]);
+  });
 });
 
 function ability(over: Partial<AbilityDef>): AbilityDef {

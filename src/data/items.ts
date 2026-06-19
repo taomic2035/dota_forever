@@ -19,6 +19,8 @@ export interface ItemDef {
   cost: number;
   category: ItemCategory;
   secretShop?: boolean;
+  /** 可在边路商店购买;基地商店仍可购买。 */
+  sideShop?: boolean;
   stats?: Partial<StatMods>;
   /** 初始充能;0/undefined = 非充能品 */
   charges?: number;
@@ -179,7 +181,7 @@ export const ITEMS: ItemDef[] = [
       },
     },
     description: '永久激活该英雄的神识强化(具体效果见各技能说明)。' },
-  { key: 'tp', name: '回城卷轴', cost: 135, category: 'consumable', charges: 1, stackCharges: true,
+  { key: 'tp', name: '回城卷轴', cost: 135, category: 'consumable', charges: 1, stackCharges: true, sideShop: true,
     active: { name: '传送', manaCost: 75, cooldown: 0, targetMode: 'point', castRange: 99999, onUse: tpUse },
     description: '引导 3 秒后传送至目标点附近的己方建筑。' },
   { key: 'ward_obs', name: '视域守卫', cost: 150, category: 'consumable', charges: 2, stackCharges: true,
@@ -193,15 +195,15 @@ export const ITEMS: ItemDef[] = [
     description: '显形周围 1050 内的隐形敌人,持续 12 秒。' },
 
   // 属性散件
-  { key: 'branch', name: '铁树枝', cost: 53, category: 'attribute',
+  { key: 'branch', name: '铁树枝', cost: 53, category: 'attribute', sideShop: true,
     stats: { bonusStr: 1, bonusAgi: 1, bonusInt: 1 }, description: '+1 全属性。' },
-  { key: 'circlet', name: '全能圆环', cost: 185, category: 'attribute',
+  { key: 'circlet', name: '全能圆环', cost: 185, category: 'attribute', sideShop: true,
     stats: { bonusStr: 2, bonusAgi: 2, bonusInt: 2 }, description: '+2 全属性。' },
-  { key: 'gauntlet', name: '力量手套', cost: 150, category: 'attribute',
+  { key: 'gauntlet', name: '力量手套', cost: 150, category: 'attribute', sideShop: true,
     stats: { bonusStr: 3 }, description: '+3 力量。' },
-  { key: 'slippers', name: '敏捷便鞋', cost: 150, category: 'attribute',
+  { key: 'slippers', name: '敏捷便鞋', cost: 150, category: 'attribute', sideShop: true,
     stats: { bonusAgi: 3 }, description: '+3 敏捷。' },
-  { key: 'mantle', name: '智慧斗篷', cost: 150, category: 'attribute',
+  { key: 'mantle', name: '智慧斗篷', cost: 150, category: 'attribute', sideShop: true,
     stats: { bonusInt: 3 }, description: '+3 智力。' },
   { key: 'belt', name: '巨人腰带', cost: 450, category: 'attribute',
     stats: { bonusStr: 6 }, description: '+6 力量。' },
@@ -233,7 +235,7 @@ export const ITEMS: ItemDef[] = [
     stats: { bonusStr: 25 }, description: '+25 力量。' },
   { key: 'mystic_staff', name: '神秘法环', cost: 2700, category: 'weapon', secretShop: true,
     stats: { bonusInt: 25 }, description: '+25 智力。' },
-  { key: 'gloves_haste', name: '攻击手套', cost: 500, category: 'weapon',
+  { key: 'gloves_haste', name: '攻击手套', cost: 500, category: 'weapon', sideShop: true,
     stats: { bonusAttackSpeed: 0.15 }, description: '+15% 攻击速度。' },
   { key: 'hyperstone', name: '极速宝石', cost: 2100, category: 'weapon',
     stats: { bonusAttackSpeed: 0.55 }, description: '+55% 攻击速度。' },
@@ -245,9 +247,9 @@ export const ITEMS: ItemDef[] = [
     stats: { bonusArmor: 10 }, description: '+10 护甲。' },
   { key: 'cloak', name: '抗魔斗篷', cost: 550, category: 'armor',
     stats: { bonusMagicResist: 0.15 }, description: '+15% 魔法抗性。' },
-  { key: 'ring_regen', name: '恢复指环', cost: 350, category: 'armor',
+  { key: 'ring_regen', name: '恢复指环', cost: 350, category: 'armor', sideShop: true,
     stats: { bonusHpRegen: 2 }, description: '+2 生命回复。' },
-  { key: 'sobi_mask', name: '冥思面纱', cost: 325, category: 'arcane',
+  { key: 'sobi_mask', name: '冥思面纱', cost: 325, category: 'arcane', sideShop: true,
     stats: { bonusMpRegen: 0.65 }, description: '+0.65 法力回复。' },
   { key: 'vitality_booster', name: '生命宝珠', cost: 1100, category: 'armor', secretShop: true,
     stats: { bonusHp: 250 }, description: '+250 生命上限。' },
@@ -257,7 +259,7 @@ export const ITEMS: ItemDef[] = [
     stats: { bonusHp: 175, bonusMp: 175 }, description: '+175 生命与法力上限。' },
 
   // 鞋
-  { key: 'boots', name: '速度之靴', cost: 500, category: 'armor',
+  { key: 'boots', name: '速度之靴', cost: 500, category: 'armor', sideShop: true,
     stats: { bonusMoveSpeed: 55 }, description: '+55 移动速度。' },
 
   // ---------- 中立物品(野怪掉落,不进商店;每英雄上限 1 件;温和数值,batchsim 验证)----------
@@ -295,7 +297,7 @@ export function isDusted(u: Unit): boolean {
 
 // ---------- 基础补充(合成原料) ----------
 ITEMS.push(
-  { key: 'magic_stick', name: '魔力短杖', cost: 200, category: 'arcane', charges: 0, rechargeable: true,
+  { key: 'magic_stick', name: '魔力短杖', cost: 200, category: 'arcane', charges: 0, rechargeable: true, sideShop: true,
     active: {
       name: '能量释放', cooldown: 13, targetMode: 'none',
       onUse(w, user) {
@@ -513,7 +515,7 @@ ITEMS.push(
 
 // ---------- 魔法药瓶 ----------
 ITEMS.push(
-  { key: 'bottle', name: '魔法药瓶', cost: 600, category: 'consumable', charges: 3, rechargeable: true,
+  { key: 'bottle', name: '魔法药瓶', cost: 600, category: 'consumable', charges: 3, rechargeable: true, sideShop: true,
     active: {
       name: '畅饮', cooldown: 0.5, targetMode: 'none',
       onUse(w, user) {
@@ -1607,7 +1609,7 @@ ITEMS.push(
 // ---------- 进阶物品批次 8(散件/光环/续航,补齐物品库) ----------
 ITEMS.push(
   // 砍伐之斧:对非英雄额外伤害(补刀)
-  { key: 'quelling_blade', name: '砍伐之斧', cost: 200, category: 'weapon',
+  { key: 'quelling_blade', name: '砍伐之斧', cost: 200, category: 'weapon', sideShop: true,
     stats: { bonusDamage: 6 },
     onAttack(w, attacker, target) {
       if (target.isHero() || target.isBuilding()) return;
@@ -1626,7 +1628,7 @@ ITEMS.push(
     description: '+2 护甲 +回复;主动:消耗 150 生命换取 150 法力(法力续航)。' },
 
   // 树肢:持续回血消耗品
-  { key: 'tango', name: '树肢', cost: 90, category: 'consumable', charges: 4,
+  { key: 'tango', name: '树肢', cost: 90, category: 'consumable', charges: 4, sideShop: true,
     active: {
       name: '食用', cooldown: 0, targetMode: 'none',
       onUse(w, user) {
@@ -1701,7 +1703,7 @@ ITEMS.push(
 // ---------- 进阶物品批次 9(基础组件补全,达经典物品规模) ----------
 ITEMS.push(
   // 守护指环:廉价护甲散件
-  { key: 'ring_protection', name: '守护指环', cost: 175, category: 'armor',
+  { key: 'ring_protection', name: '守护指环', cost: 175, category: 'armor', sideShop: true,
     stats: { bonusArmor: 2 },
     description: '+2 护甲:最廉价的护甲散件。' },
 

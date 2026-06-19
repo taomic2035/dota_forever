@@ -409,6 +409,23 @@ export function ordersSystem(w: World): void {
 function idleCombat(w: World, u: Unit): void {
   // 自动攻击 = never:空闲绝不自动获取/平A(保护正补反补)。显式 attack / A-move 不走此路径,不受影响。
   if (u.autoAttack === 'never') { u.attackTargetId = 0; return; }
+  if (u.autoAttack === 'standard') {
+    const leash = u.calc.attackRange + u.base.collisionRadius + 24;
+    let t = w.getUnit(u.attackTargetId);
+    if (!t || !t.alive || !isEnemy(u, t) || !inAttackRange(u, t, 24)) {
+      u.attackTargetId = 0;
+      t = undefined;
+      if ((w.tick + u.id) % 6 === 0) {
+        const found = nearestEnemyInRange(w, u, leash);
+        if (found) {
+          u.attackTargetId = found.id;
+          t = found;
+        }
+      }
+    }
+    if (t) holdAttack(w, u, t);
+    return;
+  }
   let t = w.getUnit(u.attackTargetId);
   if (!t || !t.alive || !isEnemy(u, t) || V.dist(u.pos, t.pos) > u.calc.acquireRange * 1.4) {
     u.attackTargetId = 0;

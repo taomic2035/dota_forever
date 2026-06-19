@@ -26,3 +26,46 @@ export function buildAbilityTooltip(def: AbilityDef, lvl: number): string {
   const desc = def.description ? `\n${def.description}` : '';
   return `${head}${statLine}${desc}`;
 }
+
+export interface AbilitySlotTitleInput {
+  level: number;
+  learnable?: boolean;
+  autocastOn?: boolean;
+  toggleOn?: boolean;
+  cooldownRemaining?: number;
+  manaCost?: number;
+  currentMana?: number;
+  scepterDesc?: string;
+  scepterAvailable?: boolean;
+  shardDesc?: string;
+}
+
+export function buildAbilitySlotTitle(def: AbilityDef, input: AbilitySlotTitleInput): string {
+  const lines = [buildAbilityTooltip(def, input.level)];
+  const learned = input.level > 0;
+  const tags = def.tags ?? [];
+  if (learned && tags.includes('autocast')) {
+    lines.push(`AUTO ${input.autocastOn === true ? 'ON' : 'OFF'}`);
+    lines.push('QWER/右键切换自动施放');
+  } else if (learned && tags.includes('toggle')) {
+    lines.push(input.toggleOn === true ? 'ON' : 'OFF');
+    lines.push('QWER/右键切换开关状态');
+  } else if (learned) {
+    const current = abilityCurrentStateLine(input);
+    if (current) lines.push(current);
+  }
+  if (input.learnable) lines.push('点击学习(+)');
+  if (input.scepterDesc) lines.push(input.scepterDesc);
+  else if (input.scepterAvailable) lines.push('神杖:增强升级');
+  if (input.shardDesc) lines.push(input.shardDesc);
+  return lines.join('\n');
+}
+
+function abilityCurrentStateLine(input: AbilitySlotTitleInput): string | null {
+  const cooldown = input.cooldownRemaining ?? 0;
+  if (cooldown > 0) return `当前: 冷却 ${Math.ceil(cooldown)}s`;
+  const manaCost = input.manaCost ?? 0;
+  const currentMana = input.currentMana ?? Number.POSITIVE_INFINITY;
+  if (manaCost > currentMana) return `当前: 法力不足 ${Math.floor(currentMana)}/${manaCost}`;
+  return '当前: 就绪';
+}

@@ -73,6 +73,51 @@ describe('buildShopDestinationModel', () => {
     });
   });
 
+  it('previews side-shop basics as lane purchases', () => {
+    const model = buildShopDestinationModel({
+      item: { key: 'boots', cost: 500, sideShop: true },
+      hero: { ...baseHero, shop: 'side' },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: true,
+      destination: 'hero',
+      label: 'Hero',
+      detail: 'Side shop: goes to inventory',
+      tone: 'ready',
+    });
+  });
+
+  it('blocks non-side-shop basics at the side shop before checking gold', () => {
+    const model = buildShopDestinationModel({
+      item: { key: 'broadsword', cost: 1000 },
+      hero: { ...baseHero, gold: 0, shop: 'side' },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: false,
+      destination: 'blocked',
+      label: 'Side',
+      detail: 'Need home shop',
+      tone: 'blocked',
+    });
+  });
+
+  it('previews full side-shop purchases as blocked instead of stashing them', () => {
+    const model = buildShopDestinationModel({
+      item: { key: 'boots', cost: 500, sideShop: true },
+      hero: { ...baseHero, shop: 'side', inventoryFreeSlots: 0, backpackFreeSlots: 0, stashFreeSlots: 1 },
+    });
+
+    expect(model).toMatchObject({
+      canBuy: false,
+      destination: 'blocked',
+      label: 'Full',
+      detail: 'Side shop cannot stash',
+      tone: 'blocked',
+    });
+  });
+
   it('shows not enough gold after the shop requirement is satisfied', () => {
     const model = buildShopDestinationModel({
       item: { key: 'branch', cost: 53 },
