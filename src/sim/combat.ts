@@ -12,6 +12,7 @@ import {
 import type { World } from './world';
 import { Unit, type EntityId } from './unit';
 import { prdChance } from './prd';
+import { canDenyTarget } from './denyRules';
 
 /** 经典 DotA:重生「重组」窗口(秒)。期间无敌、眩晕;到期后原地满血复活。 */
 const REINCARNATION_DELAY = 3;
@@ -361,8 +362,7 @@ export function ordersSystem(w: World): void {
           u.advanceOrder();
           break;
         }
-        // 反补规则:攻击己方单位仅限血量<50%的小兵(或己方建筑<10%,经典可拆塔反补简化为不允许)
-        if (t.team === u.team && !(t.kind === 'creep' && t.hp / t.calc.maxHp < 0.5)) {
+        if (t.team === u.team && !canDenyTarget(w, u, t)) {
           u.order = null;
           break;
         }

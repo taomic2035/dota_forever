@@ -57,6 +57,7 @@ function callbacks(overrides: Partial<InputCallbacks> = {}): InputCallbacks {
     onSelectAllControlled: vi.fn(),
     onBindControlGroup: vi.fn(),
     onSelectControlGroup: vi.fn(),
+    onPing: vi.fn(),
     onSelectBox: vi.fn(),
     onSelectionBoxPreview: vi.fn(),
     onSelectionBoxClear: vi.fn(),
@@ -155,6 +156,19 @@ describe('InputManager selection controls', () => {
     expect(cb.onSelectAllControlled).toHaveBeenCalledTimes(1);
   });
 
+  it('marks F1 double-tap as a request to center the camera on the hero', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.fakeWindow.emit('keydown', { key: 'F1', repeat: false, altKey: false, shiftKey: false, timeStamp: 1000, preventDefault: vi.fn() });
+    input.fakeWindow.emit('keydown', { key: 'F1', repeat: false, altKey: false, shiftKey: false, timeStamp: 1300, preventDefault: vi.fn() });
+    input.fakeWindow.emit('keydown', { key: 'F1', repeat: false, altKey: false, shiftKey: false, timeStamp: 2200, preventDefault: vi.fn() });
+
+    expect(cb.onSelectHero).toHaveBeenNthCalledWith(1, { center: false });
+    expect(cb.onSelectHero).toHaveBeenNthCalledWith(2, { center: true });
+    expect(cb.onSelectHero).toHaveBeenNthCalledWith(3, { center: false });
+  });
+
   it('passes Shift left-click as additive selection', () => {
     const cb = callbacks();
     const input = installInput(cb);
@@ -163,6 +177,39 @@ describe('InputManager selection controls', () => {
     input.fakeWindow.emit('mouseup', { button: 0, offsetX: 140, offsetY: 220 });
 
     expect(cb.onLeftClick).toHaveBeenCalledWith({ x: 140, y: 220 }, { additive: true });
+  });
+
+  it('routes Alt left-click on the world to tactical ping instead of selection', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.canvas.emit('mousedown', { button: 0, offsetX: 180, offsetY: 260, altKey: true, ctrlKey: false, shiftKey: false });
+    input.fakeWindow.emit('mouseup', { button: 0, offsetX: 180, offsetY: 260 });
+    input.canvas.emit('mousedown', { button: 0, offsetX: 200, offsetY: 280, altKey: true, ctrlKey: true, shiftKey: true });
+    input.fakeWindow.emit('mouseup', { button: 0, offsetX: 200, offsetY: 280 });
+
+    expect(cb.onPing).toHaveBeenNthCalledWith(1, { x: 180, y: 260 }, 'ping');
+    expect(cb.onPing).toHaveBeenNthCalledWith(2, { x: 200, y: 280 }, 'dangerPing');
+    expect(cb.onLeftClick).not.toHaveBeenCalled();
+    expect(cb.onSelectBox).not.toHaveBeenCalled();
+  });
+
+  it('lets external command surfaces confirm pending cast and item targets at world coordinates', () => {
+    const cb = callbacks({
+      onPrepareCast: vi.fn(() => true),
+      onPrepareItem: vi.fn(() => true),
+    });
+    const input = installInput(cb);
+
+    input.fakeWindow.emit('keydown', { key: 'Q', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+    expect(input.manager.confirmPendingTarget({ x: 640, y: 720 }, true)).toBe(true);
+    input.fakeWindow.emit('keydown', { key: '1', repeat: false, ctrlKey: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+    expect(input.manager.confirmPendingTarget({ x: 960, y: 1_120 })).toBe(true);
+
+    expect(cb.onCastKey).toHaveBeenCalledWith(0, { x: 640, y: 720 }, { selfCast: false, queued: true });
+    expect(cb.onPendingCast).toHaveBeenLastCalledWith(null);
+    expect(cb.onItemKey).toHaveBeenCalledWith(0, { x: 960, y: 1120 }, { selfCast: false, queued: false });
+    expect(cb.onPendingItem).toHaveBeenLastCalledWith(null);
   });
 
   it('routes left-button drags beyond threshold to box selection', () => {

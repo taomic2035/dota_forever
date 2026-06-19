@@ -2,6 +2,7 @@ import type { OrderType } from '../sim/unit';
 
 export type CourierHudStatus = 'missing' | 'dead' | 'ready' | 'delivering' | 'returning';
 export type CourierHudTone = 'muted' | 'danger' | 'ready' | 'busy';
+export type CourierHudPrimaryAction = 'select' | 'deliver' | 'none';
 
 export interface CourierHudInputUnit {
   id: number;
@@ -24,6 +25,7 @@ export interface CourierHudModel {
   label: string;
   detail: string;
   actionLabel: string;
+  primaryAction: CourierHudPrimaryAction;
   tone: CourierHudTone;
   hpPercent: number;
   selected: boolean;
@@ -38,6 +40,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       label: 'Courier',
       detail: 'No allied courier',
       actionLabel: 'No courier',
+      primaryAction: 'none',
       tone: 'muted',
       hpPercent: 0,
       selected: false,
@@ -58,6 +61,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       label: 'Courier',
       detail: 'Dead / respawning',
       actionLabel: 'Wait respawn',
+      primaryAction: 'none',
       tone: 'danger',
       hpPercent,
       selected,
@@ -71,6 +75,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       label: 'Courier',
       detail: detailFor(`Delivering stash x${courier.stashItems}`),
       actionLabel: actionFor('F2 follow delivery'),
+      primaryAction: 'select',
       tone: toneFor('busy'),
       hpPercent,
       selected,
@@ -84,6 +89,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       label: 'Courier',
       detail: detailFor('Returning to base'),
       actionLabel: actionFor('F2 follow return'),
+      primaryAction: 'select',
       tone: toneFor('busy'),
       hpPercent,
       selected,
@@ -95,7 +101,8 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
     status: 'ready',
     label: 'Courier',
     detail: detailFor(courier.stashItems > 0 ? `Ready / stash x${courier.stashItems}` : 'Ready at base'),
-    actionLabel: actionFor(courier.stashItems > 0 ? 'F2 select / stash ready' : 'F2 select'),
+    actionLabel: actionFor(courier.stashItems > 0 ? 'Deliver stash' : 'F2 select'),
+    primaryAction: lowHealth ? 'select' : courier.stashItems > 0 ? 'deliver' : 'select',
     tone: toneFor('ready'),
     hpPercent,
     selected,

@@ -17,9 +17,9 @@ import { MiniMap } from './render/minimap';
 import { GameLoop, steppedSpeed } from './engine/loop';
 import { InputManager, type CastInputOptions, type ControlGroupInputOptions, type SelectInputOptions } from './engine/input';
 import { SelectionState, type ControlGroupSlot } from './engine/selection';
-import { issueSelectionOrder } from './engine/selectionCommandRouting';
+import { issueSelectionOrder, selectedCastSubject } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
-import { DamageLog, ControlLog } from './ui/deathRecapModel';
+import { DamageLog, ControlLog, type DeathAssistSource } from './ui/deathRecapModel';
 import { CombatLog } from './ui/combatLogModel';
 import { CombatLogPanel } from './ui/combatLogPanel';
 import { KillFeed } from './ui/killfeed';
@@ -54,11 +54,13 @@ import {
 import { resolveSelfCastTarget, targetTeamAllowsSelfCast } from './engine/selfCast';
 import { cursorTargetHintFor } from './ui/cursorTargetHint';
 import { buildCourierDeathPulses } from './ui/courierEventFeedback';
-import { buildBuildingAttackAlertPulses } from './ui/buildingAttackAlertModel';
+import { buildBuildingAttackAlertFeedback } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 import { castStatus } from './engine/castValidity';
 import { modifierStates } from './sim/modifiers';
 import { castScan } from './sim/scan';
+import { canDenyTarget } from './sim/denyRules';
+import { requestCourierDelivery } from './sim/courier';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -193,6 +195,25 @@ function startGame(mode: 'play' | 'spectate'): void {
   const endScreen = new EndScreen(app);
   const scoreboard = new Scoreboard(app);
   const ux = new UxFeedback();
+  hud.onStatusBroadcast = (label) => {
+    ux.setCommandMessage({ kind: 'info', label, time: world.time, color: '#8fd0ff', ttl: 1.8 });
+  };
+  hud.onCourierDeliver = () => {
+    if (!hero?.alive) return;
+    const result = requestCourierDelivery(world, hero);
+    if (result === 'ok') {
+      ux.setCommandMessage({ kind: 'info', label: '信使送货中', time: world.time, color: '#ffd76a', ttl: 1.8 });
+      audio.command(false);
+      return;
+    }
+    const label = result === 'no-stash'
+      ? '储藏处为空'
+      : result === 'dead'
+        ? '信使阵亡'
+        : '无可用信使';
+    ux.setCommandMessage({ kind: 'reject', label, time: world.time, color: '#ff3040' });
+    audio.reject();
+  };
   const selection = hero ? new SelectionState(hero.team, hero.id) : null;
   const syncSelection = () => {
     if (selection) ux.setSelectionSnapshot(selection.snapshot());
@@ -204,19 +225,22 @@ function startGame(mode: 'play' | 'spectate'): void {
   }
   const inspectPanel = new InspectPanel(app);
   const commandCursor = new CommandCursor(app);
+  const audio = new AudioDirector();
+  let input: InputManager | null = null;
   // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
   const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy, kind) => {
     ux.addWorldPulse({ kind, pos: { x: wx, y: wy }, time: world.time });
+    audio.ping(kind);
   }, (wx, wy) => {
     if (!hero?.alive) return;
     const pos = map.nearestWalkable({ x: wx, y: wy });
     hero.issueOrder({ type: 'move', pos });
     ux.addWorldPulse({ kind: 'move', pos, time: world.time });
+  }, (wx, wy, shiftKey) => {
+    return input?.confirmPendingTarget({ x: wx, y: wy }, shiftKey) ?? false;
   });
-  const audio = new AudioDirector();
   let controlSettings = loadControlSettings(params);
   if (hero) hero.autoAttack = controlSettings.autoAttack; // 自动攻击策略注入 sim(初始)
-  let input: InputManager | null = null;
   const setControlSettings = (settings: ControlSettings) => {
     controlSettings = normalizeControlSettings(settings);
     saveControlSettings(controlSettings);
@@ -303,28 +327,33 @@ function startGame(mode: 'play' | 'spectate'): void {
   };
 
   // 拒绝原因由 sim 单一裁决(见 sim/abilities.abilityCastReason),UX 仅做文案映射,杜绝漂移。
-  const castRejectReason = (i: number): RejectReason | null =>
-    hero ? abilityCastReason(world, hero, i) : 'dead';
+  const emptySelectionSnapshot = { primaryId: 0, selectedIds: [], commandableIds: [], inspectId: 0 };
+  const currentCastSubject = (): Unit | undefined => {
+    if (!hero) return undefined;
+    return selectedCastSubject(selection?.snapshot() ?? emptySelectionSnapshot, world.units, hero);
+  };
 
-  const castInfo = (i: number) => {
-    if (castRejectReason(i)) return null;
-    if (!hero) return null;
-    const def = hero.heroDef?.abilities[i];
-    const inst = hero.abilities[i];
+  const castRejectReason = (i: number, caster: Unit | undefined = currentCastSubject()): RejectReason | null =>
+    caster ? abilityCastReason(world, caster, i) : 'dead';
+
+  const castInfo = (i: number, caster: Unit | undefined = currentCastSubject()) => {
+    if (!caster || castRejectReason(i, caster)) return null;
+    const def = caster.heroDef?.abilities[i];
+    const inst = caster.abilities[i];
     if (!def || !inst) return null;
     const range = def.castRange?.[Math.max(0, inst.level - 1)] ?? 700;
     return { def, inst, range };
   };
 
   const targetAt = (
+    caster: Unit,
     p: { x: number; y: number },
     filter?: TargetTeamFilter,
     kindFilter?: TargetKindFilter,
   ) => {
-    if (!hero) return undefined;
     return findFilteredTarget(
       (pos, radius, pred) => world.queryRadius(pos, radius, pred),
-      hero,
+      caster,
       p,
       90,
       filter,
@@ -345,44 +374,46 @@ function startGame(mode: 'play' | 'spectate'): void {
   };
 
   const targetFilterReject = (
+    caster: Unit,
     p: { x: number; y: number },
     filter?: TargetTeamFilter,
     kindFilter?: TargetKindFilter,
   ): RejectReason => {
-    if (!hero) return 'invalid-target';
     const candidate = hoverUnitAt(p);
     if (!candidate) return 'invalid-target';
-    const reason = targetFilterRejectReason(hero, candidate, filter, kindFilter);
+    const reason = targetFilterRejectReason(caster, candidate, filter, kindFilter);
     if (reason === 'team') return 'wrong-team';
     if (reason === 'kind') return 'wrong-target-type';
     return 'invalid-target';
   };
 
   const selfTarget = (
+    caster: Unit,
     filter?: TargetTeamFilter,
     kindFilter?: TargetKindFilter,
-  ) => (hero ? resolveSelfCastTarget(hero, filter, kindFilter) : undefined);
+  ) => resolveSelfCastTarget(caster, filter, kindFilter);
 
   const selfCastReject = (
+    caster: Unit | undefined,
     filter?: TargetTeamFilter,
     kindFilter?: TargetKindFilter,
   ): RejectReason => {
-    if (!hero) return 'invalid-target';
-    return targetTeamAllowsSelfCast(filter) && !selfTarget(filter, kindFilter)
+    if (!caster) return 'invalid-target';
+    return targetTeamAllowsSelfCast(filter) && !selfTarget(caster, filter, kindFilter)
       ? 'wrong-target-type'
       : 'wrong-team';
   };
 
-  const previewCast = (i: number, p: { x: number; y: number }) => {
-    const info = castInfo(i);
-    if (!hero || !info) return false;
+  const previewCast = (i: number, p: { x: number; y: number }, caster: Unit | undefined = currentCastSubject()) => {
+    const info = castInfo(i, caster);
+    if (!caster || !info) return false;
     const geometry = previewTargetingGeometry(abilityPreviewShape(info.def, info.inst.level), info.range);
     const requiresTarget = geometry.mode === 'unit';
-    const target = requiresTarget ? targetAt(p, info.def.targetTeam, info.def.targetKind) : null;
+    const target = requiresTarget ? targetAt(caster, p, info.def.targetTeam, info.def.targetKind) : null;
     // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 施法拒绝一致)→ 预览显红
-    const hasTarget = !!target && !(target.team !== hero.team && (target.invulnerable || modifierStates(target).untargetable));
+    const hasTarget = !!target && !(target.team !== caster.team && (target.invulnerable || modifierStates(target).untargetable));
     const status = castStatus({
-      origin: hero.pos,
+      origin: caster.pos,
       aim: target?.pos ?? p,
       range: geometry.range,
       requiresTarget,
@@ -391,7 +422,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     ux.setTargeting({
       abilityIndex: i,
       mode: geometry.mode,
-      origin: hero.pos,
+      origin: caster.pos,
       cursor: p,
       range: geometry.range,
       radius: geometry.radius,
@@ -402,10 +433,9 @@ function startGame(mode: 'play' | 'spectate'): void {
     return status !== 'invalid';
   };
 
-  const itemInfo = (slot: number) => {
-    if (itemRejectReason(slot)) return null;
-    if (!hero) return null;
-    const inst = itemInSlot(hero, slot);
+  const itemInfo = (slot: number, caster: Unit | undefined = currentCastSubject()) => {
+    if (!caster || itemRejectReason(slot, caster)) return null;
+    const inst = itemInSlot(caster, slot);
     if (!inst) return null;
     const def = itemDef(inst.itemKey);
     const active = def.active;
@@ -413,14 +443,14 @@ function startGame(mode: 'play' | 'spectate'): void {
     return { inst, def, active, range: active.castRange ?? 700 };
   };
 
-  function itemRejectReason(slot: number): RejectReason | null {
-    return hero ? itemUseReason(world, hero, slot) : 'dead';
+  function itemRejectReason(slot: number, caster: Unit | undefined = currentCastSubject()): RejectReason | null {
+    return caster ? itemUseReason(world, caster, slot) : 'dead';
   }
 
-  const itemUseFailureReason = (slot: number): RejectReason => {
-    const reason = itemRejectReason(slot);
+  const itemUseFailureReason = (slot: number, caster: Unit | undefined = currentCastSubject()): RejectReason => {
+    const reason = itemRejectReason(slot, caster);
     if (reason) return reason;
-    const inst = hero ? itemInSlot(hero, slot) : null;
+    const inst = caster ? itemInSlot(caster, slot) : null;
     if (inst) {
       const def = itemDef(inst.itemKey);
       if (def.rechargeable && inst.charges <= 0) return 'no-charges';
@@ -428,16 +458,16 @@ function startGame(mode: 'play' | 'spectate'): void {
     return 'blocked';
   };
 
-  const previewItem = (slot: number, p: { x: number; y: number }) => {
-    const info = itemInfo(slot);
-    if (!hero || !info) return false;
+  const previewItem = (slot: number, p: { x: number; y: number }, caster: Unit | undefined = currentCastSubject()) => {
+    const info = itemInfo(slot, caster);
+    if (!caster || !info) return false;
     const geometry = previewTargetingGeometry(itemPreviewShape(info.active), info.range);
     const requiresTarget = geometry.mode === 'unit';
-    const target = requiresTarget ? targetAt(p, info.active.targetTeam, info.active.targetKind) : null;
+    const target = requiresTarget ? targetAt(caster, p, info.active.targetTeam, info.active.targetKind) : null;
     // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 物品拒绝一致)→ 预览显红
-    const hasTarget = !!target && !(target.team !== hero.team && (target.invulnerable || modifierStates(target).untargetable));
+    const hasTarget = !!target && !(target.team !== caster.team && (target.invulnerable || modifierStates(target).untargetable));
     const status = castStatus({
-      origin: hero.pos,
+      origin: caster.pos,
       aim: target?.pos ?? p,
       range: geometry.range,
       requiresTarget,
@@ -448,7 +478,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       source: 'item',
       itemSlot: slot,
       mode: geometry.mode,
-      origin: hero.pos,
+      origin: caster.pos,
       cursor: p,
       range: geometry.range,
       radius: geometry.radius,
@@ -522,7 +552,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     onAttackMove(p, options?: CastInputOptions) {
       if (!hero?.alive) return;
-      const denyTarget = world.queryRadius(p, 60, (uu) => uu.team === hero!.team && uu.kind === 'creep' && uu.hp / uu.calc.maxHp < 0.5)[0];
+      const denyTarget = world.queryRadius(p, 60, (uu) => canDenyTarget(world, hero, uu))[0];
       if (denyTarget) {
         issueSelectedOrder(
           { type: 'attack', targetId: denyTarget.id },
@@ -535,34 +565,36 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
     },
     onPrepareCast(i, p, options?: CastInputOptions) {
-      const info = castInfo(i);
-      if (!hero || !info) {
-        if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
+      const caster = currentCastSubject();
+      const info = castInfo(i, caster);
+      if (!caster || !info) {
+        if (caster) showReject(castRejectReason(i, caster) ?? 'blocked', caster.pos, `ability-${i}`);
         return false;
       }
       ux.clearCommandMessage();
       if (info.def.targetMode === 'none') {
-        issueHeroOrder({ type: 'cast', abilityIndex: i }, { kind: 'ping', pos: hero.pos }, options);
+        issueHeroOrder({ type: 'cast', abilityIndex: i }, { kind: 'ping', pos: caster.pos }, options, caster);
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
         ux.clearTargeting();
         return false;
       }
       if (options?.selfCast && info.def.targetMode === 'unit') return true;
-      previewCast(i, p);
+      previewCast(i, p, caster);
       return true;
     },
     onPreviewCast(i, p) {
       previewCast(i, p);
     },
     onCastKey(i, p, options?: CastInputOptions) {
-      const info = castInfo(i);
-      if (!hero || !info) {
-        if (hero) showReject(castRejectReason(i) ?? 'blocked', hero.pos, `ability-${i}`);
+      const caster = currentCastSubject();
+      const info = castInfo(i, caster);
+      if (!caster || !info) {
+        if (caster) showReject(castRejectReason(i, caster) ?? 'blocked', caster.pos, `ability-${i}`);
         return false;
       }
       if (info.def.targetMode === 'point' || info.def.targetMode === 'line') {
         const pos = map.nearestWalkable(p);
-        issueHeroOrder({ type: 'cast', abilityIndex: i, pos }, { kind: 'ping', pos }, options);
+        issueHeroOrder({ type: 'cast', abilityIndex: i, pos }, { kind: 'ping', pos }, options, caster);
         ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
         ux.clearCommandMessage();
         ux.clearTargeting();
@@ -570,13 +602,14 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       if (info.def.targetMode === 'unit') {
         const target = options?.selfCast
-          ? selfTarget(info.def.targetTeam, info.def.targetKind)
-          : targetAt(p, info.def.targetTeam, info.def.targetKind);
+          ? selfTarget(caster, info.def.targetTeam, info.def.targetKind)
+          : targetAt(caster, p, info.def.targetTeam, info.def.targetKind);
         if (target) {
           issueHeroOrder(
             { type: 'cast', abilityIndex: i, targetId: target.id },
             { kind: 'ping', pos: target.pos, targetId: target.id },
             options,
+            caster,
           );
           ux.flashHudSlot(`ability-${i}`, 'confirm', world.time);
           ux.clearCommandMessage();
@@ -585,51 +618,53 @@ function startGame(mode: 'play' | 'spectate'): void {
         }
         if (options?.selfCast) {
           ux.clearTargeting();
-          showReject(selfCastReject(info.def.targetTeam, info.def.targetKind), hero.pos, `ability-${i}`);
+          showReject(selfCastReject(caster, info.def.targetTeam, info.def.targetKind), caster.pos, `ability-${i}`);
           return false;
         }
-        previewCast(i, p);
-        showReject(targetFilterReject(p, info.def.targetTeam, info.def.targetKind), p, `ability-${i}`);
+        previewCast(i, p, caster);
+        showReject(targetFilterReject(caster, p, info.def.targetTeam, info.def.targetKind), p, `ability-${i}`);
         return false;
       }
       return true;
     },
     onPrepareItem(slot, p, options?: CastInputOptions) {
-      const info = itemInfo(slot);
-      if (!hero || !info) {
-        if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
+      const caster = currentCastSubject();
+      const info = itemInfo(slot, caster);
+      if (!caster || !info) {
+        if (caster) showReject(itemRejectReason(slot, caster) ?? 'blocked', caster.pos, `item-${slot}`);
         return false;
       }
       ux.clearCommandMessage();
       if (info.active.targetMode === 'none') {
-        const ok = useItem(world, hero, slot);
+        const ok = useItem(world, caster, slot);
         ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
         if (ok) {
           ux.clearCommandMessage();
-          ux.addWorldPulse({ kind: 'ping', pos: hero.pos, time: world.time });
+          ux.addWorldPulse({ kind: 'ping', pos: caster.pos, time: world.time });
           audio.itemUse();
         } else {
-          showReject(itemUseFailureReason(slot), hero.pos, `item-${slot}`);
+          showReject(itemUseFailureReason(slot, caster), caster.pos, `item-${slot}`);
         }
         ux.clearTargeting();
         return false;
       }
       if (options?.selfCast && info.active.targetMode === 'unit') return true;
-      previewItem(slot, p);
+      previewItem(slot, p, caster);
       return true;
     },
     onPreviewItem(slot, p) {
       previewItem(slot, p);
     },
     onItemKey(slot, p, options?: CastInputOptions) {
-      const info = itemInfo(slot);
-      if (!hero || !info) {
-        if (hero) showReject(itemRejectReason(slot) ?? 'blocked', hero.pos, `item-${slot}`);
+      const caster = currentCastSubject();
+      const info = itemInfo(slot, caster);
+      if (!caster || !info) {
+        if (caster) showReject(itemRejectReason(slot, caster) ?? 'blocked', caster.pos, `item-${slot}`);
         return false;
       }
       if (info.active.targetMode === 'point' || info.active.targetMode === 'line') {
         const pos = map.nearestWalkable(p);
-        const ok = useItem(world, hero, slot, pos);
+        const ok = useItem(world, caster, slot, pos);
         ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
         if (ok) {
           ux.clearCommandMessage();
@@ -637,17 +672,17 @@ function startGame(mode: 'play' | 'spectate'): void {
           ux.clearTargeting();
           audio.itemUse();
         } else {
-          previewItem(slot, p);
-          showReject(itemUseFailureReason(slot), pos, `item-${slot}`);
+          previewItem(slot, p, caster);
+          showReject(itemUseFailureReason(slot, caster), pos, `item-${slot}`);
         }
         return ok;
       }
       if (info.active.targetMode === 'unit') {
         const target = options?.selfCast
-          ? selfTarget(info.active.targetTeam, info.active.targetKind)
-          : targetAt(p, info.active.targetTeam, info.active.targetKind);
+          ? selfTarget(caster, info.active.targetTeam, info.active.targetKind)
+          : targetAt(caster, p, info.active.targetTeam, info.active.targetKind);
         if (target) {
-          const ok = useItem(world, hero, slot, undefined, target);
+          const ok = useItem(world, caster, slot, undefined, target);
           ux.flashHudSlot(`item-${slot}`, ok ? 'confirm' : 'reject', world.time);
           if (ok) {
             ux.clearCommandMessage();
@@ -655,18 +690,18 @@ function startGame(mode: 'play' | 'spectate'): void {
             ux.clearTargeting();
             audio.itemUse();
           } else {
-            previewItem(slot, p);
-            showReject(itemUseFailureReason(slot), target.pos, `item-${slot}`);
+            previewItem(slot, p, caster);
+            showReject(itemUseFailureReason(slot, caster), target.pos, `item-${slot}`);
           }
           return ok;
         }
         if (options?.selfCast) {
           ux.clearTargeting();
-          showReject(selfCastReject(info.active.targetTeam, info.active.targetKind), hero.pos, `item-${slot}`);
+          showReject(selfCastReject(caster, info.active.targetTeam, info.active.targetKind), caster.pos, `item-${slot}`);
           return false;
         }
-        previewItem(slot, p);
-        showReject(targetFilterReject(p, info.active.targetTeam, info.active.targetKind), p, `item-${slot}`);
+        previewItem(slot, p, caster);
+        showReject(targetFilterReject(caster, p, info.active.targetTeam, info.active.targetKind), p, `item-${slot}`);
         return false;
       }
       return true;
@@ -687,16 +722,26 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (castScan(world, hero.team, pos)) { ux.addWorldPulse({ kind: 'ping', pos, time: world.time }); audio.command(false); }
       else showReject('cooldown', hero.pos, 'scan');
     },
+    onPing(pos, kind) {
+      ux.addWorldPulse({ kind, pos, time: world.time });
+      minimap.ping(pos.x, pos.y, kind);
+      audio.ping(kind);
+      ux.clearCommandMessage();
+    },
     onToggleShop() { shop.toggle(); },
     onGlyph() { // 防御符文:己方建筑短时免疫;反馈激活/冷却(此前静默)
       if (!hero) return;
       if (activateGlyph(world, hero.team)) audio.command(false);
       else { ux.setCommandMessage({ kind: 'reject', label: '守护冷却中', time: world.time, color: '#ff3040' }); audio.reject(); }
     },
-    onSelectHero() {
+    onSelectHero(options) {
       if (!hero || !selection) return;
       selection.clearToHero(hero);
       syncSelection();
+      if (options?.center) {
+        camera.centerOn(hero.pos);
+        camera.follow = true;
+      }
     },
     onSelectCourier() {
       if (!hero || !selection) return;
@@ -766,11 +811,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     },
     canSelfCast(i) {
       const info = castInfo(i);
-      return !!hero && !!info && info.def.targetMode === 'unit';
+      return !!info && info.def.targetMode === 'unit';
     },
     canSelfItem(slot) {
       const info = itemInfo(slot);
-      return !!hero && !!info && info.active.targetMode === 'unit';
+      return !!info && info.active.targetMode === 'unit';
     },
     onPendingAttackMove(active, options?: CastInputOptions) {
       if (active) {
@@ -787,12 +832,13 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
     },
     onPendingCast(i, options?: CastInputOptions) {
-      if (i === null || !hero) {
+      const caster = currentCastSubject();
+      if (i === null || !caster) {
         ux.clearTargeting();
         ux.clearCursorIntent();
       } else {
         const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
-        const def = hero.heroDef?.abilities[i];
+        const def = caster.heroDef?.abilities[i];
         ux.setCursorIntent({
           kind: 'cast',
           label: `${options?.queued ? 'QUEUE ' : ''}CAST ${hotkey}`,
@@ -803,11 +849,12 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
     },
     onPendingItem(slot, options?: CastInputOptions) {
-      if (slot === null || !hero) {
+      const caster = currentCastSubject();
+      if (slot === null || !caster) {
         ux.clearTargeting();
         ux.clearCursorIntent();
       } else {
-        const info = itemInfo(slot);
+        const info = itemInfo(slot, caster);
         ux.setCursorIntent({
           kind: 'item',
           label: `${options?.queued ? 'QUEUE ' : ''}ITEM ${slot + 1}`,
@@ -823,6 +870,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   // 死亡回顾:玩家英雄受伤记录 + 控制时间线(UX 层累积,不进 sim 状态;复活时清空)
   const damageLog = new DamageLog();
   const controlLog = new ControlLog();
+  let lastHeroDeathAssistSources: DeathAssistSource[] = [];
   const combatLog = new CombatLog();
   const combatLogPanel = new CombatLogPanel(app);
   const CONTROL_CN: Record<string, string> = { stun: '眩晕', root: '缠绕', silence: '沉默', disarm: '缴械', mute: '禁用', lift: '升空' };
@@ -858,16 +906,27 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       // 死亡回顾:累积玩家英雄受到的伤害 + 控制(复活时清空上一条命的记录)
       if (hero) {
-        if (hero.alive && !prevHeroAlive) { damageLog.clear(); controlLog.clear(); }
+        if (hero.alive && !prevHeroAlive) {
+          damageLog.clear();
+          controlLog.clear();
+          lastHeroDeathAssistSources = [];
+        }
         prevHeroAlive = hero.alive;
         for (const ev of world.events) {
-          if (ev.kind === 'unit_damaged' && ev.unitId === hero.id && ev.amount > 0) {
+          if (ev.kind === 'unit_died' && ev.unitId === hero.id) {
+            lastHeroDeathAssistSources = [];
+          } else if (ev.kind === 'unit_damaged' && ev.unitId === hero.id && ev.amount > 0) {
             const src = describeDamageSource(ev.sourceId);
             damageLog.push({ at: world.time, groupKey: src.groupKey, sourceName: src.name, sourceColor: src.color, amount: ev.amount, type: ev.damageType });
           } else if (ev.kind === 'unit_controlled' && ev.unitId === hero.id) {
             const src = describeDamageSource(ev.sourceId);
             controlLog.push({ at: world.time, sourceName: src.name, sourceColor: src.color, control: ev.control, duration: ev.duration });
             combatLog.push(world.time, `${src.name} 对你 ${CONTROL_CN[ev.control] ?? ev.control} ${ev.duration.toFixed(1)}s`, '#ffca28');
+          } else if (ev.kind === 'hero_kill' && ev.victimId === hero.id) {
+            lastHeroDeathAssistSources = (ev.assists ?? []).map((id) => {
+              const src = describeDamageSource(id);
+              return { id, name: src.name, color: src.color };
+            });
           }
         }
         // 战斗日志:英雄/塔/Boss 参与的伤害(排除小兵平A 刷屏)+ 击杀
@@ -888,16 +947,23 @@ function startGame(mode: 'play' | 'spectate'): void {
       }
       // 己方建筑被敌方英雄攻击 → 小地图 ping + 警报音(推塔/强杀预警;每建筑 6s 限频,小兵推塔不触发)
       if (hero) {
-        const buildingAlertPulses = buildBuildingAttackAlertPulses({
+        const buildingAttackFeedback = buildBuildingAttackAlertFeedback({
           viewerTeam: hero.team,
           events: world.events,
-          units: Array.from(world.units.values(), (unit) => ({ id: unit.id, kind: unit.kind, team: unit.team, pos: unit.pos })),
+          units: Array.from(world.units.values(), (unit) => ({
+            id: unit.id,
+            kind: unit.kind,
+            buildingKind: unit.buildingKind,
+            team: unit.team,
+            pos: unit.pos,
+          })),
           time: world.time,
           lastAlertAtByUnit: buildingAlertAt,
         });
-        for (const pulse of buildingAlertPulses) {
+        for (const { pulse, message } of buildingAttackFeedback) {
           if (pulse.targetId !== undefined) buildingAlertAt.set(pulse.targetId, world.time);
           ux.addWorldPulse(pulse);
+          ux.setCommandMessage({ ...message, time: world.time });
           audio.alert();
         }
       }
@@ -924,12 +990,13 @@ function startGame(mode: 'play' | 'spectate'): void {
       hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
       hud.deathControlEntries = hero && !hero.alive ? controlLog.timeline(10) : [];
       hud.deathControlLockdown = hero && !hero.alive ? controlLog.lockdownSeconds(10) : 0;
+      hud.deathAssistSources = hero && !hero.alive ? lastHeroDeathAssistSources : [];
       hud.quickbuy = shop.quickbuyModel(hero); // quickbuy 顶栏提醒(离店仍可见)
       // quickbuy 够钱(false→true 转变)→ 轻提示音(金币基本单调增长,只触发一次)
       const qbReady = !!hud.quickbuy?.active && !!hud.quickbuy?.ready;
       if (qbReady && !prevQbReady) audio.quickbuyReady();
       prevQbReady = qbReady;
-      hud.update(world, hero, ux, controlSettings);
+      hud.update(world, hero, ux, controlSettings, { speed: loop.speed, paused: loop.paused });
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);

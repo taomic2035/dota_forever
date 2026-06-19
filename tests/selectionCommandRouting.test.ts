@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { issueSelectionOrder, type OrderTargetLike } from '../src/engine/selectionCommandRouting';
+import {
+  issueSelectionOrder,
+  selectedCastSubject,
+  type OrderTargetLike,
+} from '../src/engine/selectionCommandRouting';
 import type { SelectionSnapshot } from '../src/engine/selection';
 import type { Order } from '../src/sim/unit';
 
@@ -94,5 +98,40 @@ describe('issueSelectionOrder', () => {
     expect(recipients.map((unit) => unit.id)).toEqual([hero.id, summon.id]);
     expect(hero.issued).toEqual([order]);
     expect(summon.issued).toEqual([order]);
+  });
+});
+
+describe('selectedCastSubject', () => {
+  it('uses the primary commandable selected unit for ability and item commands', () => {
+    const hero = target(1);
+    const summon = target(2);
+    const snapshot: SelectionSnapshot = {
+      primaryId: summon.id,
+      selectedIds: [summon.id, hero.id],
+      commandableIds: [summon.id, hero.id],
+      inspectId: 0,
+    };
+
+    expect(selectedCastSubject(snapshot, new Map([[hero.id, hero], [summon.id, summon]]), hero)).toBe(summon);
+  });
+
+  it('falls back to the hero for inspect-only selections or missing primary ids', () => {
+    const hero = target(1);
+    const enemy = target(9);
+    const inspectOnly: SelectionSnapshot = {
+      primaryId: enemy.id,
+      selectedIds: [enemy.id],
+      commandableIds: [],
+      inspectId: enemy.id,
+    };
+    const missingPrimary: SelectionSnapshot = {
+      primaryId: 404,
+      selectedIds: [404],
+      commandableIds: [404],
+      inspectId: 0,
+    };
+
+    expect(selectedCastSubject(inspectOnly, new Map([[enemy.id, enemy]]), hero)).toBe(hero);
+    expect(selectedCastSubject(missingPrimary, new Map(), hero)).toBe(hero);
   });
 });

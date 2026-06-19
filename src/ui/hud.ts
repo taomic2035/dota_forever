@@ -4,7 +4,7 @@ import type { AbilityDef } from '../data/heroes/types';
 import type { ItemInstance } from '../sim/items';
 import { heroAttributes, canBuyback } from '../sim/hero';
 import { buybackCost, RUNE_INTERVAL } from '../data/balance';
-import { canLearn, canLearnStatBonus, abilityReady, hasScepter } from '../sim/abilities';
+import { canLearn, canLearnStatBonus, abilityReady, abilityManaCost, hasScepter, hasShard } from '../sim/abilities';
 import { itemDef } from '../data/items';
 import type { UxFeedback } from './uxFeedback';
 import { fxStyle } from '../render/fxStyle';
@@ -15,11 +15,16 @@ import { commandCardActionFromValue, type CommandCardAction } from '../engine/co
 import { buildCommandCard, buildSelectionSummary, type CommandCardButton, type SelectionSummary } from './commandCard';
 import { buildCourierHudModel, type CourierHudModel } from './courierHudModel';
 import { buildHeroXpHudModel, type HeroXpHudModel } from './heroXpHudModel';
-import type { DeathRecapEntry, ControlInstance, ControlKind } from './deathRecapModel';
+import { buildDeathAssistSummary, type DeathAssistSource, type DeathRecapEntry, type ControlInstance, type ControlKind } from './deathRecapModel';
 import { buildEnemyHeroBar } from './enemyHeroBarModel';
 import { isVisibleTo } from '../sim/vision';
 import type { QuickbuyModel } from './quickbuyModel';
 import { buildAbilityTooltip } from './abilityTooltipModel';
+import { buildCooldownOverlayModel, type CooldownOverlayModel } from './cooldownOverlayModel';
+import { buildAbilitySlotBadges, type AbilitySlotBadge, type AbilitySlotBadgeTone } from './abilitySlotBadgeModel';
+import { buildGameSpeedHudModel, type GameSpeedHudModel } from './gameSpeedHudModel';
+import { abilityStatusBroadcastLabel, itemStatusBroadcastLabel } from './statusBroadcastModel';
+import { hudAccessibilityPalette } from './accessibilityPalette';
 
 const HOTKEYS = ['Q', 'W', 'E', 'R'];
 
@@ -43,6 +48,8 @@ export class Hud {
   deathControlEntries: ControlInstance[] = [];
   /** 死亡回顾:致命前总锁定时长(秒,区间并集)。 */
   deathControlLockdown = 0;
+  /** 死亡回顾:击杀事件里的协助英雄,用于呈现 Dota 式参战来源。 */
+  deathAssistSources: DeathAssistSource[] = [];
   /** 实时受伤来源(战斗中显示在屏幕侧边:谁正在打你、打了多少)。由 main 在近期受击时填入。 */
   incomingDamage: DeathRecapEntry[] = [];
   /** Quickbuy 目标提醒(由 main 每帧从 ShopPanel 填入;离店仍在顶栏可见)。 */
@@ -50,6 +57,8 @@ export class Hud {
   /** 点击顶栏英雄 chip → 镜头跳到该英雄(main 注入,内部做视野/雾门控)。 */
   onCenterUnit?: (id: number) => void;
   onCommandCard?: (action: CommandCardAction) => void;
+  onStatusBroadcast?: (label: string) => void;
+  onCourierDeliver?: () => void;
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -107,9 +116,23 @@ export class Hud {
     // 用 mousedown 而非 click:HUD 每帧重建 innerHTML,click 需 mousedown+mouseup 命中同一元素,
     // 但元素在两者之间被重建销毁 → click 永不触发(学技能/买活/背包点击全失效)。mousedown 按下即触发,先于重建。
     this.bottom.addEventListener('mousedown', (e) => {
-      const el = (e.target as HTMLElement).closest('[data-command-card],[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout]') as HTMLElement | null;
+      const el = (e.target as HTMLElement).closest('[data-courier-action],[data-command-card],[data-learn],[data-learnstat],[data-buyback],[data-bag],[data-bagout],[data-status-broadcast]') as HTMLElement | null;
       if (!el) return;
       e.preventDefault();
+      const courierAction = el.getAttribute('data-courier-action');
+      if (courierAction === 'deliver') {
+        this.onCourierDeliver?.();
+        return;
+      }
+      if (courierAction === 'select') {
+        this.onCommandCard?.('selectCourier');
+        return;
+      }
+      const statusLabel = el.getAttribute('data-status-broadcast');
+      if (e.altKey && statusLabel) {
+        this.onStatusBroadcast?.(statusLabel);
+        return;
+      }
       // 右键库存物品 → 出售(经 shop.sellSlot 校验商店范围 + toast,天然防误卖)
       if (e.button === 2 && el.hasAttribute('data-bag')) { this.onSell?.(Number(el.getAttribute('data-bag'))); return; }
       if (e.button === 2) return; // 其他槽位右键不处理
@@ -119,16 +142,23 @@ export class Hud {
       else if (el.hasAttribute('data-learnstat')) this.onLearnStat?.();
       else if (el.hasAttribute('data-bag')) this.onMoveToBackpack?.(Number(el.getAttribute('data-bag')));
       else if (el.hasAttribute('data-bagout')) this.onMoveFromBackpack?.(Number(el.getAttribute('data-bagout')));
-      else this.onLearn?.(Number(el.getAttribute('data-learn')));
+      else if (el.hasAttribute('data-learn')) this.onLearn?.(Number(el.getAttribute('data-learn')));
     });
   }
 
-  update(world: World, hero: Unit | undefined, ux?: UxFeedback, controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS): void {
+  update(
+    world: World,
+    hero: Unit | undefined,
+    ux?: UxFeedback,
+    controlSettings: ControlSettings = DEFAULT_CONTROL_SETTINGS,
+    loopState: { speed?: number; paused?: boolean } = {},
+  ): void {
     // HUD 缩放(可访问性):底部英雄面板按设置缩放,锚定底部中央(点击命中随 transform 一同缩放)
     const scale = hudScaleValue(controlSettings.hudScale);
+    const palette = hudAccessibilityPalette(controlSettings.accessibilityMode);
     this.bottom.style.transformOrigin = 'bottom center';
     this.bottom.style.transform = `translateX(-50%) scale(${scale})`;
-    this.renderTopbar(world, hero);
+    this.renderTopbar(world, hero, buildGameSpeedHudModel({ speed: loopState.speed ?? 1, paused: loopState.paused ?? false }));
     this.renderHeroBars(world, hero, ux?.altInfo ?? false);
     this.renderCombatFeed();
     if (!hero) {
@@ -145,13 +175,14 @@ export class Hud {
     if (hpFrac < 0.35) {
       const danger = (0.35 - hpFrac) / 0.35;
       const pulse = hpFrac < 0.2 ? 0.78 + 0.22 * Math.sin(performance.now() / 130) : 1;
+      this.vignette.style.boxShadow = `inset 0 0 160px 40px ${palette.dangerVignette}`;
       this.vignette.style.opacity = String(Math.min(0.6, danger * 0.62 * pulse).toFixed(3));
     } else if (this.vignette.style.opacity !== '0') {
       this.vignette.style.opacity = '0';
     }
     const abilityHtml = (hero.heroDef?.abilities ?? []).map((_, i) => this.abilitySlot(world, hero, i, ux)).join('');
-    const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, inst, i, ux)).join('');
-    const tpHtml = this.itemSlot(world, hero.tpSlot, 6, ux); // 专属回城卷轴槽
+    const itemHtml = hero.inventory.map((inst, i) => this.itemSlot(world, hero, inst, i, ux)).join('');
+    const tpHtml = this.itemSlot(world, hero, hero.tpSlot, 6, ux); // 专属回城卷轴槽
     const bagHtml = hero.backpack.map((inst, j) => this.backpackSlot(inst, j)).join(''); // 背包栏(3 格)
     const xpModel = buildHeroXpHudModel({ level: hero.level, xp: meta.xp });
     const commandHtml = this.commandCard(controlSettings);
@@ -171,7 +202,7 @@ export class Hud {
               <b style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${hero.name}</b>
               <span style="color:#d9b44a;white-space:nowrap">${meta.kills}/${meta.deaths}/${meta.assists}</span>
             </div>
-            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, '#4caf50', '#1f6b2b', '生命')}${this.meter(hero.mp, hero.calc.maxMp, '#42a5f5', '#14569a', '法力')}${this.xpBar(xpModel)}`}
+            ${dead ? `<div style="color:#ef5350;font-size:14px;padding:6px 0 3px">阵亡 - ${respawnIn}s</div>${this.deathRecap(world, hero)}${this.buybackRow(world, hero)}` : `${this.meter(hero.hp, hero.calc.maxHp, palette.health.fg, palette.health.bg, '生命')}${this.meter(hero.mp, hero.calc.maxMp, palette.mana.fg, palette.mana.bg, '法力')}${this.xpBar(xpModel)}`}
             ${dead ? '' : `<div style="display:flex;gap:8px;margin-top:4px;font-size:12px;font-weight:700;">
               <span title="护甲(物理减伤)" style="flex:1;text-align:center;background:#1c2230;border:1px solid #3a4a6a;border-radius:3px;padding:2px 0;color:#9ec1ff">🛡 ${hero.calc.armor.toFixed(1)}</span>
               <span title="魔法抗性" style="flex:1;text-align:center;background:#241c30;border:1px solid #4a3a6a;border-radius:3px;padding:2px 0;color:#c6a0ff">✨ ${Math.round((hero.calc.magicResist ?? 0) * 100)}%</span>
@@ -250,7 +281,7 @@ export class Hud {
     };
     const p = palette[model.tone];
     const selected = model.selected ? 'box-shadow:0 0 0 1px #d9b44a inset,0 0 8px #d9b44a55;' : '';
-    return `<div data-command-card="selectCourier" title="${model.detail} - ${model.actionLabel}" style="height:21px;margin-bottom:3px;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:5px;padding:0 5px;box-sizing:border-box;cursor:pointer;${selected}">
+    return `<div data-courier-action="${model.primaryAction}" title="${model.detail} - ${model.actionLabel}" style="height:21px;margin-bottom:3px;border:1px solid ${p.border};border-radius:3px;background:${p.bg};color:${p.fg};display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:5px;padding:0 5px;box-sizing:border-box;cursor:pointer;${selected}">
       <b style="font-size:9px;letter-spacing:0;white-space:nowrap;">${model.label}</b>
       <span style="font-size:9px;color:#cfc7a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${model.detail}</span>
       <b style="font-size:8px;color:${p.fg};border:1px solid ${p.border};border-radius:2px;background:#0003;padding:0 3px;line-height:13px;white-space:nowrap;">${model.actionLabel}</b>
@@ -283,7 +314,7 @@ export class Hud {
     </div>`;
   }
 
-  private renderTopbar(world: World, hero: Unit | undefined): void {
+  private renderTopbar(world: World, hero: Unit | undefined, speed: GameSpeedHudModel): void {
     const t = world.time;
     const sign = t < 0 ? '-' : '';
     const mm = Math.floor(Math.abs(t) / 60);
@@ -308,6 +339,10 @@ export class Hud {
     const scReadyAt = hero ? (world.scanReadyAt?.[hero.team] ?? 0) : 0;
     const scLeft = Math.max(0, Math.ceil(scReadyAt - t));
     const scan = scLeft <= 0 ? '就绪' : `${Math.floor(scLeft / 60)}:${(scLeft % 60).toString().padStart(2, '0')}`;
+    // 前哨归属(◆ 己方绿/敌方红;占领→团队周期经验。读 world.outposts)
+    const opMyTeam = hero?.team ?? 0;
+    const opMine = world.outposts.filter((o) => o.team === opMyTeam).length;
+    const opEnemy = world.outposts.filter((o) => o.team !== opMyTeam && o.team !== 2).length;
     // 深渊领主(Boss/Roshan)重生计时:最受争夺的目标计时(读 world.bossId/bossRespawnAt)
     const bossActive = world.bossId !== 0 || world.bossRespawnAt !== Infinity;
     const bossAlive = !!world.getUnit(world.bossId)?.alive;
@@ -318,14 +353,28 @@ export class Hud {
       `<span style="color:#8a9">晨曦</span>` +
       `<span>${world.isNight ? '夜晚' : '白昼'}</span>` +
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
+      this.speedChip(speed) +
       `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
       `<span title="守护符文 G(强化己方建筑)" style="color:${gLeft <= 0 ? '#8fd17a' : '#9a9277'}">🛡${glyph}</span>` +
       `<span title="扫描 V(揭示光标处区域,查敌/反 gank)" style="color:${scLeft <= 0 ? '#5fd0d0' : '#9a9277'}">📡${scan}</span>` +
+      (world.outposts.length ? `<span title="前哨(占领→团队周期经验)">◆<span style="color:#8fd17a">${opMine}</span><span style="color:#6b7280">/</span><span style="color:#ef9a9a">${opEnemy}</span></span>` : '') +
       (bossActive ? `<span title="深渊领主(Boss)重生计时" style="color:${bossAlive ? '#8fd17a' : '#d9a44a'}">☠${bossTxt}</span>` : '') +
       `<span style="color:#ffd54f">${gold}</span>` +
       this.quickbuyChip() +
       `<span style="color:#a89">永夜</span>` +
       `<span style="color:#ef9a9a;font-weight:700">${nightKills}</span>`;
+  }
+
+  private speedChip(model: GameSpeedHudModel): string {
+    if (!model.visible) return '';
+    const palette: Record<GameSpeedHudModel['tone'], { color: string; border: string; bg: string }> = {
+      normal: { color: '#cfd8a0', border: '#5a5f3a', bg: '#15180e' },
+      slow: { color: '#8fd0ff', border: '#3f6f8f', bg: '#0d1a22' },
+      fast: { color: '#ffd76a', border: '#8a6a24', bg: '#211805' },
+      paused: { color: '#ff8f8f', border: '#8a3434', bg: '#260d0d' },
+    };
+    const p = palette[model.tone];
+    return `<span data-game-speed="${model.label}" title="${model.title}" style="display:inline-flex;align-items:center;height:18px;border:1px solid ${p.border};border-radius:4px;background:${p.bg};color:${p.color};font-size:11px;font-weight:800;padding:0 6px;white-space:nowrap;">${model.label}</span>`;
   }
 
   /** 顶栏 quickbuy 提醒:目标装备 + 还差多少金 / 可购买(离店仍可见,DotA 核心 QoL)。 */
@@ -423,7 +472,22 @@ export class Hud {
     const header = killer
       ? `<div style="font-size:11px;color:#9a9277;margin-bottom:2px">被 <span style="color:${color};font-weight:700">${who}</span> 击杀</div>`
       : '';
-    return header + this.deathRecapBreakdown() + this.deathControlTimeline();
+    return header + this.deathAssistSummary() + this.deathRecapBreakdown() + this.deathControlTimeline();
+  }
+
+  private deathAssistSummary(): string {
+    const summary = buildDeathAssistSummary(this.deathAssistSources, 3);
+    if (!summary) return '';
+    const chips = summary.visible.map((p) => {
+      const color = p.color ?? '#d6c28a';
+      return `<span style="display:inline-flex;align-items:center;height:15px;padding:0 5px;border:1px solid ${color};border-radius:2px;background:${color}1f;color:${color};font-size:9px;font-weight:800">${p.name}</span>`;
+    }).join('');
+    const overflow = summary.overflow > 0
+      ? `<span style="display:inline-flex;align-items:center;height:15px;padding:0 5px;border:1px solid #8f8468;border-radius:2px;background:#8f84681f;color:#d6c28a;font-size:9px;font-weight:800">+${summary.overflow}</span>`
+      : '';
+    return `<div title="${summary.title}" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:1px 0 4px">
+      <span style="font-size:10px;color:#7d7560;font-weight:700">协助</span>${chips}${overflow}
+    </div>`;
   }
 
   /** 致命前控制时间线:被谁眩晕/缠绕/沉默/缴械,按顺序 + 时长(理解被连控致死)。 */
@@ -528,12 +592,10 @@ export class Hud {
     const inst = hero.abilities[i];
     if (!def || !inst) return '';
     const lvl = inst.level;
-    const onCd = world.time < inst.cooldownUntil;
-    const cdLeft = Math.ceil(inst.cooldownUntil - world.time);
     const manaIdx = Math.max(0, lvl - 1);
     const cdTotal = def.cooldown?.[manaIdx] ?? 0;
-    const cdFrac = cdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / cdTotal)) : 1;
-    const mana = def.manaCost?.[manaIdx] ?? 0;
+    const cooldown = buildCooldownOverlayModel({ now: world.time, cooldownUntil: inst.cooldownUntil, totalCooldown: cdTotal });
+    const mana = lvl > 0 ? abilityManaCost(hero, def, lvl) : (def.manaCost?.[0] ?? 0);
     const passive = def.targetMode === 'passive';
     const learnable = canLearn(hero, i);
     const ready = abilityReady(world, hero, i);
@@ -541,24 +603,35 @@ export class Hud {
     // 阿哈利姆神杖:持杖且该技能有升级时,洋红高亮 + ✦ 徽标
     const aghs = !!(def.scepter || def.scepterPassive);
     const scepterOn = aghs && hasScepter(hero);
-    const border = scepterOn ? '#d56bff' : learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
+    const shardOn = !!def.shard && hasShard(hero);
+    const badges = buildAbilitySlotBadges(def, { learned: lvl > 0, scepterOn, shardOn });
+    const border = scepterOn ? '#d56bff' : shardOn ? '#5fd0d0' : learnable ? '#ffd54f' : lvl > 0 ? (ready || passive ? '#7fae4a' : '#5a6a3a') : '#2c3520';
     const bg = lvl > 0 ? (ready || passive ? '#2a3a18' : '#1d2412') : '#0d100a';
     const flash = ux?.hudFlashFor(`ability-${i}`, world.time);
     const flashShadow = flash?.kind === 'reject' ? 'box-shadow:0 0 0 2px #ff3040 inset,0 0 10px #ff3040;' : '';
     const pips = Array.from({ length: def.maxLevel }, (_, k) =>
       `<span style="width:6px;height:4px;border-radius:1px;background:${k < lvl ? '#ffd54f' : '#3a4428'}"></span>`).join('');
     const aghsDesc = aghs && def.scepter?.desc ? `\n${def.scepter.desc}` : aghs ? '\n神杖:增强升级' : '';
-    return `<div ${learnable ? `data-learn="${i}" ` : ''}title="${buildAbilityTooltip(def, lvl)}${learnable ? '\n点击学习(+)' : ''}${aghsDesc}"
+    const shardDesc = def.shard?.desc ? `\n${def.shard.desc}` : '';
+    const status = abilityStatusBroadcastLabel({
+      name: def.name,
+      hotkey: HOTKEYS[i],
+      learned: lvl > 0,
+      passive,
+      cooldownRemaining: Math.max(0, inst.cooldownUntil - world.time),
+      manaCost: lvl > 0 ? mana : 0,
+      currentMana: hero.mp,
+    });
+    return `<div ${learnable ? `data-learn="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${buildAbilityTooltip(def, lvl)}${learnable ? '\n点击学习(+)' : ''}${aghsDesc}${shardDesc}"
       style="position:relative;width:66px;height:66px;border:1.5px solid ${border};border-radius:4px;background:${bg};${learnable ? 'cursor:pointer;' : ''}
       display:flex;flex-direction:column;align-items:center;justify-content:center;${flashShadow}${lvl === 0 && !learnable ? 'opacity:.55;' : ''}">
       <span style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:4px 4px 0 0;background:${family.color};box-shadow:0 0 6px ${family.glow}"></span>
       <span style="position:absolute;top:2px;left:4px;font-size:10px;color:#cfd8a0;font-weight:700">${HOTKEYS[i]}</span>
-      ${passive ? '<span style="position:absolute;top:2px;right:4px;font-size:8px;color:#9ab">P</span>' : ''}
-      ${scepterOn ? '<span style="position:absolute;bottom:2px;left:4px;font-size:10px;color:#d56bff;font-weight:800;text-shadow:0 0 5px #d56bff">✦</span>' : ''}
+      ${this.abilityBadges(badges)}
       <div style="opacity:${lvl > 0 || learnable ? 1 : 0.45}">${abilityIconSvg(def)}</div>
       <div style="display:flex;gap:2px;margin-top:5px">${pips}</div>
       ${mana > 0 && lvl > 0 ? `<span style="position:absolute;bottom:2px;right:4px;font-size:9px;color:#5aa2ff">${mana}</span>` : ''}
-      ${onCd ? `<span style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${(cdFrac * 360).toFixed(0)}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000">${cdLeft}</span>` : ''}
+      ${this.cooldownOverlay(cooldown, 18)}
       ${learnable ? `<span data-learn="${i}" style="position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);background:#ffd54f;color:#1a1a0a;font-size:12px;font-weight:800;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 0 8px #ffd54f">+</span>` : ''}
     </div>`;
   }
@@ -586,7 +659,7 @@ export class Hud {
     return `<svg viewBox="0 0 24 24" width="26" height="26" style="display:block"><g stroke="${m.c}" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round">${m.p}</g></svg>`;
   }
 
-  private itemSlot(world: World, inst: ItemInstance | null, i: number, ux?: UxFeedback): string {
+  private itemSlot(world: World, hero: Unit, inst: ItemInstance | null, i: number, ux?: UxFeedback): string {
     const flash = ux?.hudFlashFor(`item-${i}`, world.time);
     const isTp = i === 6; // 专属回城卷轴槽(第 7 格),热键 T
     const label = isTp ? 'T' : String(i + 1);
@@ -596,16 +669,15 @@ export class Hud {
       flash?.kind === 'confirm' ? 'box-shadow:0 0 0 2px #d9b44a inset,0 0 10px #d9b44a;' :
       '';
     if (!inst) {
-      return `<div title="${isTp ? '回城卷轴槽(按 T 使用)' : ''}" style="position:relative;width:64px;height:64px;border:1px solid ${flash?.kind === 'reject' ? '#ff3040' : emptyBorder};border-radius:4px;background:#0d100a;${flashShadow}
+      const status = itemStatusBroadcastLabel({ hotkey: label, empty: true, cooldownRemaining: 0, hasActive: false });
+      return `<div data-status-broadcast="${escapeAttr(status)}" title="${isTp ? '回城卷轴槽(按 T 使用)' : ''}" style="position:relative;width:64px;height:64px;border:1px solid ${flash?.kind === 'reject' ? '#ff3040' : emptyBorder};border-radius:4px;background:#0d100a;${flashShadow}
         font-size:10px;color:#555;display:flex;align-items:center;justify-content:center">
         <span style="position:absolute;top:2px;left:4px;color:${isTp ? '#6f8fbf' : '#777'}">${label}</span>
         ${isTp ? '<span style="font-size:9px;color:#3a4a6a">TP</span>' : ''}
       </div>`;
     }
     const def = itemDef(inst.itemKey);
-    const onCd = world.time < inst.cooldownUntil;
-    const itemCdTotal = def.active?.cooldown ?? 0;
-    const itemCdFrac = itemCdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / itemCdTotal)) : 1;
+    const cooldown = buildCooldownOverlayModel({ now: world.time, cooldownUntil: inst.cooldownUntil, totalCooldown: def.active?.cooldown ?? 0 });
     // 中立物品:琥珀边框 + 角标 ◈,与购买物品区分(DotA 中立物品视觉独特)
     const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : def.neutral ? '#e0813a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
@@ -613,14 +685,23 @@ export class Hud {
     const act = def.active;
     const actLine = act ? `\n${[act.manaCost ? `法力 ${act.manaCost}` : '', act.cooldown ? `冷却 ${act.cooldown}s` : '', act.castRange ? `施法距离 ${act.castRange}` : ''].filter(Boolean).join(' · ')}` : '';
     const tip = `${def.name}${actLine}\n${def.description}${canBag ? '\n左键移入背包栏 · 右键出售' : ''}`;
-    return `<div ${canBag ? `data-bag="${i}" ` : ''}title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
-      background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
-      align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
+    const status = itemStatusBroadcastLabel({
+      hotkey: label,
+      name: def.name,
+      hasActive: !!act,
+      cooldownRemaining: Math.max(0, inst.cooldownUntil - world.time),
+      manaCost: act?.manaCost ?? 0,
+      currentMana: hero.mp,
+      charges: inst.charges,
+    });
+    return `<div ${canBag ? `data-bag="${i}" ` : ''}data-status-broadcast="${escapeAttr(status)}" title="${tip}" style="position:relative;width:64px;height:64px;border:1px solid ${border};border-radius:4px;
+      background:${cooldown.active ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
+      align-items:center;justify-content:center;overflow:hidden;${cooldown.active ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
       ${def.neutral ? '<span title="中立物品" style="position:absolute;top:1px;right:3px;font-size:10px;color:#e0813a;font-weight:800;text-shadow:0 0 4px #e0813a">◈</span>' : ''}
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
-      ${onCd ? `<span style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${(itemCdFrac * 360).toFixed(0)}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000">${Math.ceil(inst.cooldownUntil - world.time)}</span>` : ''}
+      ${this.cooldownOverlay(cooldown, 16)}
     </div>`;
   }
 
@@ -635,4 +716,41 @@ export class Hud {
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:0;right:2px;font-size:9px;color:#caa84a;font-weight:700">${inst.charges}</span>` : ''}
     </div>`;
   }
+
+  private cooldownOverlay(model: CooldownOverlayModel, fontSize: number): string {
+    if (!model.active) return '';
+    const ring = model.tone === 'readying'
+      ? 'box-shadow:0 0 0 1px rgba(255,213,79,.45) inset,0 0 8px rgba(255,213,79,.35);'
+      : '';
+    return `<span data-cooldown-tone="${model.tone}" style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${model.sweepDegrees}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000;${ring}">${model.label}</span>`;
+  }
+
+  private abilityBadges(badges: AbilitySlotBadge[]): string {
+    if (!badges.length) return '';
+    const spans = badges.map((badge) => {
+      const tone = abilityBadgeTone(badge.tone);
+      return `<span data-ability-badge="${badge.key}" title="${badge.title}" style="height:11px;line-height:11px;padding:0 2px;border-radius:2px;background:${tone.bg};border:1px solid ${tone.border};color:${tone.color};font-size:${badge.label.length > 1 ? 6 : 8}px;font-weight:800;text-shadow:0 1px 1px #000">${badge.label}</span>`;
+    }).join('');
+    return `<span style="position:absolute;top:2px;right:3px;display:flex;gap:2px;align-items:center;max-width:44px;overflow:hidden;justify-content:flex-end">${spans}</span>`;
+  }
+}
+
+function abilityBadgeTone(tone: AbilitySlotBadgeTone): { bg: string; border: string; color: string } {
+  switch (tone) {
+    case 'orb': return { bg: '#1a2f32', border: '#63d0d8', color: '#b8fbff' };
+    case 'ultimate': return { bg: '#302312', border: '#d9a441', color: '#ffd76a' };
+    case 'scepter': return { bg: '#2b1836', border: '#d56bff', color: '#f0c5ff' };
+    case 'shard': return { bg: '#1d2638', border: '#7aa7ff', color: '#c9dcff' };
+    case 'passive':
+    default:
+      return { bg: '#182230', border: '#7ea0c8', color: '#c9ddf2' };
+  }
+}
+
+function escapeAttr(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }

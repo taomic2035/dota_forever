@@ -3,6 +3,7 @@ import { GameMap, Team } from '../src/sim/map';
 import { createWorld } from '../src/sim/setup';
 import { spawnHero } from '../src/sim/hero';
 import { makeItem } from '../src/sim/items';
+import { requestCourierDelivery } from '../src/sim/courier';
 import { REIN } from '../src/data/heroes';
 
 const map = new GameMap();
@@ -25,6 +26,19 @@ describe('信使 courier', () => {
     for (let i = 0; i < 30 * 90 && hero.stash.some((s) => s); i++) w.step(); // 信使从泉水飞到中路送达
     expect(hero.stash.every((s) => s === null)).toBe(true);
     expect(hero.inventory.filter((i) => i).length).toBeGreaterThan(before);
+  });
+
+  it('allows the player to manually dispatch the courier for nearby stash items', () => {
+    const w = createWorld(map, { seed: 3, startTime: 0 });
+    const fountain = [...w.units.values()].find((u) => u.kind === 'building' && u.team === Team.Dawn && u.buildingKind === 'fountain')!;
+    const hero = spawnHero(w, REIN, Team.Dawn, w.map.nearestWalkable({ x: fountain.pos.x + 120, y: fountain.pos.y + 120 }));
+    hero.stash[0] = makeItem('branch');
+
+    expect(requestCourierDelivery(w, hero)).toBe('ok');
+    for (let i = 0; i < 10 && hero.stash.some(Boolean); i++) w.step();
+
+    expect(hero.stash.every((s) => s === null)).toBe(true);
+    expect(hero.inventory.some((item) => item?.itemKey === 'branch')).toBe(true);
   });
 
   it('信使可被击杀并在泉水重生', () => {

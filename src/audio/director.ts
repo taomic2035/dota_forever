@@ -225,6 +225,23 @@ export class AudioDirector {
     else this.env(340, 'sine', 0.05, 0.045, 90);
   }
 
+  /** 战术信号音:普通/危险/撤退三种音色,与移动确认音区分。 */
+  ping(kind: 'ping' | 'dangerPing' | 'retreatPing' = 'ping'): void {
+    if (!this.ctx || this.throttled(`ping:${kind}`, 220)) return;
+    if (kind === 'dangerPing') {
+      this.env(960, 'square', 0.07, 0.08, -180);
+      setTimeout(() => this.env(820, 'square', 0.07, 0.07, -120), 85);
+      return;
+    }
+    if (kind === 'retreatPing') {
+      this.env(520, 'triangle', 0.09, 0.07, -130);
+      setTimeout(() => this.env(430, 'triangle', 0.08, 0.06, -90), 95);
+      return;
+    }
+    this.env(720, 'sine', 0.08, 0.07, 180);
+    setTimeout(() => this.env(980, 'sine', 0.07, 0.055, 120), 80);
+  }
+
   /** 指令被拒(无蓝/冷却/非法目标):短促下行错误声,与确认音区分。 */
   reject(): void {
     if (!this.ctx || this.throttled('reject', 130)) return;

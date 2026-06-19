@@ -61,4 +61,20 @@ describe('command cursor theme', () => {
     expect(html).toContain('NO &lt;MANA&gt;');
     expect(html).not.toContain('NO <MANA>');
   });
+
+  it('uses a warning tone for alert command messages', () => {
+    const visual = commandMessageVisual({ kind: 'alert', label: '基地遭受攻击', time: 1 });
+
+    expect(visual.icon).toBe('!');
+    expect(visual.tone).toBe('alert');
+    expect(visual.color).toBe('#ff8f8f');
+  });
+
+  it('uses an info tone for slot status command messages', () => {
+    const visual = commandMessageVisual({ kind: 'info', label: 'Q 火球: 就绪', time: 1 });
+
+    expect(visual.icon).toBe('i');
+    expect(visual.tone).toBe('info');
+    expect(visual.color).toBe('#8fd0ff');
+  });
 });

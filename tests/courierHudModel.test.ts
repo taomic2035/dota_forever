@@ -9,6 +9,7 @@ describe('buildCourierHudModel', () => {
       label: 'Courier',
       detail: 'No allied courier',
       actionLabel: 'No courier',
+      primaryAction: 'none',
       tone: 'muted',
       hpPercent: 0,
       selected: false,
@@ -118,7 +119,8 @@ describe('buildCourierHudModel', () => {
 
     expect(model.status).toBe('ready');
     expect(model.detail).toBe('Ready / stash x2');
-    expect(model.actionLabel).toBe('F2 select / stash ready');
+    expect(model.actionLabel).toBe('Deliver stash');
+    expect(model.primaryAction).toBe('deliver');
     expect(model.tone).toBe('ready');
     expect(model.hpPercent).toBe(60);
   });
@@ -140,5 +142,6 @@ describe('buildCourierHudModel', () => {
     expect(model.status).toBe('ready');
     expect(model.detail).toBe('Ready at base');
     expect(model.actionLabel).toBe('F2 select');
+    expect(model.primaryAction).toBe('select');
   });
 });

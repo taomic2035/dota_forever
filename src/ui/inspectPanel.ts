@@ -7,8 +7,9 @@ import type { World } from '../sim/world';
 import type { Unit, UnitKind } from '../sim/unit';
 import type { UxFeedback } from './uxFeedback';
 import { TEAM_COLOR } from '../render/renderer';
+import type { CastTrackEntry } from '../render/castBar';
 import { statusChips, statusChipTime } from '../render/statusChips';
-import { inspectInventorySummary, inspectPanelAuthority } from './inspectPanelModel';
+import { inspectCastProgress, inspectInventorySummary, inspectPanelAuthority } from './inspectPanelModel';
 
 const KIND_LABEL: Record<UnitKind, string> = {
   hero: '英雄',
@@ -24,6 +25,7 @@ const KIND_LABEL: Record<UnitKind, string> = {
 
 export class InspectPanel {
   root: HTMLElement;
+  private castTrack = new Map<number, CastTrackEntry>();
 
   constructor(parent: HTMLElement) {
     this.root = document.createElement('div');
@@ -59,6 +61,17 @@ export class InspectPanel {
     const c = u.calc;
     const hpMax = Math.max(1, c.maxHp);
     const mpMax = c.maxMp;
+    const castProgress = inspectCastProgress(this.castTrack, u, world.time);
+    const castRow = castProgress
+      ? `<div data-inspect-cast-progress="${castProgress.kind}" title="${esc(castProgress.label)} · ${esc(castProgress.abilityName)} · ${castProgress.remaining.toFixed(1)}s" style="position:relative;height:18px;margin-top:5px;border:1px solid ${castProgress.color};border-radius:3px;background:#090c10;overflow:hidden;box-sizing:border-box;">
+          <div style="position:absolute;inset:0 ${100 - castProgress.percent}% 0 0;background:${castProgress.color};opacity:.42"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 5px;color:#f5f0d0;font-size:10px;font-weight:700;text-shadow:0 1px 1px #000;box-sizing:border-box;">
+            <span style="white-space:nowrap">${castProgress.label}</span>
+            <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${castProgress.color}">${esc(castProgress.abilityName)}</span>
+            <span style="font-variant-numeric:tabular-nums;white-space:nowrap">${castProgress.remaining.toFixed(1)}s</span>
+          </div>
+        </div>`
+      : '';
     const rows = [
       this.stat('攻击', `${Math.round(c.dmgMin)}–${Math.round(c.dmgMax)}`),
       this.stat('护甲', c.armor.toFixed(1)),
@@ -98,6 +111,7 @@ export class InspectPanel {
       `<div style="color:#9aa07e;font-size:11px;padding-left:9px;margin-bottom:6px">${sub}</div>`,
       this.meter(u.hp, hpMax, '#4caf50', '#1f6b2b', `${Math.round(u.hp)} / ${Math.round(hpMax)}`),
       mpMax > 0 ? this.meter(u.mp, mpMax, '#42a5f5', '#14569a', `${Math.round(u.mp)} / ${Math.round(mpMax)}`) : '',
+      castRow,
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;margin-top:6px">${rows}</div>`,
       inventoryRow,
       statusRow,

@@ -5,6 +5,7 @@
  */
 import type { Vec2 } from '../core/vec2';
 import { Camera } from '../render/camera';
+import { mapPingKindFromModifiers, type MapPingKind } from '../ui/mapPingModel';
 import { CommandMode } from './commandMode';
 import {
   DEFAULT_CONTROL_SETTINGS,
@@ -31,6 +32,10 @@ export interface ControlGroupInputOptions {
   center?: boolean;
 }
 
+export interface SelectHeroInputOptions {
+  center?: boolean;
+}
+
 export interface InputCallbacks {
   onRightClick(world: Vec2, options?: CastInputOptions): void;
   onMove(world: Vec2, options?: CastInputOptions): void;
@@ -54,11 +59,12 @@ export interface InputCallbacks {
   onToggleScoreboard(show: boolean): void;
   onToggleCombatLog?(): void;
   onScan?(world: Vec2): void;
+  onPing(world: Vec2, kind: MapPingKind): void;
   onToggleShop(): void;
   onGlyph(): void;
   /** 调速:+1 加速 / -1 减速(主要供观战快进/慢放团战)。可选,旧调用方不受影响。 */
   onSpeedDelta?(dir: 1 | -1): void;
-  onSelectHero(): void;
+  onSelectHero(options?: SelectHeroInputOptions): void;
   onSelectCourier(): void;
   onSelectAllControlled(): void;
   onBindControlGroup(slot: ControlGroupSlot): void;
@@ -94,6 +100,10 @@ export class InputManager {
   get pendingCast(): number {
     return this.commandMode.pendingCast;
   }
+
+  get pendingItem(): number {
+    return this.commandMode.pendingItem;
+  }
   edgePan = true;
   private keys = new Set<string>();
   /** 屏幕点→世界点换算(2D 用相机平面投影;3D 用渲染器 raycast 到地面)。平移/缩放仍用相机。 */
@@ -101,6 +111,7 @@ export class InputManager {
   private leftSelectionStart: { screen: Vec2; world: Vec2; options?: SelectInputOptions } | null = null;
   private leftSelectionDragging = false;
   private lastControlGroupSelect: { slot: ControlGroupSlot; time: number } | null = null;
+  private lastHeroSelectAt = -Infinity;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -150,20 +161,15 @@ export class InputManager {
       } else if (e.button === 0) {
         const pending = this.commandMode.pendingCast;
         const pendingItem = this.commandMode.pendingItem;
-        if (pending >= 0) {
-          const pendingOptions = mergeQueued(this.commandMode.pendingCastOptions(), e.shiftKey);
-          const consumed = this.cb.onCastKey(pending, world, pendingOptions) !== false;
-          this.commandMode.consumePrimary({ keepPending: !consumed });
-          this.smartHold = null;
-          if (consumed) this.cb.onPendingCast(null);
-          else this.cb.onPreviewCast(pending, world);
-        } else if (pendingItem >= 0) {
-          const pendingOptions = mergeQueued(this.commandMode.pendingItemOptions(), e.shiftKey);
-          const consumed = this.cb.onItemKey(pendingItem, world, pendingOptions) !== false;
-          this.commandMode.consumePrimary({ keepPending: !consumed });
-          this.smartHold = null;
-          if (consumed) this.cb.onPendingItem(null);
-          else this.cb.onPreviewItem(pendingItem, world);
+        const pingKind = mapPingKindFromModifiers({ altKey: e.altKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey });
+        if (pingKind && pending < 0 && pendingItem < 0 && pending !== -2 && pending !== -3) {
+          this.leftSelectionStart = null;
+          this.leftSelectionDragging = false;
+          this.cb.onSelectionBoxClear();
+          this.cb.onPing(world, pingKind);
+          e.preventDefault?.();
+        } else if (this.confirmPendingTarget(world, e.shiftKey)) {
+          // Target confirmation is handled by the command mode so minimap/canvas paths stay aligned.
         } else if (pending === -2) {
           const result = this.commandMode.consumePrimary();
           this.smartHold = null;
@@ -255,7 +261,7 @@ export class InputManager {
         case 'h': this.cb.onHold(); break;
         case 'f': this.cb.onToggleShop(); break;
         case 'g': this.cb.onGlyph(); break; // 防御符文 Glyph(己方建筑短时免疫)
-        case 'f1': this.cb.onSelectHero(); e.preventDefault(); break;
+        case 'f1': this.cb.onSelectHero({ center: this.isHeroSelectDoubleTap(e.timeStamp) }); e.preventDefault(); break;
         case 'f2': this.cb.onSelectCourier(); e.preventDefault(); break;
         case 'f3': this.cb.onSelectAllControlled(); e.preventDefault(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
@@ -296,6 +302,32 @@ export class InputManager {
     this.controlSettings = normalizeControlSettings(settings);
     this.edgePan = this.controlSettings.cameraEdgePan;
     this.keyTranslation = buildKeyTranslation(this.controlSettings.keyBinds);
+  }
+
+  confirmPendingTarget(world: Vec2, shiftKey = false): boolean {
+    const pending = this.commandMode.pendingCast;
+    if (pending >= 0) {
+      const pendingOptions = mergeQueued(this.commandMode.pendingCastOptions(), shiftKey);
+      const consumed = this.cb.onCastKey(pending, world, pendingOptions) !== false;
+      this.commandMode.consumePrimary({ keepPending: !consumed });
+      this.smartHold = null;
+      if (consumed) this.cb.onPendingCast(null);
+      else this.cb.onPreviewCast(pending, world);
+      return true;
+    }
+
+    const pendingItem = this.commandMode.pendingItem;
+    if (pendingItem >= 0) {
+      const pendingOptions = mergeQueued(this.commandMode.pendingItemOptions(), shiftKey);
+      const consumed = this.cb.onItemKey(pendingItem, world, pendingOptions) !== false;
+      this.commandMode.consumePrimary({ keepPending: !consumed });
+      this.smartHold = null;
+      if (consumed) this.cb.onPendingItem(null);
+      else this.cb.onPreviewItem(pendingItem, world);
+      return true;
+    }
+
+    return false;
   }
 
   /** 技能键:目标模式的区分(瞬发/点目标/单位目标)由上层 onCastKey 处理。 */
@@ -447,6 +479,13 @@ export class InputManager {
     const now = Number.isFinite(eventTime) && eventTime > 0 ? eventTime : Date.now();
     const center = this.lastControlGroupSelect?.slot === slot && now - this.lastControlGroupSelect.time <= 500;
     this.lastControlGroupSelect = { slot, time: now };
+    return center;
+  }
+
+  private isHeroSelectDoubleTap(eventTime: number): boolean {
+    const now = Number.isFinite(eventTime) && eventTime > 0 ? eventTime : Date.now();
+    const center = now - this.lastHeroSelectAt <= 500;
+    this.lastHeroSelectAt = now;
     return center;
   }
 

@@ -7,11 +7,13 @@ import { Team } from '../sim/map';
 import type { Camera } from './camera';
 import { isVisibleTo } from '../sim/vision';
 import { TEAM_COLOR } from './renderer';
+import { OUTPOST_CAPTURE_TIME } from '../sim/outposts';
 import { WORLD } from '../data/mapLayout';
 import type { UxFeedback } from '../ui/uxFeedback';
 import { landmarkVisuals, type LandmarkVisual } from './mapReadability';
 import { buildCourierMinimapMarkers, type CourierMinimapMarker } from './minimapCourierMarker';
 import { isMapPingKind, mapPingKindFromModifiers, mapPingVisual, type MapPingKind } from '../ui/mapPingModel';
+import { shouldAllowMinimapAction } from '../ui/minimapClickGuard';
 
 const SIZE = 232;
 
@@ -20,6 +22,7 @@ export class MiniMap {
   private ctx: CanvasRenderingContext2D;
   private terrainThumb: HTMLCanvasElement;
   private pings: Array<{ x: number; y: number; at: number; kind: MapPingKind }> = [];
+  private hoverStartedAtMs: number | null = null;
   /** 静态地标缓存(地图不变,只算一次,避免每帧重建+克隆 Vec2)(D5) */
   private landmarks: LandmarkVisual[] | null = null;
 
@@ -29,6 +32,7 @@ export class MiniMap {
     private camera: Camera,
     private onPing?: (wx: number, wy: number, kind: MapPingKind) => void,
     private onMoveCommand?: (wx: number, wy: number) => void,
+    private onTargetCommand?: (wx: number, wy: number, shiftKey: boolean) => boolean,
   ) {
     this.root = document.createElement('canvas');
     this.root.width = SIZE;
@@ -48,9 +52,16 @@ export class MiniMap {
       const wx = (e.offsetX / SIZE) * WORLD;
       const wy = (e.offsetY / SIZE) * WORLD;
       const pingKind = mapPingKindFromModifiers({ altKey: e.altKey, ctrlKey: e.ctrlKey, shiftKey: e.shiftKey });
+      if (!shouldAllowMinimapAction({ nowMs: performance.now(), hoverStartedAtMs: this.hoverStartedAtMs, isPing: !!pingKind })) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (pingKind) {
         this.ping(wx, wy, pingKind);
         this.onPing?.(wx, wy, pingKind);
+      } else if (e.button === 0 && this.onTargetCommand?.(wx, wy, e.shiftKey)) {
+        // A pending ground-target spell/item owns the click; avoid recentering the camera.
       } else if (e.button === 2) {
         this.onMoveCommand?.(wx, wy); // 右键:命令英雄移动到此(MOBA 标配)
       } else {
@@ -59,6 +70,12 @@ export class MiniMap {
       }
       e.preventDefault();
       e.stopPropagation();
+    });
+    this.root.addEventListener('mouseenter', () => {
+      this.hoverStartedAtMs = performance.now();
+    });
+    this.root.addEventListener('mouseleave', () => {
+      this.hoverStartedAtMs = null;
     });
     this.root.addEventListener('contextmenu', (e) => e.preventDefault());
   }
@@ -226,6 +243,31 @@ export class MiniMap {
       ctx.beginPath();
       ctx.arc(r.pos.x * k, r.pos.y * k, 3, 0, Math.PI * 2);
       ctx.fill();
+    }
+
+    // 前哨(◆ 队色标记;占领中显进度环)
+    for (const op of world.outposts) {
+      const ox = op.pos.x * k;
+      const oy = op.pos.y * k;
+      ctx.beginPath();
+      ctx.moveTo(ox, oy - 4.5);
+      ctx.lineTo(ox + 4.5, oy);
+      ctx.lineTo(ox, oy + 4.5);
+      ctx.lineTo(ox - 4.5, oy);
+      ctx.closePath();
+      ctx.fillStyle = op.team === 0 ? '#5dd35d' : op.team === 1 ? '#e0564f' : '#cfcfcf';
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = '#0a0c08';
+      ctx.stroke();
+      if (op.progress > 0 && op.capturingTeam !== 2) {
+        const frac = Math.max(0, Math.min(1, op.progress / OUTPOST_CAPTURE_TIME));
+        ctx.beginPath();
+        ctx.strokeStyle = op.capturingTeam === 0 ? '#5dd35d' : '#e0564f';
+        ctx.lineWidth = 1.5;
+        ctx.arc(ox, oy, 6.5, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+        ctx.stroke();
+      }
     }
 
     // 信号

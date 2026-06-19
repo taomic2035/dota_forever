@@ -17,7 +17,7 @@ export type TargetingMode = 'point' | 'unit' | 'line' | 'area';
 export type HudFlashKind = 'confirm' | 'reject' | 'learn' | 'cooldown';
 export type CursorIntentKind = 'move' | 'attackmove' | 'cast' | 'item';
 export type CursorTargetHint = 'enemy' | 'ally' | 'allyOrSelf' | 'self' | 'ground' | 'any' | 'attack';
-export type CommandMessageKind = 'reject';
+export type CommandMessageKind = 'reject' | 'alert' | 'info';
 
 export interface WorldPulse {
   kind: WorldPulseKind;

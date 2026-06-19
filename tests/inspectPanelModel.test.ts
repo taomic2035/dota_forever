@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { inspectInventorySummary, inspectPanelAuthority } from '../src/ui/inspectPanelModel';
+import {
+  inspectCastProgress,
+  inspectInventorySummary,
+  inspectPanelAuthority,
+} from '../src/ui/inspectPanelModel';
+import { CAST_COLOR, CHANNEL_COLOR, type CastTrackEntry } from '../src/render/castBar';
 
 describe('inspectPanelAuthority', () => {
   it('labels commandable non-hero selections as commandable', () => {
@@ -67,5 +72,49 @@ describe('inspectInventorySummary', () => {
       inventory: [null, null, null, null, null, null],
       tpSlot: null,
     })).toEqual({ visible: false, items: [] });
+  });
+});
+
+describe('inspectCastProgress', () => {
+  it('summarizes cast point progress with the ability name', () => {
+    const track = new Map<number, CastTrackEntry>();
+    const unit = {
+      id: 5,
+      casting: { abilityIndex: 1, pointUntil: 8 },
+      channeling: null,
+      heroDef: { abilities: [{ name: 'Q' }, { name: '寒冰路径' }] },
+    };
+
+    expect(inspectCastProgress(track, unit, 6)).toEqual({
+      kind: 'cast',
+      label: '施法中',
+      abilityName: '寒冰路径',
+      frac: 0,
+      percent: 0,
+      remaining: 2,
+      color: CAST_COLOR,
+    });
+    expect(inspectCastProgress(track, unit, 7)?.percent).toBe(50);
+  });
+
+  it('summarizes channel progress in gold and clears stale track entries', () => {
+    const track = new Map<number, CastTrackEntry>([[9, { start: 0, end: 1 }]]);
+    const channeling = {
+      id: 9,
+      casting: null,
+      channeling: { abilityIndex: 0, until: 14, nextTickAt: 11 },
+      heroDef: { abilities: [{ name: '生命汲取' }] },
+    };
+
+    expect(inspectCastProgress(track, channeling, 10)).toMatchObject({
+      kind: 'channel',
+      label: '引导中',
+      abilityName: '生命汲取',
+      percent: 0,
+      remaining: 4,
+      color: CHANNEL_COLOR,
+    });
+    expect(inspectCastProgress(track, { ...channeling, channeling: null }, 10.5)).toBeNull();
+    expect(track.has(9)).toBe(false);
   });
 });

@@ -92,6 +92,45 @@ export class DamageLog {
   }
 }
 
+// ---------- 击杀协助摘要(死亡回顾 V4) ----------
+
+export interface DeathAssistSource {
+  id: number | string;
+  name: string;
+  color?: string;
+}
+
+export interface DeathAssistSummary {
+  visible: DeathAssistSource[];
+  overflow: number;
+  label: string;
+  title: string;
+}
+
+export function buildDeathAssistSummary(sources: DeathAssistSource[], maxVisible = 3): DeathAssistSummary | null {
+  const unique: DeathAssistSource[] = [];
+  const seen = new Set<string>();
+  for (const source of sources) {
+    const name = source.name.trim();
+    if (!name) continue;
+    const key = `${source.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push({ ...source, name });
+  }
+  if (unique.length === 0) return null;
+  const limit = Math.max(1, maxVisible);
+  const visible = unique.slice(0, limit);
+  const overflow = Math.max(0, unique.length - visible.length);
+  const names = visible.map((p) => p.name).join('、');
+  return {
+    visible,
+    overflow,
+    label: `协助 ${names}${overflow > 0 ? ` +${overflow}` : ''}`,
+    title: `协助: ${unique.map((p) => p.name).join('、')}`,
+  };
+}
+
 // ---------- 控制时间线(死亡回顾 V3) ----------
 
 export type ControlKind = 'stun' | 'root' | 'silence' | 'disarm' | 'mute' | 'lift';

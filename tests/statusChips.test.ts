@@ -43,6 +43,20 @@ describe('statusChips', () => {
     expect(chips[0].remaining).toBeCloseTo(2, 5);
   });
 
+  it('surfaces Break as a named status instead of a generic debuff', () => {
+    const { w, u, src } = setup();
+    applyModifier(w, u, { key: 'silveredge_break', duration: 5, states: { broken: true } }, src.id);
+
+    const chips = statusChips(w, u, w.time);
+
+    expect(chips[0]).toMatchObject({
+      tag: '破',
+      color: '#ff5fb7',
+      isBuff: false,
+      key: 'silveredge_break',
+    });
+  });
+
   it('caps the chip count', () => {
     const { w, u, src } = setup();
     for (let i = 0; i < 12; i++) applyModifier(w, u, { key: `d${i}`, duration: 5 }, src.id);

@@ -6,6 +6,8 @@ export type CameraPanSpeed = (typeof CAMERA_PAN_SPEEDS)[number];
 /** HUD 缩放(可访问性):底部英雄面板大小,适配不同屏幕/视力。 */
 export const HUD_SCALES = ['small', 'normal', 'large'] as const;
 export type HudScale = (typeof HUD_SCALES)[number];
+export const ACCESSIBILITY_MODES = ['standard', 'colorblind'] as const;
+export type AccessibilityMode = (typeof ACCESSIBILITY_MODES)[number];
 export const NUMBER_ROW_MODES = ['items', 'controlGroups'] as const;
 export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
 /** 自动攻击策略(经典 DotA):never=空闲绝不自动平A(保护正补,高手默认)/ standard=空闲就近平A / always=更主动。 */
@@ -48,6 +50,7 @@ export interface ControlSettings {
   cameraEdgePan: boolean;
   cameraPanSpeed: CameraPanSpeed;
   hudScale: HudScale;
+  accessibilityMode: AccessibilityMode;
   numberRowMode: NumberRowMode;
   autoAttack: AutoAttackMode;
   /** 动作→物理键(默认 DEFAULT_KEY_BINDS)。 */
@@ -62,6 +65,7 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   cameraEdgePan: true,
   cameraPanSpeed: 'normal',
   hudScale: 'normal',
+  accessibilityMode: 'standard',
   numberRowMode: 'items',
   autoAttack: 'standard',
   keyBinds: { ...DEFAULT_KEY_BINDS },
@@ -103,6 +107,11 @@ export function parseHudScale(value: unknown): HudScale | undefined {
   return HUD_SCALES.includes(value as HudScale) ? value as HudScale : undefined;
 }
 
+export function parseAccessibilityMode(value: unknown): AccessibilityMode | undefined {
+  if (typeof value !== 'string') return undefined;
+  return ACCESSIBILITY_MODES.includes(value as AccessibilityMode) ? value as AccessibilityMode : undefined;
+}
+
 export function parseNumberRowMode(value: unknown): NumberRowMode | undefined {
   if (typeof value !== 'string') return undefined;
   return NUMBER_ROW_MODES.includes(value as NumberRowMode) ? value as NumberRowMode : undefined;
@@ -125,6 +134,7 @@ export function normalizeControlSettings(input: unknown): ControlSettings {
       : DEFAULT_CONTROL_SETTINGS.cameraEdgePan,
     cameraPanSpeed: parseCameraPanSpeed(raw.cameraPanSpeed) ?? DEFAULT_CONTROL_SETTINGS.cameraPanSpeed,
     hudScale: parseHudScale(raw.hudScale) ?? DEFAULT_CONTROL_SETTINGS.hudScale,
+    accessibilityMode: parseAccessibilityMode(raw.accessibilityMode) ?? DEFAULT_CONTROL_SETTINGS.accessibilityMode,
     numberRowMode: parseNumberRowMode(raw.numberRowMode) ?? DEFAULT_CONTROL_SETTINGS.numberRowMode,
     autoAttack: parseAutoAttackMode(raw.autoAttack) ?? DEFAULT_CONTROL_SETTINGS.autoAttack,
     keyBinds: normalizeKeyBinds(raw.keyBinds),
@@ -194,6 +204,14 @@ export function hudScaleValue(scale: HudScale): number {
   if (scale === 'small') return 0.9;
   if (scale === 'large') return 1.1;
   return 1.0;
+}
+
+export function cycleAccessibilityMode(mode: AccessibilityMode): AccessibilityMode {
+  return mode === 'standard' ? 'colorblind' : 'standard';
+}
+
+export function accessibilityModeLabel(mode: AccessibilityMode): string {
+  return mode === 'colorblind' ? '色盲友好' : '标准';
 }
 
 export function cycleCastInputOverride(mode: CastInputOverride): CastInputOverride {

@@ -11,6 +11,17 @@ export interface SelectionOrderOptions {
   queued?: boolean;
 }
 
+export function selectedCastSubject<T extends OrderTargetLike>(
+  selection: SelectionSnapshot,
+  unitsById: ReadonlyMap<EntityId, T>,
+  fallback?: T,
+): T | undefined {
+  const primary = selection.commandableIds.includes(selection.primaryId)
+    ? unitsById.get(selection.primaryId)
+    : undefined;
+  return primary ?? fallback;
+}
+
 export function issueSelectionOrder<T extends OrderTargetLike>(
   order: Order,
   selection: SelectionSnapshot,

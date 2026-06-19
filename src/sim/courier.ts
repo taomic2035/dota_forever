@@ -1,7 +1,7 @@
 /**
  * 信使(courier):每队一只,自动把英雄储藏处(stash)的物品送达该英雄。
- * 经典 DotA1:信使是可被击杀的随身单位(给赏金,泉水重生)。本实现为自动投送,
- * 英雄在远离泉水时购买、物品落储藏 → 信使从泉水出发送达;途中可被敌方击杀。
+ * 经典 DotA1:信使是可被击杀的随身单位(给赏金,泉水重生)。本实现支持自动投送,
+ * 也支持玩家手动派送:英雄有储藏物时,可命令信使靠近英雄并触发交付。
  * 仅改单位移动/物品转移,不触碰战斗/技能数值。
  */
 import { V } from '../core/vec2';
@@ -41,6 +41,17 @@ function spawnCourier(w: World, team: Team): Unit {
 
 interface CourierRec { team: Team; id: EntityId; respawnAt: number; targetId: EntityId; }
 
+export type CourierDeliveryRequestResult = 'ok' | 'no-courier' | 'dead' | 'no-stash';
+
+export function requestCourierDelivery(w: World, hero: Unit): CourierDeliveryRequestResult {
+  if (!hero.stash.some((item) => item !== null)) return 'no-stash';
+  const courier = [...w.units.values()].find((u) => u.kind === 'courier' && u.team === hero.team);
+  if (!courier) return 'no-courier';
+  if (!courier.alive) return 'dead';
+  courier.issueOrder({ type: 'move', pos: V.clone(hero.pos) });
+  return 'ok';
+}
+
 export function installCourier(w: World): void {
   const recs: CourierRec[] = [];
   for (const team of [Team.Dawn, Team.Night]) {
@@ -67,6 +78,15 @@ export function installCourier(w: World): void {
           courier.order = { type: 'move', pos: V.clone(hero.pos) }; // 追送
         }
         continue;
+      }
+      for (const u of world.units.values()) {
+        if (u.kind !== 'hero' || u.team !== rec.team || !u.alive) continue;
+        if (!u.stash.some((s) => s)) continue;
+        if (V.dist(courier.pos, u.pos) <= DELIVER_RANGE) {
+          deliverStash(world, u);
+          courier.order = { type: 'move', pos: fountainPos(world, rec.team) };
+          break;
+        }
       }
       // 空闲:派给有储藏物品 + 远离泉水的本队英雄
       const fount = fountainPos(world, rec.team);

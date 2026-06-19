@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { DamageLog, aggregateRecap, ControlLog, controlTimeline, controlLockdownSeconds, type DamageInstance, type ControlInstance } from '../src/ui/deathRecapModel';
+import {
+  DamageLog,
+  aggregateRecap,
+  ControlLog,
+  controlTimeline,
+  controlLockdownSeconds,
+  buildDeathAssistSummary,
+  type DamageInstance,
+  type ControlInstance,
+} from '../src/ui/deathRecapModel';
 
 function inst(at: number, groupKey: number | string, amount: number, type: DamageInstance['type'] = 'physical', sourceName = `u${groupKey}`): DamageInstance {
   return { at, groupKey: String(groupKey), sourceName, amount, type };
@@ -152,5 +161,36 @@ describe('ControlLog', () => {
     log.clear();
     expect(log.timeline(10)).toEqual([]);
     expect(log.lockdownSeconds(10)).toBe(0);
+  });
+});
+
+describe('buildDeathAssistSummary', () => {
+  it('空协助者 → null', () => {
+    expect(buildDeathAssistSummary([])).toBeNull();
+  });
+
+  it('去重并保留英雄颜色,生成 death recap 协助摘要', () => {
+    const summary = buildDeathAssistSummary([
+      { id: 1, name: 'Axe', color: '#d34a32' },
+      { id: 2, name: 'Crystal Maiden', color: '#7ec8ff' },
+      { id: 1, name: 'Axe', color: '#d34a32' },
+    ]);
+    expect(summary?.visible.map((p) => p.name)).toEqual(['Axe', 'Crystal Maiden']);
+    expect(summary?.visible[0].color).toBe('#d34a32');
+    expect(summary?.overflow).toBe(0);
+    expect(summary?.label).toBe('协助 Axe、Crystal Maiden');
+  });
+
+  it('协助者过多时截断为可读芯片,tooltip 保留完整名单', () => {
+    const summary = buildDeathAssistSummary([
+      { id: 1, name: 'A' },
+      { id: 2, name: 'B' },
+      { id: 3, name: 'C' },
+      { id: 4, name: 'D' },
+    ], 2);
+    expect(summary?.visible.map((p) => p.name)).toEqual(['A', 'B']);
+    expect(summary?.overflow).toBe(2);
+    expect(summary?.label).toBe('协助 A、B +2');
+    expect(summary?.title).toBe('协助: A、B、C、D');
   });
 });

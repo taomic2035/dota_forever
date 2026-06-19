@@ -1,6 +1,6 @@
 import type { CommandMessage, CursorIntent } from './uxFeedback';
 
-export type CursorVisualTone = 'ability' | 'item' | 'hostile' | 'support' | 'ground' | 'neutral' | 'attack' | 'reject';
+export type CursorVisualTone = 'ability' | 'item' | 'hostile' | 'support' | 'ground' | 'neutral' | 'attack' | 'reject' | 'alert' | 'info';
 
 export interface CursorBadgeVisual {
   icon: string;
@@ -42,6 +42,8 @@ export function cursorIntentVisual(intent: CursorIntent): CursorBadgeVisual {
 }
 
 export function commandMessageVisual(message: CommandMessage): CursorBadgeVisual {
+  if (message.kind === 'alert') return baseVisual('!', message.color ?? '#ff8f8f', 'alert', 'message');
+  if (message.kind === 'info') return baseVisual('i', message.color ?? '#8fd0ff', 'info', 'message');
   return baseVisual('!', message.color ?? '#ff3040', 'reject', 'message');
 }
 

@@ -16,6 +16,9 @@ import {
   cycleHudScale,
   hudScaleLabel,
   hudScaleValue,
+  cycleAccessibilityMode,
+  accessibilityModeLabel,
+  parseAccessibilityMode,
   parseCastInputMode,
   resolveAbilityCastMode,
   resolveItemCastMode,
@@ -60,6 +63,19 @@ describe('control settings', () => {
     expect(DEFAULT_CONTROL_SETTINGS.hudScale).toBe('normal');
     expect(normalizeControlSettings({ hudScale: 'large' }).hudScale).toBe('large');
     expect(normalizeControlSettings({ hudScale: 'bad' }).hudScale).toBe('normal');
+  });
+
+  it('可访问性模式:cycle/parse/label + 默认', () => {
+    expect(cycleAccessibilityMode('standard')).toBe('colorblind');
+    expect(cycleAccessibilityMode('colorblind')).toBe('standard');
+    expect(parseAccessibilityMode('standard')).toBe('standard');
+    expect(parseAccessibilityMode('colorblind')).toBe('colorblind');
+    expect(parseAccessibilityMode('bad')).toBeUndefined();
+    expect(accessibilityModeLabel('standard')).toBe('标准');
+    expect(accessibilityModeLabel('colorblind')).toBe('色盲友好');
+    expect(DEFAULT_CONTROL_SETTINGS.accessibilityMode).toBe('standard');
+    expect(normalizeControlSettings({ accessibilityMode: 'colorblind' }).accessibilityMode).toBe('colorblind');
+    expect(normalizeControlSettings({ accessibilityMode: 'bad' }).accessibilityMode).toBe('standard');
   });
 
   it('normalizes partial settings and rejects unknown modes', () => {
