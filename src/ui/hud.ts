@@ -601,7 +601,8 @@ export class Hud {
     const onCd = world.time < inst.cooldownUntil;
     const itemCdTotal = def.active?.cooldown ?? 0;
     const itemCdFrac = itemCdTotal > 0 ? Math.max(0, Math.min(1, (inst.cooldownUntil - world.time) / itemCdTotal)) : 1;
-    const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : '#5a6a3a';
+    // 中立物品:琥珀边框 + 角标 ◈,与购买物品区分(DotA 中立物品视觉独特)
+    const border = flash?.kind === 'reject' ? '#ff3040' : flash?.kind === 'confirm' ? '#d9b44a' : def.neutral ? '#e0813a' : '#5a6a3a';
     const canBag = i < 6; // 主物品栏可点击移入背包栏(TP 槽除外)
     // 主动物品补数值:法力/冷却(DotA tooltip 核心信息)
     const act = def.active;
@@ -611,6 +612,7 @@ export class Hud {
       background:${onCd ? '#1a1a1a' : '#222b18'};font-size:11px;color:#cfd8a0;display:flex;flex-direction:column;cursor:${canBag ? 'pointer' : 'default'};
       align-items:center;justify-content:center;overflow:hidden;${onCd ? 'opacity:.5;' : ''}${flashShadow}">
       <span style="position:absolute;top:2px;left:4px;color:#d9b44a">${label}</span>
+      ${def.neutral ? '<span title="中立物品" style="position:absolute;top:1px;right:3px;font-size:10px;color:#e0813a;font-weight:800;text-shadow:0 0 4px #e0813a">◈</span>' : ''}
       ${this.itemIcon(def.category)}
       ${inst.charges > 0 ? `<span style="position:absolute;bottom:1px;right:3px;font-size:10px;color:#ffd54f;font-weight:700">${inst.charges}</span>` : ''}
       ${onCd ? `<span style="position:absolute;inset:0;border-radius:4px;background:conic-gradient(rgba(0,0,0,0.66) ${(itemCdFrac * 360).toFixed(0)}deg, rgba(0,0,0,0.12) 0);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;text-shadow:0 1px 2px #000">${Math.ceil(inst.cooldownUntil - world.time)}</span>` : ''}
