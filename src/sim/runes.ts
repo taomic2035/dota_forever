@@ -3,11 +3,12 @@
  * 英雄走近自动拾取;持瓶(未满 3 充能)优先装瓶,2 分钟后自动生效。
  */
 import { V, type Vec2 } from '../core/vec2';
-import { RUNE_INTERVAL, RUNE_EFFECTS, RUNE_TYPES, type RuneType } from '../data/balance';
+import { RUNE_INTERVAL, RUNE_EFFECTS, RUNE_TYPES, bountyRuneGold, type RuneType } from '../data/balance';
 import type { World, WorldSystem } from './world';
 import type { Unit } from './unit';
 import { applyModifier, removeModifier } from './modifiers';
 import { createIllusion } from './abilities';
+import { addGold } from './economy';
 
 /** 攻击/施法即破的隐身来源(符文 + 影锋/银刃/烟雾/微光);守卫隐身不在此列。 */
 const INVIS_BREAK_ON_ACTION = ['rune_invis', 'item_shadowblade', 'item_silveredge', 'item_smoke', 'item_glimmer'];
@@ -25,6 +26,7 @@ export const RUNE_NAME: Record<RuneType, string> = {
   regen: '恢复符文',
   invis: '隐身符文',
   illusion: '幻象符文',
+  bounty: '赏金符文',
 };
 
 const PICKUP_RANGE = 175;
@@ -58,6 +60,10 @@ export function applyRune(w: World, hero: Unit, type: RuneType): void {
       key: 'rune_invis', duration: RUNE_EFFECTS.invis.duration, isBuff: true,
       states: { invisible: true },
     }, hero.id);
+  } else if (type === 'bounty') {
+    // 赏金符:拾取得金(非可靠金,随时间小幅成长)。DotA 早期经济机制。
+    addGold(hero, bountyRuneGold(w.time));
+    w.emit({ kind: 'fx', fx: 'gold', pos: V.clone(hero.pos) });
   } else {
     // 幻象符:生成 N 个幻象(出伤打折、受伤翻倍)
     createIllusion(w, hero, RUNE_EFFECTS.illusion.count, 0.33, 2.0, RUNE_EFFECTS.illusion.duration);

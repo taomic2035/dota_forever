@@ -172,7 +172,7 @@ export const UPHILL_MISS_CHANCE = 0.25;
 
 // ---------- 符文 ----------
 export const RUNE_INTERVAL = 120;
-export const RUNE_TYPES = ['haste', 'doubledamage', 'regen', 'invis', 'illusion'] as const;
+export const RUNE_TYPES = ['haste', 'doubledamage', 'regen', 'invis', 'illusion', 'bounty'] as const;
 export type RuneType = (typeof RUNE_TYPES)[number];
 export const RUNE_EFFECTS = {
   haste: { duration: 25, moveSpeed: 522 },
@@ -180,7 +180,13 @@ export const RUNE_EFFECTS = {
   regen: { duration: 30, hp: 100, mp: 67 }, // 受伤/施法即停
   invis: { duration: 36 },
   illusion: { duration: 75, count: 2 }, // 拾取生成 2 个幻象
+  bounty: { baseGold: 50, perMinute: 6 }, // 赏金符:拾取得金(随时间小幅成长,非可靠金)
 };
+
+/** 赏金符金额:基础 + 每分钟成长(温和;非可靠金)。 */
+export function bountyRuneGold(timeSec: number): number {
+  return RUNE_EFFECTS.bounty.baseGold + Math.floor(Math.max(0, timeSec) / 60) * RUNE_EFFECTS.bounty.perMinute;
+}
 
 // ---------- 野区 ----------
 export const NEUTRAL_RESPAWN_CHECK = 60; // 每整分钟检查刷新
