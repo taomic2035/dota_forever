@@ -58,6 +58,7 @@ import { buildBuildingAttackAlertPulses } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
 import { castStatus } from './engine/castValidity';
 import { modifierStates } from './sim/modifiers';
+import { castScan } from './sim/scan';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
@@ -681,6 +682,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     onSpeedDelta(dir) { loop.speed = steppedSpeed(loop.speed, dir); }, // 观战/对局变速(=/-)
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleCombatLog() { combatLogPanel.toggle(); },
+    onScan(pos) {
+      if (!hero?.alive) return;
+      if (castScan(world, hero.team, pos)) { ux.addWorldPulse({ kind: 'ping', pos, time: world.time }); audio.command(false); }
+      else showReject('cooldown', hero.pos, 'scan');
+    },
     onToggleShop() { shop.toggle(); },
     onGlyph() { // 防御符文:己方建筑短时免疫;反馈激活/冷却(此前静默)
       if (!hero) return;

@@ -53,6 +53,7 @@ export interface InputCallbacks {
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
   onToggleCombatLog?(): void;
+  onScan?(world: Vec2): void;
   onToggleShop(): void;
   onGlyph(): void;
   /** 调速:+1 加速 / -1 减速(主要供观战快进/慢放团战)。可选,旧调用方不受影响。 */
@@ -260,6 +261,7 @@ export class InputManager {
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
         case 'l': this.cb.onToggleCombatLog?.(); break; // 战斗日志面板开关
+        case 'v': this.cb.onScan?.(world); break; // 扫描:揭示光标处区域
         case '=': this.cb.onSpeedDelta?.(1); break;  // 加速(= 即 + 键,免 Shift)
         case '-': this.cb.onSpeedDelta?.(-1); break; // 减速
         case 'tab': this.cb.onToggleScoreboard(true); e.preventDefault(); break;

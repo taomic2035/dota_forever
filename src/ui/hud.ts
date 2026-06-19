@@ -304,6 +304,10 @@ export class Hud {
     const gReadyAt = hero ? (world.glyphReadyAt?.[hero.team] ?? 0) : 0;
     const gLeft = Math.max(0, Math.ceil(gReadyAt - t));
     const glyph = gLeft <= 0 ? '就绪' : `${Math.floor(gLeft / 60)}:${(gLeft % 60).toString().padStart(2, '0')}`;
+    // 扫描(V 键揭示区域)冷却指示(读 world.scanReadyAt[队])
+    const scReadyAt = hero ? (world.scanReadyAt?.[hero.team] ?? 0) : 0;
+    const scLeft = Math.max(0, Math.ceil(scReadyAt - t));
+    const scan = scLeft <= 0 ? '就绪' : `${Math.floor(scLeft / 60)}:${(scLeft % 60).toString().padStart(2, '0')}`;
     // 深渊领主(Boss/Roshan)重生计时:最受争夺的目标计时(读 world.bossId/bossRespawnAt)
     const bossActive = world.bossId !== 0 || world.bossRespawnAt !== Infinity;
     const bossAlive = !!world.getUnit(world.bossId)?.alive;
@@ -316,6 +320,7 @@ export class Hud {
       `<span style="color:#cfd8a0">${sign}${mm}:${ss}</span>` +
       `<span title="下一波神符刷新" style="color:#5fd0d0">⟳${rune}</span>` +
       `<span title="守护符文 G(强化己方建筑)" style="color:${gLeft <= 0 ? '#8fd17a' : '#9a9277'}">🛡${glyph}</span>` +
+      `<span title="扫描 V(揭示光标处区域,查敌/反 gank)" style="color:${scLeft <= 0 ? '#5fd0d0' : '#9a9277'}">📡${scan}</span>` +
       (bossActive ? `<span title="深渊领主(Boss)重生计时" style="color:${bossAlive ? '#8fd17a' : '#d9a44a'}">☠${bossTxt}</span>` : '') +
       `<span style="color:#ffd54f">${gold}</span>` +
       this.quickbuyChip() +
