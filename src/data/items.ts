@@ -146,6 +146,10 @@ function dustUse(w: World, user: Unit): boolean {
 
 // ---------- 物品表 ----------
 
+/** 知识之书:即时经验 + 每英雄冷却(防 gold→XP 滥用)。 */
+export const TOME_XP = 700;
+export const TOME_COOLDOWN = 420; // 7 分钟
+
 export const ITEMS: ItemDef[] = [
   // 消耗品
   { key: 'salve', name: '治疗药膏', cost: 115, category: 'consumable', charges: 1,
@@ -154,6 +158,17 @@ export const ITEMS: ItemDef[] = [
   { key: 'clarity', name: '净化药水', cost: 50, category: 'consumable', charges: 1,
     active: { name: '回蓝', cooldown: 0, targetMode: 'none', onUse: regenBuff('item_clarity', 0, 4.5, 30) },
     description: '30 秒内恢复 135 法力,受击中断。' },
+  { key: 'tome_knowledge', name: '知识之书', cost: 700, category: 'consumable', charges: 1,
+    active: {
+      name: '汲取知识', cooldown: 0, targetMode: 'none',
+      onUse(w, user) {
+        if (!user.heroMeta || w.time < user.heroMeta.tomeReadyAt) return false; // 每英雄冷却,防 gold→XP 滥用
+        addXp(w, user, TOME_XP);
+        user.heroMeta.tomeReadyAt = w.time + TOME_COOLDOWN;
+        return true;
+      },
+    },
+    description: `立即获得 ${TOME_XP} 经验;每英雄 ${Math.round(TOME_COOLDOWN / 60)} 分钟冷却(防滥用)。` },
   { key: 'tp', name: '回城卷轴', cost: 135, category: 'consumable', charges: 1, stackCharges: true,
     active: { name: '传送', manaCost: 75, cooldown: 0, targetMode: 'point', castRange: 99999, onUse: tpUse },
     description: '引导 3 秒后传送至目标点附近的己方建筑。' },

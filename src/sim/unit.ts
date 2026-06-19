@@ -90,13 +90,15 @@ export interface HeroMeta {
   respawnAt: number;
   /** 买活冷却到期时刻(world.time);此前不可再买活 */
   buybackCooldownUntil: number;
+  /** 知识之书:每英雄使用冷却到期时刻(防滥用 gold→XP) */
+  tomeReadyAt: number;
 }
 
 export function makeHeroMeta(startingGold: number): HeroMeta {
   return {
     gold: startingGold, reliableGold: 0, xp: 0, skillPoints: 1, statBonusLearned: 0,
     lastHits: 0, denies: 0, kills: 0, deaths: 0, assists: 0, streak: 0,
-    respawnAt: -Infinity, buybackCooldownUntil: -Infinity,
+    respawnAt: -Infinity, buybackCooldownUntil: -Infinity, tomeReadyAt: -Infinity,
   };
 }
 
