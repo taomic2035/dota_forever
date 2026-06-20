@@ -18,6 +18,8 @@ export interface ItemInstance {
   itemKey: string;
   charges: number;
   cooldownUntil: number;
+  /** 背包移入主物品栏后的就绪延迟截止时间;用于区分普通冷却与 backpack delay。 */
+  backpackReadyUntil?: number;
   /** 瓶装符文 */
   runeKey?: string;
   runeExpiresAt?: number;
@@ -192,6 +194,7 @@ export function moveFromBackpack(w: World, hero: Unit, bpSlot: number): boolean 
   if (!inst) return false;
   const inv = freeSlot(hero.inventory);
   if (inv < 0) return false;
+  inst.backpackReadyUntil = w.time + BACKPACK_READY_DELAY;
   inst.cooldownUntil = Math.max(inst.cooldownUntil, w.time + BACKPACK_READY_DELAY);
   hero.inventory[inv] = inst;
   hero.backpack[bpSlot] = null;
@@ -199,7 +202,7 @@ export function moveFromBackpack(w: World, hero: Unit, bpSlot: number): boolean 
   return true;
 }
 
-export type ItemUseReason = 'dead' | 'empty-slot' | 'no-active' | 'cooldown' | 'no-mana' | 'no-charges';
+export type ItemUseReason = 'dead' | 'empty-slot' | 'no-active' | 'backpack-delay' | 'cooldown' | 'no-mana' | 'no-charges';
 
 /**
  * 物品槽为何不能使用的细分原因(null = 可用)。UX 层(预拒绝文案)与 sim 共用此判断,
@@ -211,6 +214,7 @@ export function itemUseReason(w: World, hero: Unit, slot: number): ItemUseReason
   if (!inst) return 'empty-slot';
   const def = itemDef(inst.itemKey);
   if (!def.active) return 'no-active';
+  if (inst.backpackReadyUntil !== undefined && w.time < inst.backpackReadyUntil) return 'backpack-delay';
   if (w.time < inst.cooldownUntil) return 'cooldown';
   if (def.active.manaCost && hero.mp < def.active.manaCost) return 'no-mana';
   if (def.charges !== undefined && inst.charges <= 0) return 'no-charges';

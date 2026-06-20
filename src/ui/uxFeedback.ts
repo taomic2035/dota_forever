@@ -1,6 +1,7 @@
 import type { Vec2 } from '../core/vec2';
 import type { SelectionSnapshot } from '../engine/selection';
 import type { CastStatus } from '../engine/castValidity';
+import type { TargetPreviewModel, TargetPreviewShape } from '../engine/targetPreviewModel';
 
 export type WorldPulseKind =
   | 'move'
@@ -42,6 +43,11 @@ export interface TargetingState {
   width?: number;
 }
 
+export interface TargetPreviewContext {
+  abilityIndex: number;
+  itemSlot?: number;
+}
+
 export interface SelectionBox {
   start: Vec2;
   end: Vec2;
@@ -80,6 +86,7 @@ export class UxFeedback {
   private cursorIntent: CursorIntent | null = null;
   private commandMessage: CommandMessage | null = null;
   targeting: TargetingState | null = null;
+  targetPreview: TargetPreviewModel | null = null;
   cursorPosition: Vec2 | null = null;
   selectionBox: SelectionBox | null = null;
   /** 当前主选单位 id(0 = 无)。保留兼容旧 HUD/渲染入口。 */
@@ -107,10 +114,17 @@ export class UxFeedback {
 
   setTargeting(state: TargetingState): void {
     this.targeting = state;
+    this.targetPreview = null;
+  }
+
+  setTargetPreview(context: TargetPreviewContext, preview: TargetPreviewModel): void {
+    this.targetPreview = preview;
+    this.targeting = targetingStateFromPreview(context, preview);
   }
 
   clearTargeting(): void {
     this.targeting = null;
+    this.targetPreview = null;
   }
 
   setCursorPosition(pos: Vec2): void {
@@ -194,4 +208,27 @@ export class UxFeedback {
     }
     return null;
   }
+}
+
+function targetingStateFromPreview(context: TargetPreviewContext, preview: TargetPreviewModel): TargetingState {
+  return {
+    abilityIndex: context.abilityIndex,
+    source: preview.source,
+    itemSlot: context.itemSlot,
+    mode: targetingModeFromShape(preview.shape),
+    origin: preview.origin,
+    cursor: preview.aim,
+    range: preview.rangeRing.radius,
+    radius: preview.targetReticle.visible ? preview.targetReticle.radius : undefined,
+    width: preview.line.visible ? preview.line.width : undefined,
+    valid: preview.status !== 'invalid',
+    status: preview.status,
+  };
+}
+
+function targetingModeFromShape(shape: TargetPreviewShape): TargetingMode {
+  if (shape.kind === 'area') return 'area';
+  if (shape.kind === 'unit') return 'unit';
+  if (shape.kind === 'line' || shape.kind === 'cone' || shape.kind === 'vector') return 'line';
+  return 'point';
 }

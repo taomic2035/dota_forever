@@ -7,7 +7,9 @@ function unit(overrides: Partial<SelectableUnitLike> & { id: number }): Selectab
     id: overrides.id,
     team: overrides.team ?? Team.Dawn,
     kind: overrides.kind ?? 'hero',
+    name: overrides.name,
     alive: overrides.alive ?? true,
+    visible: overrides.visible,
     summonOwnerId: overrides.summonOwnerId,
   };
 }
@@ -102,6 +104,44 @@ describe('selection state', () => {
       primaryId: hero.id,
       selectedIds: [hero.id, summon.id],
       commandableIds: [hero.id, summon.id],
+      inspectId: 0,
+    });
+  });
+
+  it('cycles primary command subject inside a multi-unit selection without changing the group', () => {
+    const hero = unit({ id: 1, kind: 'hero', team: Team.Dawn, name: 'Hero' });
+    const wolf = unit({ id: 3, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Wolf' });
+    const courier = unit({ id: 4, kind: 'courier', team: Team.Dawn, name: 'Courier' });
+    const selection = new SelectionState(Team.Dawn, hero.id);
+    selection.selectMany([hero, wolf, courier]);
+
+    expect(selection.cyclePrimary()).toBe(wolf.id);
+    expect(selection.snapshot()).toMatchObject({
+      primaryId: wolf.id,
+      selectedIds: [hero.id, wolf.id, courier.id],
+      commandableIds: [hero.id, wolf.id, courier.id],
+    });
+
+    expect(selection.cyclePrimary()).toBe(courier.id);
+    expect(selection.cyclePrimary()).toBe(hero.id);
+  });
+
+  it('double-click same-type selection keeps visible owned matches and excludes enemies, neutrals, dead, and hidden units', () => {
+    const hero = unit({ id: 1, kind: 'hero', team: Team.Dawn, name: 'Hero' });
+    const wolfA = unit({ id: 3, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Wolf' });
+    const wolfB = unit({ id: 4, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Wolf' });
+    const bear = unit({ id: 5, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Bear' });
+    const hiddenWolf = unit({ id: 6, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Wolf', visible: false });
+    const enemyWolf = unit({ id: 7, kind: 'creep', team: Team.Night, name: 'Spirit Wolf' });
+    const deadWolf = unit({ id: 8, kind: 'creep', team: Team.Dawn, summonOwnerId: hero.id, name: 'Spirit Wolf', alive: false });
+    const selection = new SelectionState(Team.Dawn, hero.id);
+
+    selection.selectSameType(wolfA, [hero, wolfA, wolfB, bear, hiddenWolf, enemyWolf, deadWolf]);
+
+    expect(selection.snapshot()).toMatchObject({
+      primaryId: wolfA.id,
+      selectedIds: [wolfA.id, wolfB.id],
+      commandableIds: [wolfA.id, wolfB.id],
       inspectId: 0,
     });
   });

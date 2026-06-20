@@ -44,6 +44,23 @@ describe('unitStatusPips', () => {
     expect(pips[0].frac).toBeCloseTo(1, 5); // 刚施加,剩余比例≈1
   });
 
+  it('reuses modifier display semantics for hex-like disables', () => {
+    const { w, target, enemy } = setup();
+    applyModifier(w, target, {
+      key: 'item_hex',
+      duration: 3.5,
+      states: { silenced: true, muted: true, disarmed: true },
+      stats: { setMoveSpeed: 100 },
+    }, enemy.id);
+
+    const pips = unitStatusPips(w, target, w.time);
+
+    expect(pips).toHaveLength(1);
+    expect(pips[0].color).toBe(STATUS_CONTROL_COLOR);
+    expect(pips[0].prio).toBe(0);
+    expect(pips[0].label).toBe('妖');
+  });
+
   it('dedupes by modifier key', () => {
     const { w, target, enemy } = setup();
     applyModifier(w, target, { key: 'enemy_slow', duration: 4 }, enemy.id);

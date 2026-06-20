@@ -17,6 +17,7 @@ import { stateOf } from '../sim/combat';
 import { WORLD, CELL, RUNE_SPOTS, PIT_POS } from '../data/mapLayout';
 import { V, type Vec2 } from '../core/vec2';
 import type { TargetingState, UxFeedback } from '../ui/uxFeedback';
+import type { TargetPreviewModel } from '../engine/targetPreviewModel';
 import { resolveCastStatus, CAST_STATUS_RGB } from '../engine/castValidity';
 import { terrainVisualAt } from './mapReadability';
 import { projectileVisualFor, type ProjectileSourceKind } from './projectileReadability';
@@ -24,6 +25,9 @@ import { buildCommandQueuePath, type CommandQueueLeg } from './commandQueuePath'
 import { selectionVisualState, type SelectionVisualState } from './selectionVisual';
 import { selectionBoxRect } from './selectionBox';
 import { isMapPingKind, mapPingVisual } from '../ui/mapPingModel';
+import { buildAttackCommandWorldHint, type AttackCommandWorldHintModel } from './attackCommandWorldHint';
+import { buildCourierRouteModel, type CourierRouteModel } from './courierRouteModel';
+import { buildRuneWorldMarkers } from './runeWorldMarker';
 
 export const TEAM_COLOR: Record<number, string> = {
   [Team.Dawn]: '#4caf50',
@@ -132,9 +136,29 @@ export class Renderer {
           g.fillRect(cx * S, cy * S, S, S * 0.5);
         }
         const visual = terrainVisualAt(map, cx, cy);
+        if (visual.tags.includes('treeShadow')) {
+          g.fillStyle = 'rgba(3,10,4,0.24)';
+          g.fillRect(cx * S, cy * S, S, S);
+          if (n % 3 === 0) {
+            g.fillStyle = 'rgba(82,122,55,0.10)';
+            g.beginPath();
+            g.ellipse(cx * S + S * 0.52, cy * S + S * 0.48, S * 0.38, S * 0.2, -0.4, 0, Math.PI * 2);
+            g.fill();
+          }
+        }
         if (visual.edge && visual.kind !== 'river') {
           g.fillStyle = visual.height === 2 ? 'rgba(255,238,170,0.06)' : 'rgba(0,0,0,0.16)';
           g.fillRect(cx * S, cy * S, S, S);
+        }
+        if (visual.tags.includes('lowHighVisionBreak')) {
+          g.strokeStyle = visual.height === 2 ? 'rgba(255,224,138,0.28)' : 'rgba(0,0,0,0.36)';
+          g.lineWidth = Math.max(1, S * 0.12);
+          g.beginPath();
+          g.moveTo(cx * S + S * 0.08, cy * S + S * 0.18);
+          g.lineTo(cx * S + S * 0.92, cy * S + S * 0.82);
+          g.moveTo(cx * S + S * 0.18, cy * S + S * 0.92);
+          g.lineTo(cx * S + S * 0.92, cy * S + S * 0.18);
+          g.stroke();
         }
         if (walk === 0 && h === 2) {
           g.fillStyle = 'rgba(20,26,16,0.6)';
@@ -210,8 +234,11 @@ export class Renderer {
     // 地图标记(商店范围 / Boss 巢穴)——地形之上、单位之下
     this.drawMapMarkers(world);
     if (ux) this.drawUxPulses(world, ux);
-    if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
+    if (ux?.targetPreview) this.drawTargetPreviewOverlay(ux.targetPreview);
+    else if (ux?.targeting) this.drawTargetingOverlay(ux.targeting);
     this.drawCommandQueuePath(world, selectedId);
+    this.drawCourierRoutes(world);
+    this.drawAttackCommandHint(world, selectedId);
     if (ux?.altInfo) this.drawTowerRanges(world);
 
     // 单位(按 y 排序近似遮挡;迷雾中的敌人不渲染)。复用 scratch 数组,避免每帧 spread 分配(D4)。
@@ -272,6 +299,144 @@ export class Renderer {
     for (const leg of legs) this.drawCommandQueueLeg(leg);
     legs.forEach((leg, i) => this.drawCommandQueueNode(leg, i + 1));
     ctx.restore();
+  }
+
+  private drawAttackCommandHint(world: World, selectedId: number): void {
+    const selected = world.getUnit(selectedId);
+    if (!selected?.alive) return;
+    const target = selected.attackTargetId ? world.getUnit(selected.attackTargetId) : undefined;
+    const hint = buildAttackCommandWorldHint({
+      selected: {
+        id: selected.id,
+        pos: this.lerpPos(selected),
+        order: selected.order,
+        attackTargetId: selected.attackTargetId,
+      },
+      target: target && target.alive ? {
+        id: target.id,
+        pos: this.lerpPos(target),
+        radius: target.calc.collisionRadius,
+        name: target.name,
+      } : null,
+    });
+    this.drawAttackCommandHintModel(hint);
+  }
+
+  private drawAttackCommandHintModel(model: AttackCommandWorldHintModel): void {
+    if (!model.visible || !model.from || !model.to) return;
+    const ctx = this.ctx;
+    const from = this.camera.worldToScreen(model.from);
+    const to = this.camera.worldToScreen(model.to);
+    const color = model.tone === 'danger' ? '#ff4c42' : model.tone === 'busy' ? '#ffd45a' : '#9cff74';
+    const radius = this.s(model.radius);
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = model.kind === 'autoTarget' ? 0.64 : 0.88;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.25, this.s(model.kind === 'attackTarget' ? 2.4 : 1.8));
+    ctx.setLineDash(model.kind === 'autoTarget' ? [this.s(6), this.s(5)] : model.kind === 'attackMove' ? [this.s(10), this.s(6)] : []);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.globalAlpha = model.kind === 'autoTarget' ? 0.72 : 0.95;
+    ctx.beginPath();
+    ctx.arc(to.x, to.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(to.x - this.s(16), to.y);
+    ctx.lineTo(to.x + this.s(16), to.y);
+    ctx.moveTo(to.x, to.y - this.s(16));
+    ctx.lineTo(to.x, to.y + this.s(16));
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.globalAlpha = model.kind === 'autoTarget' ? 0.82 : 1;
+    ctx.font = `700 ${this.s(10)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(model.label, to.x, to.y - radius - this.s(4));
+    ctx.restore();
+  }
+
+  private drawCourierRoutes(world: World): void {
+    for (const courier of world.units.values()) {
+      if (courier.kind !== 'courier') continue;
+      if (this.viewerTeam !== null && courier.team !== this.viewerTeam) continue;
+      const route = buildCourierRouteModel({
+        courier: {
+          id: courier.id,
+          alive: courier.alive,
+          pos: this.lerpPos(courier),
+          hp: courier.hp,
+          maxHp: courier.calc.maxHp,
+          order: courier.order,
+        },
+        stashItems: this.teamStashItems(world, courier.team),
+      });
+      this.drawCourierRoute(route);
+    }
+  }
+
+  private drawCourierRoute(model: CourierRouteModel): void {
+    if (!model.visible || !model.from || !model.to) return;
+    const ctx = this.ctx;
+    const from = this.camera.worldToScreen(model.from);
+    const to = this.camera.worldToScreen(model.to);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 4) return;
+    const color = courierRouteColor(model.tone);
+    const ux = dx / len;
+    const uy = dy / len;
+    const arrow = Math.max(8, this.s(18));
+    const wing = Math.max(4, this.s(8));
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = model.tone === 'danger' ? 0.88 : 0.68;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = Math.max(1.5, this.s(model.kind === 'delivering' ? 2.2 : 1.8));
+    ctx.setLineDash(model.kind === 'returning' ? [this.s(9), this.s(7)] : [this.s(13), this.s(8)]);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y);
+    ctx.lineTo(to.x - ux * arrow - uy * wing, to.y - uy * arrow + ux * wing);
+    ctx.lineTo(to.x - ux * arrow + uy * wing, to.y - uy * arrow - ux * wing);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = model.tone === 'danger' ? 0.95 : 0.78;
+    ctx.beginPath();
+    ctx.arc(to.x, to.y, Math.max(7, this.s(16)), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = `700 ${this.s(9)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(model.label, to.x, to.y - Math.max(10, this.s(18)));
+    ctx.restore();
+  }
+
+  private teamStashItems(world: World, team: Team): number {
+    let count = 0;
+    for (const unit of world.units.values()) {
+      if (unit.kind !== 'hero' || unit.team !== team || !unit.alive) continue;
+      count += unit.stash.filter((item) => item !== null).length;
+    }
+    return count;
   }
 
   /** Alt 信息层:可见防御塔的攻击范围圈(敌方红=危险 / 友方绿=安全)。 */
@@ -465,6 +630,90 @@ export class Renderer {
     ctx.restore();
   }
 
+  private drawTargetPreviewOverlay(preview: TargetPreviewModel): void {
+    if (!preview.visible) return;
+    const ctx = this.ctx;
+    const origin = this.camera.worldToScreen(preview.origin);
+    const target = this.camera.worldToScreen(preview.aim);
+    const [cr, cg, cb] = CAST_STATUS_RGB[preview.tone];
+    const rgba = (a: number) => `rgba(${cr},${cg},${cb},${a})`;
+    const hotColor = rgba(0.82);
+    ctx.save();
+
+    if (preview.rangeRing.visible) {
+      ctx.strokeStyle = rgba(0.55);
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 8]);
+      ctx.beginPath();
+      ctx.arc(origin.x, origin.y, this.s(preview.rangeRing.radius), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (preview.line.visible) {
+      ctx.strokeStyle = hotColor;
+      ctx.lineWidth = Math.max(2, this.s(preview.line.width || 80));
+      ctx.globalAlpha = 0.22;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+    }
+
+    if (preview.targetReticle.visible) {
+      ctx.strokeStyle = hotColor;
+      ctx.fillStyle = rgba(0.08);
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, this.s(preview.targetReticle.radius), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    if (preview.targetReticle.kind === 'unit') {
+      ctx.strokeStyle = hotColor;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(target.x - this.s(64), target.y);
+      ctx.lineTo(target.x - this.s(34), target.y);
+      ctx.moveTo(target.x + this.s(34), target.y);
+      ctx.lineTo(target.x + this.s(64), target.y);
+      ctx.moveTo(target.x, target.y - this.s(64));
+      ctx.lineTo(target.x, target.y - this.s(34));
+      ctx.moveTo(target.x, target.y + this.s(34));
+      ctx.lineTo(target.x, target.y + this.s(64));
+      ctx.stroke();
+    }
+
+    if (preview.approachLine.visible) {
+      const from = this.camera.worldToScreen(preview.approachLine.from);
+      const to = this.camera.worldToScreen(preview.approachLine.to);
+      ctx.strokeStyle = rgba(0.72);
+      ctx.lineWidth = 1.75;
+      ctx.setLineDash([10, 6]);
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = hotColor;
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, origin.y);
+      ctx.lineTo(target.x, target.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
   private drawMapMarkers(world: World): void {
     const ctx = this.ctx;
     ctx.save();
@@ -538,6 +787,38 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(p.x, p.y, rr * 0.55, 0, Math.PI * 2);
       ctx.stroke();
+    }
+    for (const rune of buildRuneWorldMarkers(world.runes)) {
+      const p = this.camera.worldToScreen(rune.pos);
+      const rr = Math.max(8, this.s(rune.radius2d));
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = `${rune.color}38`;
+      ctx.strokeStyle = rune.glow;
+      ctx.lineWidth = Math.max(2, this.s(4));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rr * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalAlpha = 0.65;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#0b0e12';
+      ctx.strokeStyle = rune.glow;
+      ctx.lineWidth = Math.max(1, this.s(2));
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, Math.max(10, this.s(34)), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = rune.color;
+      ctx.font = `800 ${Math.max(11, this.s(24))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(rune.glyph, p.x, p.y);
+      ctx.font = `700 ${Math.max(9, this.s(13))}px system-ui, sans-serif`;
+      ctx.fillText(rune.label, p.x, p.y - Math.max(18, this.s(44)));
     }
     // 深渊领主巢穴
     const pit = this.camera.worldToScreen(PIT_POS);
@@ -1304,4 +1585,11 @@ function shade(hex: string, delta: number): string {
   const g = Math.min(255, Math.max(0, parseInt(hex.slice(3, 5), 16) + delta));
   const b = Math.min(255, Math.max(0, parseInt(hex.slice(5, 7), 16) + delta));
   return `rgb(${r},${g},${b})`;
+}
+
+function courierRouteColor(tone: CourierRouteModel['tone']): string {
+  if (tone === 'danger') return '#ff9f45';
+  if (tone === 'busy') return '#ffd76a';
+  if (tone === 'ready') return '#9cff74';
+  return '#9a9277';
 }

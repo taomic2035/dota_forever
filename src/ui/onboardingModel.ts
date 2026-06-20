@@ -33,11 +33,19 @@ export function buildOnboardingSections(settings: ControlSettings = DEFAULT_CONT
       ],
     },
     {
+      title: '经济与物流',
+      items: [
+        { keys: 'F 商店', text: '买装备;Shift 点商品设 quickbuy,Ctr+Shift 追加队列' },
+        { keys: '信使', text: 'F2 选择;商店/状态栏可一键配送物品' },
+        { keys: '背包', text: '背包物品无属性;移入主格后 6 秒可用' },
+      ],
+    },
+    {
       title: '地图与沟通',
       items: [
         { keys: 'Alt+左键', text: '世界/小地图普通 ping' },
         { keys: 'Alt+Ctrl/Shift', text: '危险/撤退 ping,带声音提示' },
-        { keys: '小地图', text: '右键移动;左键可确认已 armed 的技能/TP' },
+        { keys: 'Alt+拖拽小地图', text: '画短时战术线;右键小地图移动' },
       ],
     },
     {

@@ -1,3 +1,9 @@
+import {
+  availabilityStatusSuffix,
+  buildAbilityAvailability,
+  buildItemAvailability,
+} from './availabilityModel';
+
 export interface AbilityStatusBroadcastInput {
   name: string;
   hotkey: string;
@@ -16,6 +22,7 @@ export interface ItemStatusBroadcastInput {
   empty?: boolean;
   hasActive: boolean;
   cooldownRemaining: number;
+  backpackDelayRemaining?: number;
   manaCost?: number;
   currentMana?: number;
   charges?: number;
@@ -23,27 +30,11 @@ export interface ItemStatusBroadcastInput {
 
 export function abilityStatusBroadcastLabel(input: AbilityStatusBroadcastInput): string {
   const prefix = `${input.hotkey} ${input.name}:`;
-  if (!input.learned) return `${prefix} 未学习`;
-  if (input.autocastOn !== undefined) return `${prefix} AUTO ${input.autocastOn ? 'ON' : 'OFF'}`;
-  if (input.toggleOn !== undefined) return `${prefix} ${input.toggleOn ? 'ON' : 'OFF'}`;
-  if (input.passive) return `${prefix} 被动`;
-  if (input.cooldownRemaining > 0) return `${prefix} 冷却 ${formatSeconds(input.cooldownRemaining)}`;
-  if (input.manaCost > input.currentMana) return `${prefix} 法力不足 ${Math.floor(input.currentMana)}/${input.manaCost}`;
-  return `${prefix} 就绪`;
+  return `${prefix} ${availabilityStatusSuffix(buildAbilityAvailability(input))}`;
 }
 
 export function itemStatusBroadcastLabel(input: ItemStatusBroadcastInput): string {
-  if (input.empty) return `${input.hotkey}: 空槽`;
   const prefix = `${input.hotkey} ${input.name ?? '物品'}:`;
-  if (!input.hasActive) return `${prefix} 被动`;
-  if (input.cooldownRemaining > 0) return `${prefix} 冷却 ${formatSeconds(input.cooldownRemaining)}`;
-  if ((input.manaCost ?? 0) > (input.currentMana ?? Number.POSITIVE_INFINITY)) {
-    return `${prefix} 法力不足 ${Math.floor(input.currentMana ?? 0)}/${input.manaCost}`;
-  }
-  const charges = input.charges && input.charges > 0 ? ` · ${input.charges} 次` : '';
-  return `${prefix} 就绪${charges}`;
-}
-
-function formatSeconds(seconds: number): string {
-  return `${Math.ceil(seconds)}s`;
+  if (input.empty) return `${input.hotkey}: ${availabilityStatusSuffix(buildItemAvailability(input))}`;
+  return `${prefix} ${availabilityStatusSuffix(buildItemAvailability(input))}`;
 }

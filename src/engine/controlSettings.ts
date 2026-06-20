@@ -13,8 +13,19 @@ export type NumberRowMode = (typeof NUMBER_ROW_MODES)[number];
 /** 自动攻击策略(经典 DotA):never=空闲绝不自动平A(保护正补,高手默认)/ standard=空闲就近平A / always=更主动。 */
 export const AUTO_ATTACK_MODES = ['never', 'standard', 'always'] as const;
 export type AutoAttackMode = (typeof AUTO_ATTACK_MODES)[number];
+export const MINIMAP_HERO_DISPLAY_MODES = ['dots', 'icons', 'names'] as const;
+export type MinimapHeroDisplayMode = (typeof MINIMAP_HERO_DISPLAY_MODES)[number];
+export const MINIMAP_BACKGROUND_MODES = ['terrain', 'simple'] as const;
+export type MinimapBackgroundMode = (typeof MINIMAP_BACKGROUND_MODES)[number];
+export const MINIMAP_SIDES = ['right', 'left'] as const;
+export type MinimapSide = (typeof MINIMAP_SIDES)[number];
+export const CHAT_WHEEL_PRESETS = ['balanced', 'objective', 'defensive'] as const;
+export type ChatWheelPreset = (typeof CHAT_WHEEL_PRESETS)[number];
+export const CHAT_WHEEL_CUSTOM_LABEL_COUNT = 8;
+export const CHAT_WHEEL_CUSTOM_LABEL_MAX_LENGTH = 12;
 export const CONTROL_PRESETS = ['modern', 'legacy'] as const;
 export type ControlPreset = (typeof CONTROL_PRESETS)[number];
+export const CONTROL_SETTINGS_STORAGE_KEY = 'dotaForever.controlSettings.v1';
 
 export const ABILITY_CAST_SLOT_COUNT = 4;
 export const ITEM_CAST_SLOT_COUNT = 6;
@@ -24,7 +35,7 @@ export const REBINDABLE_ACTIONS = [
   'ability0', 'ability1', 'ability2', 'ability3',
   'item0', 'item1', 'item2', 'item3', 'item4', 'item5',
   'tp', 'attackMove', 'stop', 'hold', 'shop', 'glyph',
-  'selectHero', 'selectCourier', 'selectAllControlled', 'combatLog', 'scan',
+  'selectHero', 'selectCourier', 'selectAllControlled', 'cycleSubgroup', 'chatWheel', 'combatLog', 'scan',
 ] as const;
 export type RebindAction = (typeof REBINDABLE_ACTIONS)[number];
 
@@ -33,7 +44,20 @@ export const DEFAULT_KEY_BINDS: Record<RebindAction, string> = {
   ability0: 'q', ability1: 'w', ability2: 'e', ability3: 'r',
   item0: '1', item1: '2', item2: '3', item3: '4', item4: '5', item5: '6',
   tp: 't', attackMove: 'a', stop: 's', hold: 'h', shop: 'f', glyph: 'g',
-  selectHero: 'f1', selectCourier: 'f2', selectAllControlled: 'f3', combatLog: 'l', scan: 'v',
+  selectHero: 'f1', selectCourier: 'f2', selectAllControlled: 'f3', cycleSubgroup: 'c', chatWheel: 'y', combatLog: 'l', scan: 'v',
+};
+
+const HERO_LEGACY_ABILITY_KEYS: Record<string, readonly [string, string, string, string]> = {
+  rein: ['z', 'x', 'd', 'b'],
+  liya: ['z', 'x', 'n', 'm'],
+  zola: ['z', 'x', 'd', 'n'],
+  aili: ['z', 'x', 'j', 'k'],
+  gorm: ['z', 'x', 'd', 'b'],
+  grosh: ['z', 'x', 'j', 'b'],
+  kai: ['z', 'x', 'd', 'n'],
+  chen: ['z', 'x', 'j', 'k'],
+  olan: ['z', 'x', 'n', 'm'],
+  morphis: ['z', 'x', 'd', 'b'],
 };
 
 /** 改键友好名(UI 显示)。 */
@@ -41,7 +65,7 @@ export const ACTION_LABEL: Record<RebindAction, string> = {
   ability0: '技能 Q', ability1: '技能 W', ability2: '技能 E', ability3: '技能 R',
   item0: '物品 1', item1: '物品 2', item2: '物品 3', item3: '物品 4', item4: '物品 5', item5: '物品 6',
   tp: '回城', attackMove: '攻击移动', stop: '停止', hold: '守住', shop: '商店', glyph: '守护符',
-  selectHero: '选择英雄', selectCourier: '选择信使', selectAllControlled: '全选可控', combatLog: '战斗日志', scan: '扫描',
+  selectHero: '选择英雄', selectCourier: '选择信使', selectAllControlled: '全选可控', cycleSubgroup: '循环子组', chatWheel: '聊天轮盘', combatLog: '战斗日志', scan: '扫描',
 };
 
 export interface ControlSettings {
@@ -55,6 +79,11 @@ export interface ControlSettings {
   accessibilityMode: AccessibilityMode;
   numberRowMode: NumberRowMode;
   autoAttack: AutoAttackMode;
+  minimapHeroDisplayMode: MinimapHeroDisplayMode;
+  minimapBackgroundMode: MinimapBackgroundMode;
+  minimapSide: MinimapSide;
+  chatWheelPreset: ChatWheelPreset;
+  chatWheelCustomLabels: string[];
   /** 动作→物理键(默认 DEFAULT_KEY_BINDS)。 */
   keyBinds: Record<string, string>;
 }
@@ -70,6 +99,11 @@ export const DEFAULT_CONTROL_SETTINGS: ControlSettings = {
   accessibilityMode: 'standard',
   numberRowMode: 'items',
   autoAttack: 'standard',
+  minimapHeroDisplayMode: 'dots',
+  minimapBackgroundMode: 'terrain',
+  minimapSide: 'right',
+  chatWheelPreset: 'balanced',
+  chatWheelCustomLabels: emptyStringList(CHAT_WHEEL_CUSTOM_LABEL_COUNT),
   keyBinds: { ...DEFAULT_KEY_BINDS },
 };
 
@@ -79,6 +113,11 @@ export function applyControlPreset(settings: ControlSettings, preset: ControlPre
     cameraPanSpeed: settings.cameraPanSpeed,
     hudScale: settings.hudScale,
     accessibilityMode: settings.accessibilityMode,
+    minimapHeroDisplayMode: settings.minimapHeroDisplayMode,
+    minimapBackgroundMode: settings.minimapBackgroundMode,
+    minimapSide: settings.minimapSide,
+    chatWheelPreset: settings.chatWheelPreset,
+    chatWheelCustomLabels: settings.chatWheelCustomLabels,
   };
   const base: ControlSettings = {
     ...DEFAULT_CONTROL_SETTINGS,
@@ -115,6 +154,36 @@ export function controlPresetLabel(preset: ControlPreset): string {
   return preset === 'legacy' ? 'RTS Legacy' : '现代';
 }
 
+export function heroLegacyAbilityKeys(heroKey: string | null | undefined): readonly [string, string, string, string] | null {
+  return heroKey ? HERO_LEGACY_ABILITY_KEYS[heroKey] ?? null : null;
+}
+
+export function applyHeroLegacyAbilityHotkeys(settings: ControlSettings, heroKey: string | null | undefined): ControlSettings {
+  const normalized = normalizeControlSettings(settings);
+  const keys = heroLegacyAbilityKeys(heroKey);
+  if (!keys || inferControlPreset(normalized) !== 'legacy') return normalized;
+  return normalizeControlSettings({
+    ...normalized,
+    keyBinds: {
+      ...normalized.keyBinds,
+      ability0: keys[0],
+      ability1: keys[1],
+      ability2: keys[2],
+      ability3: keys[3],
+    },
+  });
+}
+
+export function abilityKeyLabels(settings: ControlSettings): string[] {
+  const binds = normalizeKeyBinds(settings.keyBinds);
+  return ['ability0', 'ability1', 'ability2', 'ability3']
+    .map((action) => keyLabel(binds[action] ?? DEFAULT_KEY_BINDS[action as RebindAction]));
+}
+
+export function keyLabel(key: string): string {
+  return key.length === 1 ? key.toUpperCase() : key.toUpperCase();
+}
+
 /** 物理键→规范键(switch 用):每个动作把其当前物理键映射回默认键。默认绑定下为恒等。 */
 export function buildKeyTranslation(binds: Record<string, string>): Record<string, string> {
   const t: Record<string, string> = {};
@@ -134,6 +203,15 @@ export function normalizeKeyBinds(input: unknown): Record<string, string> {
     out[action] = typeof v === 'string' && v.length >= 1 ? v.toLowerCase() : DEFAULT_KEY_BINDS[action];
   }
   return out;
+}
+
+export function normalizeChatWheelCustomLabels(input: unknown): string[] {
+  const raw = Array.isArray(input) ? input : [];
+  return Array.from({ length: CHAT_WHEEL_CUSTOM_LABEL_COUNT }, (_, index) => {
+    const value = raw[index];
+    if (typeof value !== 'string') return '';
+    return value.trim().slice(0, CHAT_WHEEL_CUSTOM_LABEL_MAX_LENGTH);
+  });
 }
 
 export interface CaptureRebindResult {
@@ -189,6 +267,26 @@ export function parseAutoAttackMode(value: unknown): AutoAttackMode | undefined 
   return AUTO_ATTACK_MODES.includes(value as AutoAttackMode) ? value as AutoAttackMode : undefined;
 }
 
+export function parseMinimapHeroDisplayMode(value: unknown): MinimapHeroDisplayMode | undefined {
+  if (typeof value !== 'string') return undefined;
+  return MINIMAP_HERO_DISPLAY_MODES.includes(value as MinimapHeroDisplayMode) ? value as MinimapHeroDisplayMode : undefined;
+}
+
+export function parseMinimapBackgroundMode(value: unknown): MinimapBackgroundMode | undefined {
+  if (typeof value !== 'string') return undefined;
+  return MINIMAP_BACKGROUND_MODES.includes(value as MinimapBackgroundMode) ? value as MinimapBackgroundMode : undefined;
+}
+
+export function parseMinimapSide(value: unknown): MinimapSide | undefined {
+  if (typeof value !== 'string') return undefined;
+  return MINIMAP_SIDES.includes(value as MinimapSide) ? value as MinimapSide : undefined;
+}
+
+export function parseChatWheelPreset(value: unknown): ChatWheelPreset | undefined {
+  if (typeof value !== 'string') return undefined;
+  return CHAT_WHEEL_PRESETS.includes(value as ChatWheelPreset) ? value as ChatWheelPreset : undefined;
+}
+
 export function normalizeControlSettings(input: unknown): ControlSettings {
   const raw = typeof input === 'object' && input !== null ? input as Record<string, unknown> : {};
   return {
@@ -204,6 +302,11 @@ export function normalizeControlSettings(input: unknown): ControlSettings {
     accessibilityMode: parseAccessibilityMode(raw.accessibilityMode) ?? DEFAULT_CONTROL_SETTINGS.accessibilityMode,
     numberRowMode: parseNumberRowMode(raw.numberRowMode) ?? DEFAULT_CONTROL_SETTINGS.numberRowMode,
     autoAttack: parseAutoAttackMode(raw.autoAttack) ?? DEFAULT_CONTROL_SETTINGS.autoAttack,
+    minimapHeroDisplayMode: parseMinimapHeroDisplayMode(raw.minimapHeroDisplayMode) ?? DEFAULT_CONTROL_SETTINGS.minimapHeroDisplayMode,
+    minimapBackgroundMode: parseMinimapBackgroundMode(raw.minimapBackgroundMode) ?? DEFAULT_CONTROL_SETTINGS.minimapBackgroundMode,
+    minimapSide: parseMinimapSide(raw.minimapSide) ?? DEFAULT_CONTROL_SETTINGS.minimapSide,
+    chatWheelPreset: parseChatWheelPreset(raw.chatWheelPreset) ?? DEFAULT_CONTROL_SETTINGS.chatWheelPreset,
+    chatWheelCustomLabels: normalizeChatWheelCustomLabels(raw.chatWheelCustomLabels),
     keyBinds: normalizeKeyBinds(raw.keyBinds),
   };
 }
@@ -241,6 +344,44 @@ export function autoAttackModeLabel(mode: AutoAttackMode): string {
   if (mode === 'never') return '不攻';
   if (mode === 'always') return '主动';
   return '标准';
+}
+
+export function cycleMinimapHeroDisplayMode(mode: MinimapHeroDisplayMode): MinimapHeroDisplayMode {
+  const index = MINIMAP_HERO_DISPLAY_MODES.indexOf(mode);
+  return MINIMAP_HERO_DISPLAY_MODES[(index + 1) % MINIMAP_HERO_DISPLAY_MODES.length];
+}
+
+export function minimapHeroDisplayModeLabel(mode: MinimapHeroDisplayMode): string {
+  if (mode === 'icons') return '图标';
+  if (mode === 'names') return '名字';
+  return '点';
+}
+
+export function cycleMinimapBackgroundMode(mode: MinimapBackgroundMode): MinimapBackgroundMode {
+  return mode === 'terrain' ? 'simple' : 'terrain';
+}
+
+export function minimapBackgroundModeLabel(mode: MinimapBackgroundMode): string {
+  return mode === 'simple' ? '简洁' : '地形';
+}
+
+export function cycleMinimapSide(side: MinimapSide): MinimapSide {
+  return side === 'right' ? 'left' : 'right';
+}
+
+export function minimapSideLabel(side: MinimapSide): string {
+  return side === 'left' ? '左侧' : '右侧';
+}
+
+export function cycleChatWheelPreset(preset: ChatWheelPreset): ChatWheelPreset {
+  const index = CHAT_WHEEL_PRESETS.indexOf(preset);
+  return CHAT_WHEEL_PRESETS[(index + 1) % CHAT_WHEEL_PRESETS.length];
+}
+
+export function chatWheelPresetLabel(preset: ChatWheelPreset): string {
+  if (preset === 'objective') return '目标';
+  if (preset === 'defensive') return '防守';
+  return '均衡';
 }
 
 export function cameraPanSpeedLabel(speed: CameraPanSpeed): string {
@@ -305,4 +446,8 @@ function normalizeOverrideList(input: unknown, length: number): CastInputOverrid
 
 function emptyOverrideList(length: number): CastInputOverride[] {
   return Array.from({ length }, () => undefined);
+}
+
+function emptyStringList(length: number): string[] {
+  return Array.from({ length }, () => '');
 }

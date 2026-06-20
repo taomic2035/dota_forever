@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InputManager, type InputCallbacks } from '../src/engine/input';
-import { DEFAULT_CONTROL_SETTINGS, type ControlSettings } from '../src/engine/controlSettings';
+import {
+  DEFAULT_CONTROL_SETTINGS,
+  applyControlPreset,
+  applyHeroLegacyAbilityHotkeys,
+  type ControlSettings,
+} from '../src/engine/controlSettings';
 
 type Listener = (event: any) => void;
 
@@ -45,6 +50,7 @@ function callbacks(overrides: Partial<InputCallbacks> = {}): InputCallbacks {
     onCenterHero: vi.fn(),
     onTogglePause: vi.fn(),
     onToggleScoreboard: vi.fn(),
+    onToggleChatWheel: vi.fn(),
     onToggleShop: vi.fn(),
     onGlyph: vi.fn(),
     onPointerMove: vi.fn(),
@@ -55,6 +61,7 @@ function callbacks(overrides: Partial<InputCallbacks> = {}): InputCallbacks {
     onSelectHero: vi.fn(),
     onSelectCourier: vi.fn(),
     onSelectAllControlled: vi.fn(),
+    onCycleSubgroup: vi.fn(),
     onBindControlGroup: vi.fn(),
     onSelectControlGroup: vi.fn(),
     onPing: vi.fn(),
@@ -156,6 +163,59 @@ describe('InputManager selection controls', () => {
     expect(cb.onSelectAllControlled).toHaveBeenCalledTimes(1);
   });
 
+  it('routes the subgroup cycle hotkey without opening the scoreboard', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+    const preventDefault = vi.fn();
+
+    input.fakeWindow.emit('keydown', { key: 'C', repeat: false, altKey: false, shiftKey: false, preventDefault });
+
+    expect(cb.onCycleSubgroup).toHaveBeenCalledTimes(1);
+    expect(cb.onToggleScoreboard).not.toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports rebinding subgroup cycle through control settings', () => {
+    const cb = callbacks();
+    const settings = {
+      ...DEFAULT_CONTROL_SETTINGS,
+      keyBinds: { ...DEFAULT_CONTROL_SETTINGS.keyBinds, cycleSubgroup: 'x' },
+    };
+    const input = installInput(cb, settings);
+
+    input.fakeWindow.emit('keydown', { key: 'X', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+    input.fakeWindow.emit('keydown', { key: 'C', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+
+    expect(cb.onCycleSubgroup).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes the chat wheel hotkey and supports rebinding it', () => {
+    const cb = callbacks();
+    const settings = {
+      ...DEFAULT_CONTROL_SETTINGS,
+      keyBinds: { ...DEFAULT_CONTROL_SETTINGS.keyBinds, chatWheel: 'u' },
+    };
+    const input = installInput(cb, settings);
+
+    input.fakeWindow.emit('keydown', { key: 'U', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+    input.fakeWindow.emit('keydown', { key: 'Y', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+
+    expect(cb.onToggleChatWheel).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes hero-specific RTS Legacy ability aliases through the normal ability slots', () => {
+    const cb = callbacks();
+    const legacy = applyControlPreset(DEFAULT_CONTROL_SETTINGS, 'legacy');
+    const settings = applyHeroLegacyAbilityHotkeys(legacy, 'rein');
+    const input = installInput(cb, settings);
+
+    input.fakeWindow.emit('keydown', { key: 'Z', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+    input.fakeWindow.emit('keydown', { key: 'Q', repeat: false, altKey: false, shiftKey: false, preventDefault: vi.fn() });
+
+    expect(cb.onPrepareCast).toHaveBeenCalledTimes(1);
+    expect(cb.onPrepareCast).toHaveBeenCalledWith(0, { x: 400, y: 300 }, { selfCast: false, queued: false });
+  });
+
   it('marks F1 double-tap as a request to center the camera on the hero', () => {
     const cb = callbacks();
     const input = installInput(cb);
@@ -177,6 +237,19 @@ describe('InputManager selection controls', () => {
     input.fakeWindow.emit('mouseup', { button: 0, offsetX: 140, offsetY: 220 });
 
     expect(cb.onLeftClick).toHaveBeenCalledWith({ x: 140, y: 220 }, { additive: true });
+  });
+
+  it('marks close repeated left-clicks as double-click selection requests', () => {
+    const cb = callbacks();
+    const input = installInput(cb);
+
+    input.canvas.emit('mousedown', { button: 0, offsetX: 140, offsetY: 220, shiftKey: false, timeStamp: 1000 });
+    input.fakeWindow.emit('mouseup', { button: 0, offsetX: 140, offsetY: 220, timeStamp: 1010 });
+    input.canvas.emit('mousedown', { button: 0, offsetX: 144, offsetY: 224, shiftKey: false, timeStamp: 1250 });
+    input.fakeWindow.emit('mouseup', { button: 0, offsetX: 144, offsetY: 224, timeStamp: 1260 });
+
+    expect(cb.onLeftClick).toHaveBeenNthCalledWith(1, { x: 140, y: 220 }, undefined);
+    expect(cb.onLeftClick).toHaveBeenNthCalledWith(2, { x: 144, y: 224 }, { doubleClick: true });
   });
 
   it('routes Alt left-click on the world to tactical ping instead of selection', () => {

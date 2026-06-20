@@ -6,7 +6,9 @@ import {
   ITEM_CAST_SLOT_COUNT,
   REBINDABLE_ACTIONS,
   ACTION_LABEL,
+  CONTROL_SETTINGS_STORAGE_KEY,
   DEFAULT_KEY_BINDS,
+  DEFAULT_CONTROL_SETTINGS,
   captureRebindKey,
   cameraPanSpeedLabel,
   castInputModeLabel,
@@ -20,10 +22,20 @@ import {
   cycleControlPreset,
   controlPresetLabel,
   inferControlPreset,
+  normalizeControlSettings,
   cycleHudScale,
   hudScaleLabel,
   cycleAccessibilityMode,
   accessibilityModeLabel,
+  cycleMinimapBackgroundMode,
+  cycleMinimapHeroDisplayMode,
+  cycleMinimapSide,
+  cycleChatWheelPreset,
+  chatWheelPresetLabel,
+  normalizeChatWheelCustomLabels,
+  minimapBackgroundModeLabel,
+  minimapHeroDisplayModeLabel,
+  minimapSideLabel,
   type ControlSettings,
   type RebindAction,
 } from '../engine/controlSettings';
@@ -44,12 +56,16 @@ export function showMenu(parent: HTMLElement): void {
     <div style="color:#9a8;margin:8px 0 36px;font-size:15px">经典玩法致敬之作 · 5v5 三路推塔 · 全原创内容</div>`;
 
   let render3d = false;
+  let menuControlSettings = loadMenuControlSettings();
   const home = () => {
     root.innerHTML = `${title}
       <div style="display:flex;gap:18px">
         <button id="btn-play" style="${btnCss('#2c3a22', '#8fd17a')}">开始对战</button>
         <button id="btn-spectate" style="${btnCss('#1d2330', '#7ec8e3')}">观战 AI 对局</button>
       </div>
+      <button id="btn-control-preset" title="进入对局前选择控制预设;设置会保存到本机" style="margin-top:18px;${compactBtnCss('#252219', '#e8d28a')}width:260px">
+        控制预设 ${controlPresetLabel(inferControlPreset(menuControlSettings))}
+      </button>
       <label id="btn-3d" style="margin-top:20px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;
         padding:7px 16px;border-radius:8px;border:1px solid ${render3d ? '#d56bff' : '#3a4428'};
         background:${render3d ? '#d56bff22' : '#0c0f08'};color:${render3d ? '#d8a8ff' : '#9a8'};font-size:13px;font-weight:700;user-select:none">
@@ -62,6 +78,11 @@ export function showMenu(parent: HTMLElement): void {
     root.querySelector('#btn-play')!.addEventListener('click', pick);
     root.querySelector('#btn-spectate')!.addEventListener('click', () => {
       location.search = `?mode=spectate&speed=4${render3d ? '&renderer=3d' : ''}`;
+    });
+    root.querySelector('#btn-control-preset')!.addEventListener('click', () => {
+      menuControlSettings = cycleControlPreset(menuControlSettings);
+      saveMenuControlSettings(menuControlSettings);
+      home();
     });
     root.querySelector('#btn-3d')!.addEventListener('click', () => { render3d = !render3d; home(); });
   };
@@ -108,6 +129,23 @@ export function showMenu(parent: HTMLElement): void {
   };
 
   home();
+}
+
+function loadMenuControlSettings(): ControlSettings {
+  try {
+    const raw = localStorage.getItem(CONTROL_SETTINGS_STORAGE_KEY);
+    return normalizeControlSettings(raw ? JSON.parse(raw) : DEFAULT_CONTROL_SETTINGS);
+  } catch {
+    return DEFAULT_CONTROL_SETTINGS;
+  }
+}
+
+function saveMenuControlSettings(settings: ControlSettings): void {
+  try {
+    localStorage.setItem(CONTROL_SETTINGS_STORAGE_KEY, JSON.stringify(normalizeControlSettings(settings)));
+  } catch {
+    // Storage can be unavailable in embedded or privacy-restricted contexts.
+  }
 }
 
 const PICK_HOTKEYS = ['Q', 'W', 'E', 'R'];
@@ -167,6 +205,9 @@ export function createPauseMenu(
   const rebindButtons = REBINDABLE_ACTIONS.map((action) =>
     `<button id="pm-rebind-${action}" data-rebind="${action}" style="${compactBtnCss('#241d12', '#e0c98a')}font-size:11px;"></button>`,
   ).join('');
+  const chatWheelCustomButtons = Array.from({ length: 8 }, (_, index) =>
+    `<button id="pm-chat-custom-${index}" data-chat-custom="${index}" title="点击编辑聊天轮盘第 ${index + 1} 格;留空则回退当前预设" style="${slotBtnCss('#14242b', '#85dfff')}"></button>`,
+  ).join('');
   let capturing: RebindAction | null = null; // 正在捕获改键的动作
   const root = document.createElement('div');
   root.style.cssText =
@@ -188,9 +229,15 @@ export function createPauseMenu(
       <button id="pm-auto-attack" title="自动攻击:不攻=空闲绝不自动平A(保护正补)" style="${compactBtnCss('#2c1f1f', '#ff9f7a')}"></button>
       <button id="pm-hud-scale" title="HUD 缩放:适配不同屏幕/视力" style="${compactBtnCss('#1f2c2a', '#7fe3d0')}"></button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:360px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:430px">
       <button id="pm-accessibility-mode" title="可访问性配色:切换血蓝条和危险暗角的色盲友好方案" style="${compactBtnCss('#221f2c', '#d0b3ff')}"></button>
       <button id="pm-control-preset" title="控制预设:现代=数字行物品;RTS Legacy=数字行控制组并恢复经典命令键" style="${compactBtnCss('#252219', '#e8d28a')}"></button>
+      <button id="pm-chat-wheel-preset" title="聊天轮盘内容预设:均衡/目标/防守" style="${compactBtnCss('#14242b', '#85dfff')}"></button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;width:430px">
+      <button id="pm-minimap-hero-display" title="小地图英雄显示:点/图标/名字" style="${compactBtnCss('#14242b', '#85dfff')}"></button>
+      <button id="pm-minimap-background" title="小地图背景:地形缩略或高对比简洁底图" style="${compactBtnCss('#182414', '#a8df7a')}"></button>
+      <button id="pm-minimap-side" title="小地图位置:左右侧切换,避让不同操作习惯" style="${compactBtnCss('#24182b', '#dda0ff')}"></button>
     </div>
     <div style="width:430px;display:flex;flex-direction:column;gap:7px">
       <div style="${sectionLabelCss('#7ec8e3')}">技能施法</div>
@@ -199,6 +246,8 @@ export function createPauseMenu(
       <div style="display:grid;grid-template-columns:repeat(6, 1fr);gap:6px">${itemButtons}</div>
       <div style="${sectionLabelCss('#e0c98a')}">改键(点按钮后按新键)</div>
       <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:5px">${rebindButtons}</div>
+      <div style="${sectionLabelCss('#85dfff')}">聊天轮盘自定义(留空=预设)</div>
+      <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:5px">${chatWheelCustomButtons}</div>
     </div>` : ''}
     <button id="pm-resume" style="${btnCss('#2c3a22', '#8fd17a')}">继续游戏</button>
     <button id="pm-restart" style="${btnCss('#3a3422', '#ffd54f')}">重新开始</button>
@@ -223,6 +272,10 @@ export function createPauseMenu(
     const hudScaleBtn = root.querySelector('#pm-hud-scale') as HTMLButtonElement | null;
     const accessibilityMode = root.querySelector('#pm-accessibility-mode') as HTMLButtonElement | null;
     const controlPreset = root.querySelector('#pm-control-preset') as HTMLButtonElement | null;
+    const chatWheelPreset = root.querySelector('#pm-chat-wheel-preset') as HTMLButtonElement | null;
+    const minimapHeroDisplay = root.querySelector('#pm-minimap-hero-display') as HTMLButtonElement | null;
+    const minimapBackground = root.querySelector('#pm-minimap-background') as HTMLButtonElement | null;
+    const minimapSide = root.querySelector('#pm-minimap-side') as HTMLButtonElement | null;
     if (ability) ability.textContent = `技能 ${castInputModeLabel(settings.abilityCast)}`;
     if (item) item.textContent = `物品 ${castInputModeLabel(settings.itemCast)}`;
     if (camera) camera.textContent = `镜头 ${cameraPanSpeedLabel(settings.cameraPanSpeed)}`;
@@ -233,6 +286,10 @@ export function createPauseMenu(
     if (hudScaleBtn) hudScaleBtn.textContent = `HUD ${hudScaleLabel(settings.hudScale)}`;
     if (accessibilityMode) accessibilityMode.textContent = `可访问性 ${accessibilityModeLabel(settings.accessibilityMode)}`;
     if (controlPreset) controlPreset.textContent = `预设 ${controlPresetLabel(inferControlPreset(settings))}`;
+    if (chatWheelPreset) chatWheelPreset.textContent = `聊天 ${chatWheelPresetLabel(settings.chatWheelPreset)}`;
+    if (minimapHeroDisplay) minimapHeroDisplay.textContent = `英雄 ${minimapHeroDisplayModeLabel(settings.minimapHeroDisplayMode)}`;
+    if (minimapBackground) minimapBackground.textContent = `小图 ${minimapBackgroundModeLabel(settings.minimapBackgroundMode)}`;
+    if (minimapSide) minimapSide.textContent = `位置 ${minimapSideLabel(settings.minimapSide)}`;
     root.querySelectorAll<HTMLButtonElement>('[data-ability-cast-slot]').forEach((button) => {
       const slot = Number(button.dataset.abilityCastSlot);
       const hotkey = abilityHotkeys[slot] ?? '?';
@@ -247,6 +304,11 @@ export function createPauseMenu(
       const k = (settings.keyBinds?.[action] ?? DEFAULT_KEY_BINDS[action]).toUpperCase();
       button.textContent = capturing === action ? `${ACTION_LABEL[action]} …` : `${ACTION_LABEL[action]} ${k === ' ' ? '␣' : k}`;
       button.style.outline = capturing === action ? '2px solid #ffd54f' : 'none';
+    });
+    root.querySelectorAll<HTMLButtonElement>('[data-chat-custom]').forEach((button) => {
+      const slot = Number(button.dataset.chatCustom);
+      const label = settings.chatWheelCustomLabels[slot] || `预设 ${slot + 1}`;
+      button.textContent = `${slot + 1} ${label}`;
     });
   };
   root.querySelector('#pm-ability-cast')?.addEventListener('click', () => {
@@ -311,11 +373,59 @@ export function createPauseMenu(
     controls.onChange(cycleControlPreset(controls.getSettings()));
     syncControls();
   });
+  root.querySelector('#pm-chat-wheel-preset')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({ ...settings, chatWheelPreset: cycleChatWheelPreset(settings.chatWheelPreset) });
+    syncControls();
+  });
+  root.querySelector('#pm-minimap-hero-display')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({
+      ...settings,
+      minimapHeroDisplayMode: cycleMinimapHeroDisplayMode(settings.minimapHeroDisplayMode),
+    });
+    syncControls();
+  });
+  root.querySelector('#pm-minimap-background')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({
+      ...settings,
+      minimapBackgroundMode: cycleMinimapBackgroundMode(settings.minimapBackgroundMode),
+    });
+    syncControls();
+  });
+  root.querySelector('#pm-minimap-side')?.addEventListener('click', () => {
+    if (!controls) return;
+    const settings = controls.getSettings();
+    controls.onChange({
+      ...settings,
+      minimapSide: cycleMinimapSide(settings.minimapSide),
+    });
+    syncControls();
+  });
   // 改键:点按钮进入捕获,下一次 keydown(capture 阶段 + 阻止冒泡,抑制游戏输入)设为新键
   root.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach((button) => {
     button.addEventListener('click', () => {
       if (!controls) return;
       capturing = button.dataset.rebind as RebindAction;
+      syncControls();
+    });
+  });
+  root.querySelectorAll<HTMLButtonElement>('[data-chat-custom]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (!controls) return;
+      const slot = Number(button.dataset.chatCustom);
+      const settings = controls.getSettings();
+      const current = settings.chatWheelCustomLabels[slot] ?? '';
+      const next = window.prompt(`聊天轮盘第 ${slot + 1} 格(最多 12 字;留空回退预设)`, current);
+      if (next === null) return;
+      const chatWheelCustomLabels = normalizeChatWheelCustomLabels(settings.chatWheelCustomLabels.map((label, index) =>
+        index === slot ? next : label,
+      ));
+      controls.onChange({ ...settings, chatWheelCustomLabels });
       syncControls();
     });
   });

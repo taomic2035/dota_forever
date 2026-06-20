@@ -21,6 +21,8 @@ export type BuildingKind =
 
 export interface BuildingSpawn { kind: BuildingKind; lane?: Lane; pos: Vec2 }
 export interface CampSpawn { tier: 'small' | 'medium' | 'large' | 'ancient'; pos: Vec2 }
+export interface ForestPocketSpawn { id: string; pos: Vec2; r: number }
+export interface HighgroundPlateauSpawn { id: string; pos: Vec2; r: number }
 
 /** 晨曦方建筑(永夜方自动镜像,top↔bot 互换)。 */
 export const DAWN_BUILDINGS: BuildingSpawn[] = [
@@ -115,4 +117,23 @@ export const DAWN_JUNGLE_PATHS: Vec2[][] = [
   // 上半野(上路与中路之间)穿行路径
   [{ x: 1800, y: 7400 }, { x: 3600, y: 6600 }, { x: 5200, y: 5800 }],
   [{ x: 3600, y: 6600 }, { x: 4600, y: 8200 }, { x: 6400, y: 8700 }],
+];
+
+/** 树林阴影视觉锚点:不改变拓扑,用于 HUD/小地图/3D 标记树线与林影。 */
+export const DAWN_FOREST_POCKETS: ForestPocketSpawn[] = [
+  { id: 'safe-lane-tree-pocket', pos: { x: 6900, y: 12880 }, r: 230 },
+  { id: 'small-camp-tree-pocket', pos: { x: 8350, y: 11920 }, r: 240 },
+  { id: 'hard-camp-tree-pocket', pos: { x: 12700, y: 10850 }, r: 120 },
+  { id: 'upper-river-tree-pocket', pos: { x: 4300, y: 7200 }, r: 230 },
+];
+
+/** 基地外野区高地点位:视觉/雷达锚点,不写入真实 height=2。 */
+export const DAWN_HIGHGROUND_PLATEAUS: HighgroundPlateauSpawn[] = [
+  { id: 'upper-jungle-watch-hill', pos: { x: 4700, y: 8200 }, r: 320 },
+  { id: 'hard-camp-watch-hill', pos: { x: 9800, y: 10550 }, r: 320 },
+];
+
+export const DAWN_HIGHGROUND_RAMPS: RampZone[] = [
+  { pos: { x: 5050, y: 7900 }, r: 260 },
+  { pos: { x: 9400, y: 10820 }, r: 260 },
 ];

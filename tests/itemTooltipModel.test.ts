@@ -23,6 +23,17 @@ describe('item tooltip model', () => {
     })).toContain('当前: 冷却 12s');
 
     expect(buildItemSlotTitle({
+      name: '魔瓶',
+      description: '恢复生命和法力。',
+      hotkey: '4',
+      active: { cooldown: 0, manaCost: 0 },
+      cooldownRemaining: 5.5,
+      backpackDelayRemaining: 5.5,
+      currentMana: 100,
+      charges: 2,
+    })).toContain('当前: 背包延迟 6s');
+
+    expect(buildItemSlotTitle({
       name: '黑皇杖',
       description: '获得魔法免疫。',
       hotkey: '3',

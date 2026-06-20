@@ -5,7 +5,13 @@
  * recap 锚定在「最近一次伤害」(即致命一击)向前回看 windowSec,按来源聚合——
  * 这样无论英雄死了多久,展示的始终是把它打死的那段爆发,而非随当前时间滑走。
  */
+import type { Vec2 } from '../core/vec2';
+
 export type DamageType = 'physical' | 'magical' | 'pure';
+
+export type DeathRecapContext =
+  | { action: 'center'; label: '定位'; sourceId?: number; sourcePos: Vec2 }
+  | { action: 'hidden'; label: '迷雾' };
 
 export interface DamageInstance {
   at: number;
@@ -16,6 +22,10 @@ export interface DamageInstance {
   sourceColor?: string;
   amount: number;
   type: DamageType;
+  /** 可见伤害来源的上下文。仅 sourceVisible=true 时聚合进可定位 context,避免透雾。 */
+  sourceId?: number;
+  sourcePos?: Vec2;
+  sourceVisible?: boolean;
 }
 
 export interface DeathRecapEntry {
@@ -24,6 +34,7 @@ export interface DeathRecapEntry {
   sourceColor?: string;
   total: number;
   byType: Record<DamageType, number>;
+  context?: DeathRecapContext;
 }
 
 function emptyByType(): Record<DamageType, number> {
@@ -40,12 +51,21 @@ export function aggregateRecap(
   for (const d of instances) if (d.at > endTime) endTime = d.at;
   const windowStart = endTime - windowSec;
 
-  const bySource = new Map<string, DeathRecapEntry & { latestAt: number }>();
+  const bySource = new Map<string, DeathRecapEntry & { latestAt: number; latestVisibleAt: number; sawHidden: boolean }>();
   for (const d of instances) {
     if (d.at < windowStart) continue;
     let e = bySource.get(d.groupKey);
     if (!e) {
-      e = { groupKey: d.groupKey, sourceName: d.sourceName, sourceColor: d.sourceColor, total: 0, byType: emptyByType(), latestAt: -Infinity };
+      e = {
+        groupKey: d.groupKey,
+        sourceName: d.sourceName,
+        sourceColor: d.sourceColor,
+        total: 0,
+        byType: emptyByType(),
+        latestAt: -Infinity,
+        latestVisibleAt: -Infinity,
+        sawHidden: false,
+      };
       bySource.set(d.groupKey, e);
     }
     e.total += d.amount;
@@ -55,12 +75,21 @@ export function aggregateRecap(
       e.sourceName = d.sourceName; // 名字/颜色取该来源最新实例
       e.sourceColor = d.sourceColor;
     }
+    if (d.sourceVisible === true && d.sourcePos && d.at >= e.latestVisibleAt) {
+      e.latestVisibleAt = d.at;
+      e.context = { action: 'center', label: '定位', sourceId: d.sourceId, sourcePos: { ...d.sourcePos } };
+    } else if (d.sourceVisible === false) {
+      e.sawHidden = true;
+    }
   }
 
   return [...bySource.values()]
     .sort((a, b) => b.total - a.total)
     .slice(0, maxEntries)
-    .map(({ latestAt: _drop, ...entry }) => entry);
+    .map(({ latestAt: _dropLatest, latestVisibleAt: _dropVisible, sawHidden, ...entry }) => {
+      if (!entry.context && sawHidden) entry.context = { action: 'hidden', label: '迷雾' };
+      return entry;
+    });
 }
 
 export class DamageLog {

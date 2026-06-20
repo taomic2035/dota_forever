@@ -2,6 +2,7 @@ import type { ControlSettings, RebindAction } from '../engine/controlSettings';
 import { DEFAULT_KEY_BINDS } from '../engine/controlSettings';
 import type { CommandCardAction } from '../engine/commandCardActions';
 import type { UnitKind } from '../sim/unit';
+import { availabilityCurrentLine, type AvailabilityModel } from './availabilityModel';
 
 export interface CommandCardButton {
   action: CommandCardAction;
@@ -9,6 +10,7 @@ export interface CommandCardButton {
   hotkey: string;
   tooltip: string;
   enabled: boolean;
+  availability: AvailabilityModel;
 }
 
 interface CommandCardSpec {
@@ -31,14 +33,44 @@ const COMMAND_CARD: CommandCardSpec[] = [
   { action: 'shop', label: 'Shop', tooltip: 'Open or close the shop.', bind: 'shop' },
 ];
 
-export function buildCommandCard(settings: ControlSettings): CommandCardButton[] {
+export interface CommandCardContext {
+  selectedCommandableCount: number;
+  controlledCommandableCount: number;
+  courierAlive: boolean;
+  glyphReadyIn: number;
+}
+
+export function buildCommandCard(settings: ControlSettings, context?: CommandCardContext): CommandCardButton[] {
   return COMMAND_CARD.map((spec) => ({
     action: spec.action,
     label: spec.label,
-    tooltip: spec.tooltip,
+    tooltip: commandTooltip(spec, commandAvailability(spec.action, context)),
     hotkey: spec.fixedHotkey ?? hotkeyLabel(settings.keyBinds[spec.bind!] ?? DEFAULT_KEY_BINDS[spec.bind!]),
-    enabled: true,
+    enabled: commandAvailability(spec.action, context).ready,
+    availability: commandAvailability(spec.action, context),
   }));
+}
+
+function commandAvailability(action: CommandCardAction, context?: CommandCardContext): AvailabilityModel {
+  if (!context) return { reason: 'ready', ready: true };
+  if (['move', 'attackMove', 'stop', 'hold'].includes(action) && context.selectedCommandableCount <= 0) {
+    return { reason: 'noSelection', ready: false };
+  }
+  if (action === 'selectCourier' && !context.courierAlive) {
+    return { reason: 'courierDead', ready: false };
+  }
+  if (action === 'selectAllControlled' && context.controlledCommandableCount <= 1) {
+    return { reason: 'noGroup', ready: false };
+  }
+  if (action === 'glyph' && context.glyphReadyIn > 0) {
+    return { reason: 'cooldown', ready: false, seconds: context.glyphReadyIn };
+  }
+  return { reason: 'ready', ready: true };
+}
+
+function commandTooltip(spec: CommandCardSpec, availability: AvailabilityModel): string {
+  if (availability.ready) return spec.tooltip;
+  return `${spec.tooltip} ${availabilityCurrentLine(availability)}`;
 }
 
 export interface SelectionSummaryUnit {
@@ -48,6 +80,7 @@ export interface SelectionSummaryUnit {
 
 export interface SelectionSummaryInput {
   primaryName: string;
+  cycleHotkey?: string;
   commandableUnits: SelectionSummaryUnit[];
 }
 
@@ -65,7 +98,8 @@ export function buildSelectionSummary(input: SelectionSummaryInput): SelectionSu
   const illusion = input.commandableUnits.filter((unit) => unit.kind === 'illusion').length;
   const courier = input.commandableUnits.filter((unit) => unit.kind === 'courier').length;
   const parts = [
-    input.primaryName,
+    `Primary ${input.primaryName}`,
+    input.cycleHotkey ? `Cycle ${hotkeyLabel(input.cycleHotkey)}` : '',
     hero ? `Hero ${hero}` : '',
     summon ? `Summon ${summon}` : '',
     illusion ? `Illusion ${illusion}` : '',

@@ -30,24 +30,78 @@ export interface QuickbuyModelInput {
 
 export interface QuickbuyModel {
   active: boolean;
+  itemKey: string | null;
   label: string;
   glyph: string;
   /** 还差多少金(≥0)。 */
   deficit: number;
   /** 是否够钱完成。 */
   ready: boolean;
+  /** 队列数量。旧单目标模型为 1/0。 */
+  queueSize?: number;
+  /** 队列摘要。 */
+  queueLabel?: string;
+  /** 队列明细。 */
+  queue?: QuickbuyQueueEntryModel[];
 }
 
 export function buildQuickbuyModel(input: QuickbuyModelInput): QuickbuyModel {
   if (!input.quickbuyKey) {
-    return { active: false, label: '', glyph: '', deficit: 0, ready: false };
+    return { active: false, itemKey: null, label: '', glyph: '', deficit: 0, ready: false };
   }
   const deficit = Math.max(0, Math.round(input.remainingCost - input.gold));
   return {
     active: true,
+    itemKey: input.quickbuyKey,
     label: input.label,
     glyph: input.glyph,
     deficit,
     ready: deficit === 0,
+  };
+}
+
+export interface QuickbuyQueueEntryInput {
+  itemKey: string;
+  label: string;
+  glyph: string;
+  remainingCost: number;
+}
+
+export interface QuickbuyQueueModelInput {
+  entries: QuickbuyQueueEntryInput[];
+  gold: number;
+}
+
+export interface QuickbuyQueueEntryModel {
+  itemKey: string;
+  label: string;
+  glyph: string;
+  remainingCost: number;
+  deficit: number;
+  ready: boolean;
+}
+
+export function buildQuickbuyQueueModel(input: QuickbuyQueueModelInput): QuickbuyModel {
+  if (input.entries.length === 0) {
+    return { active: false, itemKey: null, label: '', glyph: '', deficit: 0, ready: false, queueSize: 0, queueLabel: '', queue: [] };
+  }
+  const queue = input.entries.map((entry) => {
+    const deficit = Math.max(0, Math.round(entry.remainingCost - input.gold));
+    const ready = deficit === 0;
+    return { ...entry, deficit, ready };
+  });
+  const totalRemaining = input.entries.reduce((sum, entry) => sum + entry.remainingCost, 0);
+  const totalDeficit = Math.max(0, Math.round(totalRemaining - input.gold));
+  const first = queue[0];
+  return {
+    active: true,
+    itemKey: first.itemKey,
+    label: first.label,
+    glyph: first.glyph,
+    deficit: totalDeficit,
+    ready: totalDeficit === 0,
+    queueSize: queue.length,
+    queueLabel: queue.map((entry) => entry.label).join(' + '),
+    queue,
   };
 }

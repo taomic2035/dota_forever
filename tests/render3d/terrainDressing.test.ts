@@ -15,6 +15,7 @@ describe('terrainDressingSamples', () => {
     expect(summary.ground_grass_mottle).toBeGreaterThanOrEqual(80);
     expect(summary.ground_stone_slab).toBeGreaterThanOrEqual(24);
     expect(summary.flower_patch).toBeGreaterThanOrEqual(24);
+    expect(summary.jungle_walkway_entrance).toBeGreaterThanOrEqual(80);
     expect(summary.river_reed).toBeGreaterThanOrEqual(32);
     expect(summary.river_stone).toBeGreaterThanOrEqual(24);
     expect(summary.river_bank_mud).toBeGreaterThanOrEqual(32);
@@ -79,6 +80,7 @@ describe('buildTerrain3D V4 world layers', () => {
       'terrain-tree-canopy-secondary',
       'terrain-grass-tufts',
       'terrain-flower-patches',
+      'terrain-jungle-walkway-entrances',
       'terrain-river-reeds',
       'terrain-river-stones',
       'terrain-cliff-faces',
@@ -87,6 +89,11 @@ describe('buildTerrain3D V4 world layers', () => {
       'terrain-highground-edges',
       'terrain-ramp-stairs',
       'terrain-landmark-rings',
+      'terrain-forest-shadow-pockets',
+      'terrain-forest-walkable-pockets',
+      'terrain-cliff-vision-break-cues',
+      'terrain-neutral-camp-beacons',
+      'terrain-rune-beacons',
     ];
 
     for (const layer of requiredLayers) {
@@ -97,6 +104,29 @@ describe('buildTerrain3D V4 world layers', () => {
 
     expect(terrain.getObjectByName('terrain-tree-trunks')!.userData.count).toBeGreaterThanOrEqual(2400);
     expect(terrain.getObjectByName('terrain-tree-canopy-secondary')!.userData.count).toBeGreaterThanOrEqual(4800);
+  });
+
+  it('surfaces Dota map mechanics in 3D so jungle, highground, neutrals, and runes are readable', () => {
+    const map = new GameMap();
+    const terrain = buildTerrain3D(map);
+
+    expect(terrain.getObjectByName('terrain-forest-shadow-pockets')!.userData.count).toBeGreaterThanOrEqual(120);
+    expect(terrain.getObjectByName('terrain-forest-walkable-pockets')!.userData.count).toBeGreaterThanOrEqual(map.forestPockets.length);
+    expect(terrain.getObjectByName('terrain-forest-pocket-floor')!.userData.count).toBe(
+      terrain.getObjectByName('terrain-forest-pocket-canopy-shadows')!.userData.count,
+    );
+    expect(terrain.getObjectByName('terrain-jungle-walkway-entrances')!.userData.count).toBeGreaterThanOrEqual(80);
+    expect(terrain.getObjectByName('terrain-jungle-entrance-floor')!.userData.count).toBe(
+      terrain.getObjectByName('terrain-jungle-entrance-arches')!.userData.count,
+    );
+    expect(terrain.getObjectByName('terrain-forest-shadow-floor')!.userData.count).toBe(
+      terrain.getObjectByName('terrain-forest-shadow-haze')!.userData.count,
+    );
+    expect(terrain.getObjectByName('terrain-cliff-vision-break-cues')!.userData.count).toBeGreaterThanOrEqual(32);
+    expect(terrain.getObjectByName('terrain-highground-miss-crowns')!.userData.count).toBeGreaterThanOrEqual(32);
+    expect(terrain.getObjectByName('terrain-neutral-camp-beacons')!.userData.count).toBe(map.camps.length);
+    expect(terrain.getObjectByName('terrain-rune-beacons')!.userData.count).toBe(map.runeSpots.length);
+    expect(terrain.getObjectByName('terrain-highground-plateau-banners')!.userData.count).toBe(map.highgroundPlateaus.length);
   });
 
   it('adds horizon haze and sun shafts so sky/fog reads as battlefield atmosphere', () => {
@@ -201,6 +231,32 @@ describe('buildTerrain3D V4 world layers', () => {
     expect(firstStrip.position.x).not.toBeCloseTo(startX, 4);
     expect((foam as any).material.opacity).not.toBeCloseTo(startOpacity, 4);
     expect(reeds.rotation.z).not.toBeCloseTo(startReedRotation, 4);
+  });
+
+  it('pulses map-mechanic beacons so camps, runes, forest pockets, and highground miss cues stay visible', () => {
+    const terrain = buildTerrain3D(new GameMap());
+    const runes = terrain.getObjectByName('terrain-rune-beacons')!;
+    const camps = terrain.getObjectByName('terrain-neutral-camp-beacons')!;
+    const forest = terrain.getObjectByName('terrain-forest-shadow-pockets')!;
+    const cliffs = terrain.getObjectByName('terrain-cliff-vision-break-cues')!;
+
+    expect(runes.userData.motion).toBe('rune-pulse');
+    expect(camps.userData.motion).toBe('camp-pulse');
+    expect(forest.userData.motion).toBe('forest-breathe');
+    expect(cliffs.userData.motion).toBe('highground-miss-pulse');
+
+    updateTerrainRuntimeMotion(terrain, 0);
+    const runeStart = (terrain.getObjectByName('terrain-rune-beacon-columns') as any).material.opacity;
+    const campStart = camps.scale.y;
+    const forestStart = (terrain.getObjectByName('terrain-forest-shadow-haze') as any).material.opacity;
+    const cliffStart = (terrain.getObjectByName('terrain-highground-miss-crowns') as any).material.opacity;
+
+    updateTerrainRuntimeMotion(terrain, 1.1);
+
+    expect((terrain.getObjectByName('terrain-rune-beacon-columns') as any).material.opacity).not.toBeCloseTo(runeStart, 4);
+    expect(camps.scale.y).not.toBeCloseTo(campStart, 4);
+    expect((terrain.getObjectByName('terrain-forest-shadow-haze') as any).material.opacity).not.toBeCloseTo(forestStart, 4);
+    expect((terrain.getObjectByName('terrain-highground-miss-crowns') as any).material.opacity).not.toBeCloseTo(cliffStart, 4);
   });
 
   it('builds cliff fences from posts, rails, and stone bases instead of a single bar', () => {

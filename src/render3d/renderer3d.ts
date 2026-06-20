@@ -21,17 +21,27 @@ import { buildTerrain3D, terrainElevation, updateTerrainRuntimeMotion } from './
 import { Fog3D } from './fog3d';
 import { isVisibleTo } from '../sim/vision';
 import type { UxFeedback } from '../ui/uxFeedback';
+import type { TargetPreviewModel } from '../engine/targetPreviewModel';
 import { resolveCastStatus, castStatusHex } from '../engine/castValidity';
 import { buildCommandQueuePath } from '../render/commandQueuePath';
 import { unitStatusPips } from '../render/statusPips';
 import { castBarInfo, type CastTrackEntry } from '../render/castBar';
 import { healthBarTicks } from '../render/healthBar';
 import { visualStateFor3D } from './visualState';
-import { applyHeroStatusFx, createHeroStatusFxObjects, heroStatusFxState, type HeroStatusFxObjects } from './statusFx';
+import {
+  applyHeroStatusFx,
+  createHeroStatusFxObjects,
+  heroStatusFxInputFromModifiers,
+  heroStatusFxState,
+  type HeroStatusFxObjects,
+} from './statusFx';
 import { stackedUnitVisualOffset } from './stackOffset';
 import { applyCommandQueue3D, commandQueue3DState, createCommandQueue3DObjects, type CommandQueue3DObjects } from './commandQueue3d';
 import { selection3DMarkerIds } from './selection3d';
 import { isMapPingKind, mapPingVisual } from '../ui/mapPingModel';
+import { buildAttackCommandWorldHint } from '../render/attackCommandWorldHint';
+import { applyAttackCommand3D, attackCommand3DState, createAttackCommand3DObjects, type AttackCommand3DObjects } from './attackCommand3d';
+import { buildRuneWorldMarkers } from '../render/runeWorldMarker';
 
 interface Gameplay3DReadabilityInput {
   isHero: boolean;
@@ -139,6 +149,7 @@ export class Renderer3D {
   /** 小地图地形缩略图(从 map 烘焙,供 MiniMap 在 3D 下使用)。 */
   private terrainThumb: HTMLCanvasElement;
   private readonly queueFx: CommandQueue3DObjects;
+  private readonly attackCommandFx: AttackCommand3DObjects;
   /** 3D 战争迷雾纱罩(贴地半透明层,补「地面永远全亮」漏洞)。 */
   private readonly fog3d: Fog3D;
 
@@ -147,6 +158,7 @@ export class Renderer3D {
     this.canvas = this.s3d.canvas;
     this.fx = new Fx3D(this.s3d.scene);
     this.queueFx = createCommandQueue3DObjects(12);
+    this.attackCommandFx = createAttackCommand3DObjects();
     // 3D 默认视野:拉远到可看清英雄 + 周边战场(MOBA 可玩视野 ~1100 世界单位宽)。
     // 旧值 1.4 过近(仅 ~470 宽,英雄占满屏看不到战场);改 0.62 配合更俯的视角与放大的模型。
     if (camera.zoom < 1.0) camera.zoom = 0.62;
@@ -154,6 +166,7 @@ export class Renderer3D {
     this.fog3d = new Fog3D(world.map);
     this.s3d.scene.add(this.fog3d.mesh);
     this.s3d.scene.add(this.queueFx.root);
+    this.s3d.scene.add(this.attackCommandFx.root);
     this.buildTargeting();
     this.terrainThumb = bakeMiniTerrain(world.map);
 
@@ -332,13 +345,15 @@ export class Renderer3D {
       };
       m.applyPose(poseInput);
       const pose = poseFor(poseInput);
-      applyHeroStatusFx(e.statusFx, heroStatusFxState({
+      applyHeroStatusFx(e.statusFx, heroStatusFxState(heroStatusFxInputFromModifiers({
+        modifiers: u.modifiers,
+        now,
         castGlow: pose.castGlow,
         channelPulse: pose.channelPulse,
         stunStars: visual.stunStars,
         invisibilityAlpha: pose.invisibilityAlpha,
         t,
-      }));
+      })));
 
       // 状态视觉:受击闪白 / 眩晕泛光 / 隐身半透(每单位独立材质)
       for (const mm of m.materials) {
@@ -367,15 +382,67 @@ export class Renderer3D {
     this.updateSelectionRing(world, selectedId, t, ux);
     this.updateHoverRing(world, ux?.hoverUnitId ?? 0, selectedId);
     this.updateCommandQueue(world, selectedId, t);
+    this.updateAttackCommandHint(world, selectedId, t);
     updateTerrainRuntimeMotion(this.s3d.scene, t); // V4:河流漂移/浪花脉冲/芦苇摆动等纯渲染动效
     this.s3d.setNight(world.isNight);
     this.s3d.syncCamera(this.camera);
     this.fog3d.update(world, this.viewerTeam, world.time);
     this.s3d.render();
     this.drawBars(world);
+    this.drawActiveRunes3D(world, t);
     if (ux?.altInfo) this.drawTowerRanges3D(world);
     this.drawUxPulses3D(world, ux);
     this.drawFloatTexts3D(world);
+  }
+
+  private drawActiveRunes3D(world: World, t: number): void {
+    const markers = buildRuneWorldMarkers(world.runes);
+    if (!markers.length) return;
+    const ctx = this.octx, W = this.overlay.width, H = this.overlay.height;
+    const cam = this.s3d.cam;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const rune of markers) {
+      const baseY = terrainElevation(world.map, rune.pos.x, rune.pos.y) + 8;
+      const topY = baseY + rune.height3d + Math.sin(t * 3.2) * 14;
+      this.proj.set(rune.pos.x, topY, rune.pos.y).project(cam);
+      if (this.proj.z > 1) continue;
+      const top = { x: (this.proj.x * 0.5 + 0.5) * W, y: (-this.proj.y * 0.5 + 0.5) * H };
+      this.proj.set(rune.pos.x, baseY, rune.pos.y).project(cam);
+      if (this.proj.z > 1) continue;
+      const base = { x: (this.proj.x * 0.5 + 0.5) * W, y: (-this.proj.y * 0.5 + 0.5) * H };
+      if (top.x < -80 || top.x > W + 80 || top.y < -120 || top.y > H + 80) continue;
+      const pulse = 0.75 + Math.sin(t * 4.4) * 0.18;
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = rune.glow;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.lineTo(top.x, top.y);
+      ctx.stroke();
+      ctx.globalAlpha = 0.3;
+      ctx.lineWidth = 18;
+      ctx.beginPath();
+      ctx.moveTo(base.x, base.y);
+      ctx.lineTo(top.x, top.y);
+      ctx.stroke();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = '#080b10';
+      ctx.strokeStyle = rune.glow;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(top.x, top.y, 17, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = rune.color;
+      ctx.font = '800 18px system-ui, sans-serif';
+      ctx.fillText(rune.glyph, top.x, top.y + 1);
+      ctx.font = '800 11px system-ui, sans-serif';
+      ctx.fillText(rune.label, top.x, top.y - 27);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
 
   /** Alt 信息层:防御塔攻击范围圈(采样地面圆投影到 overlay;敌红=危险/友绿=安全)。塔位固定,不做迷雾门控。 */
@@ -693,11 +760,16 @@ export class Renderer3D {
     return ring;
   }
 
-  /** 施法指示器:读 ux.targeting,贴地绘制距离环 / AoE 范围 / 线形(队色合法蓝、非法红)。 */
+  /** 施法指示器:优先读 TargetPreviewModel,回退 ux.targeting,贴地绘制距离环 / AoE 范围 / 线形。 */
   private updateTargeting(world: World, ux?: UxFeedback): void {
+    if (ux?.targetPreview) {
+      this.updateTargetPreview(world, ux.targetPreview);
+      return;
+    }
     const t = ux?.targeting;
     if (!t) { this.tGroup.visible = false; return; }
     this.tGroup.visible = true;
+    this.tRing.visible = true;
     const color = castStatusHex(resolveCastStatus(t.status, t.valid));
     const ox = t.origin.x, oz = t.origin.y;
     const oy = terrainElevation(world.map, ox, oz) + 4;
@@ -729,6 +801,45 @@ export class Renderer3D {
     }
   }
 
+  private updateTargetPreview(world: World, preview: TargetPreviewModel): void {
+    if (!preview.visible) { this.tGroup.visible = false; return; }
+    this.tGroup.visible = true;
+    const color = castStatusHex(preview.tone);
+    const ox = preview.origin.x, oz = preview.origin.y;
+    const oy = terrainElevation(world.map, ox, oz) + 4;
+    const cx = preview.aim.x, cz = preview.aim.y;
+    const cy = terrainElevation(world.map, cx, cz) + 4;
+
+    this.tRing.visible = preview.rangeRing.visible;
+    if (preview.rangeRing.visible) {
+      (this.tRing.material as THREE.MeshBasicMaterial).color.setHex(color);
+      this.tRing.position.set(ox, oy, oz);
+      this.tRing.scale.set(preview.rangeRing.radius, preview.rangeRing.radius, preview.rangeRing.radius);
+    }
+
+    const showAoe = preview.targetReticle.visible;
+    this.tAoe.visible = showAoe;
+    this.tAoeRing.visible = showAoe;
+    if (showAoe) {
+      for (const m of [this.tAoe, this.tAoeRing]) (m.material as THREE.MeshBasicMaterial).color.setHex(color);
+      const radius = preview.targetReticle.radius;
+      this.tAoe.position.set(cx, cy, cz);
+      this.tAoe.scale.setScalar(radius);
+      this.tAoeRing.position.set(cx, cy + 0.5, cz);
+      this.tAoeRing.scale.setScalar(radius);
+    }
+
+    this.tLine.visible = preview.line.visible;
+    if (preview.line.visible) {
+      const dx = cx - ox, dz = cz - oz;
+      const len = Math.hypot(dx, dz) || 1;
+      (this.tLine.material as THREE.MeshBasicMaterial).color.setHex(color);
+      this.tLine.position.set((ox + cx) / 2, oy, (oz + cz) / 2);
+      this.tLine.scale.set(len, 1, preview.line.width || 80);
+      this.tLine.rotation.y = -Math.atan2(dz, dx);
+    }
+  }
+
   private updateCommandQueue(world: World, selectedId: number, t: number): void {
     const unit = world.getUnit(selectedId);
     if (!unit?.alive || unit.orderQueue.length === 0) {
@@ -737,6 +848,47 @@ export class Renderer3D {
     }
     const legs = buildCommandQueuePath(world, unit);
     applyCommandQueue3D(this.queueFx, commandQueue3DState(legs, {
+      t,
+      elevationAt: (x, z) => terrainElevation(world.map, x, z),
+    }));
+  }
+
+  private updateAttackCommandHint(world: World, selectedId: number, t: number): void {
+    const selected = world.getUnit(selectedId);
+    if (!selected?.alive) {
+      applyAttackCommand3D(this.attackCommandFx, attackCommand3DState({
+        visible: false,
+        kind: 'none',
+        tone: 'muted',
+        label: '',
+        from: null,
+        to: null,
+        radius: 0,
+      }, { t, elevationAt: () => 0 }));
+      return;
+    }
+    const target = selected.attackTargetId ? world.getUnit(selected.attackTargetId) : undefined;
+    const hint = buildAttackCommandWorldHint({
+      selected: {
+        id: selected.id,
+        pos: {
+          x: selected.prevPos.x + (selected.pos.x - selected.prevPos.x) * this.alpha,
+          y: selected.prevPos.y + (selected.pos.y - selected.prevPos.y) * this.alpha,
+        },
+        order: selected.order,
+        attackTargetId: selected.attackTargetId,
+      },
+      target: target && target.alive ? {
+        id: target.id,
+        pos: {
+          x: target.prevPos.x + (target.pos.x - target.prevPos.x) * this.alpha,
+          y: target.prevPos.y + (target.pos.y - target.prevPos.y) * this.alpha,
+        },
+        radius: target.calc.collisionRadius,
+        name: target.name,
+      } : null,
+    });
+    applyAttackCommand3D(this.attackCommandFx, attackCommand3DState(hint, {
       t,
       elevationAt: (x, z) => terrainElevation(world.map, x, z),
     }));

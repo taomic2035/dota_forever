@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { buildTargetPreviewModel } from '../src/engine/targetPreviewModel';
 import { UxFeedback } from '../src/ui/uxFeedback';
 
 describe('UxFeedback', () => {
@@ -52,6 +53,39 @@ describe('UxFeedback', () => {
 
     expect(ux.targeting?.cursor).toEqual({ x: 100, y: 120 });
     expect(ux.targeting?.valid).toBe(false);
+  });
+
+  it('stores the full target preview model while preserving legacy targeting fields', () => {
+    const ux = new UxFeedback();
+    const preview = buildTargetPreviewModel({
+      source: 'item',
+      label: '冲击波',
+      origin: { x: 10, y: 20 },
+      cursor: { x: 410, y: 120 },
+      range: 700,
+      shape: { kind: 'line', width: 140, length: 700 },
+      requiresTarget: false,
+    });
+
+    ux.setTargetPreview({ abilityIndex: -1, itemSlot: 2 }, preview);
+
+    expect(ux.targetPreview).toBe(preview);
+    expect(ux.targeting).toMatchObject({
+      abilityIndex: -1,
+      source: 'item',
+      itemSlot: 2,
+      mode: 'line',
+      origin: { x: 10, y: 20 },
+      cursor: { x: 410, y: 120 },
+      range: 700,
+      width: 140,
+      valid: true,
+      status: 'ready',
+    });
+
+    ux.clearTargeting();
+    expect(ux.targetPreview).toBeNull();
+    expect(ux.targeting).toBeNull();
   });
 
   it('tracks cursor position and expires transient cast intent', () => {

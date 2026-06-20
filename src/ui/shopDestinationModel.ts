@@ -1,3 +1,5 @@
+import { buildShopAvailability, type AvailabilityModel } from './availabilityModel';
+
 export type ShopDestination = 'hero' | 'backpack' | 'stash' | 'tp' | 'blocked';
 export type ShopDestinationTone = 'ready' | 'busy' | 'blocked';
 export type ShopAccess = 'home' | 'side' | 'secret' | null;
@@ -28,6 +30,7 @@ export interface ShopDestinationModel {
   label: string;
   detail: string;
   tone: ShopDestinationTone;
+  availability: AvailabilityModel;
 }
 
 export function buildShopDestinationModel(input: {
@@ -44,11 +47,11 @@ export function buildShopDestinationModel(input: {
 
   if (!allowed) {
     const label = item.secretShop ? 'Secret' : effectiveShop === 'side' ? 'Side' : 'Shop';
-    return blocked(label, item.secretShop ? 'Need secret shop' : 'Need home shop');
+    return blocked(label, item.secretShop ? 'Need secret shop' : 'Need home shop', 'shop');
   }
 
   if (hero.gold < item.cost) {
-    return blocked('Gold', `Need ${item.cost - hero.gold} more gold`);
+    return blocked('Gold', `Need ${item.cost - hero.gold} more gold`, 'gold', item.cost - hero.gold);
   }
 
   if (item.key === 'tp' && hero.alive) {
@@ -58,13 +61,14 @@ export function buildShopDestinationModel(input: {
       label: 'TP',
       detail: hero.tpSlotOccupied ? 'Adds TP charge' : 'Goes to TP slot',
       tone: 'ready',
+      availability: buildShopAvailability({ canBuy: true }),
     };
   }
 
   if (!hero.alive) {
     if (item.stackCharges && hero.stackInStash) return destination('stash', 'Stash', 'Adds stash charge', 'busy');
     if (hero.stashFreeSlots > 0) return destination('stash', 'Stash', 'Dead: goes to stash', 'busy');
-    return blocked('Full', 'Stash full');
+    return blocked('Full', 'Stash full', 'space');
   }
 
   if (item.stackCharges && hero.stackInInventory) {
@@ -80,24 +84,36 @@ export function buildShopDestinationModel(input: {
   }
 
   if (item.secretShop) {
-    return blocked('Full', 'Secret shop cannot stash');
+    return blocked('Full', 'Secret shop cannot stash', 'space');
   }
 
   if (effectiveShop === 'side') {
-    return blocked('Full', 'Side shop cannot stash');
+    return blocked('Full', 'Side shop cannot stash', 'space');
   }
 
   if (hero.stashFreeSlots > 0) {
     return destination('stash', 'Stash', 'Inventory and backpack full: goes to stash', 'busy');
   }
 
-  return blocked('Full', 'Inventory, backpack, and stash full');
+  return blocked('Full', 'Inventory, backpack, and stash full', 'space');
 }
 
 function destination(destination: ShopDestination, label: string, detail: string, tone: ShopDestinationTone): ShopDestinationModel {
-  return { canBuy: true, destination, label, detail, tone };
+  return { canBuy: true, destination, label, detail, tone, availability: buildShopAvailability({ canBuy: true }) };
 }
 
-function blocked(label: string, detail: string): ShopDestinationModel {
-  return { canBuy: false, destination: 'blocked', label, detail, tone: 'blocked' };
+function blocked(
+  label: string,
+  detail: string,
+  blockedBy: 'gold' | 'shop' | 'space',
+  goldDeficit?: number,
+): ShopDestinationModel {
+  return {
+    canBuy: false,
+    destination: 'blocked',
+    label,
+    detail,
+    tone: 'blocked',
+    availability: buildShopAvailability({ canBuy: false, blockedBy, goldDeficit }),
+  };
 }

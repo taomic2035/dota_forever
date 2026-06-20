@@ -5,6 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { GameMap, Team } from '../src/sim/map';
+import { DAWN_BUILDINGS, LANE_WAYPOINTS, mirror } from '../src/data/mapLayout';
 
 describe('地图内容完整性', () => {
   const map = new GameMap();
@@ -36,6 +37,60 @@ describe('地图内容完整性', () => {
     expect(map.shops.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('树林口袋保留为视觉/雷达锚点,不能额外雕空整片树林拓扑', () => {
+    expect(map.forestPockets.length).toBeGreaterThanOrEqual(8);
+    for (const pocket of map.forestPockets) {
+      const { cx, cy } = map.cellOf(pocket.pos);
+      let nearTree = false;
+      let sampled = 0;
+      let walkable = 0;
+      for (let dy = -3; dy <= 3; dy++) {
+        for (let dx = -3; dx <= 3; dx++) {
+          const x = cx + dx;
+          const y = cy + dy;
+          if (!map.inBounds(x, y)) continue;
+          const center = map.cellCenter(x, y);
+          if (dist(center, pocket.pos) > pocket.r) continue;
+          sampled++;
+          if (map.isWalkableCell(x, y)) walkable++;
+          if (map.trees.has(map.cellIndex(x, y))) nearTree = true;
+        }
+      }
+      expect(nearTree, `${pocket.id} near tree shadow`).toBe(true);
+      expect(walkable / Math.max(1, sampled), `${pocket.id} carved walkable ratio`).toBeLessThan(0.78);
+    }
+  });
+
+  it('野区高地点位保留为视觉/雷达锚点,但不写入真实高地高度以免拖垮 bot 推进', () => {
+    expect(map.highgroundPlateaus.length).toBeGreaterThanOrEqual(4);
+    for (const plateau of map.highgroundPlateaus) {
+      expect(map.heightAt(plateau.pos), `${plateau.id} sim height`).toBe(1);
+      expect(map.isWalkable(map.nearestWalkable(plateau.pos)), `${plateau.id} reachable surface`).toBe(true);
+    }
+  });
+
+  it('基地外高地不会覆盖关键推进轴线,避免高地防守变成 bot 攻不下的堡垒', () => {
+    const attackAxis = [
+      ...LANE_WAYPOINTS.top,
+      ...LANE_WAYPOINTS.mid,
+      ...LANE_WAYPOINTS.bot,
+      ...LANE_WAYPOINTS.top.map(mirror).reverse(),
+    ];
+    const targetBuildings = DAWN_BUILDINGS
+      .filter((b) => b.kind !== 'fountain' && b.kind !== 'ancient')
+      .flatMap((b) => [b.pos, mirror(b.pos)]);
+
+    for (const plateau of map.highgroundPlateaus) {
+      expect(plateau.r, `${plateau.id} radius`).toBeLessThanOrEqual(360);
+      for (const pos of targetBuildings) {
+        expect(dist(plateau.pos, pos), `${plateau.id} near building`).toBeGreaterThan(plateau.r + 900);
+      }
+      for (const pos of attackAxis) {
+        expect(dist(plateau.pos, pos), `${plateau.id} near lane axis`).toBeGreaterThan(plateau.r + 520);
+      }
+    }
+  });
+
   it('建筑坐标在界内', () => {
     for (const b of map.buildings) {
       expect(b.pos.x).toBeGreaterThanOrEqual(0);
@@ -52,3 +107,7 @@ describe('地图内容完整性', () => {
     expect(block).toBeGreaterThan(0);
   });
 });
+
+function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}

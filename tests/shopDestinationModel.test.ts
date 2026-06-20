@@ -18,12 +18,13 @@ describe('buildShopDestinationModel', () => {
     expect(buildShopDestinationModel({
       item: { key: 'branch', cost: 53 },
       hero: baseHero,
-    })).toEqual({
+    })).toMatchObject({
       canBuy: true,
       destination: 'hero',
       label: 'Hero',
       detail: 'Goes to inventory',
       tone: 'ready',
+      availability: { reason: 'ready', ready: true },
     });
   });
 
@@ -70,6 +71,7 @@ describe('buildShopDestinationModel', () => {
       label: 'Secret',
       detail: 'Need secret shop',
       tone: 'blocked',
+      availability: { reason: 'wrongShop', ready: false },
     });
   });
 
@@ -130,6 +132,7 @@ describe('buildShopDestinationModel', () => {
       label: 'Gold',
       detail: 'Need 33 more gold',
       tone: 'blocked',
+      availability: { reason: 'noGold', ready: false, goldDeficit: 33 },
     });
   });
 
@@ -156,6 +159,7 @@ describe('buildShopDestinationModel', () => {
       label: 'Full',
       detail: 'Inventory, backpack, and stash full',
       tone: 'blocked',
+      availability: { reason: 'noSpace', ready: false },
     });
   });
 

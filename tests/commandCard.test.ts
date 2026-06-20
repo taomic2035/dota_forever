@@ -37,12 +37,56 @@ describe('buildCommandCard', () => {
     expect(card.find((button) => button.action === 'attackMove')?.hotkey).toBe('X');
     expect(card.find((button) => button.action === 'selectHero')?.hotkey).toBe('HOME');
   });
+
+  it('uses shared availability copy for context-disabled command buttons', () => {
+    const card = buildCommandCard(DEFAULT_CONTROL_SETTINGS, {
+      selectedCommandableCount: 0,
+      controlledCommandableCount: 1,
+      courierAlive: false,
+      glyphReadyIn: 42,
+    });
+
+    expect(card.find((button) => button.action === 'move')).toMatchObject({
+      enabled: false,
+      availability: { reason: 'noSelection', ready: false },
+    });
+    expect(card.find((button) => button.action === 'move')?.tooltip).toContain('当前: 没有可命令单位');
+    expect(card.find((button) => button.action === 'selectCourier')).toMatchObject({
+      enabled: false,
+      availability: { reason: 'courierDead', ready: false },
+    });
+    expect(card.find((button) => button.action === 'selectCourier')?.tooltip).toContain('当前: 信使不可用');
+    expect(card.find((button) => button.action === 'glyph')).toMatchObject({
+      enabled: false,
+      availability: { reason: 'cooldown', ready: false, seconds: 42 },
+    });
+    expect(card.find((button) => button.action === 'glyph')?.tooltip).toContain('当前: 冷却 42s');
+  });
+
+  it('keeps always-available utility commands active while disabling group-only commands without enough units', () => {
+    const card = buildCommandCard(DEFAULT_CONTROL_SETTINGS, {
+      selectedCommandableCount: 1,
+      controlledCommandableCount: 1,
+      courierAlive: true,
+      glyphReadyIn: 0,
+    });
+
+    expect(card.find((button) => button.action === 'shop')).toMatchObject({ enabled: true });
+    expect(card.find((button) => button.action === 'selectHero')).toMatchObject({ enabled: true });
+    expect(card.find((button) => button.action === 'selectAllControlled')).toMatchObject({
+      enabled: false,
+      availability: { reason: 'noGroup', ready: false },
+    });
+    expect(card.find((button) => button.action === 'attackMove')).toMatchObject({ enabled: true });
+    expect(card.find((button) => button.action === 'glyph')).toMatchObject({ enabled: true });
+  });
 });
 
 describe('buildSelectionSummary', () => {
   it('summarizes multi-unit commandable selections by unit role', () => {
     const summary = buildSelectionSummary({
       primaryName: 'Zola',
+      cycleHotkey: 'C',
       commandableUnits: [
         { kind: 'hero' },
         { kind: 'creep', summonOwnerId: 1 },
@@ -54,7 +98,7 @@ describe('buildSelectionSummary', () => {
     expect(summary).toEqual({
       visible: true,
       title: '4 selected',
-      detail: 'Zola · Hero 1 · Summon 1 · Illusion 1 · Courier 1',
+      detail: 'Primary Zola · Cycle C · Hero 1 · Summon 1 · Illusion 1 · Courier 1',
     });
   });
 

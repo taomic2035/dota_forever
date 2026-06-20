@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { heroStatusFxState } from '../../src/render3d/statusFx';
+import { heroStatusFxInputFromModifiers, heroStatusFxState } from '../../src/render3d/statusFx';
+import type { Modifier } from '../../src/sim/modifiers';
+
+function mod(key: string, expiresAt: number, extra: Partial<Modifier['def']> = {}): Modifier {
+  return {
+    key,
+    sourceId: 1,
+    expiresAt,
+    def: {
+      key,
+      duration: expiresAt,
+      ...extra,
+    },
+    data: {},
+  };
+}
 
 describe('heroStatusFxState', () => {
   it('shows a stun ring only while stunned', () => {
@@ -40,5 +55,23 @@ describe('heroStatusFxState', () => {
     expect(v.invisShell.visible).toBe(true);
     expect(v.invisShell.opacity).toBeGreaterThan(0.16);
     expect(v.invisShell.opacity).toBeLessThan(0.5);
+  });
+
+  it('derives 3D status energy from the shared modifier display contract', () => {
+    const input = heroStatusFxInputFromModifiers({
+      modifiers: [
+        mod('item_hex', 5, { duration: 5, states: { silenced: true, muted: true, disarmed: true } }),
+        mod('riki_cloak', 8, { duration: 8, isBuff: true, states: { invisible: true } }),
+      ],
+      now: 2,
+      castGlow: 0.2,
+      channelPulse: 0,
+      invisibilityAlpha: 1,
+      t: 0.5,
+    });
+
+    expect(input.stunStars).toBeGreaterThan(0.45);
+    expect(input.invisibilityAlpha).toBeLessThan(0.75);
+    expect(input.castGlow).toBe(0.2);
   });
 });

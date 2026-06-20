@@ -20,6 +20,7 @@ import { SelectionState, type ControlGroupSlot } from './engine/selection';
 import { issueSelectionOrder, selectedCastSubject } from './engine/selectionCommandRouting';
 import { Hud } from './ui/hud';
 import { DamageLog, ControlLog, type DeathAssistSource } from './ui/deathRecapModel';
+import { ThreatDirectionLog } from './ui/threatDirectionModel';
 import { CombatLog } from './ui/combatLogModel';
 import { CombatLogPanel } from './ui/combatLogPanel';
 import { KillFeed } from './ui/killfeed';
@@ -40,6 +41,9 @@ import { UxFeedback } from './ui/uxFeedback';
 import { CommandCursor } from './ui/commandCursor';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  CONTROL_SETTINGS_STORAGE_KEY,
+  abilityKeyLabels,
+  applyHeroLegacyAbilityHotkeys,
   normalizeControlSettings,
   parseCameraPanSpeed,
   parseCastInputMode,
@@ -56,17 +60,20 @@ import { cursorTargetHintFor } from './ui/cursorTargetHint';
 import { buildCourierDeathPulses } from './ui/courierEventFeedback';
 import { buildBuildingAttackAlertFeedback } from './ui/buildingAttackAlertModel';
 import { abilityPreviewShape, itemPreviewShape, previewTargetingGeometry } from './engine/abilityPreviewShape';
-import { castStatus } from './engine/castValidity';
+import { buildTargetPreviewModel } from './engine/targetPreviewModel';
 import { modifierStates } from './sim/modifiers';
 import { castScan } from './sim/scan';
 import { canDenyTarget } from './sim/denyRules';
 import { requestCourierDelivery } from './sim/courier';
 import { shouldToggleAbilityFromHotkey, toggleAbilitySlotState } from './ui/abilitySlotToggleModel';
+import { SpectatorTimelineJumpHistoryLog, SpectatorTimelineLog, type SpectatorTimelineUnit } from './ui/spectatorTimelineModel';
+import { buildSpectatorControlsModel, type SpectatorControlActionId, type SpectatorFollowTargetInput } from './ui/spectatorControlsModel';
+import { TeamCommunicationLog } from './ui/teamCommunicationLogModel';
 
 const params = new URLSearchParams(location.search);
 const app = document.getElementById('app')!;
 app.addEventListener('contextmenu', (e) => e.preventDefault());
-const CONTROL_SETTINGS_KEY = 'dotaForever.controlSettings.v1';
+const debugUi = params.get('debug') === '1' || params.get('debug') === 'true';
 
 const modeParam = params.get('mode');
 if (modeParam === 'hero3d-preview') {
@@ -82,7 +89,7 @@ if (modeParam === 'hero3d-preview') {
 function loadControlSettings(params: URLSearchParams): ControlSettings {
   let stored: unknown = DEFAULT_CONTROL_SETTINGS;
   try {
-    const raw = localStorage.getItem(CONTROL_SETTINGS_KEY);
+    const raw = localStorage.getItem(CONTROL_SETTINGS_STORAGE_KEY);
     if (raw) stored = JSON.parse(raw);
   } catch {
     stored = DEFAULT_CONTROL_SETTINGS;
@@ -131,7 +138,7 @@ function applyCastOverrideParam(
 
 function saveControlSettings(settings: ControlSettings): void {
   try {
-    localStorage.setItem(CONTROL_SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(CONTROL_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   } catch {
     // Storage can be unavailable in embedded or privacy-restricted contexts.
   }
@@ -175,6 +182,11 @@ function startGame(mode: 'play' | 'spectate'): void {
     : new Renderer(app, world, camera);
   renderer.viewerTeam = mode === 'play' ? Team.Dawn : null;
   const hud = new Hud(app);
+  const spectatorTimelineEnabled = mode === 'spectate' || debugUi;
+  const spectatorTimeline = new SpectatorTimelineLog(16);
+  const spectatorJumpHistory = new SpectatorTimelineJumpHistoryLog(6);
+  const teamCommunicationLog = new TeamCommunicationLog(8, 12);
+  let spectatorFollowUnitId = hero?.id ?? 0;
   hud.onLearn = (i) => { if (hero?.alive) learnAbility(world, hero, i); };
   // 点击顶栏英雄 chip → 镜头跳到该英雄(友军/可见敌方;雾中敌方不跳,避免透雾)。解除跟随以停在该处。
   hud.onCenterUnit = (id) => {
@@ -183,6 +195,26 @@ function startGame(mode: 'play' | 'spectate'): void {
     if (u.team !== hero.team && !isVisibleTo(world, hero.team, u)) return;
     camera.centerOn(u.pos);
     camera.follow = false;
+  };
+  hud.onDeathRecapContext = (groupKey) => {
+    const context = hud.deathRecapEntries.find((entry) => entry.groupKey === groupKey)?.context;
+    if (!context || context.action !== 'center') return;
+    camera.centerOn(context.sourcePos);
+    camera.follow = false;
+    ux.addWorldPulse({ kind: 'ping', pos: context.sourcePos, targetId: context.sourceId, time: world.time });
+  };
+  hud.onSpectatorTimelineFocus = (entryId) => {
+    const entry = spectatorTimeline.entries().find((item) => item.id === entryId)
+      ?? spectatorJumpHistory.entries().find((item) => item.id === entryId);
+    const pos = entry?.focus?.pos;
+    if (!entry || !pos) return;
+    spectatorJumpHistory.record(entry);
+    camera.centerOn(pos);
+    camera.follow = false;
+    ux.addWorldPulse({ kind: 'ping', pos, targetId: entry.focus?.unitId, time: world.time });
+  };
+  hud.onSpectatorControl = (action) => {
+    applySpectatorControl(action);
   };
   hud.onLearnStat = () => { if (hero?.alive) learnStatBonus(hero); };
   hud.onBuyback = () => { if (hero && !hero.alive) tryBuyback(world, hero); };
@@ -198,6 +230,8 @@ function startGame(mode: 'play' | 'spectate'): void {
   const ux = new UxFeedback();
   hud.onStatusBroadcast = (label) => {
     ux.setCommandMessage({ kind: 'info', label, time: world.time, color: '#8fd0ff', ttl: 1.8 });
+    const source = currentCastSubject() ?? hero;
+    teamCommunicationLog.push({ at: world.time, label, source: source?.name ?? 'Team' });
   };
   hud.onCourierDeliver = () => {
     if (!hero?.alive) return;
@@ -249,6 +283,7 @@ function startGame(mode: 'play' | 'spectate'): void {
   const commandCursor = new CommandCursor(app);
   const audio = new AudioDirector();
   let input: InputManager | null = null;
+  let controlSettings = loadControlSettings(params);
   // 小地图:2D/3D 均启用(MiniMap 投影世界坐标,与渲染器无关;补审计「3D 无小地图」缺口)
   const minimap = new MiniMap(app, renderer.terrain, camera, (wx, wy, kind) => {
     ux.addWorldPulse({ kind, pos: { x: wx, y: wy }, time: world.time });
@@ -261,12 +296,14 @@ function startGame(mode: 'play' | 'spectate'): void {
   }, (wx, wy, shiftKey) => {
     return input?.confirmPendingTarget({ x: wx, y: wy }, shiftKey) ?? false;
   });
-  let controlSettings = loadControlSettings(params);
+  minimap.setControlSettings(controlSettings);
   if (hero) hero.autoAttack = controlSettings.autoAttack; // 自动攻击策略注入 sim(初始)
+  const effectiveControlSettings = () => applyHeroLegacyAbilityHotkeys(controlSettings, hero?.heroDef?.key);
   const setControlSettings = (settings: ControlSettings) => {
     controlSettings = normalizeControlSettings(settings);
     saveControlSettings(controlSettings);
-    input?.setControlSettings(controlSettings);
+    input?.setControlSettings(effectiveControlSettings());
+    minimap.setControlSettings(controlSettings);
     if (hero) hero.autoAttack = controlSettings.autoAttack; // 改设置时同步
   };
   const pauseMenu = createPauseMenu(app, () => { loop.paused = !loop.paused; }, {
@@ -285,6 +322,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     | 'silenced'
     | 'empty-slot'
     | 'no-active'
+    | 'backpack-delay'
     | 'no-charges'
     | 'invalid-target'
     | 'wrong-team'
@@ -299,6 +337,7 @@ function startGame(mode: 'play' | 'spectate'): void {
     silenced: '被沉默',
     'empty-slot': '空槽位',
     'no-active': '无主动效果',
+    'backpack-delay': '背包延迟',
     'no-charges': '无充能',
     'invalid-target': '无效目标',
     'wrong-team': '目标阵营错误',
@@ -429,30 +468,25 @@ function startGame(mode: 'play' | 'spectate'): void {
   const previewCast = (i: number, p: { x: number; y: number }, caster: Unit | undefined = currentCastSubject()) => {
     const info = castInfo(i, caster);
     if (!caster || !info) return false;
-    const geometry = previewTargetingGeometry(abilityPreviewShape(info.def, info.inst.level), info.range);
+    const shape = abilityPreviewShape(info.def, info.inst.level);
+    const geometry = previewTargetingGeometry(shape, info.range);
     const requiresTarget = geometry.mode === 'unit';
     const target = requiresTarget ? targetAt(caster, p, info.def.targetTeam, info.def.targetKind) : null;
     // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 施法拒绝一致)→ 预览显红
     const hasTarget = !!target && !(target.team !== caster.team && (target.invulnerable || modifierStates(target).untargetable));
-    const status = castStatus({
+    const preview = buildTargetPreviewModel({
+      source: 'ability',
+      label: info.def.name,
       origin: caster.pos,
-      aim: target?.pos ?? p,
+      cursor: target?.pos ?? p,
       range: geometry.range,
+      shape,
       requiresTarget,
       hasTarget,
+      invalidReason: requiresTarget && !hasTarget ? rejectLabel[targetFilterReject(caster, p, info.def.targetTeam, info.def.targetKind)] : undefined,
     });
-    ux.setTargeting({
-      abilityIndex: i,
-      mode: geometry.mode,
-      origin: caster.pos,
-      cursor: p,
-      range: geometry.range,
-      radius: geometry.radius,
-      width: geometry.width,
-      valid: status !== 'invalid',
-      status,
-    });
-    return status !== 'invalid';
+    ux.setTargetPreview({ abilityIndex: i }, preview);
+    return preview.status !== 'invalid';
   };
 
   const itemInfo = (slot: number, caster: Unit | undefined = currentCastSubject()) => {
@@ -483,32 +517,25 @@ function startGame(mode: 'play' | 'spectate'): void {
   const previewItem = (slot: number, p: { x: number; y: number }, caster: Unit | undefined = currentCastSubject()) => {
     const info = itemInfo(slot, caster);
     if (!caster || !info) return false;
-    const geometry = previewTargetingGeometry(itemPreviewShape(info.active), info.range);
+    const shape = itemPreviewShape(info.active);
+    const geometry = previewTargetingGeometry(shape, info.range);
     const requiresTarget = geometry.mode === 'unit';
     const target = requiresTarget ? targetAt(caster, p, info.active.targetTeam, info.active.targetKind) : null;
     // V2.1:敌方无敌/不可指向单位不是合法目标(与 sim 物品拒绝一致)→ 预览显红
     const hasTarget = !!target && !(target.team !== caster.team && (target.invulnerable || modifierStates(target).untargetable));
-    const status = castStatus({
+    const preview = buildTargetPreviewModel({
+      source: 'item',
+      label: info.active.name,
       origin: caster.pos,
-      aim: target?.pos ?? p,
+      cursor: target?.pos ?? p,
       range: geometry.range,
+      shape,
       requiresTarget,
       hasTarget,
+      invalidReason: requiresTarget && !hasTarget ? rejectLabel[targetFilterReject(caster, p, info.active.targetTeam, info.active.targetKind)] : undefined,
     });
-    ux.setTargeting({
-      abilityIndex: -1,
-      source: 'item',
-      itemSlot: slot,
-      mode: geometry.mode,
-      origin: caster.pos,
-      cursor: p,
-      range: geometry.range,
-      radius: geometry.radius,
-      width: geometry.width,
-      valid: status !== 'invalid',
-      status,
-    });
-    return status !== 'invalid';
+    ux.setTargetPreview({ abilityIndex: -1, itemSlot: slot }, preview);
+    return preview.status !== 'invalid';
   };
 
   window.addEventListener('keydown', (e) => {
@@ -546,7 +573,17 @@ function startGame(mode: 'play' | 'spectate'): void {
       // 左键查看:选中点击处最近的可见单位(英雄优先);点空地则回到受控英雄,永不丢失自己。
       const picked = pickUnitAt(world, hero?.team ?? null, p, PICK_RADIUS);
       if (selection) {
-        if (picked) selection.select(picked, options);
+        if (picked && options?.doubleClick) {
+          selection.selectSameType(picked, [...world.units.values()].map((unit) => ({
+            id: unit.id,
+            team: unit.team,
+            kind: unit.kind,
+            name: unit.name,
+            alive: unit.alive,
+            summonOwnerId: unit.summonOwnerId,
+            visible: hero ? isVisibleTo(world, hero.team, unit) : true,
+          })));
+        } else if (picked) selection.select(picked, options);
         else selection.clearToHero(hero);
         syncSelection();
       } else {
@@ -744,11 +781,12 @@ function startGame(mode: 'play' | 'spectate'): void {
     onHold() {
       issueSelectedImmediateOrder({ type: 'hold' }, 'hold');
     },
-    onCenterHero() { if (hero) { camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
+    onCenterHero() { if (hero) { spectatorFollowUnitId = hero.id; camera.centerOn(hero.pos); camera.follow = true; } }, // 居中并重新锁定跟随
     onTogglePause() { loop.paused = !loop.paused; },
     onSpeedDelta(dir) { loop.speed = steppedSpeed(loop.speed, dir); }, // 观战/对局变速(=/-)
     onToggleScoreboard(s) { scoreboard.setVisible(s, world); },
     onToggleCombatLog() { combatLogPanel.toggle(); },
+    onToggleChatWheel() { hud.toggleChatWheel(); },
     onScan(pos) {
       if (!hero?.alive) return;
       if (castScan(world, hero.team, pos)) { ux.addWorldPulse({ kind: 'ping', pos, time: world.time }); audio.command(false); }
@@ -771,6 +809,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       selection.clearToHero(hero);
       syncSelection();
       if (options?.center) {
+        spectatorFollowUnitId = hero.id;
         camera.centerOn(hero.pos);
         camera.follow = true;
       }
@@ -790,6 +829,20 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (!hero || !selection) return;
       selection.selectMany([...world.units.values()]);
       syncSelection();
+    },
+    onCycleSubgroup() {
+      if (!hero || !selection) return;
+      const before = selection.snapshot().primaryId;
+      const next = selection.cyclePrimary();
+      if (!next || next === before) {
+        ux.setCommandMessage({ kind: 'reject', label: '没有可循环的子组', time: world.time, color: '#ff3040' });
+        audio.reject();
+        return;
+      }
+      syncSelection();
+      const unit = world.getUnit(next);
+      ux.setCommandMessage({ kind: 'info', label: `主控 ${unit?.name ?? next}`, time: world.time, color: '#9cff74' });
+      audio.command(false);
     },
     onBindControlGroup(slot: ControlGroupSlot) {
       if (!hero || !selection) return;
@@ -819,6 +872,7 @@ function startGame(mode: 'play' | 'spectate'): void {
       if (options?.center && primary) {
         camera.centerOn(primary.pos);
         camera.follow = primary.id === hero.id;
+        if (camera.follow) spectatorFollowUnitId = primary.id;
       }
     },
 
@@ -869,7 +923,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         ux.clearTargeting();
         ux.clearCursorIntent();
       } else {
-        const hotkey = ['Q', 'W', 'E', 'R'][i] ?? '?';
+      const hotkey = abilityKeyLabels(effectiveControlSettings())[i] ?? '?';
         const def = caster.heroDef?.abilities[i];
         ux.setCursorIntent({
           kind: 'cast',
@@ -896,12 +950,13 @@ function startGame(mode: 'play' | 'spectate'): void {
         });
       }
     },
-  }, controlSettings, renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
+  }, effectiveControlSettings(), renderer3d ? (p) => renderer3d.screenToWorld(p.x, p.y) : undefined);
 
   const buildingAlertAt = new Map<number, number>(); // 建筑被攻击警报的每建筑限频(world.time)
   // 死亡回顾:玩家英雄受伤记录 + 控制时间线(UX 层累积,不进 sim 状态;复活时清空)
   const damageLog = new DamageLog();
   const controlLog = new ControlLog();
+  const threatLog = new ThreatDirectionLog();
   let lastHeroDeathAssistSources: DeathAssistSource[] = [];
   const combatLog = new CombatLog();
   const combatLogPanel = new CombatLogPanel(app);
@@ -928,6 +983,13 @@ function startGame(mode: 'play' | 'spectate'): void {
       audio.consume(world, hero);
       announce.consume(world, audio, hero?.team ?? null); // 公屏播报:一血/连杀里程碑/信使死亡(全局,含敌方预警)
       if (world.events.length > 0) {
+        if (spectatorTimelineEnabled) {
+          spectatorTimeline.pushEvents({
+            now: world.time,
+            events: world.events,
+            units: spectatorTimelineUnits(world),
+          });
+        }
         const courierDeathPulses = buildCourierDeathPulses({
           viewerTeam: hero?.team ?? null,
           events: world.events,
@@ -941,6 +1003,7 @@ function startGame(mode: 'play' | 'spectate'): void {
         if (hero.alive && !prevHeroAlive) {
           damageLog.clear();
           controlLog.clear();
+          threatLog.clear();
           lastHeroDeathAssistSources = [];
         }
         prevHeroAlive = hero.alive;
@@ -949,7 +1012,29 @@ function startGame(mode: 'play' | 'spectate'): void {
             lastHeroDeathAssistSources = [];
           } else if (ev.kind === 'unit_damaged' && ev.unitId === hero.id && ev.amount > 0) {
             const src = describeDamageSource(ev.sourceId);
-            damageLog.push({ at: world.time, groupKey: src.groupKey, sourceName: src.name, sourceColor: src.color, amount: ev.amount, type: ev.damageType });
+            const sourceUnit = world.getUnit(ev.sourceId);
+            const sourceVisible = !!sourceUnit && isVisibleTo(world, hero.team, sourceUnit);
+            damageLog.push({
+              at: world.time,
+              groupKey: src.groupKey,
+              sourceName: src.name,
+              sourceColor: src.color,
+              amount: ev.amount,
+              type: ev.damageType,
+              sourceId: sourceUnit?.id,
+              sourcePos: sourceVisible && sourceUnit ? { ...sourceUnit.pos } : undefined,
+              sourceVisible,
+            });
+            threatLog.push({
+              at: world.time,
+              targetPos: { ...hero.pos },
+              sourcePos: sourceUnit ? { ...sourceUnit.pos } : { ...ev.pos },
+              groupKey: src.groupKey,
+              sourceName: src.name,
+              sourceColor: src.color,
+              amount: ev.amount,
+              type: ev.damageType,
+            });
           } else if (ev.kind === 'unit_controlled' && ev.unitId === hero.id) {
             const src = describeDamageSource(ev.sourceId);
             controlLog.push({ at: world.time, sourceName: src.name, sourceColor: src.color, control: ev.control, duration: ev.duration });
@@ -1004,7 +1089,10 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.alpha = alpha;
       input!.update(16.7);
       ux.altInfo = input?.altDown ?? false; // 按住 Alt:信息层(塔攻击范围)
-      if (camera.follow && hero) camera.centerOn(hero.pos); // 镜头跟随英雄(平移会暂停)
+      if (camera.follow) {
+        const follow = currentFollowUnit();
+        if (follow) camera.centerOn(follow.pos);
+      }
       // 选择校正:选中目标已死/进雾(且非受控英雄)→ 回到英雄,避免信息面板停留在失效目标
       if (selection && ux.selectedUnitId && (!hero || ux.selectedUnitId !== hero.id)) {
         const selectedVisible = selection.snapshot().selectedIds.every((id) => {
@@ -1019,16 +1107,32 @@ function startGame(mode: 'play' | 'spectate'): void {
       renderer.render(world, ux.selectedUnitId || hero?.id || -1, ux);
       // 实时受伤来源:存活且近 3s 内受击 → 侧边显示伤害来源(谁在打你)
       hud.incomingDamage = hero && hero.alive && world.time - damageLog.lastAt() < 3 ? damageLog.recap(4, 4) : [];
+      hud.threatIndicators = hero && hero.alive ? threatLog.indicators(world.time) : [];
       hud.deathRecapEntries = hero && !hero.alive ? damageLog.recap(10) : [];
       hud.deathControlEntries = hero && !hero.alive ? controlLog.timeline(10) : [];
       hud.deathControlLockdown = hero && !hero.alive ? controlLog.lockdownSeconds(10) : 0;
       hud.deathAssistSources = hero && !hero.alive ? lastHeroDeathAssistSources : [];
       hud.quickbuy = shop.quickbuyModel(hero); // quickbuy 顶栏提醒(离店仍可见)
+      hud.spectatorControls = buildSpectatorControlsModel({
+        enabled: spectatorTimelineEnabled,
+        paused: loop.paused,
+        speed: loop.speed,
+        minSpeed: 0.5,
+        maxSpeed: 8,
+        following: camera.follow,
+        followTargets: spectatorFollowTargets(world, hero),
+        followTargetId: currentFollowUnit()?.id,
+        viewerTeam: renderer.viewerTeam,
+        playerTeam: hero?.team ?? Team.Dawn,
+      });
+      hud.spectatorTimelineEntries = spectatorTimelineEnabled ? spectatorTimeline.entries() : [];
+      hud.spectatorJumpHistoryEntries = spectatorTimelineEnabled ? spectatorJumpHistory.entries() : [];
+      hud.teamCommunicationEntries = teamCommunicationLog.entries(world.time);
       // quickbuy 够钱(false→true 转变)→ 轻提示音(金币基本单调增长,只触发一次)
       const qbReady = !!hud.quickbuy?.active && !!hud.quickbuy?.ready;
       if (qbReady && !prevQbReady) audio.quickbuyReady();
       prevQbReady = qbReady;
-      hud.update(world, hero, ux, controlSettings, { speed: loop.speed, paused: loop.paused });
+      hud.update(world, hero, ux, effectiveControlSettings(), { speed: loop.speed, paused: loop.paused });
       inspectPanel.update(world, hero, ux); // 选中非受控单位时显示其信息卡
       announce.update(); // 公屏播报淡出
       commandCursor.update(world.time, ux);
@@ -1043,6 +1147,98 @@ function startGame(mode: 'play' | 'spectate'): void {
   if (mode === 'play') showOnboarding(app, controlSettings); // 操作引导(可关闭)
 
   window.__game = { world, hero, camera, loop, renderer, ux, seed };
+
+  function applySpectatorControl(action: SpectatorControlActionId): void {
+    if (action === 'togglePause') {
+      loop.paused = !loop.paused;
+      return;
+    }
+    if (action === 'slower') {
+      loop.speed = steppedSpeed(loop.speed, -1);
+      return;
+    }
+    if (action === 'faster') {
+      loop.speed = steppedSpeed(loop.speed, 1);
+      return;
+    }
+    if (action === 'toggleFollow') {
+      const follow = currentFollowUnit();
+      if (!follow) return;
+      camera.follow = !camera.follow;
+      if (camera.follow) camera.centerOn(follow.pos);
+      return;
+    }
+    if (action === 'cycleFollowTarget') {
+      const targets = spectatorFollowTargets(world, hero);
+      if (targets.length === 0) return;
+      const currentId = currentFollowUnit()?.id ?? spectatorFollowUnitId;
+      const index = targets.findIndex((target) => target.id === currentId);
+      const next = targets[(index + 1 + targets.length) % targets.length];
+      spectatorFollowUnitId = next.id;
+      const unit = world.getUnit(next.id);
+      if (unit) {
+        camera.follow = true;
+        camera.centerOn(unit.pos);
+        ux.addWorldPulse({ kind: 'ping', pos: unit.pos, targetId: unit.id, time: world.time });
+      }
+      return;
+    }
+    if (action === 'cycleFog') {
+      renderer.viewerTeam = nextViewerTeam(renderer.viewerTeam);
+    }
+  }
+
+  function currentFollowUnit(): Unit | undefined {
+    const selected = world.getUnit(spectatorFollowUnitId);
+    if (selected?.alive) return selected;
+    const fallback = primaryFollowUnit(world, hero);
+    if (fallback) spectatorFollowUnitId = fallback.id;
+    return fallback;
+  }
+}
+
+function spectatorTimelineUnits(world: World): SpectatorTimelineUnit[] {
+  return Array.from(world.units.values(), (unit) => ({
+    id: unit.id,
+    name: unit.name,
+    kind: unit.kind,
+    team: unit.team,
+    pos: { ...unit.pos },
+  }));
+}
+
+function spectatorFollowTargets(world: World, hero: Unit | undefined): SpectatorFollowTargetInput[] {
+  const units = [...world.units.values()].filter((unit) => unit.alive);
+  const heroes = units
+    .filter((unit) => unit.isHero())
+    .sort((a, b) => followSortKey(a, hero) - followSortKey(b, hero));
+  const objectives = units
+    .filter((unit) => unit.kind === 'boss' || unit.kind === 'courier')
+    .sort((a, b) => followSortKey(a, hero) - followSortKey(b, hero));
+  return [...heroes, ...objectives].map((unit) => ({
+    id: unit.id,
+    name: unit.name,
+    kind: unit.kind,
+    team: unit.team,
+  }));
+}
+
+function followSortKey(unit: Unit, hero: Unit | undefined): number {
+  if (hero && unit.id === hero.id) return -10000;
+  const kind = unit.isHero() ? 0 : unit.kind === 'boss' ? 1000 : unit.kind === 'courier' ? 2000 : 3000;
+  return kind + unit.team * 100 + unit.id / 1000;
+}
+
+function primaryFollowUnit(world: World, hero: Unit | undefined): Unit | undefined {
+  if (hero) return hero;
+  return [...world.units.values()].find((unit) => unit.alive && unit.isHero() && unit.team === Team.Dawn)
+    ?? [...world.units.values()].find((unit) => unit.alive && unit.isHero());
+}
+
+function nextViewerTeam(team: Team | null): Team | null {
+  if (team === null) return Team.Dawn;
+  if (team === Team.Dawn) return Team.Night;
+  return null;
 }
 
 declare global {

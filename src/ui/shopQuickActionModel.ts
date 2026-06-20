@@ -1,3 +1,5 @@
+import type { AvailabilityModel } from './availabilityModel';
+
 export interface ShopQuickActionVisibleItem {
   key: string;
   name: string;
@@ -6,6 +8,7 @@ export interface ShopQuickActionVisibleItem {
 export interface ShopQuickActionDestination {
   canBuy: boolean;
   detail: string;
+  availability?: AvailabilityModel;
 }
 
 export interface ShopQuickActionModel {
@@ -13,6 +16,7 @@ export interface ShopQuickActionModel {
   itemKey: string | null;
   label: string;
   detail: string;
+  availability?: AvailabilityModel;
 }
 
 export interface ShopRecipeNextComponent {
@@ -26,6 +30,7 @@ export interface ShopRecipeNextActionModel {
   itemKey: string | null;
   label: string;
   detail: string;
+  availability?: AvailabilityModel;
 }
 
 export interface ShopRecipeBatchActionModel {
@@ -51,6 +56,7 @@ export function buildShopQuickActionModel(_input: {
         itemKey: item.key,
         label: `Enter: Buy ${item.name}`,
         detail: destination.detail,
+        availability: destination.availability,
       };
     }
   }
@@ -61,6 +67,7 @@ export function buildShopQuickActionModel(_input: {
     itemKey: null,
     label: 'Enter: blocked',
     detail: first?.detail ?? 'No buyable item',
+    availability: first?.availability,
   };
 }
 
@@ -80,6 +87,7 @@ export function buildShopRecipeNextActionModel(input: {
         itemKey: next.key,
         label: `Shift+Enter: Buy ${next.name}`,
         detail: `For ${item.name} / ${destination.detail}`,
+        availability: destination.availability,
       };
     }
     return {
@@ -88,6 +96,7 @@ export function buildShopRecipeNextActionModel(input: {
       itemKey: null,
       label: 'Shift+Enter: blocked',
       detail: `${next.name}: ${destination?.detail ?? 'Cannot buy component'}`,
+      availability: destination?.availability,
     };
   }
 

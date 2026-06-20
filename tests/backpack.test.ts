@@ -47,7 +47,8 @@ describe('背包栏(后备栏 3 格)', () => {
     h.backpack[0] = makeItem('salve'); // 主动消耗品
     expect(moveFromBackpack(w, h, 0)).toBe(true);
     const slot = h.inventory.findIndex((s) => s?.itemKey === 'salve');
-    expect(itemUseReason(w, h, slot)).toBe('cooldown'); // 就绪延迟内
+    expect(h.inventory[slot]?.backpackReadyUntil).toBeGreaterThan(w.time);
+    expect(itemUseReason(w, h, slot)).toBe('backpack-delay'); // 就绪延迟内
     for (let i = 0; i < 6 * 30 + 4; i++) w.step(); // 6 秒后
     expect(itemUseReason(w, h, slot)).toBeNull(); // 可用
   });

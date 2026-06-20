@@ -1,4 +1,5 @@
 import type { AbilityDef } from '../data/heroes/types';
+import { availabilityCurrentLine, buildAbilityAvailability } from './availabilityModel';
 
 /**
  * 技能悬停 tooltip 文本(原生 title,跨 HUD 每帧重建可靠)。
@@ -29,6 +30,7 @@ export function buildAbilityTooltip(def: AbilityDef, lvl: number): string {
 
 export interface AbilitySlotTitleInput {
   level: number;
+  passive?: boolean;
   learnable?: boolean;
   autocastOn?: boolean;
   toggleOn?: boolean;
@@ -62,10 +64,11 @@ export function buildAbilitySlotTitle(def: AbilityDef, input: AbilitySlotTitleIn
 }
 
 function abilityCurrentStateLine(input: AbilitySlotTitleInput): string | null {
-  const cooldown = input.cooldownRemaining ?? 0;
-  if (cooldown > 0) return `当前: 冷却 ${Math.ceil(cooldown)}s`;
-  const manaCost = input.manaCost ?? 0;
-  const currentMana = input.currentMana ?? Number.POSITIVE_INFINITY;
-  if (manaCost > currentMana) return `当前: 法力不足 ${Math.floor(currentMana)}/${manaCost}`;
-  return '当前: 就绪';
+  return availabilityCurrentLine(buildAbilityAvailability({
+    learned: input.level > 0,
+    passive: input.passive === true,
+    cooldownRemaining: input.cooldownRemaining ?? 0,
+    manaCost: input.manaCost ?? 0,
+    currentMana: input.currentMana ?? Number.POSITIVE_INFINITY,
+  }));
 }

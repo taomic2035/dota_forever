@@ -1,3 +1,5 @@
+import { availabilityCurrentLine, buildItemAvailability } from './availabilityModel';
+
 export interface ItemSlotActiveTooltipInput {
   cooldown?: number;
   manaCost?: number;
@@ -10,6 +12,7 @@ export interface ItemSlotTitleInput {
   hotkey: string;
   active: ItemSlotActiveTooltipInput | null;
   cooldownRemaining: number;
+  backpackDelayRemaining?: number;
   currentMana: number;
   charges?: number;
   canBackpack?: boolean;
@@ -65,10 +68,12 @@ function itemStaticActiveLine(active: ItemSlotActiveTooltipInput | null): string
 }
 
 function itemCurrentStateLine(input: ItemSlotTitleInput): string {
-  if (!input.active) return '当前: 被动';
-  if (input.cooldownRemaining > 0) return `当前: 冷却 ${Math.ceil(input.cooldownRemaining)}s`;
-  const manaCost = input.active.manaCost ?? 0;
-  if (manaCost > input.currentMana) return `当前: 法力不足 ${Math.floor(input.currentMana)}/${manaCost}`;
-  const charges = input.charges && input.charges > 0 ? ` · ${input.charges} 次` : '';
-  return `当前: 就绪${charges}`;
+  return availabilityCurrentLine(buildItemAvailability({
+    hasActive: !!input.active,
+    cooldownRemaining: input.cooldownRemaining,
+    backpackDelayRemaining: input.backpackDelayRemaining,
+    manaCost: input.active?.manaCost ?? 0,
+    currentMana: input.currentMana,
+    charges: input.charges,
+  }));
 }

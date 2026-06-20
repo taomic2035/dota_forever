@@ -7,6 +7,7 @@ export type TerrainDressingKind =
   | 'ground_grass_mottle'
   | 'ground_stone_slab'
   | 'flower_patch'
+  | 'jungle_walkway_entrance'
   | 'river_reed'
   | 'river_stone'
   | 'river_bank_mud'
@@ -44,6 +45,7 @@ const ZERO_SUMMARY: TerrainDressingSummary = {
   ground_grass_mottle: 0,
   ground_stone_slab: 0,
   flower_patch: 0,
+  jungle_walkway_entrance: 0,
   river_reed: 0,
   river_stone: 0,
   river_bank_mud: 0,
@@ -169,6 +171,24 @@ function hasNeighborBelow(map: GameMap, cx: number, cy: number, below: number, r
     }
   }
   return false;
+}
+
+function neighborDirectionToTree(map: GameMap, cx: number, cy: number, radius = 2): number | undefined {
+  let vx = 0;
+  let vy = 0;
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const x = cx + dx, y = cy + dy;
+      if (!map.inBounds(x, y)) continue;
+      if (!map.trees.has(map.cellIndex(x, y))) continue;
+      const weight = 1 / Math.max(1, Math.hypot(dx, dy));
+      vx += dx * weight;
+      vy += dy * weight;
+    }
+  }
+  if (Math.abs(vx) + Math.abs(vy) < 0.001) return undefined;
+  return Math.atan2(vy, vx);
 }
 
 function cliffEdgeRotation(map: GameMap, cx: number, cy: number): number {
@@ -308,6 +328,7 @@ export function terrainDressingSamples(map: GameMap): TerrainDressingSample[] {
 
       if (walkable && h === 1 && !tree) {
         const laneDirection = nearestLaneDirection(map, cx, cy, 520);
+        const treeDirection = neighborDirectionToTree(map, cx, cy, 2);
         if (laneDirection !== undefined && hash(cx, cy, 7) > 0.56) {
           out.push(sample(map, 'ground_path_dirt', cx, cy, 7, '#8a6a3f', laneDirection));
         } else if (hash(cx, cy, 13) > 0.88) {
@@ -318,6 +339,9 @@ export function terrainDressingSamples(map: GameMap): TerrainDressingSample[] {
         }
         if (hash(cx, cy, 11) > 0.35) out.push(sample(map, 'grass_tuft', cx, cy, 11, '#8ecf6a'));
         if (hash(cx, cy, 19) > 0.88) out.push(sample(map, 'flower_patch', cx, cy, 19, hash(cx, cy, 23) > 0.5 ? '#ffb0a0' : '#9ed3ff'));
+        if (treeDirection !== undefined && hash(cx, cy, 53) > 0.62) {
+          out.push(sample(map, 'jungle_walkway_entrance', cx, cy, 53, '#91d66c', treeDirection + Math.PI / 2));
+        }
         const riverDirection = neighborDirectionToHeight(map, cx, cy, 0, 2);
         if (riverDirection !== undefined && hash(cx, cy, 29) > 0.42) out.push(sample(map, 'river_bank_mud', cx, cy, 29, '#6f5a3a', riverDirection + Math.PI / 2));
       }

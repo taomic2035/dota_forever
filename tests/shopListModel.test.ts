@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildShopVisibleItems, orderShopVisibleItemsByAvailability } from '../src/ui/shopListModel';
+import {
+  buildShopSearchHighlightModel,
+  buildShopVisibleItemRows,
+  buildShopVisibleItems,
+  orderShopVisibleItemsByAvailability,
+} from '../src/ui/shopListModel';
 
 const catalog = [
   { key: 'branch', name: 'Iron Branch', category: 'attribute' as const, cost: 53, description: '+1 all stats' },
@@ -77,5 +82,78 @@ describe('buildShopVisibleItems', () => {
 
     expect(result.map((item) => item.key)).toEqual(['boots', 'branch', 'broadsword', 'ward_obs']);
     expect(rows.map((item) => item.key)).toEqual(['broadsword', 'boots', 'ward_obs', 'branch']);
+  });
+});
+
+describe('buildShopSearchHighlightModel', () => {
+  it('describes query tokens, matched fields, and buyable tone for visible search rows', () => {
+    const model = buildShopSearchHighlightModel(catalog[2], {
+      category: 'all',
+      query: 'ward vision',
+      recipePrefix: 'recipe_',
+    }, { canBuy: true });
+
+    expect(model).toMatchObject({
+      tokens: ['ward', 'vision'],
+      matchedFields: ['key', 'name', 'description'],
+      label: 'ward / vision',
+      tone: 'buyable',
+      canBuy: true,
+    });
+    expect(model.score).toBeGreaterThan(0);
+    expect(model.title).toContain('name');
+    expect(model.title).toContain('description');
+  });
+
+  it('keeps blank-query metadata quiet while still exposing availability tone', () => {
+    const model = buildShopSearchHighlightModel(catalog[0], {
+      category: 'attribute',
+      query: '',
+      recipePrefix: 'recipe_',
+    }, { canBuy: false });
+
+    expect(model).toMatchObject({
+      tokens: [],
+      matchedFields: [],
+      label: '',
+      tone: 'blocked',
+      canBuy: false,
+      score: 0,
+    });
+  });
+});
+
+describe('buildShopVisibleItemRows', () => {
+  it('returns visible rows with highlight metadata for every matched item', () => {
+    const rows = buildShopVisibleItemRows(catalog, {
+      category: 'weapon',
+      query: 'ward',
+      recipePrefix: 'recipe_',
+    }, new Map([
+      ['ward_obs', { canBuy: true }],
+    ]));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].item.key).toBe('ward_obs');
+    expect(rows[0].highlight).toMatchObject({
+      tokens: ['ward'],
+      matchedFields: ['key', 'name'],
+      tone: 'buyable',
+    });
+  });
+
+  it('ranks stronger name/key/category matches above description-only matches for search queries', () => {
+    const rows = buildShopVisibleItemRows([
+      { key: 'plain_boots', name: 'Plain Boots', category: 'armor' as const, cost: 500, description: 'Useful before warding trips' },
+      { key: 'ward_obs', name: 'Observer Ward', category: 'consumable' as const, cost: 150, description: 'Grants long vision' },
+      { key: 'smoke', name: 'Smoke', category: 'consumable' as const, cost: 50, description: 'Hide while walking to ward' },
+    ], {
+      category: 'all',
+      query: 'ward',
+      recipePrefix: 'recipe_',
+    });
+
+    expect(rows.map((row) => row.item.key)).toEqual(['ward_obs', 'plain_boots', 'smoke']);
+    expect(rows[0].highlight.score).toBeGreaterThan(rows[1].highlight.score);
   });
 });

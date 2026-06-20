@@ -1,6 +1,7 @@
 /** 3D 地形:高度网格(高台抬升 / 河道下沉 / 平滑成坡)+ 河道水面 + 树木(InstancedMesh)。 */
 import * as THREE from 'three';
 import type { GameMap } from '../sim/map';
+import { terrainVisualAt } from '../render/mapReadability';
 import { terrainDressingSamples, type TerrainDressingKind, type TerrainDressingSample } from './terrainDressing';
 
 const WORLD = 15040;
@@ -299,6 +300,33 @@ export function updateTerrainRuntimeMotion(root: THREE.Object3D, t: number): voi
 
   const reeds = root.getObjectByName('terrain-river-reeds');
   if (reeds) reeds.rotation.z = Math.sin(t * 1.35) * (reeds.userData.swayAmplitude ?? 0.026);
+
+  const runeColumns = root.getObjectByName('terrain-rune-beacon-columns') as THREE.InstancedMesh | undefined;
+  const runeColumnMaterial = runeColumns && !Array.isArray(runeColumns.material) ? runeColumns.material : undefined;
+  if (runeColumns && runeColumnMaterial && 'opacity' in runeColumnMaterial) {
+    const base = runeColumns.userData.baseOpacity ?? runeColumnMaterial.opacity ?? 0.28;
+    runeColumnMaterial.opacity = base + (0.5 + Math.sin(t * 2.2) * 0.5) * 0.18;
+  }
+
+  const campBeacons = root.getObjectByName('terrain-neutral-camp-beacons');
+  if (campBeacons) {
+    const base = campBeacons.userData.baseScaleY ?? 1;
+    campBeacons.scale.y = base + (0.5 + Math.sin(t * 1.55) * 0.5) * 0.1;
+  }
+
+  const forestHaze = root.getObjectByName('terrain-forest-shadow-haze') as THREE.InstancedMesh | undefined;
+  const forestMaterial = forestHaze && !Array.isArray(forestHaze.material) ? forestHaze.material : undefined;
+  if (forestHaze && forestMaterial && 'opacity' in forestMaterial) {
+    const base = forestHaze.userData.baseOpacity ?? forestMaterial.opacity ?? 0.2;
+    forestMaterial.opacity = base + (0.5 + Math.sin(t * 1.35) * 0.5) * 0.12;
+  }
+
+  const missCrowns = root.getObjectByName('terrain-highground-miss-crowns') as THREE.InstancedMesh | undefined;
+  const missMaterial = missCrowns && !Array.isArray(missCrowns.material) ? missCrowns.material : undefined;
+  if (missCrowns && missMaterial && 'opacity' in missMaterial) {
+    const base = missCrowns.userData.baseOpacity ?? missMaterial.opacity ?? 0.5;
+    missMaterial.opacity = base + (0.5 + Math.sin(t * 2.7) * 0.5) * 0.2;
+  }
 }
 
 function samplesOf(samples: TerrainDressingSample[], kind: TerrainDressingKind): TerrainDressingSample[] {
@@ -453,6 +481,308 @@ function buildLandmarkLayer(map: GameMap, samples: TerrainDressingSample[]): THR
     ring.rotation.z = s.rotation;
     group.add(ring);
   }
+  return group;
+}
+
+function cueSample(
+  map: GameMap,
+  cx: number,
+  cy: number,
+  salt: number,
+  color: string,
+  rotation = 0,
+): TerrainDressingSample {
+  const p = map.cellCenter(cx, cy);
+  const jitterX = (((cx + 3) * 41 + (cy + 5) * 17 + salt * 13) % 100) / 100 - 0.5;
+  const jitterZ = (((cx + 11) * 29 + (cy + 7) * 43 + salt * 19) % 100) / 100 - 0.5;
+  return {
+    kind: 'landmark_ring',
+    x: p.x + jitterX * map.CELL * 0.36,
+    y: 0,
+    z: p.y + jitterZ * map.CELL * 0.36,
+    scale: 0.78 + (((cx + salt) * 23 + cy * 31) % 100) / 420,
+    rotation,
+    color,
+    variant: (cx + cy + salt) % 4,
+  };
+}
+
+function edgeCueRotation(map: GameMap, cx: number, cy: number): number {
+  let vx = 0;
+  let vy = 0;
+  const h = map.height[map.cellIndex(cx, cy)];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const x = cx + dx;
+      const y = cy + dy;
+      if (!map.inBounds(x, y)) continue;
+      if (map.height[map.cellIndex(x, y)] === h) continue;
+      vx += dx;
+      vy += dy;
+    }
+  }
+  if (Math.abs(vx) + Math.abs(vy) < 0.001) return 0;
+  return Math.atan2(vy, vx) + Math.PI / 2;
+}
+
+function terrainMechanicSamples(map: GameMap, tag: string, stride: number, cap: number, color: string): TerrainDressingSample[] {
+  const out: TerrainDressingSample[] = [];
+  for (let cy = 2; cy < map.GH - 2; cy++) {
+    for (let cx = 2; cx < map.GW - 2; cx++) {
+      if ((cx * 37 + cy * 53) % stride !== 0) continue;
+      const visual = terrainVisualAt(map, cx, cy);
+      if (!visual.walkable || !visual.tags.includes(tag)) continue;
+      out.push(cueSample(map, cx, cy, tag === 'lowHighVisionBreak' ? 73 : 61, color, edgeCueRotation(map, cx, cy)));
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
+function buildForestShadowLayer(map: GameMap): THREE.Object3D {
+  const samples = terrainMechanicSamples(map, 'treeShadow', 5, 260, '#071108');
+  const floor = instancedLayer(
+    'terrain-forest-shadow-floor',
+    map,
+    samples,
+    new THREE.CircleGeometry(74, 12).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#030705', transparent: true, opacity: 0.44, depthWrite: false, side: THREE.DoubleSide }),
+    new THREE.Vector3(1.45, 1, 0.88),
+    7,
+  );
+  floor.castShadow = false;
+  const haze = instancedLayer(
+    'terrain-forest-shadow-haze',
+    map,
+    samples,
+    new THREE.PlaneGeometry(62, 90).translate(0, 45, 0),
+    new THREE.MeshBasicMaterial({
+      color: '#142414',
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    }),
+    new THREE.Vector3(1, 1, 1),
+    18,
+  );
+  haze.castShadow = false;
+  haze.userData.readability = 'forestVisionPocket';
+  haze.userData.baseOpacity = 0.2;
+  floor.userData.readability = 'forestVisionPocket';
+  const group = groupLayer('terrain-forest-shadow-pockets', samples.length, [floor, haze]);
+  group.userData.motion = 'forest-breathe';
+  return group;
+}
+
+function forestPocketSamples(map: GameMap): TerrainDressingSample[] {
+  return map.forestPockets.map((pocket, index) => ({
+    kind: 'landmark_ring',
+    x: pocket.pos.x,
+    y: 0,
+    z: pocket.pos.y,
+    scale: Math.max(0.85, pocket.r / 230),
+    rotation: (index * Math.PI) / 5,
+    color: pocket.side === 0 ? '#9ee878' : '#7fd1a0',
+    variant: index % 4,
+  }));
+}
+
+function buildForestWalkablePocketLayer(map: GameMap): THREE.Object3D {
+  const samples = forestPocketSamples(map);
+  const floor = instancedLayer(
+    'terrain-forest-pocket-floor',
+    map,
+    samples,
+    new THREE.CircleGeometry(102, 16).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#071108', transparent: true, opacity: 0.56, depthWrite: false, side: THREE.DoubleSide }),
+    new THREE.Vector3(1.25, 1, 0.92),
+    11,
+  );
+  floor.castShadow = false;
+  floor.userData.readability = 'walkableForestPocket';
+
+  const canopyShadows = instancedLayer(
+    'terrain-forest-pocket-canopy-shadows',
+    map,
+    samples,
+    new THREE.PlaneGeometry(148, 118).translate(0, 59, 0),
+    new THREE.MeshBasicMaterial({
+      color: '#1b3a18',
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    }),
+    new THREE.Vector3(1, 1, 1),
+    28,
+  );
+  canopyShadows.castShadow = false;
+  canopyShadows.userData.readability = 'walkableForestPocket';
+  canopyShadows.userData.baseOpacity = 0.28;
+
+  const group = groupLayer('terrain-forest-walkable-pockets', samples.length, [floor, canopyShadows]);
+  group.userData.motion = 'forest-breathe';
+  group.userData.readability = 'walkableForestPocket';
+  return group;
+}
+
+function buildJungleEntranceLayer(map: GameMap, samples: TerrainDressingSample[]): THREE.Object3D {
+  const floor = instancedLayer(
+    'terrain-jungle-entrance-floor',
+    map,
+    samples,
+    new THREE.CircleGeometry(86, 14).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: '#18351b', transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }),
+    new THREE.Vector3(1.35, 1, 0.62),
+    9,
+  );
+  floor.castShadow = false;
+  floor.userData.readability = 'walkableJungleEntrance';
+
+  const arches = instancedLayer(
+    'terrain-jungle-entrance-arches',
+    map,
+    samples,
+    new THREE.TorusGeometry(42, 3.2, 5, 24),
+    new THREE.MeshBasicMaterial({ color: '#9ee878', transparent: true, opacity: 0.62, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.Vector3(1.08, 1, 0.42),
+    32,
+  );
+  arches.castShadow = false;
+  arches.userData.readability = 'walkableJungleEntrance';
+
+  const group = groupLayer('terrain-jungle-walkway-entrances', samples.length, [floor, arches]);
+  group.userData.readability = 'walkableJungleEntrance';
+  return group;
+}
+
+function buildCliffVisionCueLayer(map: GameMap): THREE.Object3D {
+  const samples = terrainMechanicSamples(map, 'lowHighVisionBreak', 2, 180, '#10160f');
+  const hatches = instancedLayer(
+    'terrain-cliff-vision-break-hatches',
+    map,
+    samples,
+    new THREE.BoxGeometry(96, 6, 12).translate(0, 3, 0),
+    new THREE.MeshBasicMaterial({ color: '#050806', transparent: true, opacity: 0.72, depthWrite: false }),
+    new THREE.Vector3(1, 1, 1),
+    10,
+  );
+  hatches.castShadow = false;
+  const crowns = instancedLayer(
+    'terrain-highground-miss-crowns',
+    map,
+    samples,
+    new THREE.TorusGeometry(46, 2.4, 5, 24),
+    new THREE.MeshBasicMaterial({ color: '#e4c46a', transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.Vector3(1, 1, 0.72),
+    16,
+  );
+  crowns.castShadow = false;
+  crowns.userData.readability = 'highGroundMiss';
+  crowns.userData.baseOpacity = 0.5;
+  const group = groupLayer('terrain-cliff-vision-break-cues', samples.length, [hatches, crowns]);
+  group.userData.motion = 'highground-miss-pulse';
+  return group;
+}
+
+function buildHighgroundPlateauBannerLayer(map: GameMap): THREE.Object3D {
+  const samples = map.highgroundPlateaus.map((plateau, index) => ({
+    kind: 'landmark_ring' as const,
+    x: plateau.pos.x,
+    y: 0,
+    z: plateau.pos.y,
+    scale: Math.max(0.9, plateau.r / 560),
+    rotation: (index * Math.PI) / 4,
+    color: '#e4c46a',
+    variant: index % 4,
+  }));
+  const banners = instancedLayer(
+    'terrain-highground-plateau-banners',
+    map,
+    samples,
+    new THREE.ConeGeometry(42, 150, 5).translate(0, 75, 0),
+    new THREE.MeshLambertMaterial({ color: '#e4c46a', emissive: '#3a2c10', emissiveIntensity: 0.18 }),
+    new THREE.Vector3(0.7, 1, 0.7),
+    24,
+  );
+  banners.userData.readability = 'highGroundPlateau';
+  return banners;
+}
+
+function landmarkCueSamples(map: GameMap, kind: 'camp' | 'rune'): TerrainDressingSample[] {
+  const positions = kind === 'camp'
+    ? map.camps.map((camp) => ({ pos: camp.pos, color: camp.tier === 'ancient' ? '#ff815e' : camp.tier === 'large' ? '#ffe083' : '#bdf7c8', scale: camp.tier === 'ancient' ? 1.28 : camp.tier === 'large' ? 1.08 : 0.92 }))
+    : map.runeSpots.map((pos, index) => ({ pos, color: index % 2 === 0 ? '#7ed9ff' : '#d89cff', scale: 1.04 }));
+  return positions.map((entry, index) => {
+    const cell = map.cellOf(entry.pos);
+    return {
+      kind: 'landmark_ring',
+      x: entry.pos.x,
+      y: 0,
+      z: entry.pos.y,
+      scale: entry.scale,
+      rotation: (index * Math.PI) / 6,
+      color: entry.color,
+      variant: index % 4,
+    };
+  });
+}
+
+function buildCampBeaconLayer(map: GameMap): THREE.Object3D {
+  const samples = landmarkCueSamples(map, 'camp');
+  const plates = instancedLayer(
+    'terrain-neutral-camp-plates',
+    map,
+    samples,
+    new THREE.CylinderGeometry(80, 96, 8, 18).translate(0, 4, 0),
+    new THREE.MeshLambertMaterial({ color: '#27301f', emissive: '#162112', emissiveIntensity: 0.2 }),
+    new THREE.Vector3(1, 1, 1),
+    5,
+  );
+  const banners = instancedLayer(
+    'terrain-neutral-camp-banners',
+    map,
+    samples,
+    new THREE.ConeGeometry(34, 120, 5).translate(0, 60, 0),
+    new THREE.MeshLambertMaterial({ color: '#bdf7c8', emissive: '#27361f', emissiveIntensity: 0.22 }),
+    new THREE.Vector3(0.7, 1, 0.7),
+    16,
+  );
+  const group = groupLayer('terrain-neutral-camp-beacons', samples.length, [plates, banners]);
+  group.userData.motion = 'camp-pulse';
+  group.userData.baseScaleY = 1;
+  return group;
+}
+
+function buildRuneBeaconLayer(map: GameMap): THREE.Object3D {
+  const samples = landmarkCueSamples(map, 'rune');
+  const rings = instancedLayer(
+    'terrain-rune-beacon-rings',
+    map,
+    samples,
+    new THREE.TorusGeometry(72, 5, 8, 36),
+    new THREE.MeshBasicMaterial({ color: '#8defff', transparent: true, opacity: 0.78, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.Vector3(1, 1, 1),
+    22,
+  );
+  rings.castShadow = false;
+  const columns = instancedLayer(
+    'terrain-rune-beacon-columns',
+    map,
+    samples,
+    new THREE.CylinderGeometry(18, 30, 180, 10).translate(0, 90, 0),
+    new THREE.MeshBasicMaterial({ color: '#b58cff', transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.Vector3(1, 1, 1),
+    24,
+  );
+  columns.castShadow = false;
+  columns.userData.baseOpacity = 0.28;
+  const group = groupLayer('terrain-rune-beacons', samples.length, [rings, columns]);
+  group.userData.motion = 'rune-pulse';
   return group;
 }
 
@@ -627,6 +957,7 @@ function buildDressingLayers(map: GameMap): THREE.Object3D[] {
   const grassMottle = samplesOf(samples, 'ground_grass_mottle');
   const stoneSlabs = samplesOf(samples, 'ground_stone_slab');
   const flowers = samplesOf(samples, 'flower_patch');
+  const jungleEntrances = samplesOf(samples, 'jungle_walkway_entrance');
   const reeds = samplesOf(samples, 'river_reed');
   const stones = samplesOf(samples, 'river_stone');
   const bankMud = samplesOf(samples, 'river_bank_mud');
@@ -680,6 +1011,7 @@ function buildDressingLayers(map: GameMap): THREE.Object3D[] {
       new THREE.Vector3(1, 1, 1),
     ),
     buildFlowerLayer(map, flowers),
+    buildJungleEntranceLayer(map, jungleEntrances),
     instancedLayer(
       'terrain-river-bank-mud',
       map,
@@ -722,5 +1054,11 @@ function buildDressingLayers(map: GameMap): THREE.Object3D[] {
       4,
     ),
     buildLandmarkLayer(map, landmarks),
+    buildForestShadowLayer(map),
+    buildForestWalkablePocketLayer(map),
+    buildCliffVisionCueLayer(map),
+    buildHighgroundPlateauBannerLayer(map),
+    buildCampBeaconLayer(map),
+    buildRuneBeaconLayer(map),
   ];
 }

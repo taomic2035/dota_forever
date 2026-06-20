@@ -8,14 +8,16 @@ import {
   WORLD, CELL, GRID, mirror,
   DAWN_BUILDINGS, LANE_WAYPOINTS, DAWN_CAMPS, DAWN_SECRET_SHOP,
   DAWN_SIDE_SHOP, RUNE_SPOTS, PIT_POS, PIT_MOUTH, BASE_L1, DAWN_RAMPS, RIVER_HALF_WIDTH,
-  DAWN_JUNGLE_PATHS,
-  type BuildingSpawn, type CampSpawn, type Lane, type RampZone,
+  DAWN_JUNGLE_PATHS, DAWN_FOREST_POCKETS, DAWN_HIGHGROUND_PLATEAUS,
+  type BuildingSpawn, type CampSpawn, type ForestPocketSpawn, type HighgroundPlateauSpawn, type Lane, type RampZone,
 } from '../data/mapLayout';
 
 export enum Team { Dawn = 0, Night = 1, Neutral = 2 }
 
 export interface PlacedBuilding extends BuildingSpawn { team: Team }
 export interface PlacedCamp extends CampSpawn { side: Team; id: number }
+export interface PlacedForestPocket extends ForestPocketSpawn { side: Team }
+export interface PlacedHighgroundPlateau extends HighgroundPlateauSpawn { side: Team }
 export type ShopKind = 'home' | 'side' | 'secret';
 export interface ShopZone { team: Team; kind: ShopKind; secret: boolean; pos: Vec2; range: number }
 
@@ -34,6 +36,14 @@ export class GameMap {
   trees: Set<number>;
   buildings: PlacedBuilding[] = [];
   camps: PlacedCamp[] = [];
+  forestPockets: PlacedForestPocket[] = [
+    ...DAWN_FOREST_POCKETS.map((p) => ({ ...p, pos: V.clone(p.pos), side: Team.Dawn })),
+    ...DAWN_FOREST_POCKETS.map((p) => ({ ...p, id: `night-${p.id}`, pos: mirror(p.pos), side: Team.Night })),
+  ];
+  highgroundPlateaus: PlacedHighgroundPlateau[] = [
+    ...DAWN_HIGHGROUND_PLATEAUS.map((p) => ({ ...p, pos: V.clone(p.pos), side: Team.Dawn })),
+    ...DAWN_HIGHGROUND_PLATEAUS.map((p) => ({ ...p, id: `night-${p.id}`, pos: mirror(p.pos), side: Team.Night })),
+  ];
   lanes: Record<Lane, Vec2[]>;
   runeSpots: Vec2[] = RUNE_SPOTS.map(V.clone);
   pitPos: Vec2 = V.clone(PIT_POS);
@@ -126,6 +136,8 @@ export class GameMap {
         if (this.baseDist(p, Team.Dawn) <= BASE_L1 || this.baseDist(p, Team.Night) <= BASE_L1) {
           this.height[i] = 2;
         }
+        // Codex-authored jungle plateaus are visual/discovery anchors only.
+        // Real height=2 outside bases made bot siege loops stall under uphill miss + vision blocking.
       }
     }
   }
@@ -201,6 +213,8 @@ export class GameMap {
 
     const paths = [...DAWN_JUNGLE_PATHS, ...DAWN_JUNGLE_PATHS.map((pl) => pl.map(mirror))];
     for (const pl of paths) carvePath(pl, 170);
+    // Forest pockets and authored jungle high-ground ramps are presentation anchors only.
+    // Keep topology on the proven lane/jungle paths so bot batchsim remains stable.
 
     // 营地空地
     for (const c of DAWN_CAMPS) {

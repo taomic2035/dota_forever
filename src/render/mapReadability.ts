@@ -28,6 +28,8 @@ export type LandmarkVisualKind =
   | 'pit'
   | 'rune'
   | 'camp'
+  | 'forestPocket'
+  | 'highgroundPlateau'
   | 'tower'
   | 'barracks'
   | 'ancient'
@@ -82,7 +84,15 @@ export function terrainVisualAt(map: GameMap, cx: number, cy: number): TerrainVi
     kind = 'jungle';
     tags.push('jungle');
   }
-  if (edge) tags.push('edge');
+  if (walkable && nearTreeWall(map, cx, cy)) {
+    tags.push('treeShadow', 'forestVisionPocket');
+  }
+  if (edge) {
+    tags.push('edge');
+    if (nearHeight(map, cx, cy, 2) && nearLowerHeight(map, cx, cy, height)) {
+      tags.push('lowHighVisionBreak', 'highGroundMiss');
+    }
+  }
 
   return { kind, height, walkable, blocksPath, edge, tags, palette: PALETTES[kind] };
 }
@@ -96,6 +106,12 @@ export function landmarkVisuals(map: GameMap): LandmarkVisual[] {
   out.push({ kind: 'pit', pos: { ...map.pitPos }, team: Team.Neutral });
   for (const pos of map.runeSpots) out.push({ kind: 'rune', pos: { ...pos }, team: Team.Neutral });
   for (const camp of map.camps) out.push({ kind: 'camp', pos: { ...camp.pos }, team: camp.side, tier: camp.tier });
+  for (const pocket of map.forestPockets) {
+    out.push({ kind: 'forestPocket', pos: { ...pocket.pos }, team: pocket.side, tier: pocket.id });
+  }
+  for (const plateau of map.highgroundPlateaus) {
+    out.push({ kind: 'highgroundPlateau', pos: { ...plateau.pos }, team: plateau.side, tier: plateau.id });
+  }
   for (const building of map.buildings) {
     out.push({
       kind: buildingVisualKind(building.kind),
@@ -135,6 +151,45 @@ function isHeightEdge(map: GameMap, cx: number, cy: number): boolean {
       const ny = cy + dy;
       if (!map.inBounds(nx, ny)) continue;
       if (map.height[map.cellIndex(nx, ny)] !== h) return true;
+    }
+  }
+  return false;
+}
+
+function nearTreeWall(map: GameMap, cx: number, cy: number): boolean {
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!map.inBounds(nx, ny)) continue;
+      if (map.trees.has(map.cellIndex(nx, ny))) return true;
+    }
+  }
+  return false;
+}
+
+function nearHeight(map: GameMap, cx: number, cy: number, targetHeight: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!map.inBounds(nx, ny)) continue;
+      if (map.height[map.cellIndex(nx, ny)] === targetHeight) return true;
+    }
+  }
+  return false;
+}
+
+function nearLowerHeight(map: GameMap, cx: number, cy: number, height: number): boolean {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!map.inBounds(nx, ny)) continue;
+      if (map.height[map.cellIndex(nx, ny)] < height || height < map.height[map.cellIndex(nx, ny)]) return true;
     }
   }
   return false;

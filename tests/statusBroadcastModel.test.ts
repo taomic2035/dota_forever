@@ -93,17 +93,26 @@ describe('status broadcast model', () => {
 
     expect(itemStatusBroadcastLabel({
       hotkey: '3',
+      name: '魔瓶',
+      cooldownRemaining: 5.5,
+      backpackDelayRemaining: 5.5,
+      hasActive: true,
+      charges: 2,
+    })).toBe('3 魔瓶: 背包延迟 6s');
+
+    expect(itemStatusBroadcastLabel({
+      hotkey: '4',
       name: '黑皇杖',
       cooldownRemaining: 0,
       hasActive: true,
       manaCost: 50,
       currentMana: 25,
-    })).toBe('3 黑皇杖: 法力不足 25/50');
+    })).toBe('4 黑皇杖: 法力不足 25/50');
 
-    expect(itemStatusBroadcastLabel({ hotkey: '4', name: '魔瓶', cooldownRemaining: 0, hasActive: true, charges: 2 }))
-      .toBe('4 魔瓶: 就绪 · 2 次');
+    expect(itemStatusBroadcastLabel({ hotkey: '5', name: '魔瓶', cooldownRemaining: 0, hasActive: true, charges: 2 }))
+      .toBe('5 魔瓶: 就绪 · 2 次');
 
-    expect(itemStatusBroadcastLabel({ hotkey: '5', name: '锁子甲', cooldownRemaining: 0, hasActive: false }))
-      .toBe('5 锁子甲: 被动');
+    expect(itemStatusBroadcastLabel({ hotkey: '6', name: '锁子甲', cooldownRemaining: 0, hasActive: false }))
+      .toBe('6 锁子甲: 被动');
   });
 });

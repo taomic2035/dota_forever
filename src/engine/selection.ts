@@ -4,7 +4,9 @@ export interface SelectableUnitLike {
   id: EntityId;
   team: number;
   kind: UnitKind;
+  name?: string;
   alive: boolean;
+  visible?: boolean;
   summonOwnerId?: EntityId;
 }
 
@@ -115,6 +117,33 @@ export class SelectionState {
     return [...(this.groups.get(slot) ?? [])];
   }
 
+  cyclePrimary(): EntityId | 0 {
+    if (this.commandableIds.length <= 1) return this.primaryId;
+    const index = this.commandableIds.indexOf(this.primaryId);
+    const next = this.commandableIds[(index + 1 + this.commandableIds.length) % this.commandableIds.length] ?? this.commandableIds[0] ?? 0;
+    this.primaryId = next;
+    this.inspectId = 0;
+    return this.primaryId;
+  }
+
+  selectSameType(anchor: SelectableUnitLike | null | undefined, candidates: SelectableUnitLike[]): void {
+    if (!anchor || !isCommandableByPlayer(anchor, this.playerTeam, this.playerHeroId)) {
+      this.select(anchor);
+      return;
+    }
+    const signature = unitTypeSignature(anchor);
+    const matches = candidates.filter((unit) =>
+      unit.visible !== false
+      && isCommandableByPlayer(unit, this.playerTeam, this.playerHeroId)
+      && unitTypeSignature(unit) === signature,
+    );
+    if (matches.length > 0) {
+      this.selectMany(orderAnchorFirst(anchor.id, matches));
+      return;
+    }
+    this.select(anchor);
+  }
+
   snapshot(): SelectionSnapshot {
     return {
       primaryId: this.primaryId,
@@ -157,4 +186,14 @@ function appendUnique(ids: EntityId[], id: EntityId): EntityId[] {
 
 function unique(ids: EntityId[]): EntityId[] {
   return Array.from(new Set(ids));
+}
+
+function unitTypeSignature(unit: SelectableUnitLike): string {
+  return `${unit.kind}:${unit.name ?? unit.kind}`;
+}
+
+function orderAnchorFirst(anchorId: EntityId, units: SelectableUnitLike[]): SelectableUnitLike[] {
+  const anchor = units.find((unit) => unit.id === anchorId);
+  const rest = units.filter((unit) => unit.id !== anchorId);
+  return anchor ? [anchor, ...rest] : units;
 }

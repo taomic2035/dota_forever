@@ -15,6 +15,7 @@ describe('onboarding model', () => {
     expect(sections.map((section) => section.title)).toEqual([
       '移动与战斗',
       '技能与物品',
+      '经济与物流',
       '地图与沟通',
       '多单位与设置',
     ]);
@@ -30,8 +31,14 @@ describe('onboarding model', () => {
     expect(text).toContain('AUTO');
     expect(text).toContain('1-6 用物品');
     expect(text).toContain('T 回城');
+    expect(text).toContain('F 商店');
+    expect(text).toContain('Shift 点商品');
+    expect(text).toContain('信使');
+    expect(text).toContain('背包');
+    expect(text).toContain('6 秒');
     expect(text).toContain('Alt+左键');
     expect(text).toContain('Alt+Ctrl/Shift');
+    expect(text).toContain('Alt+拖拽小地图');
     expect(text).toContain('小地图');
     expect(text).toContain('F1/F2/F3');
     expect(text).toContain('P 菜单');

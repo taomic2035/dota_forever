@@ -12,6 +12,7 @@ export interface CourierHudInputUnit {
   orderType?: OrderType;
   atFountain: boolean;
   stashItems: number;
+  etaSeconds?: number;
 }
 
 export interface CourierHudInput {
@@ -50,6 +51,10 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
   const hpPercent = Math.round(Math.max(0, Math.min(1, courier.hp / Math.max(1, courier.maxHp))) * 100);
   const selected = input.selectedUnitId === courier.id;
   const lowHealth = hpPercent <= 35;
+  const withEta = (detail: string): string => {
+    if (!courier.etaSeconds || courier.etaSeconds <= 0) return detail;
+    return `${detail} / ETA ${Math.ceil(courier.etaSeconds)}s`;
+  };
   const detailFor = (detail: string): string => lowHealth ? `Low HP / ${detail}` : detail;
   const actionFor = (actionLabel: string): string => lowHealth ? 'F2 select / save courier' : actionLabel;
   const toneFor = (tone: CourierHudTone): CourierHudTone => lowHealth ? 'danger' : tone;
@@ -73,7 +78,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       visible: true,
       status: 'delivering',
       label: 'Courier',
-      detail: detailFor(`Delivering stash x${courier.stashItems}`),
+      detail: detailFor(withEta(`Delivering stash x${courier.stashItems}`)),
       actionLabel: actionFor('F2 follow delivery'),
       primaryAction: 'select',
       tone: toneFor('busy'),
@@ -87,7 +92,7 @@ export function buildCourierHudModel(input: CourierHudInput): CourierHudModel {
       visible: true,
       status: 'returning',
       label: 'Courier',
-      detail: detailFor('Returning to base'),
+      detail: detailFor(withEta('Returning to base')),
       actionLabel: actionFor('F2 follow return'),
       primaryAction: 'select',
       tone: toneFor('busy'),

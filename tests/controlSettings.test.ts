@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONTROL_SETTINGS,
+  ACTION_LABEL,
+  DEFAULT_KEY_BINDS,
+  REBINDABLE_ACTIONS,
   applyControlPreset,
   cameraPanSpeedLabel,
   cameraPanSpeedMultiplier,
@@ -21,6 +24,19 @@ import {
   accessibilityModeLabel,
   parseAccessibilityMode,
   parseCastInputMode,
+  cycleMinimapBackgroundMode,
+  cycleMinimapHeroDisplayMode,
+  cycleMinimapSide,
+  cycleChatWheelPreset,
+  chatWheelPresetLabel,
+  minimapBackgroundModeLabel,
+  minimapHeroDisplayModeLabel,
+  minimapSideLabel,
+  parseChatWheelPreset,
+  normalizeChatWheelCustomLabels,
+  parseMinimapBackgroundMode,
+  parseMinimapHeroDisplayMode,
+  parseMinimapSide,
   resolveAbilityCastMode,
   resolveItemCastMode,
 } from '../src/engine/controlSettings';
@@ -77,6 +93,82 @@ describe('control settings', () => {
     expect(DEFAULT_CONTROL_SETTINGS.accessibilityMode).toBe('standard');
     expect(normalizeControlSettings({ accessibilityMode: 'colorblind' }).accessibilityMode).toBe('colorblind');
     expect(normalizeControlSettings({ accessibilityMode: 'bad' }).accessibilityMode).toBe('standard');
+  });
+
+  it('小地图显示设置:cycle/parse/label + 默认', () => {
+    expect(cycleMinimapHeroDisplayMode('dots')).toBe('icons');
+    expect(cycleMinimapHeroDisplayMode('icons')).toBe('names');
+    expect(cycleMinimapHeroDisplayMode('names')).toBe('dots');
+    expect(parseMinimapHeroDisplayMode('icons')).toBe('icons');
+    expect(parseMinimapHeroDisplayMode('bad')).toBeUndefined();
+    expect(minimapHeroDisplayModeLabel('dots')).toBe('点');
+    expect(minimapHeroDisplayModeLabel('icons')).toBe('图标');
+    expect(minimapHeroDisplayModeLabel('names')).toBe('名字');
+
+    expect(cycleMinimapBackgroundMode('terrain')).toBe('simple');
+    expect(cycleMinimapBackgroundMode('simple')).toBe('terrain');
+    expect(parseMinimapBackgroundMode('simple')).toBe('simple');
+    expect(parseMinimapBackgroundMode('bad')).toBeUndefined();
+    expect(minimapBackgroundModeLabel('terrain')).toBe('地形');
+    expect(minimapBackgroundModeLabel('simple')).toBe('简洁');
+
+    expect(cycleMinimapSide('right')).toBe('left');
+    expect(cycleMinimapSide('left')).toBe('right');
+    expect(parseMinimapSide('left')).toBe('left');
+    expect(parseMinimapSide('bad')).toBeUndefined();
+    expect(minimapSideLabel('right')).toBe('右侧');
+    expect(minimapSideLabel('left')).toBe('左侧');
+
+    expect(DEFAULT_CONTROL_SETTINGS.minimapHeroDisplayMode).toBe('dots');
+    expect(DEFAULT_CONTROL_SETTINGS.minimapBackgroundMode).toBe('terrain');
+    expect(DEFAULT_CONTROL_SETTINGS.minimapSide).toBe('right');
+    expect(normalizeControlSettings({
+      minimapHeroDisplayMode: 'names',
+      minimapBackgroundMode: 'simple',
+      minimapSide: 'left',
+    })).toEqual({
+      ...DEFAULT_CONTROL_SETTINGS,
+      minimapHeroDisplayMode: 'names',
+      minimapBackgroundMode: 'simple',
+      minimapSide: 'left',
+    });
+    expect(normalizeControlSettings({
+      minimapHeroDisplayMode: 'bad',
+      minimapBackgroundMode: 'bad',
+      minimapSide: 'bad',
+    })).toEqual(DEFAULT_CONTROL_SETTINGS);
+  });
+
+  it('聊天轮盘预设:cycle/parse/label + 默认', () => {
+    expect(cycleChatWheelPreset('balanced')).toBe('objective');
+    expect(cycleChatWheelPreset('objective')).toBe('defensive');
+    expect(cycleChatWheelPreset('defensive')).toBe('balanced');
+    expect(parseChatWheelPreset('objective')).toBe('objective');
+    expect(parseChatWheelPreset('bad')).toBeUndefined();
+    expect(chatWheelPresetLabel('balanced')).toBe('均衡');
+    expect(chatWheelPresetLabel('objective')).toBe('目标');
+    expect(chatWheelPresetLabel('defensive')).toBe('防守');
+    expect(DEFAULT_CONTROL_SETTINGS.chatWheelPreset).toBe('balanced');
+    expect(normalizeControlSettings({ chatWheelPreset: 'defensive' }).chatWheelPreset).toBe('defensive');
+    expect(normalizeControlSettings({ chatWheelPreset: 'bad' }).chatWheelPreset).toBe('balanced');
+  });
+
+  it('normalizes local chat wheel custom labels without allowing unbounded menu text', () => {
+    const labels = normalizeChatWheelCustomLabels([
+      '  开雾抓中  ',
+      '',
+      '控符然后推塔但是这个文本会被截断到合适长度',
+      42,
+    ]);
+
+    expect(labels).toHaveLength(8);
+    expect(labels[0]).toBe('开雾抓中');
+    expect(labels[1]).toBe('');
+    expect(labels[2]).toHaveLength(12);
+    expect(labels[3]).toBe('');
+    expect(labels.slice(4)).toEqual(['', '', '', '']);
+    expect(normalizeControlSettings({ chatWheelCustomLabels: labels }).chatWheelCustomLabels).toEqual(labels);
+    expect(applyControlPreset(normalizeControlSettings({ chatWheelCustomLabels: labels }), 'legacy').chatWheelCustomLabels).toEqual(labels);
   });
 
   it('normalizes partial settings and rejects unknown modes', () => {
@@ -152,6 +244,22 @@ describe('control settings', () => {
     expect(castInputModeLabel('smart')).toBe('智能');
   });
 
+  it('includes a rebindable subgroup cycle action without using Tab', () => {
+    expect(REBINDABLE_ACTIONS).toContain('cycleSubgroup');
+    expect(DEFAULT_KEY_BINDS.cycleSubgroup).toBe('c');
+    expect(ACTION_LABEL.cycleSubgroup).toContain('子组');
+    expect(normalizeControlSettings({}).keyBinds.cycleSubgroup).toBe('c');
+    expect(normalizeControlSettings({ keyBinds: { cycleSubgroup: 'x' } }).keyBinds.cycleSubgroup).toBe('x');
+  });
+
+  it('includes a rebindable chat wheel action', () => {
+    expect(REBINDABLE_ACTIONS).toContain('chatWheel');
+    expect(DEFAULT_KEY_BINDS.chatWheel).toBe('y');
+    expect(ACTION_LABEL.chatWheel).toContain('聊天');
+    expect(normalizeControlSettings({}).keyBinds.chatWheel).toBe('y');
+    expect(normalizeControlSettings({ keyBinds: { chatWheel: 'u' } }).keyBinds.chatWheel).toBe('u');
+  });
+
   it('labels override slots with inherited auto fallback', () => {
     expect(castInputModeOverrideLabel(undefined, 'quick')).toBe('自动 快速');
     expect(castInputModeOverrideLabel('smart', 'quick')).toBe('智能');
@@ -175,6 +283,9 @@ describe('control settings', () => {
       autoAttack: 'always',
       hudScale: 'large',
       accessibilityMode: 'colorblind',
+      minimapHeroDisplayMode: 'names',
+      minimapBackgroundMode: 'simple',
+      minimapSide: 'left',
       cameraPanSpeed: 'fast',
       keyBinds: { ...DEFAULT_CONTROL_SETTINGS.keyBinds, attackMove: 'x', stop: 'z' },
     });
@@ -187,6 +298,9 @@ describe('control settings', () => {
       autoAttack: 'standard',
       hudScale: 'large',
       accessibilityMode: 'colorblind',
+      minimapHeroDisplayMode: 'names',
+      minimapBackgroundMode: 'simple',
+      minimapSide: 'left',
       cameraPanSpeed: 'fast',
       keyBinds: DEFAULT_CONTROL_SETTINGS.keyBinds,
     });

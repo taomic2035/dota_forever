@@ -1,9 +1,21 @@
 import * as THREE from 'three';
+import type { Modifier } from '../sim/modifiers';
+import { buildDisableBarModel, buildModifierIconTokens } from '../ui/modifierDisplayModel';
 
 export interface HeroStatusFxInput {
   castGlow: number;
   channelPulse: number;
   stunStars: number;
+  invisibilityAlpha: number;
+  t: number;
+}
+
+export interface HeroStatusFxModifierInput {
+  modifiers: Modifier[];
+  now: number;
+  castGlow: number;
+  channelPulse: number;
+  stunStars?: number;
   invisibilityAlpha: number;
   t: number;
 }
@@ -55,6 +67,20 @@ export function heroStatusFxState(i: HeroStatusFxInput): HeroStatusFxState {
       scale: 1.04 + (1 - i.invisibilityAlpha) * 0.12,
     },
     readabilityBudget,
+  };
+}
+
+export function heroStatusFxInputFromModifiers(input: HeroStatusFxModifierInput): HeroStatusFxInput {
+  const disable = buildDisableBarModel({ modifiers: input.modifiers, now: input.now });
+  const tokens = buildModifierIconTokens({ modifiers: input.modifiers, now: input.now, max: 10 });
+  const invisible = tokens.some((token) => token.label === '隐');
+  const disableEnergy = disable.visible ? Math.max(0.35, Math.min(1, disable.percent / 100)) : 0;
+  return {
+    castGlow: input.castGlow,
+    channelPulse: input.channelPulse,
+    stunStars: Math.max(input.stunStars ?? 0, disableEnergy),
+    invisibilityAlpha: invisible ? Math.min(input.invisibilityAlpha, 0.62) : input.invisibilityAlpha,
+    t: input.t,
   };
 }
 

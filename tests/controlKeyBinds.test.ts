@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CONTROL_SETTINGS,
   DEFAULT_KEY_BINDS,
+  abilityKeyLabels,
+  applyControlPreset,
+  applyHeroLegacyAbilityHotkeys,
   captureRebindKey,
   normalizeControlSettings,
   normalizeKeyBinds,
@@ -55,5 +58,25 @@ describe('control key binds for selection commands', () => {
       changed: false,
       keyBinds: binds,
     });
+  });
+
+  it('derives hero-specific RTS Legacy ability aliases without mutating the saved preset', () => {
+    const legacy = applyControlPreset(DEFAULT_CONTROL_SETTINGS, 'legacy');
+    const effective = applyHeroLegacyAbilityHotkeys(legacy, 'rein');
+
+    expect(legacy.keyBinds.ability0).toBe('q');
+    expect(effective.keyBinds.ability0).toBe('z');
+    expect(effective.keyBinds.ability1).toBe('x');
+    expect(effective.keyBinds.ability2).toBe('d');
+    expect(effective.keyBinds.ability3).toBe('b');
+    expect(effective.keyBinds.shop).toBe('f');
+    expect(effective.keyBinds.cycleSubgroup).toBe('c');
+    expect(abilityKeyLabels(effective)).toEqual(['Z', 'X', 'D', 'B']);
+  });
+
+  it('keeps modern controls on QWER even for heroes that have legacy aliases', () => {
+    const effective = applyHeroLegacyAbilityHotkeys(DEFAULT_CONTROL_SETTINGS, 'rein');
+
+    expect(abilityKeyLabels(effective)).toEqual(['Q', 'W', 'E', 'R']);
   });
 });

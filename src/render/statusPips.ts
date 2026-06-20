@@ -4,12 +4,14 @@
  */
 import type { World } from '../sim/world';
 import type { Unit } from '../sim/unit';
+import { buildModifierIconTokens } from '../ui/modifierDisplayModel';
 
 export interface StatusPip {
   color: string;
   /** 剩余时长比例 0-1(无固定时长记 1) */
   frac: number;
   prio: number;
+  label?: string;
 }
 
 export const STATUS_CONTROL_COLOR = '#ff3b3b';
@@ -23,8 +25,8 @@ export function unitStatusPips(world: World, u: Unit, now: number, max = 6): Sta
     if (m.expiresAt === Infinity || m.expiresAt <= now) continue;
     if (seen.has(m.key)) continue;
     seen.add(m.key);
-    const st = m.def.states;
-    const control = !!(st && (st.stunned || st.rooted || st.silenced || st.disarmed));
+    const token = buildModifierIconTokens({ modifiers: [m], now, max: 1 })[0];
+    const control = token?.tone === 'disable';
     let color: string;
     let prio: number;
     if (control) {
@@ -46,7 +48,7 @@ export function unitStatusPips(world: World, u: Unit, now: number, max = 6): Sta
     }
     const dur = m.def.duration;
     const frac = dur && dur > 0 ? Math.max(0, Math.min(1, (m.expiresAt - now) / dur)) : 1;
-    list.push({ color, frac, prio });
+    list.push({ color, frac, prio, label: token?.label });
   }
   list.sort((a, b) => a.prio - b.prio);
   return list.slice(0, max);

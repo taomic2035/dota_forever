@@ -82,6 +82,36 @@ describe('buildCourierHudModel', () => {
     expect(model.selected).toBe(true);
   });
 
+  it('adds courier ETA to delivery and return task details when available', () => {
+    expect(buildCourierHudModel({
+      selectedUnitId: 4,
+      courier: {
+        id: 4,
+        alive: true,
+        hp: 300,
+        maxHp: 300,
+        orderType: 'move',
+        atFountain: false,
+        stashItems: 3,
+        etaSeconds: 15.2,
+      },
+    }).detail).toBe('Delivering stash x3 / ETA 16s');
+
+    expect(buildCourierHudModel({
+      selectedUnitId: 1,
+      courier: {
+        id: 4,
+        alive: true,
+        hp: 300,
+        maxHp: 300,
+        orderType: 'move',
+        atFountain: false,
+        stashItems: 0,
+        etaSeconds: 11.1,
+      },
+    }).detail).toBe('Returning to base / ETA 12s');
+  });
+
   it('flags low-health live couriers as danger without losing task context', () => {
     const model = buildCourierHudModel({
       selectedUnitId: 1,

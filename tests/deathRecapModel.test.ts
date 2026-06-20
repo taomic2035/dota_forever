@@ -64,6 +64,40 @@ describe('aggregateRecap', () => {
     const r = aggregateRecap([inst(100, 1, 10, 'physical', '旧名'), inst(105, 1, 10, 'physical', '新名')], 10);
     expect(r[0].sourceName).toBe('新名');
   });
+
+  it('keeps actionable visible source context for world follow-up', () => {
+    const r = aggregateRecap([
+      {
+        ...inst(100, 1, 40, 'physical', 'Sniper'),
+        sourceId: 9,
+        sourcePos: { x: 1200, y: 900 },
+        sourceVisible: true,
+      },
+    ], 10);
+
+    expect(r[0].context).toEqual({
+      action: 'center',
+      label: '定位',
+      sourceId: 9,
+      sourcePos: { x: 1200, y: 900 },
+    });
+  });
+
+  it('does not leak hidden source positions into death recap context', () => {
+    const r = aggregateRecap([
+      {
+        ...inst(100, 1, 40, 'magical', 'Zeus'),
+        sourceId: 10,
+        sourcePos: { x: 5000, y: 5000 },
+        sourceVisible: false,
+      },
+    ], 10);
+
+    expect(r[0].context).toEqual({
+      action: 'hidden',
+      label: '迷雾',
+    });
+  });
 });
 
 describe('DamageLog', () => {

@@ -8,8 +8,14 @@ import type { Unit, UnitKind } from '../sim/unit';
 import type { UxFeedback } from './uxFeedback';
 import { TEAM_COLOR } from '../render/renderer';
 import type { CastTrackEntry } from '../render/castBar';
-import { statusChips, statusChipTime } from '../render/statusChips';
 import { inspectCastProgress, inspectInventorySummary, inspectPanelAuthority } from './inspectPanelModel';
+import {
+  buildDisableBarModel,
+  buildModifierIconTokens,
+  modifierTokenTime,
+  type DisableBarModel,
+  type ModifierIconToken,
+} from './modifierDisplayModel';
 
 const KIND_LABEL: Record<UnitKind, string> = {
   hero: '英雄',
@@ -79,13 +85,7 @@ export class InspectPanel {
       this.stat('移速', String(Math.round(c.moveSpeed))),
       this.stat('攻击距离', String(Math.round(c.attackRange))),
     ].join('');
-    // 状态条:选中单位当前 buff/debuff(晕/沉/减益/增益 + 倒计时),与 HUD 共用 statusChips
-    const chips = statusChips(world, u, world.time, 8);
-    const statusRow = chips.length
-      ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px">${chips.map((cp) =>
-          `<span title="${cp.key}" style="display:inline-flex;align-items:center;height:15px;padding:0 3px;border:1px solid ${cp.color};border-radius:2px;background:${cp.color}22;color:${cp.color};font-size:9px;font-weight:700">${cp.tag}${statusChipTime(cp.remaining)}</span>`,
-        ).join('')}</div>`
-      : '';
+    const statusRow = this.modifierStatusRow(u, world.time);
     const inventory = u.kind === 'hero'
       ? inspectInventorySummary({ inventory: u.inventory, tpSlot: u.tpSlot })
       : { visible: false, items: [] };
@@ -130,6 +130,36 @@ export class InspectPanel {
 
   private stat(label: string, value: string): string {
     return `<div><span style="color:#9aa07e">${label}</span> <span style="float:right;font-variant-numeric:tabular-nums">${value}</span></div>`;
+  }
+
+  private modifierStatusRow(u: Unit, now: number): string {
+    const disable = buildDisableBarModel({ modifiers: u.modifiers, now });
+    const tokens = buildModifierIconTokens({ modifiers: u.modifiers, now, max: 8 });
+    if (!tokens.length && !disable.visible) return '';
+    return `<div style="display:flex;flex-direction:column;gap:3px;margin-top:6px">
+      ${this.disableBar(disable)}
+      ${this.modifierTokens(tokens)}
+    </div>`;
+  }
+
+  private disableBar(model: DisableBarModel): string {
+    if (!model.visible) return '';
+    return `<div title="${esc(model.detail)}" style="height:16px;border:1px solid ${model.color};border-radius:3px;background:#080b0d;position:relative;overflow:hidden;box-sizing:border-box;">
+      <div style="position:absolute;inset:0 ${100 - model.percent}% 0 0;background:linear-gradient(90deg,${model.color}4d,${model.color});"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;gap:5px;padding:0 5px;color:#fff;font-size:10px;font-weight:800;text-shadow:0 1px 1px #000;box-sizing:border-box;">
+        <span style="white-space:nowrap">${esc(model.label)}</span>
+        <span style="font-variant-numeric:tabular-nums;color:${model.color};white-space:nowrap">${modifierTokenTime(model.remaining)}s</span>
+      </div>
+    </div>`;
+  }
+
+  private modifierTokens(tokens: ModifierIconToken[]): string {
+    if (!tokens.length) return '';
+    return `<div style="display:flex;flex-wrap:wrap;gap:3px">${tokens.map((token) =>
+      `<span title="${esc(token.tooltip)}" style="display:inline-flex;align-items:center;justify-content:center;gap:2px;height:17px;min-width:25px;padding:0 4px;border:1px solid ${token.color};border-radius:3px;background:${token.color}22;color:${token.color};font-size:9px;font-weight:800;box-sizing:border-box;">
+        <b style="font-size:10px;line-height:1">${esc(token.label)}</b><span style="font-variant-numeric:tabular-nums;color:#f1ead0">${modifierTokenTime(token.remaining)}</span>
+      </span>`,
+    ).join('')}</div>`;
   }
 }
 

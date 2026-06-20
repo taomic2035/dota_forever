@@ -26,6 +26,7 @@ export interface CastInputOptions {
 
 export interface SelectInputOptions {
   additive?: boolean;
+  doubleClick?: boolean;
 }
 
 export interface ControlGroupInputOptions {
@@ -58,6 +59,7 @@ export interface InputCallbacks {
   onTogglePause(): void;
   onToggleScoreboard(show: boolean): void;
   onToggleCombatLog?(): void;
+  onToggleChatWheel?(): void;
   onScan?(world: Vec2): void;
   onPing(world: Vec2, kind: MapPingKind): void;
   onToggleShop(): void;
@@ -67,6 +69,7 @@ export interface InputCallbacks {
   onSelectHero(options?: SelectHeroInputOptions): void;
   onSelectCourier(): void;
   onSelectAllControlled(): void;
+  onCycleSubgroup(): void;
   onBindControlGroup(slot: ControlGroupSlot): void;
   onSelectControlGroup(slot: ControlGroupSlot, options?: ControlGroupInputOptions): void;
   onPointerMove(screen: Vec2, world: Vec2): void;
@@ -112,6 +115,7 @@ export class InputManager {
   private leftSelectionDragging = false;
   private lastControlGroupSelect: { slot: ControlGroupSlot; time: number } | null = null;
   private lastHeroSelectAt = -Infinity;
+  private lastLeftClick: { screen: Vec2; time: number } | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -195,7 +199,11 @@ export class InputManager {
         const endScreen = screenFromMouseEvent(e, this.mouse ?? this.leftSelectionStart.screen);
         const endWorld = this.pointToWorld(endScreen);
         if (this.leftSelectionDragging) this.cb.onSelectBox(this.leftSelectionStart.world, endWorld, this.leftSelectionStart.options);
-        else this.cb.onLeftClick(this.leftSelectionStart.world, this.leftSelectionStart.options);
+        else {
+          const doubleClick = this.isLeftDoubleClick(endScreen, e.timeStamp);
+          this.cb.onLeftClick(this.leftSelectionStart.world, mergeSelectDoubleClick(this.leftSelectionStart.options, doubleClick));
+          this.lastLeftClick = { screen: endScreen, time: this.eventTime(e.timeStamp) };
+        }
         this.leftSelectionStart = null;
         this.leftSelectionDragging = false;
         this.cb.onSelectionBoxClear();
@@ -264,8 +272,10 @@ export class InputManager {
         case 'f1': this.cb.onSelectHero({ center: this.isHeroSelectDoubleTap(e.timeStamp) }); e.preventDefault(); break;
         case 'f2': this.cb.onSelectCourier(); e.preventDefault(); break;
         case 'f3': this.cb.onSelectAllControlled(); e.preventDefault(); break;
+        case 'c': this.cb.onCycleSubgroup(); e.preventDefault(); break;
         case ' ': this.cb.onCenterHero(); e.preventDefault(); break;
         case 'p': this.cb.onTogglePause(); break;
+        case 'y': this.cb.onToggleChatWheel?.(); break; // 聊天轮盘(可改键)
         case 'l': this.cb.onToggleCombatLog?.(); break; // 战斗日志面板开关
         case 'v': this.cb.onScan?.(world); break; // 扫描:揭示光标处区域
         case '=': this.cb.onSpeedDelta?.(1); break;  // 加速(= 即 + 键,免 Shift)
@@ -489,6 +499,19 @@ export class InputManager {
     return center;
   }
 
+  private isLeftDoubleClick(screen: Vec2, eventTime: number): boolean {
+    const now = this.eventTime(eventTime);
+    const last = this.lastLeftClick;
+    if (!last || now - last.time > 350) return false;
+    const dx = screen.x - last.screen.x;
+    const dy = screen.y - last.screen.y;
+    return dx * dx + dy * dy <= 12 * 12;
+  }
+
+  private eventTime(eventTime: number): number {
+    return Number.isFinite(eventTime) && eventTime > 0 ? eventTime : Date.now();
+  }
+
   /** 每帧:镜头边缘平移 + 方向键。 */
   update(dtMs: number) {
     const m = this.mouse;
@@ -517,6 +540,11 @@ function commandOptionsFromResult(result: { kind: string; queued?: boolean }): C
 
 function selectOptions(shiftKey: boolean): SelectInputOptions | undefined {
   return shiftKey ? { additive: true } : undefined;
+}
+
+function mergeSelectDoubleClick(options: SelectInputOptions | undefined, doubleClick: boolean): SelectInputOptions | undefined {
+  if (!doubleClick) return options;
+  return { ...(options ?? {}), doubleClick: true };
 }
 
 function numberRowControlGroupSlot(key: string): ControlGroupSlot | null {
