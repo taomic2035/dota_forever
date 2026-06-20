@@ -78,5 +78,5 @@ describe('neutral camps', () => {
     }
     const all = [...w.units.values()].filter((u) => u.kind === 'neutral' && u.campId === camp.id && u.alive);
     expect(all.length).toBeGreaterThan(first.length); // 出生框为空 → 叠加新一组(堆野)
-  });
+  }, 30000); // 重测:960 步 + 每步重定位,~6s,需高于 5s 默认超时(否则低负载下也偶发 flaky)
 });
