@@ -15,7 +15,38 @@
 - **bot 战斗中使用主动物品**:此前 bot 仅用 TP。攻击性物品(妖术/orchid/dagon 等敌方指向)对战斗目标施放;受威胁(被沉默/濒死)时自保(BKB 强驱散+魔免)。'none' 自施走显式 allowlist 杜绝误用自损物品。
 - **经验记录**:魔棒续航、主动 gank 游走经 batchsim 否决——改变 bot 时间分配(游走/续航)会拖死决胜节奏;仅强化既有战斗安全。
 
-> 详尽审计与第四轮收口见 [`docs/2026-06-12-core-mechanics-gaps.md`](docs/2026-06-12-core-mechanics-gaps.md) 的「第四轮(2.2)」。
+### 经济保真(对照 DotA,Opus 轨)
+- **助攻金(赏金切出式)**:有助攻者时,击杀赏金按 `ASSIST_GOLD_POOL=0.4` 切出、在助攻英雄间均分,击杀者得剩余。**关键:每次击杀总注入恒 = 赏金 = 基线经济 → 零净值通胀**,batchsim 保持 8/8。(实证:任何「赏金之上额外加」的助攻金——可靠或不可靠——都把双方永久净值推高 → 90min 平局 6/8;切出式与基线同经济,既给助攻补给又不破决胜。)
+- **幻象死亡金**:击杀敌方幻象给击杀者小额不可靠金(`ILLUSION_BOUNTY`)。
+- **Roshan 奶酪(Cheese)**:深渊领主第 2 次被击杀起,除不灭之盾外额外掉奶酪(食用即时回 2500 HP + 1000 MP 消耗品),经典 DotA1。
+
+### 操控 UX / HUD 深化(Codex 轨)
+在 2.1 操控体系之上新增大批纯函数 UX model(均 TDD,渲染/模拟严格分离):
+- **共享可用性 API**(`availabilityModel`):统一冷却/蓝/射程/目标/沉默/背包延迟等拒绝理由,驱动 tooltip / 指令卡 / 商店 / 施法预览,杜绝「UI 说能、点了不能」。
+- **施法预览 V2**(`targetPreviewModel`):统一 单位/点/AoE/线/锥 预览(射程环、approach 走近线、非法理由),2D/3D 同源。
+- **子组循环 + 双击同类选择**(`SelectionState.cyclePrimary / selectSameType`):多选内循环主指令对象、双击选屏内同类己方单位。
+- **物流面板 V2**(`itemLogisticsModel`):物品栏/背包/暂存/TP/信使货舱一条龙;可合成发光、背包就绪倒计时、购买去向 trace。
+- **信使指令 V2**(`courierControlModel` + `courierRouteModel`):选/送/返/停指令条 + 世界与小地图路径。
+- **沟通层**(`chatWheelModel` / `tacticalStatusBroadcastModel` / `teamCommunicationLogModel`):聊天轮盘、顶栏英雄 ping(消失/回归/TP/买活/大招就绪)、Alt 播报、本地团队日志。
+- **buff/debuff 图标 + 控制条**(`modifierDisplayModel`):图标化 + 最长控制计时条,HUD/信息卡/2D pips/3D FX 同源。
+- **威胁方向 + 战斗回顾**(`threatDirectionModel`):受击屏幕边缘方向红光、死亡回顾来源可点定位。
+- **商店 V2**(`shopRelatedItemsModel`):合成关系图(builds from/into)、quickbuy 队列、搜索高亮。
+- **小地图通信**(`minimapDrawingModel`):Alt 拖拽画线、英雄图标/名称显示切换。
+- **观战/调试 UX**(`spectatorTimelineModel` / `spectatorControlsModel`,`?mode=spectate` / `?debug=1`):事件时间线、跟随、变速、视角切换。
+- **新手引导 + 控制预设**(`tutorialCoachModel`):首跑 Modern / RTS Legacy 预设、情境 COACH 提示。
+
+### 地图可读性与机制可见性(Codex 轨)
+回应实玩反馈「野怪/神符/高地/树林机制看不见」:
+- **地图机制 HUD**(`mapMechanicsModel`):野营在否/下次刷新、活跃神符/下波、当前地形高度、附近树线林影、闪避/仰攻 miss/必中 状态 chip;雷达指向最近野营/神符/高地/林影。
+- **现有地形渲染分明**:`mapReadability` 加树线林影/高低视野断点/高地 miss 标签;2D 烘焙画林影口袋 + 高低地视野断点纹理;3D 地形加林影/崖壁/野营/神符命名层 + 运行时脉冲。
+- **活跃神符世界标记**(`runeWorldMarker`):河道神符在 2D 世界 + 3D overlay 直接可见(此前 3D 完全没画)。
+- **铁律确立 + 守护**:视觉丰富 = 免费;**地图拓扑(可走/高度/挡视野树)= 平衡敏感**。Codex 新增的森林口袋/高地平台**转为纯视觉/探索锚点**(不写 height=2、不 carve、保持 sim height 1);`mapIntegrity.test.ts` 守护锚点不碰关键轴线;**batchsim 复验回 8/8**。
+
+### 集成质量(Opus QA)
+- **batchsim 决胜闸门**反复拦下破平衡改动:叠加助攻金、树木 LOS 视野、攻击前摇 IAS 独立、地图新增拓扑——均「降击杀率 → bot 收不掉尾 → 90min 平局」,印证 **bot 收尾 AI 是更深 DotA 保真度的天花板**(留作专项)。仅净中性 / 视觉-only 改动入库。
+- 修 `neutrals.test.ts 堆野` 争用下偶发超时(加 30s 覆盖,稳住集成门)。
+
+> 详尽审计与第四轮收口见 [`docs/2026-06-12-core-mechanics-gaps.md`](docs/2026-06-12-core-mechanics-gaps.md) 的「第四轮(2.2)」;DotA 保真审计见 [`docs/2026-06-19-dota-fidelity-audit.md`](docs/2026-06-19-dota-fidelity-audit.md);UX 审计与 backlog 见 [`docs/ux/2026-06-19-real-dota-ux-audit-todo.md`](docs/ux/2026-06-19-real-dota-ux-audit-todo.md)。
 
 ## [2.1.0] — 2026-06-15
 

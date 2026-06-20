@@ -133,6 +133,8 @@
 - [2026-06-15-opus-to-codex-handoff-next.md](2026-06-15-opus-to-codex-handoff-next.md) — Opus → Codex 交接:剩余 UX 路线图分工 + 接通状态
 - [2026-06-19-codex-opus-ux-handoff.md](2026-06-19-codex-opus-ux-handoff.md) — Codex UX/UI Handoff for Opus
 - [2026-06-19-handoff-to-gpt-outposts-shard.md](2026-06-19-handoff-to-gpt-outposts-shard.md) — 交接 → GPT(视觉轨):前哨 / 神识 / 本批机制的视觉建议
+- [2026-06-19-handoff-to-codex-ux-gaps.md](2026-06-19-handoff-to-codex-ux-gaps.md) — 交接 → Codex:DotA 保真审计发现的 UX 缺口 + 答复 Codex 开放问题
+- [2026-06-20-handoff-to-gpt-playtest-visuals.md](2026-06-20-handoff-to-gpt-playtest-visuals.md) — 交接 → GPT:实玩暴露的渲染缺口(神符3D/高地分明/树木)+ 地图拓扑平衡阻断与干净解法
 
 ## 规划 / 审计 / 复盘
 
@@ -151,6 +153,7 @@
 - [2026-06-18-death-recap-v2-summary.md](2026-06-18-death-recap-v2-summary.md) — 死亡回顾 V2:伤害来源拆解
 - [2026-06-18-death-recap-v3-control-timeline-summary.md](2026-06-18-death-recap-v3-control-timeline-summary.md) — 死亡回顾 V3:控制来源时间线
 - [2026-06-19-death-recap-assists-summary.md](2026-06-19-death-recap-assists-summary.md) — Death Recap Assist Summary
+- [2026-06-19-real-dota-ux-audit-todo.md](2026-06-19-real-dota-ux-audit-todo.md) — 真实 DotA UX 审计 + 分级 backlog(P0–P2)+ 地图机制可见性(2026-06-20 实玩跟进)
 
 ## 其他
 

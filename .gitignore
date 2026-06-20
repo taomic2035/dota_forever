@@ -27,3 +27,8 @@ tmp/
 .idea/
 .vscode/
 *.swp
+
+# 合并 / 备份产物(多 agent 同树协作:冲突或工具可能残留)
+*.orig
+*.rej
+*.bak
