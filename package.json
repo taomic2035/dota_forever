@@ -1,7 +1,7 @@
 {
   "name": "dota-forever",
   "private": true,
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "浏览器端经典 DotA 1 玩法复刻——单机 vs AI 的 5v5 三路推塔 MOBA。TypeScript;2D(Canvas2D)与可选真 3D(Three.js)双渲染器,全原创内容(机制复刻,非版权素材)。",
   "type": "module",
   "scripts": {
