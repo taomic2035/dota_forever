@@ -2,7 +2,7 @@
 
 Date: 2026-06-13
 Current update: 2026-06-19 V25 hero emissive budget pass
-Current branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
+Current branch/worktree: `main` at `~/vibecoding/dota_forever`
 Preview URL: `http://127.0.0.1:<port>/?mode=hero3d-preview`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
 Latest screenshot: `docs/screenshots/ux-3d-v24-hero-fx-occlusion-budget-clean.png`

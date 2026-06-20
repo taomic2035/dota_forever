@@ -1,8 +1,8 @@
 # 3D V18 Hero Gameplay Model Quality Summary
 
 Date: 2026-06-14
-Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
-Feedback source: `/Users/taomic/vibecoding/dota_forever/docs/ux/2026-06-14-opus-to-codex-feedback-model-quality.md`
+Branch/worktree: `codex/dota-shift-queue` at `~/vibecoding/dota_forever-shift-queue`
+Feedback source: `~/vibecoding/dota_forever/docs/ux/2026-06-14-opus-to-codex-feedback-model-quality.md`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
 Screenshot evidence: `docs/screenshots/ux-3d-v18-hero-gameplay-model-quality.png`
 

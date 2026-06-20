@@ -1,7 +1,7 @@
 # 3D V21 Resource Runtime Bridge Summary
 
 Date: 2026-06-14
-Branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
+Branch/worktree: `main` at `~/vibecoding/dota_forever`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
 Screenshot evidence: `docs/screenshots/ux-3d-v21-resource-runtime-bridge.png`
 

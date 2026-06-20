@@ -1,7 +1,7 @@
 # Dota Unit And FX Research Target
 
 Date: 2026-06-13
-Worktree: `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Worktree: `~/vibecoding/dota_forever-shift-queue`
 Status: Research target for the next UX/art polish phase after V4 terrain
 
 ## Research Goal

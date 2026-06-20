@@ -2,7 +2,7 @@
 
 Date: 2026-06-14
 Status: V16 map/terrain ambience runtime after V15 non-hero unit runtime presentation
-Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Branch/worktree: `codex/dota-shift-queue` at `~/vibecoding/dota_forever-shift-queue`
 Preview route: `?mode=resource3d-preview`
 
 ## What Changed

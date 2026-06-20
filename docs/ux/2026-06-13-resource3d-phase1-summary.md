@@ -1,7 +1,7 @@
 # Resource3D Phase 1 Summary
 
 Date: 2026-06-13  
-Worktree: `/Users/taomic/vibecoding/dota_forever-hero-ingame-art`  
+Worktree: `~/vibecoding/dota_forever-hero-ingame-art`  
 Preview URL: `http://127.0.0.1:5182/?mode=resource3d-preview`  
 Screenshot: `docs/screenshots/ux-resource3d-preview.png`
 Terrain screenshots:

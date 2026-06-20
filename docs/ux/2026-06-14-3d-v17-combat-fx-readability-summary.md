@@ -2,7 +2,7 @@
 
 Date: 2026-06-14
 Status: V17 combat FX readability runtime after V16 map runtime ambience
-Branch/worktree: `codex/dota-shift-queue` at `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Branch/worktree: `codex/dota-shift-queue` at `~/vibecoding/dota_forever-shift-queue`
 Preview route: `?mode=resource3d-preview`
 
 ## What Changed

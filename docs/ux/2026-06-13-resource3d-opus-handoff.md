@@ -1,13 +1,13 @@
 # Resource3D Handoff for Opus
 
 Date: 2026-06-13
-Branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
+Branch/worktree: `main` at `~/vibecoding/dota_forever`
 Primary preview routes: `?mode=resource3d-preview`, `?mode=hero3d-preview`, `?mode=play&renderer=3d`
 Legacy phase-1 screenshot: `docs/screenshots/ux-resource3d-preview.png`
 
 Current V26 update for Opus merge:
 
-- Worktree/branch: `main` at `/Users/taomic/vibecoding/dota_forever`.
+- Worktree/branch: `main` at `~/vibecoding/dota_forever`.
 - Current coordination note: Codex owns UX/material/control polish; Opus owns mainline gameplay integration. Short cross-cat handoff: `docs/ux/2026-06-19-codex-opus-ux-handoff.md`. New cross-over point is `docs/ux/2026-06-19-toggle-autocast-badges-summary.md`: tagged autocast orb effects now obey `AbilityInstance.autocastOn` in `src/sim/abilities.ts`, and learned passive autocast/toggle abilities can be switched from QWER or right-click ability slots. Default-state policy, one-orb priority, manual orb-cast orders, and deeper cost semantics remain open for Opus.
 - HUD tooltip note: `src/ui/abilityTooltipModel.ts` and `src/ui/itemTooltipModel.ts` now own slot hover title text for current cooldown/mana/ready/toggle/charge/backpack-no-bonus states; if Opus changes ability or item availability semantics, update those models and tests alongside sim changes.
 - UX/control handoff addendum: `docs/ux/2026-06-19-minimap-target-confirm-summary.md`.

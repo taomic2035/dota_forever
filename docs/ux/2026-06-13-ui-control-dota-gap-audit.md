@@ -9,7 +9,7 @@
 
 ## 审计证据
 
-本次审计基于当前 `/Users/taomic/vibecoding/dota_forever` worktree,不依赖旧会话记忆。
+本次审计基于当前 `~/vibecoding/dota_forever` worktree,不依赖旧会话记忆。
 
 本地证据:
 

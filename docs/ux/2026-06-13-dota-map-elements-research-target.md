@@ -1,7 +1,7 @@
 # Dota Map Elements Research Target
 
 Date: 2026-06-13
-Worktree: `/Users/taomic/vibecoding/dota_forever-shift-queue`
+Worktree: `~/vibecoding/dota_forever-shift-queue`
 Status: Research target for V4 map realism polish
 
 ## Research Goal

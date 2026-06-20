@@ -1,7 +1,7 @@
 # 3D V19 Hero Gameplay Refinement Summary
 
 Date: 2026-06-14
-Branch/worktree: `main` at `/Users/taomic/vibecoding/dota_forever`
+Branch/worktree: `main` at `~/vibecoding/dota_forever`
 Feedback source: `docs/ux/2026-06-14-opus-to-codex-feedback-model-quality.md`
 Gameplay verification URL: `http://127.0.0.1:<port>/?mode=play&hero=rein&renderer=3d`
 Screenshot evidence: `docs/screenshots/ux-3d-v19-hero-gameplay-refinement-clean.png`
